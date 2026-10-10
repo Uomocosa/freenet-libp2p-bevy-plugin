@@ -1,0 +1,5 @@
+# Build outside any space-containing path (tikv-jemalloc-sys's configure rejects
+# spaces), and bound the job count for the heavy bevy/freenet cold builds.
+[build]
+target-dir = "/tmp/frt-build"
+jobs = 6

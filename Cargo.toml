@@ -1,0 +1,106 @@
+[package]
+name = "freenet-libp2p-bevy-plugin"
+version = "0.1.0"
+edition = "2024"
+description = "Generic P2PBevyPlugin (Freenet discovery + libp2p Kademlia history) — Directory contract"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "new-game-id"
+path = "src/bin/token_hex.rs"
+
+[[example]]
+name = "lobby_room"
+path = "examples/lobby_room/main.rs"
+required-features = ["e2e"]
+
+[[test]]
+name = "lobby_room_discovery"
+path = "tests/lobby_room_discovery.rs"
+required-features = ["e2e"]
+
+[[test]]
+name = "lobby_room_join"
+path = "tests/lobby_room_join.rs"
+required-features = ["e2e"]
+
+[lints.rust]
+non_snake_case = "allow"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+unreachable = "deny"
+unimplemented = "deny"
+unchecked_time_subtraction = "deny"
+todo = "deny"
+string_slice = "deny"
+panic_in_result_fn = "deny"
+panic = "deny"
+exit = "deny"
+as_conversions = "deny"
+module_inception = "allow"
+missing_errors_doc = "allow"
+
+[dependencies]
+atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.1" }
+bevy = { version = "=0.19.1", default-features = false, features = ["2d", "ui"] }
+derive_more = { version = "=2.1.1", features = ["deref", "deref_mut", "display", "from"] }
+libp2p = { version = "=0.56.0", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
+tokio = { version = "=1.52.3", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
+thiserror = "=2.0.18"
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+bincode = "=1.3.3"
+async-trait = "=0.1.89"
+futures = "=0.3.32"
+futures-util = "=0.3.32"
+blake3 = "=1.8.3"
+clap = { version = "=4.5.39", features = ["derive"] }
+freenet-stdlib = { version = "=0.8.5", features = ["net"], optional = true }
+tokio-tungstenite = { version = "=0.27.0", optional = true }
+http = { version = "=1.4.1", optional = true }
+
+[features]
+default = ["room_lobby", "default_ui"]
+room_lobby = [
+    "dep:freenet-stdlib",
+    "dep:tokio-tungstenite",
+    "dep:http",
+]
+default_ui = ["room_lobby"]
+e2e = ["room_lobby", "default_ui"]
+
+[dev-dependencies]
+telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.1" }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.1" }
+freenet = "=0.2.132"
+tempfile = "=3.27.0"
+
+# Early-phase profile: optimise for compile time and peak RAM, not runtime speed.
+# `opt-level = 3` on every dependency pushed cold builds into OOM on 14 GB machines.
+# Debug info is the other big RAM/disk cost; keep only line tables for our crate
+# (readable backtraces) and none for dependencies.
+[profile.dev]
+opt-level = 0
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+debug = false
+
+# The heaviest rustc invocations on a cold build (peak RSS at opt-level 1 / 0:
+# bevy_pbr 6.9 / 6.4 GB, freenet 5.1 / 4.4 GB, bevy_render 4.5 / 4.3 GB).
+[profile.dev.package.bevy_pbr]
+opt-level = 0
+
+[profile.dev.package.bevy_render]
+opt-level = 0
+
+[profile.dev.package.freenet]
+opt-level = 0

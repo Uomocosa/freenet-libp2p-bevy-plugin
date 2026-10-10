@@ -1,0 +1,15 @@
+[honesty]
+declared_honest = []
+declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "rand::thread_rng", "rand::random", "getrandom::getrandom", "std::fs::read", "std::fs::write", "std::env::var"]
+
+[[lele.boundary]]
+name       = "state_machine is pure protocol logic"
+why        = "State is driven by run.rs through `update`; it receives `now` and inputs as arguments and returns outputs."
+folders    = ["src/discovery/state_machine"]
+cannot_use = ["tokio", "libp2p", "bevy", "std::net", "std::fs", "std::time::Instant", "std::time::SystemTime"]
+require    = "honest"
+
+[[lele.lint.clippy_allow_whitelist]]
+allow = "unreachable_code"
+file = "src/p2p/behaviour.rs"
+reason = "rustc `unreachable_code` is emitted inside the libp2p `#[derive(NetworkBehaviour)]` macro expansion (libp2p-swarm-derive 0.35.1); the generated code cannot be edited and the lint cannot be removed by rewriting behaviour.rs"
