@@ -522,6 +522,7 @@ dependencies = [
 [[package]]
 name = "atomic-delegate-macros"
 version = "0.0.1"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.1#c96343298c7b304d2b7ce25e919cbc7c479e9642"
 dependencies = [
  "lele-snake-case",
  "proc-macro2",
@@ -3919,7 +3920,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-plugin"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "async-trait",
  "atomic-delegate-macros",
@@ -5689,6 +5690,7 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 [[package]]
 name = "lele-bevy-preview"
 version = "0.0.1"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.1#139ec8e383e15077efbde8ee7a6feac88ae4af0a"
 dependencies = [
  "bevy",
  "blake3",
@@ -5703,6 +5705,7 @@ dependencies = [
 [[package]]
 name = "lele-snake-case"
 version = "0.0.1"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.1#c96343298c7b304d2b7ce25e919cbc7c479e9642"
 
 [[package]]
 name = "libappindicator"
@@ -9443,6 +9446,7 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 [[package]]
 name = "telegram-bot-helper"
 version = "0.0.1"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.1#139ec8e383e15077efbde8ee7a6feac88ae4af0a"
 dependencies = [
  "chrono",
  "dotenvy",
@@ -9455,6 +9459,7 @@ dependencies = [
 [[package]]
 name = "telegram-bot-helper-macros"
 version = "0.0.1"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.1#139ec8e383e15077efbde8ee7a6feac88ae4af0a"
 dependencies = [
  "proc-macro2",
  "quote",
