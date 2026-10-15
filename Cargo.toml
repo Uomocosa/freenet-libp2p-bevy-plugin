@@ -24,6 +24,10 @@ name = "lobby_room_join"
 path = "tests/lobby_room_join.rs"
 required-features = ["e2e"]
 
+[[test]]
+name = "freenet_harness"
+path = "tests/freenet_harness.rs"
+
 [lints.rust]
 non_snake_case = "allow"
 
@@ -81,6 +85,9 @@ telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper",
 lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.1" }
 freenet = "=0.2.132"
 tempfile = "=3.27.0"
+freenet-stdlib = { version = "=0.8.5", features = ["contract"] }
+freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.1" }
+lobby_contract = { path = "contract/lobby" }
 
 # Early-phase profile: optimise for compile time and peak RAM, not runtime speed.
 # `opt-level = 3` on every dependency pushed cold builds into OOM on 14 GB machines.

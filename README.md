@@ -46,7 +46,7 @@ space-in-path `tikv-jemalloc-sys` workaround), with `jobs = 6`.
 ```sh
 just build | just clippy | just fmt | just test | just lint | just bevy-lint
 just contract   # build the lobby contract wasm
-just harness    # freenet contract harness (network)
+just freenet-harness   # freenet contract harness (CRDT laws) against the lobby contract
 just setup      # one-time per clone: install the prek git hooks
 just check      # run the full gate (same as CI)
 just ci

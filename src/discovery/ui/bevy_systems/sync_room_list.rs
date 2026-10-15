@@ -1,48 +1,44 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use discovery::ui::{RoomButton, RoomList};
-
-const ROOM_COLOR: Color = Color::srgb(0.16, 0.18, 0.22);
-const CURRENT_ROOM_COLOR: Color = Color::srgb(0.18, 0.45, 0.25);
+use discovery::ui::basic::constants::ROOM_COLOR;
+use discovery::ui::{RoomButton, RoomDetails, RoomList};
 
 pub fn sync_room_list(
     mut commands: Commands,
     snapshot: Res<discovery::Snapshot>,
     list: Single<Entity, With<RoomList>>,
-    mut ready: Local<bool>,
+    mut shown: Local<Vec<RoomDetails>>,
 ) {
-    if *ready && !snapshot.is_changed() {
+    let snapshot = snapshot.into_inner();
+    let wanted: Vec<RoomDetails> = snapshot
+        .lobby
+        .iter()
+        .map(|(name, record)| RoomDetails {
+            name: name.clone(),
+            members: record.members.len(),
+            capacity: record.capacity,
+        })
+        .collect();
+    if *shown == wanted {
         return;
     }
-    *ready = true;
-    let snapshot = snapshot.into_inner();
+    *shown = wanted;
     let list = list.into_inner();
-    let current = snapshot.room.as_ref().map(|room| &room.name);
     commands
         .entity(list)
         .despawn_related::<Children>()
         .with_children(|parent| {
-            for (name, record) in &snapshot.lobby {
-                let color = if current == Some(name) {
-                    CURRENT_ROOM_COLOR
-                } else {
-                    ROOM_COLOR
-                };
-                let label = format!(
-                    "{} ({}/{})",
-                    name.as_str(),
-                    record.members.len(),
-                    record.capacity
-                );
+            for row in &*shown {
+                let label = format!("{} ({}/{})", row.name.as_str(), row.members, row.capacity);
                 parent.spawn((
-                    RoomButton(name.clone()),
+                    RoomButton(row.name.clone()),
                     Button,
                     Node {
                         padding: UiRect::axes(Val::Px(12.0), Val::Px(4.0)),
                         ..default()
                     },
-                    BackgroundColor(color),
+                    BackgroundColor(ROOM_COLOR),
                     children![Text::new(label)],
                 ));
             }

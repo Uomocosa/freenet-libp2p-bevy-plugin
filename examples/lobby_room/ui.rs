@@ -12,13 +12,15 @@ use freenet_libp2p_bevy_plugin::net_id;
 const PANEL_COLOR: Color = Color::srgb(0.30, 0.12, 0.34);
 const FIELD_COLOR: Color = Color::srgb(0.10, 0.10, 0.12);
 const ROOM_COLOR: Color = Color::srgb(0.12, 0.28, 0.38);
+const BUTTON_COLOR: Color = Color::srgb(0.20, 0.24, 0.32);
+const DISABLED_COLOR: Color = Color::srgb(0.14, 0.15, 0.17);
 
 pub struct LobbyUi;
 
 impl Plugin for LobbyUi {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn)
-            .add_systems(Update, (rebuild_list, on_create, on_join));
+            .add_systems(Update, (rebuild_list, gate_create, on_create, on_join));
     }
 }
 
@@ -64,6 +66,7 @@ fn spawn(mut commands: Commands) {
                     padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
                     ..default()
                 },
+                BackgroundColor(BUTTON_COLOR),
                 children![Text::new("+ New lobby")],
             ),
             (
@@ -122,12 +125,40 @@ fn on_create(
         let typed = field.value().to_string();
         let name = typed.trim();
         if name.is_empty() {
+            tracing::error!("lobby ui create rejected: empty room name");
             continue;
         }
         tracing::info!("lobby ui click create room={name}");
-        commands.write(discovery::Command::Create(net_id::RoomName(
-            name.to_string(),
-        )));
+        commands.write(discovery::Command::Create(net_id::RoomName::from(name)));
+    }
+}
+
+/// # needed helper: the Create button is only clickable while the room name is non-empty
+fn gate_create(
+    input: Single<&EditableText, With<NameField>>,
+    button: Single<(Entity, Option<&Interaction>, &mut BackgroundColor), With<NewRoomButton>>,
+    mut commands: Commands,
+) {
+    let typed = input.into_inner().value().to_string();
+    let enabled = !typed.trim().is_empty();
+    let (entity, interaction, mut background) = button.into_inner();
+    let BackgroundColor(existing) = &mut *background;
+    let color = if enabled {
+        BUTTON_COLOR
+    } else {
+        DISABLED_COLOR
+    };
+    if *existing != color {
+        *existing = color;
+    }
+    match (enabled, interaction.is_some()) {
+        (true, false) => {
+            commands.entity(entity).insert(Interaction::None);
+        }
+        (false, true) => {
+            commands.entity(entity).remove::<Interaction>();
+        }
+        _ => {}
     }
 }
 

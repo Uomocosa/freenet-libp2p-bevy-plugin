@@ -18,6 +18,13 @@ fmt:
 test:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features
 
+# Real, visual e2e: needs X + the freenet network + N lobby_room windows.
+e2e-discovery:
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test lobby_room_discovery --all-features --run-ignored all -- --nocapture
+
+e2e-join:
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test lobby_room_join --all-features --run-ignored all -- --nocapture
+
 lint:
     lele-lint .
 
@@ -27,8 +34,9 @@ bevy-lint:
 contract:
     cargo build --manifest-path contract/lobby/Cargo.toml --release --target wasm32-unknown-unknown
 
-harness:
-    cargo nextest run --test mainnet_local --all-features --run-ignored all -- --nocapture
+# Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
+freenet-harness:
+    cargo nextest run --test freenet_harness --all-features --run-ignored all -- --nocapture
 
 setup:
     prek install -t pre-commit -t pre-push

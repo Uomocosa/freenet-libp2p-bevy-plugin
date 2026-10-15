@@ -17,7 +17,7 @@ pub fn handle_create(
         }
         let name = typed.trim();
         if name.is_empty() {
-            tracing::info!(target: "room_lobby", "ui create ignored: empty room name");
+            tracing::error!(target: "room_lobby", "ui create rejected: empty room name");
             continue;
         }
         tracing::info!(target: "room_lobby", "ui create room={name}");

@@ -3919,6 +3919,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "freenet-contract-harness"
+version = "0.0.1"
+source = "git+https://github.com/Uomocosa/freenet-contract-harness?tag=v0.0.1#05ac57025fc2e6e76ae9841f5fba086039e2966c"
+dependencies = [
+ "bincode",
+ "freenet-stdlib",
+ "serde",
+]
+
+[[package]]
 name = "freenet-libp2p-bevy-plugin"
 version = "0.0.1"
 dependencies = [
@@ -3930,12 +3940,14 @@ dependencies = [
  "clap",
  "derive_more",
  "freenet",
+ "freenet-contract-harness",
  "freenet-stdlib",
  "futures",
  "futures-util",
  "http",
  "lele-bevy-preview",
  "libp2p",
+ "lobby_contract",
  "serde",
  "telegram-bot-helper",
  "tempfile",
@@ -6292,6 +6304,18 @@ name = "litrs"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
+
+[[package]]
+name = "lobby_contract"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "derive_more",
+ "freenet-macros",
+ "freenet-stdlib",
+ "serde",
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "lock_api"

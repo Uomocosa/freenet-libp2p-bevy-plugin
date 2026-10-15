@@ -13,3 +13,8 @@ require    = "honest"
 allow = "unreachable_code"
 file = "src/p2p/behaviour.rs"
 reason = "rustc `unreachable_code` is emitted inside the libp2p `#[derive(NetworkBehaviour)]` macro expansion (libp2p-swarm-derive 0.35.1); the generated code cannot be edited and the lint cannot be removed by rewriting behaviour.rs"
+
+[[lele.lint.clippy_allow_whitelist]]
+allow = "unexpected_cfgs"
+file = "src/lib.rs"
+reason = "freenet-macros' `#[contract]` expansion emits `cfg(...)` references the compiler cannot resolve from the crate source; the lobby contract's crate-root `#![allow(unexpected_cfgs)]` cannot be replaced by editing generated code"

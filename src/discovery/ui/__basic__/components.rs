@@ -17,3 +17,6 @@ pub struct RoomList;
 
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
 pub struct RoomButton(pub net_id::RoomName);
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct IsCurrentRoom;

@@ -85,6 +85,7 @@ struct Env {
     bin: PathBuf,
     dir: PathBuf,
     token: String,
+    room: String,
     transport: String,
     raw: PathBuf,
     clip: PathBuf,
@@ -141,6 +142,7 @@ fn prepare(scenario: &Scenario) -> Result<Env, String> {
         bin,
         dir,
         token: format!("lobby-e2e/{stamp}"),
+        room: format!("room-{stamp}"),
         transport: std::env::var("LOBBY_TRANSPORT").unwrap_or_else(|_| "both".to_string()),
         raw,
         clip,
@@ -152,7 +154,8 @@ fn prepare(scenario: &Scenario) -> Result<Env, String> {
 fn spawn(scenario: &Scenario, env: &Env) -> Peers {
     let mut windows = Vec::new();
     let mut logs = Vec::new();
-    let first = push_peer(scenario, env, "p1", Some("create"), &mut windows, &mut logs);
+    let create = format!("create:{}", env.room);
+    let first = push_peer(scenario, env, "p1", Some(&create), &mut windows, &mut logs);
     if let Err(e) = &first {
         eprintln!("{e}");
     }

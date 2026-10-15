@@ -6,7 +6,6 @@ mod status;
 mod ui;
 
 use bevy::prelude::*;
-use bevy::ui::UiSystems;
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::{discovery, net_id, p2p, plugin};
 
@@ -30,10 +29,7 @@ async fn main() {
     }));
     app.insert_resource(discovery::FreenetPort(ws_port));
     app.insert_resource(status::Username(args.username.clone()));
-    app.insert_resource(intent::Intent {
-        action: args.action.clone(),
-        sent: false,
-    });
+    app.insert_resource(intent::Intent::new(args.action.clone()));
     app.add_plugins(plugin::P2PPlugin(plugin::Config::<dummy::Dummy>::new(
         net_id::NetworkId(0),
         transport,
@@ -48,14 +44,17 @@ async fn main() {
         timing: discovery::Timing::default(),
         capacity: 8,
     });
-    // the scripted press runs after bevy's focus pass so it is not reset that frame
+    // scripted input runs through Bevy's real typing/clicking paths
     match args.ui {
         args::UiArg::Default => {
             app.add_plugins(discovery_plugins);
             app.add_systems(
-                PreUpdate,
-                intent::press_once::<discovery::ui::CreateRoomButton, discovery::ui::RoomButton>
-                    .after(UiSystems::Focus),
+                Update,
+                intent::script_input::<
+                    discovery::ui::RoomNameInput,
+                    discovery::ui::CreateRoomButton,
+                    discovery::ui::RoomButton,
+                >,
             );
         }
         args::UiArg::Custom => {
@@ -66,8 +65,8 @@ async fn main() {
             );
             app.add_plugins(ui::LobbyUi);
             app.add_systems(
-                PreUpdate,
-                intent::press_once::<ui::NewRoomButton, ui::JoinButton>.after(UiSystems::Focus),
+                Update,
+                intent::script_input::<ui::NameField, ui::NewRoomButton, ui::JoinButton>,
             );
         }
     }

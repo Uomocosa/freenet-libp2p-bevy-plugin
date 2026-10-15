@@ -4,11 +4,12 @@ use clap::{Parser, ValueEnum};
 use freenet_libp2p_bevy_plugin::net_id::RoomName;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
-/// Scripted button press: `create` presses "Create room", `join:<room>`
-/// presses that room's button once it shows up in the list.
+/// Scripted interaction: `create:<room>` types the room name into the input and
+/// presses "Create room"; `join:<room>` presses that room's button once it shows
+/// up in the list. The name is always explicit — an empty name is rejected.
 #[derive(Debug, Clone)]
 pub enum Action {
-    Create,
+    Create(RoomName),
     Join(RoomName),
 }
 
@@ -16,16 +17,18 @@ impl FromStr for Action {
     type Err = String;
 
     fn from_str(raw: &str) -> Result<Self, Self::Err> {
-        if raw == "create" {
-            return Ok(Self::Create);
-        }
-        let room = raw
-            .strip_prefix("join:")
-            .ok_or_else(|| format!("expected create or join:<room>, got {raw}"))?;
-        if room.is_empty() {
+        let (kind, room) = raw
+            .split_once(':')
+            .ok_or_else(|| format!("expected create:<room> or join:<room>, got {raw}"))?;
+        if room.trim().is_empty() {
             return Err("room name is empty".to_string());
         }
-        Ok(Self::Join(RoomName(room.to_string())))
+        let room = RoomName::from(room);
+        match kind {
+            "create" => Ok(Self::Create(room)),
+            "join" => Ok(Self::Join(room)),
+            other => Err(format!("expected create or join, got {other}")),
+        }
     }
 }
 
@@ -64,5 +67,28 @@ pub const fn transport_mode(arg: TransportArg) -> TransportMode {
         TransportArg::Tcp => TransportMode::Tcp,
         TransportArg::Quic => TransportMode::Quic,
         TransportArg::Both => TransportMode::Both,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Action;
+    use freenet_libp2p_bevy_plugin::net_id::RoomName;
+
+    #[test]
+    fn test_usage() {
+        assert!(matches!(
+            "create:alpha".parse::<Action>(),
+            Ok(Action::Create(room)) if room == RoomName::from("alpha")
+        ));
+        assert!(matches!(
+            "join:beta".parse::<Action>(),
+            Ok(Action::Join(room)) if room == RoomName::from("beta")
+        ));
+        // a create without an explicit, non-empty name is rejected
+        assert!("create".parse::<Action>().is_err());
+        assert!("create:".parse::<Action>().is_err());
+        assert!("create:   ".parse::<Action>().is_err());
+        assert!("frob:alpha".parse::<Action>().is_err());
     }
 }

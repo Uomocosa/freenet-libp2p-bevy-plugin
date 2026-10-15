@@ -7,8 +7,8 @@ screen, and send the clip to Telegram.
 ## Run
 
 ```
-devenv tasks run lobby:e2e-discovery   # 3 peers: all discover the created room
-devenv tasks run lobby:e2e-join        # 5 peers: discover, join, full mesh
+just e2e-discovery   # 3 peers: all discover the created room
+just e2e-join        # 5 peers: discover, join, full mesh
 ```
 
 Direct equivalent:
@@ -41,11 +41,16 @@ Adding any such shortcut invalidates the test even if it makes it pass.
 ## How it works (harness = `common/`)
 
 - `scenario.rs`: shared code both tests use. `Scenario::discover_only(3)` / `Scenario::join(5)`.
-- UI: every action goes through the on-screen buttons. `--action create` / `--action join:<r>`
-  is a scripted press (`examples/lobby_room/intent.rs::press_once`) that marks the button
-  `Interaction::Pressed`; the UI's own click handler sends the `discovery::Command`.
-  A join press waits until the room's button appears in the list. The UI picks the room
-  name, and the harness reads it back from `lobby created room=<r>`.
+- UI: every action goes through the on-screen buttons, driven by **real** in-process
+  input (`examples/lobby_room/intent.rs::script_input`). `create:<r>` focuses the name
+  field and types `<r>` with real `KeyboardInput` events, waiting for the Create button
+  to become clickable, then clicks it with a real pointer click (`MouseButtonInput` +
+  window cursor). `join:<r>` waits until the room's button appears and clicks it.
+  The UI's own click handler sends the `discovery::Command`.
+  - the name must be non-empty: an empty name leaves the Create button disabled, and a
+    `create` with no name is rejected (an error, never silently ignored).
+  - the harness chooses the room name (`--action create:<r>`) and reads it back from
+    `lobby created room=<r>`.
   - discovery test: `--ui custom`, which disables `discovery::ui::DefaultUiPlugin` and adds
     the example's replacement `examples/lobby_room/ui.rs::LobbyUi`.
   - join test: `--ui default`, the plugin's default UI.

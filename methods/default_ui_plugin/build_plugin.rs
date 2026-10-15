@@ -7,7 +7,12 @@ pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
     app.add_systems(
         Update,
         (
-            discovery::ui::bevy_systems::sync_room_list,
+            (
+                discovery::ui::bevy_systems::sync_room_list,
+                discovery::ui::bevy_systems::highlight_current_room,
+            )
+                .chain(),
+            discovery::ui::bevy_systems::gate_create,
             discovery::ui::bevy_systems::handle_create,
             discovery::ui::bevy_systems::handle_join,
         ),

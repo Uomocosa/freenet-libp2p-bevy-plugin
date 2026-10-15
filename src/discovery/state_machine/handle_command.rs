@@ -8,7 +8,14 @@ pub fn handle_command(
     now: discovery::UnixTime,
 ) -> Vec<Output> {
     match command {
-        discovery::Command::Create(room) | discovery::Command::Join(room) => join(state, room, now),
+        discovery::Command::Create(room) | discovery::Command::Join(room) => {
+            if room.as_str().trim().is_empty() {
+                tracing::error!(target: "room_lobby", "discovery rejected: empty room name");
+                Vec::new()
+            } else {
+                join(state, room, now)
+            }
+        }
         discovery::Command::Leave => leave(state),
     }
 }
@@ -80,5 +87,23 @@ mod tests {
                 Output::Notify(discovery::Event::Left(_)),
             ]
         ));
+    }
+
+    #[test]
+    fn test_empty_room_rejected() {
+        let mut state = State::new(
+            net_id::Peer {
+                id: net_id::PeerId::from("me"),
+                addrs: Vec::new(),
+            },
+            discovery::Timing::default(),
+        );
+        let outputs = handle_command(
+            &mut state,
+            discovery::Command::Create(net_id::RoomName::from("   ")),
+            discovery::UnixTime::from_secs(1),
+        );
+        assert_eq!(outputs.len(), 0);
+        assert!(state.room.is_none());
     }
 }

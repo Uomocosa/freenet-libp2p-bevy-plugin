@@ -50,3 +50,13 @@ pass_filenames = false
 always_run = true
 priority = "tests"
 stages = ["pre-push"]
+
+[[repos.hooks]]
+id = "freenet-harness"
+name = "just freenet-harness"
+language = "system"
+entry = "just freenet-harness"
+pass_filenames = false
+always_run = true
+priority = "tests"
+stages = ["pre-push"]
