@@ -151,14 +151,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "headed preview"]
     fn status_ui_png_preview() {
         let _marker: Option<StatusText> = None;
         lele_bevy_preview::run(&scene(None), &config(), env!("CARGO_PKG_NAME")).expect("preview");
     }
 
     #[test]
-    #[ignore = "headed recording"]
     fn status_ui_mp4_preview() {
         let timeline = lele_bevy_preview::scene::Timeline {
             label: String::from("add_gamma"),

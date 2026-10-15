@@ -89,7 +89,6 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     #[test]
-    #[ignore = "headed preview"]
     fn spawn_root_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::run(

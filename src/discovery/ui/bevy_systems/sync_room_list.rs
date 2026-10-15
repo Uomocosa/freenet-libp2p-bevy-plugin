@@ -117,7 +117,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "headed preview"]
     fn sync_room_list_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::run(

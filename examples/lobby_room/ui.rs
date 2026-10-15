@@ -244,7 +244,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "headed preview"]
     fn lobby_ui_png_preview() {
         let _markers: Option<(NameField, NewRoomButton, RoomColumn, JoinButton)> = None;
         lele_bevy_preview::run(&scene("lobby_ui", None), &config(), env!("CARGO_PKG_NAME"))
@@ -252,14 +251,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "headed scene"]
     fn lobby_ui_scene_preview() {
         lele_bevy_preview::run(&scene("lobby_ui", None), &config(), env!("CARGO_PKG_NAME"))
             .expect("preview");
     }
 
     #[test]
-    #[ignore = "headed recording"]
     fn lobby_ui_mp4_preview() {
         let timeline = lele_bevy_preview::scene::Timeline {
             label: String::from("add_gamma"),

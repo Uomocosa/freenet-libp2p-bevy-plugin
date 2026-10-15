@@ -60,7 +60,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "headed scene"]
     fn default_ui_plugin_ui_scene_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::run(
