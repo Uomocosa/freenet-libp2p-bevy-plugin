@@ -75,4 +75,74 @@ mod tests {
                 .contains::<discovery::ui::IsCurrentRoom>()
         );
     }
+
+    fn preview_snapshot(room: &str) -> discovery::Snapshot {
+        discovery::Snapshot {
+            room: Some(discovery::Room {
+                name: net_id::RoomName::from(room),
+                members: discovery::Members::new(),
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn spawn_rows(mut commands: Commands) {
+        for name in ["alpha", "beta"] {
+            commands.spawn((
+                discovery::ui::RoomButton(net_id::RoomName::from(name)),
+                Button,
+                Node {
+                    width: Val::Px(160.0),
+                    height: Val::Px(28.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
+                children![Text::new(name)],
+            ));
+        }
+    }
+
+    fn preview_build(app: &mut App) {
+        app.insert_resource(preview_snapshot("alpha"));
+        app.add_systems(Startup, spawn_rows);
+        app.add_systems(Update, highlight_current_room);
+    }
+
+    const fn preview_noop(_world: &mut World) {}
+
+    fn pick_beta(world: &mut World) {
+        world.resource_mut::<discovery::Snapshot>().room = Some(discovery::Room {
+            name: net_id::RoomName::from("beta"),
+            members: discovery::Members::new(),
+        });
+    }
+
+    #[test]
+    fn highlight_current_room_ui_png_preview() {
+        let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
+        lele_bevy_preview::run(
+            &lele_bevy_preview::scene::Scene {
+                name: String::from("highlight_current_room"),
+                kind: lele_bevy_preview::scene::Kind::System,
+                build: preview_build,
+                states: vec![
+                    lele_bevy_preview::scene::State {
+                        label: String::from("alpha current"),
+                        apply: preview_noop,
+                    },
+                    lele_bevy_preview::scene::State {
+                        label: String::from("beta current"),
+                        apply: pick_beta,
+                    },
+                ],
+                timeline: None,
+            },
+            &lele_bevy_preview::preview::Config {
+                out_dir: out,
+                ..Default::default()
+            },
+            env!("CARGO_PKG_NAME"),
+        )
+        .expect("preview");
+    }
 }

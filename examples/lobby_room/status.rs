@@ -91,27 +91,14 @@ mod tests {
     use bevy::prelude::*;
     use freenet_libp2p_bevy_plugin::net_id;
 
-    use super::{StatusText, Username, log_tick};
+    use super::{Username, log_tick, setup_ui};
     use freenet_libp2p_bevy_plugin::discovery;
 
     fn preview_build(app: &mut App) {
         app.insert_resource(Username(String::from("preview")));
         app.insert_resource(discovery::Snapshot::default());
-        app.add_systems(Startup, spawn_status);
+        app.add_systems(Startup, setup_ui);
         app.add_systems(Update, log_tick);
-    }
-
-    fn spawn_status(mut commands: Commands) {
-        commands.spawn((
-            StatusText,
-            Text::new("lobby starting"),
-            Node {
-                position_type: PositionType::Absolute,
-                top: Val::Px(12.0),
-                left: Val::Px(12.0),
-                ..default()
-            },
-        ));
     }
 
     const fn preview_noop(_world: &mut World) {}
@@ -152,7 +139,6 @@ mod tests {
 
     #[test]
     fn status_ui_png_preview() {
-        let _marker: Option<StatusText> = None;
         lele_bevy_preview::run(&scene(None), &config(), env!("CARGO_PKG_NAME")).expect("preview");
     }
 

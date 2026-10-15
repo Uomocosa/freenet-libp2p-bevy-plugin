@@ -42,6 +42,16 @@ priority = "checks"
 stages = ["pre-commit"]
 
 [[repos.hooks]]
+id = "bevy-lint"
+name = "just bevy-lint"
+language = "system"
+entry = "just bevy-lint"
+pass_filenames = false
+always_run = true
+priority = "checks"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
 id = "test"
 name = "just test"
 language = "system"

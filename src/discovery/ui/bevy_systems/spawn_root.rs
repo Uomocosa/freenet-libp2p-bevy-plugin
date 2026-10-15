@@ -44,7 +44,7 @@ pub fn spawn_root(mut commands: Commands) {
                             ..default()
                         },
                         BackgroundColor(BUTTON_COLOR),
-                        children![Text::new("Create room")],
+                        children![Text::new("Create New Room")],
                     ),
                 ],
             ),

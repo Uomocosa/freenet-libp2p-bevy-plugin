@@ -5,7 +5,7 @@ use freenet_libp2p_bevy_plugin::net_id::RoomName;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
 /// Scripted interaction: `create:<room>` types the room name into the input and
-/// presses "Create room"; `join:<room>` presses that room's button once it shows
+/// presses "Create New Room"; `join:<room>` presses that room's button once it shows
 /// up in the list. The name is always explicit — an empty name is rejected.
 #[derive(Debug, Clone)]
 pub enum Action {

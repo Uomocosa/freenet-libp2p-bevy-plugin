@@ -13,7 +13,9 @@ const PANEL_COLOR: Color = Color::srgb(0.30, 0.12, 0.34);
 const FIELD_COLOR: Color = Color::srgb(0.10, 0.10, 0.12);
 const ROOM_COLOR: Color = Color::srgb(0.12, 0.28, 0.38);
 const BUTTON_COLOR: Color = Color::srgb(0.20, 0.24, 0.32);
-const DISABLED_COLOR: Color = Color::srgb(0.14, 0.15, 0.17);
+const DISABLED_COLOR: Color = Color::srgb(0.13, 0.13, 0.14);
+const LABEL_COLOR: Color = Color::WHITE;
+const DISABLED_LABEL_COLOR: Color = Color::srgb(0.38, 0.38, 0.40);
 
 pub struct LobbyUi;
 
@@ -67,7 +69,7 @@ fn spawn(mut commands: Commands) {
                     ..default()
                 },
                 BackgroundColor(BUTTON_COLOR),
-                children![Text::new("+ New lobby")],
+                children![Text::new("+ Create New Room")],
             ),
             (
                 RoomColumn,
@@ -136,20 +138,36 @@ fn on_create(
 /// # needed helper: the Create button is only clickable while the room name is non-empty
 fn gate_create(
     input: Single<&EditableText, With<NameField>>,
-    button: Single<(Entity, Option<&Interaction>, &mut BackgroundColor), With<NewRoomButton>>,
+    button: Single<
+        (
+            Entity,
+            Option<&Interaction>,
+            &mut BackgroundColor,
+            &Children,
+        ),
+        With<NewRoomButton>,
+    >,
+    mut labels: Query<&mut TextColor>,
     mut commands: Commands,
 ) {
     let typed = input.into_inner().value().to_string();
     let enabled = !typed.trim().is_empty();
-    let (entity, interaction, mut background) = button.into_inner();
+    let (entity, interaction, mut background, children) = button.into_inner();
     let BackgroundColor(existing) = &mut *background;
-    let color = if enabled {
-        BUTTON_COLOR
+    let (color, label_color) = if enabled {
+        (BUTTON_COLOR, LABEL_COLOR)
     } else {
-        DISABLED_COLOR
+        (DISABLED_COLOR, DISABLED_LABEL_COLOR)
     };
     if *existing != color {
         *existing = color;
+    }
+    let mut label_iter = labels.iter_many_mut(children);
+    while let Some(mut label) = label_iter.fetch_next() {
+        let TextColor(current) = &mut *label;
+        if *current != label_color {
+            *current = label_color;
+        }
     }
     match (enabled, interaction.is_some()) {
         (true, false) => {
