@@ -21,9 +21,7 @@ pub fn handle_create(
             continue;
         }
         tracing::info!(target: "room_lobby", "ui create room={name}");
-        commands.write(discovery::Command::Create(net_id::RoomName(
-            name.to_string(),
-        )));
+        commands.write(discovery::Command::Create(net_id::RoomName::from(name)));
     }
 }
 
@@ -54,9 +52,7 @@ mod tests {
     fn test_usage() {
         assert_eq!(
             sent_after_press(" alpha "),
-            vec![discovery::Command::Create(net_id::RoomName(
-                "alpha".to_string()
-            ))]
+            vec![discovery::Command::Create(net_id::RoomName::from("alpha"))]
         );
         assert_eq!(sent_after_press("   "), Vec::new());
     }

@@ -42,7 +42,7 @@ mod tests {
         let mut members = discovery::Members::new();
         for peer in ["live", "gone"] {
             members.insert(
-                net_id::PeerId(peer.to_string()),
+                net_id::PeerId::from(peer),
                 discovery::Member {
                     presence: discovery::Presence {
                         addrs: Vec::new(),

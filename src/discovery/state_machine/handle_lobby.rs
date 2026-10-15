@@ -40,7 +40,7 @@ mod tests {
         let mut members = BTreeMap::new();
         for peer in ["me", "a"] {
             members.insert(
-                net_id::PeerId(peer.to_string()),
+                net_id::PeerId::from(peer),
                 discovery::Presence {
                     addrs: vec![net_id::PeerAddr::from("/ip4/1")],
                     updated_at: discovery::UnixTime::from_secs(3),

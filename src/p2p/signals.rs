@@ -53,9 +53,9 @@ mod tests {
             id: net_id::PeerId::from("p"),
             addrs: vec![],
         }));
-        signals.observed_tx.send_replace(Some(vec![net_id::PeerAddr(
-            "/ip4/1.2.3.4/tcp/1".to_string(),
-        )]));
+        signals
+            .observed_tx
+            .send_replace(Some(vec![net_id::PeerAddr::from("/ip4/1.2.3.4/tcp/1")]));
         assert_eq!(ready_rx.borrow().as_ref().map(|r| r.id.as_str()), Some("p"));
         assert!(observed_rx.borrow().is_some());
     }

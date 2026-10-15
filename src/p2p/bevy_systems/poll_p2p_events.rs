@@ -145,9 +145,7 @@ mod tests {
         let tapped = tap_rx.try_recv();
         assert_eq!(
             tapped,
-            Ok(p2p::NetEvent::PeerConnected(net_id::PeerId(
-                "peer".to_string()
-            )))
+            Ok(p2p::NetEvent::PeerConnected(net_id::PeerId::from("peer")))
         );
         assert!(tap_rx.try_recv().is_err(), "game messages stay off the tap");
     }

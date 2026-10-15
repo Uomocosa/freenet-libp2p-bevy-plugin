@@ -33,7 +33,7 @@ mod tests {
         let mut snapshot = discovery::Snapshot::default();
         for (name, capacity) in [("alpha", 8_u16), ("beta", 4_u16)] {
             snapshot.lobby.insert(
-                net_id::RoomName(name.to_string()),
+                net_id::RoomName::from(name),
                 discovery::RoomEntry {
                     capacity,
                     members: std::collections::BTreeMap::new(),

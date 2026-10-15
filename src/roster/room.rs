@@ -9,7 +9,7 @@ pub struct Room(pub net_id::RoomName);
 
 impl Default for Room {
     fn default() -> Self {
-        Self(net_id::RoomName(constants::DEFAULT_ROOM.to_string()))
+        Self(net_id::RoomName::from(constants::DEFAULT_ROOM))
     }
 }
 

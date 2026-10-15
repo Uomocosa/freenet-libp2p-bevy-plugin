@@ -47,9 +47,7 @@ mod tests {
         let tap = EventTap::default();
         assert!(
             tap.tx
-                .send(p2p::NetEvent::PeerConnected(net_id::PeerId(
-                    "p".to_string()
-                )))
+                .send(p2p::NetEvent::PeerConnected(net_id::PeerId::from("p")))
                 .is_ok()
         );
         assert!(tap.take_rx().is_some());

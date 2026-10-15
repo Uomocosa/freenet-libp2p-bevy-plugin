@@ -21,7 +21,7 @@ mod tests {
     fn record(peer: &str, updated_at: discovery::UnixTime) -> discovery::RoomEntry {
         let mut members = BTreeMap::new();
         members.insert(
-            net_id::PeerId(peer.to_string()),
+            net_id::PeerId::from(peer),
             discovery::Presence {
                 addrs: Vec::new(),
                 updated_at,
