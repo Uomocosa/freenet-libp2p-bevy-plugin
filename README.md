@@ -27,6 +27,7 @@ freenet-libp2p-bevy-plugin = { git = "https://github.com/Uomocosa/freenet-libp2p
 rustup toolchain install nightly        # rust-toolchain.toml pins channel + wasm target
 cargo install cargo-nextest just
 cargo install --git https://github.com/Uomocosa/lele-rust-linter lele-lint lele-bevy-lint
+cargo binstall prek                     # hook runner (`prek install` via `just setup`)
 ```
 
 System libraries for Bevy + headless previews + MP4 recording:
@@ -46,6 +47,7 @@ space-in-path `tikv-jemalloc-sys` workaround), with `jobs = 6`.
 just build | just clippy | just fmt | just test | just lint | just bevy-lint
 just contract   # build the lobby contract wasm
 just harness    # freenet contract harness (network)
-just hooks      # point git at .githooks/
+just setup      # one-time per clone: install the prek git hooks
+just check      # run the full gate (same as CI)
 just ci
 ```

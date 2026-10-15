@@ -1,0 +1,52 @@
+# prek.toml — the commit/push gate. Tasks live in the justfile; prek only invokes them.
+# Install once per clone: `just setup`. Run the whole gate: `just check` (same as CI).
+minimum_prek_version = "0.5.0"
+default_install_hook_types = ["pre-commit", "pre-push"]
+
+[priorities]
+format = 0
+checks = 10
+tests = 20
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "fmt"
+name = "just fmt"
+language = "system"
+entry = "just fmt"
+pass_filenames = false
+always_run = true
+priority = "format"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "clippy"
+name = "just clippy"
+language = "system"
+entry = "just clippy"
+pass_filenames = false
+always_run = true
+priority = "checks"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "lint"
+name = "just lint"
+language = "system"
+entry = "just lint"
+pass_filenames = false
+always_run = true
+priority = "checks"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "test"
+name = "just test"
+language = "system"
+entry = "just test"
+pass_filenames = false
+always_run = true
+priority = "tests"
+stages = ["pre-push"]

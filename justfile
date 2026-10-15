@@ -30,8 +30,10 @@ contract:
 harness:
     cargo nextest run --test mainnet_local --all-features --run-ignored all -- --nocapture
 
-hooks:
-    git config core.hooksPath .githooks
-    chmod +x .githooks/*
+setup:
+    prek install -t pre-commit -t pre-push
 
-ci: build fmt clippy test
+check:
+    prek run --all-files
+
+ci: build check
