@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use freenet_stdlib::client_api::{ClientRequest, ContractRequest, ContractResponse, HostResponse};
 use freenet_stdlib::prelude::*;
@@ -12,8 +13,10 @@ pub async fn connect(
     contract_wasm: &[u8],
     params: &[u8],
     deploy: discovery::freenet::DeployPolicy,
+    ring_wait: Duration,
 ) -> Result<discovery::freenet::LobbyClient, discovery::Error> {
     let mut client = discovery::freenet::Client::connect(host, port).await?;
+    discovery::freenet::wait_until_ring_ready(&mut client, ring_wait).await?;
     let code = Arc::new(ContractCode::from(contract_wasm.to_vec()));
     let wrapped = WrappedContract::new(code, Parameters::from(params.to_vec()));
     let key = wrapped.key;
@@ -72,6 +75,7 @@ mod tests {
                 &[],
                 &[],
                 discovery::freenet::DeployPolicy::FetchOrDeploy,
+                std::time::Duration::from_millis(1),
             )
             .await
             .is_err()

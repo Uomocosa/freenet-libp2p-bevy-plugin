@@ -46,6 +46,7 @@ mod tests {
                 name: net_id::RoomName::from("r"),
                 members: discovery::Members::new(),
             }),
+            freenet_peers: 0,
         };
         tx.send(snapshot.clone()).ok();
         app.update();

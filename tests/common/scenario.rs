@@ -5,14 +5,18 @@ use std::time::{Duration, Instant};
 use telegram_bot_helper::send_video_best_effort;
 
 use super::{
-    TerminalGuard, build_game, cleanup_stale, finish_record, last_tick, log_contains, marker_times,
-    poke, read_head, require_x11, speed_clip, start_record, tile, wakeup_screen,
+    TerminalGuard, build_game, cleanup_stale, did_rings_become_ready, finish_record, last_tick,
+    log_contains, marker_times, poke, read_head, require_x11, speed_clip, start_record, tile,
+    wakeup_screen,
 };
 
 pub const DISCOVERY_BUDGET_SECS: u64 = 120;
 pub const JOIN_BUDGET_SECS: u64 = 180;
 /// libp2p-only join target: last joiner's press -> every peer fully meshed.
 pub const CONVERGE_BUDGET_MS: u64 = 500;
+/// How long a peer's embedded Freenet node is given to join the ring before we
+/// stop calling the run a discovery failure (must exceed `Timing.ring`).
+pub const RING_BUDGET_SECS: u64 = 45;
 
 const SPAWN_TIMEOUT_SECS: u64 = 180;
 const RECORD_SECS: u64 = 600;
@@ -99,6 +103,7 @@ struct Peers {
     room: String,
     created: bool,
     spawn_ok: bool,
+    ring_ready: Vec<bool>,
     t_create: Instant,
     t_join: Instant,
 }
@@ -163,7 +168,7 @@ fn spawn(scenario: &Scenario, env: &Env) -> Peers {
     // the UI picks the room name; read it back from the creator's log
     let room = logs
         .first()
-        .filter(|log| wait_log(log, CREATED_MARKER, SPAWN_TIMEOUT_SECS))
+        .filter(|log| did_log_appear_within(log, CREATED_MARKER, SPAWN_TIMEOUT_SECS))
         .and_then(|log| created_room(log))
         .unwrap_or_default();
     let created = !room.is_empty();
@@ -188,12 +193,14 @@ fn spawn(scenario: &Scenario, env: &Env) -> Peers {
     if let Err(e) = tile(&windows) {
         eprintln!("tile: {e}");
     }
+    let ring_ready = did_rings_become_ready(&logs, Duration::from_secs(RING_BUDGET_SECS));
     Peers {
         windows,
         logs,
         room,
         created,
         spawn_ok,
+        ring_ready,
         t_create,
         t_join,
     }
@@ -222,20 +229,31 @@ fn push_peer(
 }
 
 async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
-    let seen = wait_until(Duration::from_secs(scenario.discovery_budget_secs), || {
-        all_see_room(&peers.logs, &peers.room)
-    })
-    .await;
+    let ring_ok = peers.ring_ready.iter().all(|ready| *ready);
+    let seen = if ring_ok {
+        did_predicate_hold_within(Duration::from_secs(scenario.discovery_budget_secs), || {
+            do_all_peers_see_room(&peers.logs, &peers.room)
+        })
+        .await
+    } else {
+        false
+    };
     let discovery_ms = peers.t_create.elapsed().as_millis();
-    let discovery_ok = peers.created
+    let discovery_ok = ring_ok
+        && peers.created
         && peers.spawn_ok
         && seen
         && peers.t_create.elapsed().as_secs() <= scenario.discovery_budget_secs;
-    let (join_ok, join_ms, join_detail) = evaluate_join(scenario, peers).await;
+    let (join_ok, join_ms, join_detail) = evaluate_join(scenario, peers, ring_ok).await;
     let spawn_check = Check {
         name: "spawn".to_string(),
         ok: peers.spawn_ok && peers.logs.len() == scenario.peers,
         detail: format!("{}/{} instances", peers.logs.len(), scenario.peers),
+    };
+    let ring_check = Check {
+        name: "ring".to_string(),
+        ok: ring_ok,
+        detail: ring_detail(peers),
     };
     let discovery_check = Check {
         name: "discovery".to_string(),
@@ -253,19 +271,26 @@ async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
             scenario.join_budget_secs
         ),
     };
-    let mut checks = vec![spawn_check, discovery_check, join_check];
+    let mut checks = vec![spawn_check, ring_check, discovery_check, join_check];
     if scenario.join {
         checks.push(converge_check(&peers.logs, scenario.peers));
     }
     checks
 }
 
-async fn evaluate_join(scenario: &Scenario, peers: &Peers) -> (bool, u128, String) {
+async fn evaluate_join(scenario: &Scenario, peers: &Peers, ring_ok: bool) -> (bool, u128, String) {
     if !scenario.join {
         return (true, 0, "n/a".to_string());
     }
-    let mesh = wait_until(Duration::from_secs(scenario.join_budget_secs), || {
-        all_in_room(&peers.logs, &peers.room, scenario.peers)
+    if !ring_ok {
+        return (
+            false,
+            peers.t_join.elapsed().as_millis(),
+            "skipped: freenet ring never ready".to_string(),
+        );
+    }
+    let mesh = did_predicate_hold_within(Duration::from_secs(scenario.join_budget_secs), || {
+        are_all_peers_in_room(&peers.logs, &peers.room, scenario.peers)
     })
     .await;
     let budget_ok = peers.t_join.elapsed().as_secs() <= scenario.join_budget_secs;
@@ -406,14 +431,34 @@ fn spawn_peer(
     Ok(log)
 }
 
+// needed helper: names the peers whose freenet node never joined the ring
+fn ring_detail(peers: &Peers) -> String {
+    let missing: Vec<String> = peers
+        .ring_ready
+        .iter()
+        .enumerate()
+        .filter(|(_, ready)| !**ready)
+        .map(|(index, _)| format!("p{}", index.saturating_add(1)))
+        .collect();
+    if missing.is_empty() {
+        format!(
+            "{}/{} peers on the freenet ring",
+            peers.ring_ready.len(),
+            peers.logs.len()
+        )
+    } else {
+        format!("not on the freenet ring: {}", missing.join(","))
+    }
+}
+
 // needed helper: every peer's latest tick lists the room in the catalogue
-fn all_see_room(logs: &[PathBuf], room: &str) -> bool {
+fn do_all_peers_see_room(logs: &[PathBuf], room: &str) -> bool {
     logs.iter()
         .all(|log| last_tick(log).is_some_and(|tick| tick.catalogue.iter().any(|r| r == room)))
 }
 
 // needed helper: every peer is in the room with a full mesh
-fn all_in_room(logs: &[PathBuf], room: &str, peers: usize) -> bool {
+fn are_all_peers_in_room(logs: &[PathBuf], room: &str, peers: usize) -> bool {
     logs.iter().all(|log| {
         last_tick(log).is_some_and(|tick| {
             tick.room.as_deref() == Some(room) && tick.connected == peers.saturating_sub(1)
@@ -443,7 +488,7 @@ fn mesh_snapshot(logs: &[PathBuf], peers: usize) -> String {
 }
 
 // needed helper: polls one log until it contains a marker or the timeout elapses
-fn wait_log(log: &Path, needle: &str, timeout_secs: u64) -> bool {
+fn did_log_appear_within(log: &Path, needle: &str, timeout_secs: u64) -> bool {
     let start = Instant::now();
     while start.elapsed().as_secs() < timeout_secs {
         if log_contains(log, needle) {
@@ -456,7 +501,7 @@ fn wait_log(log: &Path, needle: &str, timeout_secs: u64) -> bool {
 }
 
 // needed helper: async polling predicate with screen poke
-async fn wait_until(timeout: Duration, mut predicate: impl FnMut() -> bool) -> bool {
+async fn did_predicate_hold_within(timeout: Duration, mut predicate: impl FnMut() -> bool) -> bool {
     let start = Instant::now();
     while start.elapsed() < timeout {
         if predicate() {

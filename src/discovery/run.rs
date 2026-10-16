@@ -30,11 +30,16 @@ pub async fn run(
     let mut state = State::new(me.clone(), timing);
     let (target_tx, target_rx) = tokio::sync::watch::channel(None);
     let (lobby_tx, mut lobbies) = tokio::sync::mpsc::unbounded_channel();
+    let (peers_tx, mut peers) = tokio::sync::mpsc::unbounded_channel();
     let params = discovery::freenet::contract_params(&config.game_name, &config.token);
     tokio::spawn(async move {
         let client =
-            discovery::freenet::connect_retry("127.0.0.1", *endpoint, &params, &target_rx).await;
-        discovery::freenet::run_lobby(client, me.id, capacity, timing, target_rx, lobby_tx).await;
+            discovery::freenet::connect_retry("127.0.0.1", *endpoint, &params, &target_rx, timing)
+                .await;
+        discovery::freenet::run_lobby(
+            client, me.id, capacity, timing, target_rx, lobby_tx, peers_tx,
+        )
+        .await;
     });
     let mut tick = tokio::time::interval(timing.tick.max(Duration::from_secs(1)));
     loop {
@@ -42,6 +47,7 @@ pub async fn run(
             Some(command) = commands.recv() => Input::Command(command),
             Some(event) = net.events.recv() => Input::NetEvent(event),
             Some(lobby) = lobbies.recv() => Input::LobbyUpdated(lobby),
+            Some(count) = peers.recv() => Input::FreenetPeers(count),
             Ok(()) = net.observed.changed() => {
                 let Some(addrs) = net.observed.borrow_and_update().clone() else {
                     continue;

@@ -9,6 +9,7 @@ pub struct Timing {
     pub redial: Duration,
     pub hello: Duration,
     pub member_grace: Duration,
+    pub ring: Duration,
 }
 
 impl Default for Timing {
@@ -21,6 +22,7 @@ impl Default for Timing {
             redial: Duration::from_secs(2),
             hello: Duration::from_secs(5),
             member_grace: Duration::from_secs(10),
+            ring: Duration::from_secs(30),
         }
     }
 }

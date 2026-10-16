@@ -43,7 +43,7 @@ pub async fn bootstrap_node() -> Result<(tempfile::TempDir, u16), String> {
             tracing::error!(error = %e, "embedded freenet node exited");
         }
     });
-    tracing::info!("embedded freenet node started ws_port={ws_port}");
+    tracing::info!("lobby freenet node started ws_port={ws_port}");
     Ok((tmp, ws_port))
 }
 

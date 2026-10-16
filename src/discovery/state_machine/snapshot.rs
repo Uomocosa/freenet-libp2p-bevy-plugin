@@ -6,6 +6,7 @@ pub fn snapshot(state: &State) -> discovery::Snapshot {
     discovery::Snapshot {
         lobby: state.lobby.clone(),
         room: state.room.clone(),
+        freenet_peers: state.freenet_peers,
     }
 }
 

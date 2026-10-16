@@ -17,11 +17,17 @@ pub use contract_params::contract_params;
 mod contract_wasm;
 pub use contract_wasm::contract_wasm;
 
+mod connected_peer_count;
+pub use connected_peer_count::connected_peer_count;
+
 mod connect;
 pub use connect::connect;
 
 mod connect_retry;
 pub use connect_retry::connect_retry;
+
+mod wait_until_ring_ready;
+pub use wait_until_ring_ready::wait_until_ring_ready;
 
 mod fetch;
 pub use fetch::fetch;

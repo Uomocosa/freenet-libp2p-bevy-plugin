@@ -7,6 +7,7 @@ pub struct Tick {
     pub room: Option<String>,
     pub members: usize,
     pub connected: usize,
+    pub freenet_peers: usize,
 }
 
 #[must_use]
@@ -78,6 +79,7 @@ fn parse_tick_line(line: &str) -> Option<Tick> {
         room: None,
         members: 0,
         connected: 0,
+        freenet_peers: 0,
     };
     for token in rest.split_whitespace() {
         if let Some(value) = token.strip_prefix("catalogue=") {
@@ -94,6 +96,8 @@ fn parse_tick_line(line: &str) -> Option<Tick> {
             tick.members = value.parse().unwrap_or(0);
         } else if let Some(value) = token.strip_prefix("connected=") {
             tick.connected = value.parse().unwrap_or(0);
+        } else if let Some(value) = token.strip_prefix("freenet_peers=") {
+            tick.freenet_peers = value.parse().unwrap_or(0);
         }
     }
     Some(tick)

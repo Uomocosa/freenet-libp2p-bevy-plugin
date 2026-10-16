@@ -8,28 +8,31 @@ pub async fn connect_retry(
     port: u16,
     params: &[u8],
     target: &tokio::sync::watch::Receiver<Option<discovery::state_machine::PublishTarget>>,
+    timing: discovery::Timing,
 ) -> discovery::freenet::LobbyClient {
     let wasm = discovery::freenet::contract_wasm();
     let timeout = constants::REQUEST_TIMEOUT;
+    let mut tries = 0_u32;
     loop {
+        tries = tries.saturating_add(1);
         let deploy = if target.borrow().is_some() {
             discovery::freenet::DeployPolicy::FetchOrDeploy
         } else {
             discovery::freenet::DeployPolicy::FetchOnly
         };
-        let attempt = discovery::freenet::connect(host, port, wasm, params, deploy);
-        let Ok(result) = tokio::time::timeout(timeout, attempt).await else {
-            warn!(target: "room_lobby", "discovery: lobby connect timed out, retrying");
+        let fetch = discovery::freenet::connect(host, port, wasm, params, deploy, timing.ring);
+        let Ok(result) = tokio::time::timeout(timeout, fetch).await else {
+            warn!(target: "room_lobby", tries = tries, "lobby board fetch timed out, retrying");
             continue;
         };
         match result {
             Ok(lobby_client) => return lobby_client,
             Err(discovery::Error::ContractNotFound) => {
-                debug!(target: "room_lobby", "discovery: no lobby yet and not in a room, waiting");
+                debug!(target: "room_lobby", tries = tries, "lobby board absent and not in a room, waiting");
                 tokio::time::sleep(constants::MISSING_RETRY).await;
             }
             Err(e) => {
-                warn!(target: "room_lobby", error = %e, "discovery: lobby connect failed, retrying");
+                warn!(target: "room_lobby", tries = tries, error = %e, "lobby board fetch failed, retrying");
                 tokio::time::sleep(constants::CONNECT_RETRY).await;
             }
         }

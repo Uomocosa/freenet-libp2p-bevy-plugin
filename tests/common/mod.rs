@@ -40,5 +40,8 @@ pub use terminal_guard::TerminalGuard;
 mod tile;
 pub use tile::tile;
 
+mod wait_ring;
+pub use wait_ring::did_rings_become_ready;
+
 mod wakeup_screen;
 pub use wakeup_screen::wakeup_screen;

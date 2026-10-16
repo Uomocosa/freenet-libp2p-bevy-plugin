@@ -14,6 +14,7 @@ pub async fn run_lobby(
     timing: discovery::Timing,
     mut target: Receiver<Option<discovery::state_machine::PublishTarget>>,
     lobbies: UnboundedSender<discovery::Lobby>,
+    peers: UnboundedSender<usize>,
 ) {
     let mut tick = tokio::time::interval(timing.tick.max(Duration::from_secs(1)));
     let mut last_sent: Option<discovery::Lobby> = None;
@@ -63,6 +64,14 @@ pub async fn run_lobby(
                 capacity,
             );
             last_publish = Some(now);
+        }
+        if let Ok(Ok(count)) = tokio::time::timeout(
+            constants::REQUEST_TIMEOUT,
+            discovery::freenet::connected_peer_count(&mut lobby_client.client),
+        )
+        .await
+        {
+            let _ = peers.send(count);
         }
     }
 }

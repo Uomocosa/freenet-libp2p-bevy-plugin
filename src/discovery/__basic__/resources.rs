@@ -11,6 +11,7 @@ use crate::discovery;
 pub struct Snapshot {
     pub lobby: discovery::Lobby,
     pub room: Option<discovery::Room>,
+    pub freenet_peers: usize,
 }
 
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Deref)]

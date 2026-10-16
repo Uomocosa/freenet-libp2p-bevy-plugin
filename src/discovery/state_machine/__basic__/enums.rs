@@ -7,6 +7,7 @@ pub enum Input {
     Command(discovery::Command),
     NetEvent(p2p::NetEvent),
     LobbyUpdated(discovery::Lobby),
+    FreenetPeers(usize),
     OwnAddrsChanged(Vec<net_id::PeerAddr>),
     Tick,
 }

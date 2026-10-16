@@ -12,6 +12,7 @@ pub struct State {
     pub candidates: BTreeMap<net_id::PeerId, discovery::Presence>,
     pub last_dial: BTreeMap<net_id::PeerId, discovery::UnixTime>,
     pub last_hello: Option<discovery::UnixTime>,
+    pub freenet_peers: usize,
 }
 
 impl State {
@@ -26,6 +27,7 @@ impl State {
             candidates: BTreeMap::new(),
             last_dial: BTreeMap::new(),
             last_hello: None,
+            freenet_peers: 0,
         }
     }
 }

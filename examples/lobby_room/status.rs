@@ -75,8 +75,9 @@ pub fn log_tick(
             .filter(|member| member.status == discovery::LinkStatus::Connected)
             .count()
     });
+    let freenet_peers = snapshot.freenet_peers;
     tracing::info!(
-        "lobby tick catalogue={catalogue} room={room} members={members} connected={connected}"
+        "lobby tick catalogue={catalogue} room={room} members={members} connected={connected} freenet_peers={freenet_peers}"
     );
     if let Ok(mut text) = query.single_mut() {
         *text = Text::new(format!(
