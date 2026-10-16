@@ -21,7 +21,7 @@ pub async fn attach(
     let wrapped = WrappedContract::new(code, Parameters::from(params.to_vec()));
     let key = wrapped.key;
     let instance_id = *key.id();
-    let first = discovery::within(
+    let first = discovery::common::within(
         REQUEST_TIMEOUT,
         "fetch",
         discovery::freenet::fetch(client, instance_id),
@@ -33,13 +33,13 @@ pub async fn attach(
             if deploy == discovery::freenet::DeployPolicy::FetchOrDeploy =>
         {
             let container = ContractContainer::from(ContractWasmAPIVersion::V1(wrapped));
-            discovery::within(
+            discovery::common::within(
                 DEPLOY_TIMEOUT,
                 "deploy",
                 deploy_contract(client, container, initial_board),
             )
             .await?;
-            discovery::within(
+            discovery::common::within(
                 REQUEST_TIMEOUT,
                 "fetch",
                 discovery::freenet::fetch(client, instance_id),

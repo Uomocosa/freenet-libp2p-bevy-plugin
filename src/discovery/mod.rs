@@ -27,8 +27,7 @@ pub use timing::Timing;
 mod error;
 pub use error::Error;
 
-mod within;
-pub use within::within;
+pub mod common;
 
 mod game_token;
 
