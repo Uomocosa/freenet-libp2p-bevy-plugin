@@ -5701,8 +5701,8 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "lele-bevy-preview"
-version = "0.0.5"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.5#9f7643ca284f48b54fcf0c37fa566f2d83685302"
+version = "0.0.6"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.6#c7ec2ec772c5f81332bc196050ef873c4aa520af"
 dependencies = [
  "bevy",
  "blake3",
@@ -5710,7 +5710,7 @@ dependencies = [
  "image",
  "serde",
  "serde_json",
- "telegram-bot-helper 0.0.5",
+ "telegram-bot-helper 0.0.6",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -9483,15 +9483,15 @@ dependencies = [
 
 [[package]]
 name = "telegram-bot-helper"
-version = "0.0.5"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.5#9f7643ca284f48b54fcf0c37fa566f2d83685302"
+version = "0.0.6"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.6#c7ec2ec772c5f81332bc196050ef873c4aa520af"
 dependencies = [
  "atomic-delegate-macros",
  "chrono",
  "dotenvy",
  "reqwest",
  "serde_json",
- "telegram-bot-helper-macros 0.0.5",
+ "telegram-bot-helper-macros 0.0.6",
  "thiserror 2.0.18",
 ]
 
@@ -9507,8 +9507,8 @@ dependencies = [
 
 [[package]]
 name = "telegram-bot-helper-macros"
-version = "0.0.5"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.5#9f7643ca284f48b54fcf0c37fa566f2d83685302"
+version = "0.0.6"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.6#c7ec2ec772c5f81332bc196050ef873c4aa520af"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,5 +1,8 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
+# Build outside `[R] Rust` (jemalloc's configure rejects spaces); persistent, portable.
+export CARGO_TARGET_DIR := env("HOME") / ".cache/cargo-target/freenet-libp2p-bevy-plugin"
+
 # Toolchain: rust-toolchain.toml (nightly + wasm32-unknown-unknown).
 # Extra tools: cargo-nextest, just, lele-lint / lele-bevy-lint.
 
@@ -17,6 +20,10 @@ fmt:
 
 test:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features
+
+# Re-send every UI preview to Telegram, ignoring the change gate.
+resend-all-previews:
+    LELE_PREVIEW_RESEND_ALL=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
 
 # Real, visual e2e: needs X + the freenet network + N lobby_room windows.
 e2e-discovery:
