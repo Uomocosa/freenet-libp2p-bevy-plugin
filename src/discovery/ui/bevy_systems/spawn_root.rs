@@ -85,7 +85,11 @@ mod tests {
     fn preview_build(app: &mut App) {
         app.add_systems(
             Startup,
-            (spawn_root, lele_bevy_preview::scene::center_roots).chain(),
+            (
+                spawn_root,
+                lele_bevy_preview::scene::bevy_systems::center_roots,
+            )
+                .chain(),
         );
     }
 
