@@ -4,6 +4,8 @@ use thiserror::Error;
 pub enum Error {
     #[error("connection timed out")]
     ConnectionTimeout,
+    #[error("freenet {0} timed out")]
+    Timeout(&'static str),
     #[error("disconnected")]
     Disconnected,
     #[error("websocket error: {0}")]

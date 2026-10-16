@@ -15,7 +15,6 @@ pub async fn connect_retry(
     timing: discovery::Timing,
 ) -> discovery::freenet::LobbyClient {
     let wasm = discovery::freenet::contract_wasm();
-    let timeout = constants::REQUEST_TIMEOUT;
     let mut client = connect_socket(host, port).await;
     let mut tries = 0_u32;
     loop {
@@ -27,14 +26,15 @@ pub async fn connect_retry(
             discovery::freenet::DeployPolicy::FetchOnly
         };
         let board = initial_board(me, capacity, current.as_ref());
-        let fetch =
-            discovery::freenet::attach(&mut client, wasm, params, deploy, timing.ring, &board);
-        let Ok(result) = tokio::time::timeout(timeout, fetch).await else {
-            warn!(target: "room_lobby", tries = tries, "lobby board fetch timed out, retrying");
-            continue;
-        };
+        let result =
+            discovery::freenet::attach(&mut client, wasm, params, deploy, timing.ring, &board)
+                .await;
         match result {
             Ok((key, lobby)) => return discovery::freenet::LobbyClient { client, key, lobby },
+            Err(discovery::Error::Timeout(step)) => {
+                warn!(target: "room_lobby", tries = tries, step, "lobby {step} timed out, reconnecting");
+                client = connect_socket(host, port).await;
+            }
             Err(discovery::Error::ContractNotFound) => {
                 debug!(target: "room_lobby", tries = tries, "lobby board absent and not in a room, waiting");
                 tokio::time::sleep(constants::MISSING_RETRY).await;

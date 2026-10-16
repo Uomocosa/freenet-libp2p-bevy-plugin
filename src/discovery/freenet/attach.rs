@@ -6,6 +6,7 @@ use freenet_stdlib::prelude::*;
 use tracing::info;
 
 use crate::discovery;
+use discovery::freenet::basic::constants::{DEPLOY_TIMEOUT, REQUEST_TIMEOUT};
 
 pub async fn attach(
     client: &mut discovery::freenet::Client,
@@ -20,14 +21,30 @@ pub async fn attach(
     let wrapped = WrappedContract::new(code, Parameters::from(params.to_vec()));
     let key = wrapped.key;
     let instance_id = *key.id();
-    let lobby = match discovery::freenet::fetch(client, instance_id).await {
+    let first = discovery::within(
+        REQUEST_TIMEOUT,
+        "fetch",
+        discovery::freenet::fetch(client, instance_id),
+    )
+    .await;
+    let lobby = match first {
         Ok(lobby) => lobby,
         Err(discovery::Error::ContractNotFound)
             if deploy == discovery::freenet::DeployPolicy::FetchOrDeploy =>
         {
             let container = ContractContainer::from(ContractWasmAPIVersion::V1(wrapped));
-            deploy_contract(client, container, initial_board).await?;
-            discovery::freenet::fetch(client, instance_id).await?
+            discovery::within(
+                DEPLOY_TIMEOUT,
+                "deploy",
+                deploy_contract(client, container, initial_board),
+            )
+            .await?;
+            discovery::within(
+                REQUEST_TIMEOUT,
+                "fetch",
+                discovery::freenet::fetch(client, instance_id),
+            )
+            .await?
         }
         Err(e) => return Err(e),
     };
