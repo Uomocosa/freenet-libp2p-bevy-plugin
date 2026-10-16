@@ -83,7 +83,14 @@ mod tests {
     }
 
     fn preview_build(app: &mut App) {
-        app.add_systems(Startup, spawn_root);
+        app.add_systems(
+            Startup,
+            (
+                spawn_root,
+                lele_bevy_preview::scene::bevy_systems::center_roots,
+            )
+                .chain(),
+        );
     }
 
     const fn preview_noop(_world: &mut World) {}

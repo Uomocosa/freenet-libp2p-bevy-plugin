@@ -87,8 +87,12 @@ mod tests {
     }
 
     fn spawn_rows(mut commands: Commands) {
+        let root = commands
+            .spawn(lele_bevy_preview::scene::centered_root())
+            .id();
         for name in ["alpha", "beta"] {
             commands.spawn((
+                ChildOf(root),
                 discovery::ui::RoomButton(net_id::RoomName::from(name)),
                 Button,
                 Node {

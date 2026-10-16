@@ -95,12 +95,15 @@ mod tests {
 
     fn spawn_button(mut commands: Commands) {
         commands.spawn((discovery::ui::RoomNameInput, EditableText::new("")));
+        let root = commands
+            .spawn(lele_bevy_preview::scene::centered_root())
+            .id();
         commands.spawn((
+            ChildOf(root),
             discovery::ui::CreateRoomButton,
             Button,
             Node {
-                width: Val::Px(160.0),
-                height: Val::Px(32.0),
+                padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
                 ..default()
             },
             BackgroundColor(Color::BLACK),

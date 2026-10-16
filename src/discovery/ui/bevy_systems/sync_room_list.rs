@@ -100,7 +100,18 @@ mod tests {
     }
 
     fn spawn_list(mut commands: Commands) {
-        commands.spawn((discovery::ui::RoomList, Node::default()));
+        let root = commands
+            .spawn(lele_bevy_preview::scene::centered_root())
+            .id();
+        commands.spawn((
+            ChildOf(root),
+            discovery::ui::RoomList,
+            Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(4.0),
+                ..default()
+            },
+        ));
     }
 
     const fn preview_noop(_world: &mut World) {}
