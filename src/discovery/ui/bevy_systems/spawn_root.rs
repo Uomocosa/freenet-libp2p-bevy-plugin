@@ -82,8 +82,23 @@ mod tests {
         assert_eq!(inputs.iter(app.world()).count(), 1);
     }
 
+    fn center_ui_root(
+        mut commands: Commands,
+        mut roots: Query<(Entity, &mut Node), With<discovery::ui::UiRoot>>,
+    ) {
+        let center = commands
+            .spawn(lele_bevy_preview::scene::centered_root())
+            .id();
+        for (entity, mut node) in &mut roots {
+            node.position_type = PositionType::Relative;
+            node.top = Val::Auto;
+            node.left = Val::Auto;
+            commands.entity(entity).insert(ChildOf(center));
+        }
+    }
+
     fn preview_build(app: &mut App) {
-        app.add_systems(Startup, spawn_root);
+        app.add_systems(Startup, (spawn_root, center_ui_root).chain());
     }
 
     const fn preview_noop(_world: &mut World) {}
