@@ -13,7 +13,7 @@ pub async fn wait_until_ring_ready(
         if peers > 0 {
             tracing::info!(
                 target: "room_lobby",
-                "lobby freenet ring ready peers={peers} waited_ms={}",
+                "lobby freenet transport connected peers={peers} waited_ms={}",
                 waited.as_millis()
             );
             return Ok(());
@@ -21,11 +21,11 @@ pub async fn wait_until_ring_ready(
         if waited >= budget {
             tracing::warn!(
                 target: "room_lobby",
-                "lobby freenet ring timed out waited_ms={} budget_ms={}",
+                "lobby freenet ring not ready waited_ms={} budget_ms={}",
                 waited.as_millis(),
                 budget.as_millis()
             );
-            return Ok(());
+            return Err(discovery::Error::ConnectionTimeout);
         }
         tokio::time::sleep(tick).await;
         waited = waited.saturating_add(tick);

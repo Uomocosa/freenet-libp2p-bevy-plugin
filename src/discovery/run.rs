@@ -32,10 +32,18 @@ pub async fn run(
     let (lobby_tx, mut lobbies) = tokio::sync::mpsc::unbounded_channel();
     let (peers_tx, mut peers) = tokio::sync::mpsc::unbounded_channel();
     let params = discovery::freenet::contract_params(&config.game_name, &config.token);
+    let me_id = me.id.clone();
     tokio::spawn(async move {
-        let client =
-            discovery::freenet::connect_retry("127.0.0.1", *endpoint, &params, &target_rx, timing)
-                .await;
+        let client = discovery::freenet::connect_retry(
+            "127.0.0.1",
+            *endpoint,
+            &params,
+            &me_id,
+            capacity,
+            &target_rx,
+            timing,
+        )
+        .await;
         discovery::freenet::run_lobby(
             client, me.id, capacity, timing, target_rx, lobby_tx, peers_tx,
         )

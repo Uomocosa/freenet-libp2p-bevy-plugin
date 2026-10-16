@@ -54,7 +54,7 @@ fn absorb_bytes(
     bytes: &[u8],
 ) -> Result<(), discovery::Error> {
     let incoming: discovery::Lobby = bincode::deserialize(bytes)?;
-    discovery::freenet::cache_lobby(lobby_client, incoming);
+    discovery::freenet::merge_cached_lobby(lobby_client, incoming);
     Ok(())
 }
 

@@ -58,6 +58,19 @@ Adding any such shortcut invalidates the test even if it makes it pass.
   - `lobby created room=<r>`
   - `lobby joined room=<r>`
   - `lobby tick catalogue=<a,b|none> room=<r|none> members=<k> connected=<c>`
+  - `lobby freenet ring ready peers=<n>` — emitted by `attach` **only once the node
+    has actually read the board** (a local re-Get that never reaches the ring does
+    not count); it is the `ring` check.
+  - `lobby freenet transport connected peers=<n>` — informational: the transient
+    gateway handshake lands within ~100ms and is **not** ring membership.
+  - `discovery: lobby contract deployed` — the creator's embedded node acked the
+    board Put. The deploy ack can arrive after `REQUEST_TIMEOUT`, so the `board`
+    check also accepts the durable signal (`ring ready … rooms>=1`, i.e. the
+    creator read back a board already holding its room).
+- Checks: `spawn`, `board` (creator published), `ring` (every peer read the board),
+  `discovery` (every peer's catalogue lists the room), `join`, `converge`. A node
+  that never reaches the ring is reported as `ring`/`isolated=[..]`, not as a
+  mystery `discovery` failure.
 - Layering: Freenet only seeds candidates (board presence, polled in its own task);
   room membership is libp2p-only — a peer is a member once it is connected AND has sent a
   `/blackboard/pex/1.0.0` hello for the same room. Hellos carry the sender's members, so one

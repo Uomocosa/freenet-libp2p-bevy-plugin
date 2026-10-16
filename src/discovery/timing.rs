@@ -6,6 +6,7 @@ pub struct Timing {
     pub republish: Duration,
     pub presence_ttl: Duration,
     pub lobby: Duration,
+    pub bridge: Duration,
     pub redial: Duration,
     pub hello: Duration,
     pub member_grace: Duration,
@@ -19,6 +20,7 @@ impl Default for Timing {
             republish: Duration::from_secs(30),
             presence_ttl: Duration::from_secs(120),
             lobby: Duration::from_secs(5),
+            bridge: Duration::from_secs(10),
             redial: Duration::from_secs(2),
             hello: Duration::from_secs(5),
             member_grace: Duration::from_secs(10),
@@ -38,5 +40,6 @@ mod tests {
         let timing = Timing::default();
         assert_eq!(timing.tick, Duration::from_secs(1));
         assert!(timing.republish > timing.tick);
+        assert!(timing.bridge < timing.presence_ttl);
     }
 }

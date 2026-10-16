@@ -5,7 +5,7 @@ pub async fn refresh(
 ) -> Result<discovery::Lobby, discovery::Error> {
     let instance_id = *lobby_client.key.id();
     let fresh = discovery::freenet::fetch(&mut lobby_client.client, instance_id).await?;
-    discovery::freenet::cache_lobby(lobby_client, fresh);
+    discovery::freenet::merge_cached_lobby(lobby_client, fresh);
     Ok(lobby_client.lobby.clone())
 }
 

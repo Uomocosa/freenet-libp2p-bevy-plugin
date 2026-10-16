@@ -5,8 +5,8 @@ pub use basic::constants::*;
 pub use basic::enums::DeployPolicy;
 pub use basic::structs::LobbyClient;
 
-mod cache_lobby;
-pub use cache_lobby::cache_lobby;
+mod merge_cached_lobby;
+pub use merge_cached_lobby::merge_cached_lobby;
 
 mod client;
 pub use client::Client;
@@ -20,11 +20,14 @@ pub use contract_wasm::contract_wasm;
 mod connected_peer_count;
 pub use connected_peer_count::connected_peer_count;
 
-mod connect;
-pub use connect::connect;
+mod attach;
+pub use attach::attach;
 
 mod connect_retry;
 pub use connect_retry::connect_retry;
+
+mod bridge_subscription;
+pub use bridge_subscription::bridge_subscription;
 
 mod wait_until_ring_ready;
 pub use wait_until_ring_ready::wait_until_ring_ready;

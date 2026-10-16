@@ -23,7 +23,6 @@ pub fn publish_presence(
     lobby_client
         .client
         .send(&ClientRequest::ContractOp(request))?;
-    discovery::freenet::cache_lobby(lobby_client, update);
     Ok(())
 }
 

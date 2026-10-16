@@ -14,6 +14,9 @@ pub fn start_record(clip_secs: u64, path: &Path) -> Option<Child> {
     let path_str = path.to_string_lossy().to_string();
     Command::new("ffmpeg")
         .args([
+            "-nostats",
+            "-loglevel",
+            "error",
             "-y",
             "-f",
             "x11grab",

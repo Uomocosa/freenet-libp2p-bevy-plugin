@@ -19,6 +19,7 @@ pub async fn run_lobby(
     let mut tick = tokio::time::interval(timing.tick.max(Duration::from_secs(1)));
     let mut last_sent: Option<discovery::Lobby> = None;
     let mut last_refresh: Option<Instant> = None;
+    let mut last_bridge: Option<Instant> = None;
     let mut last_publish: Option<Instant> = None;
     loop {
         tokio::select! {
@@ -32,6 +33,10 @@ pub async fn run_lobby(
         }
         let now = Instant::now();
         let mut lobby = discovery::freenet::poll(&mut lobby_client).await.ok();
+        if is_due(last_bridge, now, timing.bridge) {
+            let _ = discovery::freenet::bridge_subscription(&mut lobby_client);
+            last_bridge = Some(now);
+        }
         if is_due(last_refresh, now, timing.lobby) {
             let timeout = constants::REQUEST_TIMEOUT;
             let refresh = discovery::freenet::refresh(&mut lobby_client);

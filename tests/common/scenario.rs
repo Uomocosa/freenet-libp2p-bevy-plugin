@@ -5,18 +5,14 @@ use std::time::{Duration, Instant};
 use telegram_bot_helper::send_video_best_effort;
 
 use super::{
-    TerminalGuard, build_game, cleanup_stale, did_rings_become_ready, finish_record, last_tick,
-    log_contains, marker_times, poke, read_head, require_x11, speed_clip, start_record, tile,
-    wakeup_screen,
+    TerminalGuard, build_game, cleanup_stale, finish_record, last_tick, log_contains, marker_times,
+    poke, read_head, require_x11, rings_ready, speed_clip, start_record, tile, wakeup_screen,
 };
 
 pub const DISCOVERY_BUDGET_SECS: u64 = 120;
 pub const JOIN_BUDGET_SECS: u64 = 180;
 /// libp2p-only join target: last joiner's press -> every peer fully meshed.
 pub const CONVERGE_BUDGET_MS: u64 = 500;
-/// How long a peer's embedded Freenet node is given to join the ring before we
-/// stop calling the run a discovery failure (must exceed `Timing.ring`).
-pub const RING_BUDGET_SECS: u64 = 45;
 
 const SPAWN_TIMEOUT_SECS: u64 = 180;
 const RECORD_SECS: u64 = 600;
@@ -103,7 +99,6 @@ struct Peers {
     room: String,
     created: bool,
     spawn_ok: bool,
-    ring_ready: Vec<bool>,
     t_create: Instant,
     t_join: Instant,
 }
@@ -193,14 +188,12 @@ fn spawn(scenario: &Scenario, env: &Env) -> Peers {
     if let Err(e) = tile(&windows) {
         eprintln!("tile: {e}");
     }
-    let ring_ready = did_rings_become_ready(&logs, Duration::from_secs(RING_BUDGET_SECS));
     Peers {
         windows,
         logs,
         room,
         created,
         spawn_ok,
-        ring_ready,
         t_create,
         t_join,
     }
@@ -229,15 +222,17 @@ fn push_peer(
 }
 
 async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
-    let ring_ok = peers.ring_ready.iter().all(|ready| *ready);
-    let seen = if ring_ok {
+    // Wait for the board row itself, not a transport-connection proxy. `ring ready`
+    // is emitted once a node actually reads the board, which on mainnet can take
+    // tens of seconds; the two checks then separate "a node never read the board"
+    // (ring) from "board read but the row is missing" (discovery).
+    let seen =
         did_predicate_hold_within(Duration::from_secs(scenario.discovery_budget_secs), || {
             do_all_peers_see_room(&peers.logs, &peers.room)
         })
-        .await
-    } else {
-        false
-    };
+        .await;
+    let ring_ready = rings_ready(&peers.logs);
+    let ring_ok = ring_ready.iter().all(|ready| *ready);
     let discovery_ms = peers.t_create.elapsed().as_millis();
     let discovery_ok = ring_ok
         && peers.created
@@ -250,17 +245,25 @@ async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
         ok: peers.spawn_ok && peers.logs.len() == scenario.peers,
         detail: format!("{}/{} instances", peers.logs.len(), scenario.peers),
     };
+    let published = creator_published(&peers.logs);
+    let board_check = Check {
+        name: "board".to_string(),
+        ok: peers.created && published,
+        detail: format!("created={} published={published}", peers.created),
+    };
     let ring_check = Check {
         name: "ring".to_string(),
         ok: ring_ok,
-        detail: ring_detail(peers),
+        detail: ring_detail(&peers.logs, &ring_ready),
     };
     let discovery_check = Check {
         name: "discovery".to_string(),
         ok: discovery_ok,
         detail: format!(
-            "{discovery_ms}ms budget={}s created={} seen={seen}",
-            scenario.discovery_budget_secs, peers.created
+            "{discovery_ms}ms budget={}s created={} seen={seen} isolated=[{}]",
+            scenario.discovery_budget_secs,
+            peers.created,
+            isolated_peers(&peers.logs).join(",")
         ),
     };
     let join_check = Check {
@@ -271,7 +274,13 @@ async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
             scenario.join_budget_secs
         ),
     };
-    let mut checks = vec![spawn_check, ring_check, discovery_check, join_check];
+    let mut checks = vec![
+        spawn_check,
+        board_check,
+        ring_check,
+        discovery_check,
+        join_check,
+    ];
     if scenario.join {
         checks.push(converge_check(&peers.logs, scenario.peers));
     }
@@ -431,24 +440,53 @@ fn spawn_peer(
     Ok(log)
 }
 
-// needed helper: names the peers whose freenet node never joined the ring
-fn ring_detail(peers: &Peers) -> String {
-    let missing: Vec<String> = peers
-        .ring_ready
+// needed helper: names the peers whose freenet node never read the board
+fn ring_detail(logs: &[PathBuf], ring_ready: &[bool]) -> String {
+    let missing: Vec<String> = ring_ready
         .iter()
         .enumerate()
         .filter(|(_, ready)| !**ready)
         .map(|(index, _)| format!("p{}", index.saturating_add(1)))
         .collect();
     if missing.is_empty() {
-        format!(
-            "{}/{} peers on the freenet ring",
-            peers.ring_ready.len(),
-            peers.logs.len()
-        )
+        format!("{}/{} peers read the board", ring_ready.len(), logs.len())
     } else {
-        format!("not on the freenet ring: {}", missing.join(","))
+        format!("never read the board: {}", missing.join(","))
     }
+}
+
+// needed helper: the creator's embedded freenet node seeded a board with its room
+//
+// The deploy ack can land after `REQUEST_TIMEOUT`, so the ack log line alone is a
+// false negative; reading back a board that already holds our room (the seeded
+// `rooms>=1`) is the durable signal that the `Put` landed.
+fn creator_published(logs: &[PathBuf]) -> bool {
+    let Some(log) = logs.first() else {
+        return false;
+    };
+    log_contains(log, "discovery: lobby contract deployed")
+        || ring_ready_rooms(log).is_some_and(|rooms| rooms > 0)
+}
+
+// needed helper: the `rooms=<n>` count from the node's `lobby freenet ring ready` line
+fn ring_ready_rooms(log: &Path) -> Option<usize> {
+    let text = std::fs::read_to_string(log).ok()?;
+    text.lines()
+        .filter(|line| line.contains("lobby freenet ring ready"))
+        .find_map(|line| {
+            line.split_whitespace()
+                .find_map(|token| token.strip_prefix("rooms="))
+                .and_then(|rooms| rooms.parse().ok())
+        })
+}
+
+// needed helper: peers whose freenet node reported zero ring connections
+fn isolated_peers(logs: &[PathBuf]) -> Vec<String> {
+    logs.iter()
+        .enumerate()
+        .filter(|(_, log)| log_contains(log, "Node isolated with zero ring connections"))
+        .map(|(index, _)| format!("p{}", index.saturating_add(1)))
+        .collect()
 }
 
 // needed helper: every peer's latest tick lists the room in the catalogue
