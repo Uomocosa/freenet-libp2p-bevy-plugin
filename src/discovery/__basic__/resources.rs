@@ -5,13 +5,14 @@ use derive_more::Deref;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::discovery;
+use crate::identity;
 
 #[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Reflect)]
 #[reflect(Resource, Default)]
 pub struct Snapshot {
     pub lobby: discovery::Lobby,
-    pub room: Option<discovery::Room>,
-    pub freenet_peers: usize,
+    pub room: Option<discovery::JoinedRoom>,
+    pub freenet_peers: Vec<identity::FreenetPeer>,
 }
 
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Deref)]

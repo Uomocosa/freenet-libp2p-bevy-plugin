@@ -3,10 +3,10 @@ use std::time::Duration;
 
 use freenet_stdlib::client_api::{ClientRequest, ContractRequest, ContractResponse, HostResponse};
 use freenet_stdlib::prelude::*;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::discovery;
-use discovery::freenet::basic::constants::{DEPLOY_TIMEOUT, REQUEST_TIMEOUT};
+use discovery::freenet::basic::constants::{DEPLOY_TIMEOUT, FETCH_TIMEOUT};
 
 pub async fn attach(
     client: &mut discovery::freenet::Client,
@@ -21,26 +21,39 @@ pub async fn attach(
     let wrapped = WrappedContract::new(code, Parameters::from(params.to_vec()));
     let key = wrapped.key;
     let instance_id = *key.id();
+    info!(target: "discovery", %key, ?deploy, "lobby fetch start");
+    let started = std::time::Instant::now();
     let first = discovery::common::within(
-        REQUEST_TIMEOUT,
+        FETCH_TIMEOUT,
         "fetch",
         discovery::freenet::fetch(client, instance_id),
     )
     .await;
+    let elapsed_ms = started.elapsed().as_millis();
+    match &first {
+        Ok(lobby) => {
+            info!(target: "discovery", elapsed_ms, rooms = lobby.len(), "lobby fetch found");
+        }
+        Err(e) => {
+            warn!(target: "discovery", elapsed_ms, error = %e, "lobby fetch failed");
+        }
+    }
     let lobby = match first {
         Ok(lobby) => lobby,
         Err(discovery::Error::ContractNotFound)
             if deploy == discovery::freenet::DeployPolicy::FetchOrDeploy =>
         {
+            info!(target: "discovery", %key, rooms = initial_board.len(), "lobby deploy start");
             let container = ContractContainer::from(ContractWasmAPIVersion::V1(wrapped));
             discovery::common::within(
                 DEPLOY_TIMEOUT,
                 "deploy",
                 deploy_contract(client, container, initial_board),
             )
-            .await?;
+            .await
+            .inspect_err(|e| warn!(target: "discovery", error = %e, "lobby deploy failed"))?;
             discovery::common::within(
-                REQUEST_TIMEOUT,
+                FETCH_TIMEOUT,
                 "fetch",
                 discovery::freenet::fetch(client, instance_id),
             )
@@ -48,19 +61,20 @@ pub async fn attach(
         }
         Err(e) => return Err(e),
     };
-    let peers = discovery::freenet::connected_peer_count(client)
+    let peers = discovery::freenet::connected_peers(client)
         .await
         .unwrap_or_default();
     info!(
-        target: "room_lobby",
+        target: "discovery",
         %key,
         rooms = lobby.len(),
-        "lobby freenet ring ready peers={peers}"
+        "lobby freenet ring ready peers={}",
+        peers.len()
     );
     Ok((key, lobby))
 }
 
-// needed helper: puts the lobby contract seeded with our own presence and waits for the ack
+// needed helper: puts the lobby contract seeded with our own heartbeat and waits for the ack
 async fn deploy_contract(
     client: &mut discovery::freenet::Client,
     contract: ContractContainer,
@@ -80,7 +94,7 @@ async fn deploy_contract(
             | ContractResponse::SubscribeResponse { key, .. }
             | ContractResponse::UpdateResponse { key, .. },
         ) => {
-            info!(target: "room_lobby", key = %key, "discovery: lobby contract deployed");
+            info!(target: "discovery", key = %key, "discovery: lobby contract deployed");
             Ok(())
         }
         other => Err(discovery::Error::UnexpectedResponse(format!("{other:?}"))),

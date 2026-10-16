@@ -1,6 +1,6 @@
 use libp2p::request_response;
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 pub fn handle_exchange<T: p2p::Message>(
@@ -15,7 +15,7 @@ pub fn handle_exchange<T: p2p::Message>(
     {
         event_tx
             .send(p2p::Event::Net(p2p::NetEvent::Exchange {
-                from: net_id::PeerId(peer.to_string()),
+                from: identity::PeerId(peer.to_string()),
                 data: request,
             }))
             .ok();

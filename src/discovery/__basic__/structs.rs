@@ -5,34 +5,35 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::discovery;
-use crate::net_id;
+use crate::identity;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct Presence {
-    pub addrs: Vec<net_id::PeerAddr>,
+pub struct Heartbeat {
+    pub addrs: Vec<identity::PeerAddr>,
     pub updated_at: discovery::UnixTime,
+    pub display_name: Option<identity::Username>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct RoomEntry {
-    pub capacity: u16,
-    pub members: BTreeMap<net_id::PeerId, Presence>,
+pub struct Room {
+    pub room_size: u16,
+    pub members: BTreeMap<identity::PeerId, Heartbeat>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct Member {
-    pub presence: Presence,
+    pub heartbeat: Heartbeat,
     pub status: discovery::LinkStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
-pub struct Room {
-    pub name: net_id::RoomName,
+pub struct JoinedRoom {
+    pub name: identity::RoomName,
     pub members: discovery::Members,
 }
 
 pub struct Channels {
-    pub net: discovery::libp2p::Link,
+    pub net: discovery::libp2p::P2PChannels,
     pub commands: UnboundedReceiver<discovery::Command>,
     pub snapshots: UnboundedSender<discovery::Snapshot>,
     pub events: UnboundedSender<discovery::Event>,

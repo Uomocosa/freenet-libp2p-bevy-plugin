@@ -8,9 +8,9 @@ use crate::discovery;
 const DRAIN_TIMEOUT: Duration = Duration::from_millis(10);
 
 pub async fn poll(
-    lobby_client: &mut discovery::freenet::LobbyClient,
+    lobby_contract: &mut discovery::freenet::LobbyContract,
 ) -> Result<discovery::Lobby, discovery::Error> {
-    while let Some(result) = lobby_client
+    while let Some(result) = lobby_contract
         .client
         .recv_response_timeout(DRAIN_TIMEOUT)
         .await
@@ -19,20 +19,20 @@ pub async fn poll(
             HostResponse::ContractResponse(ContractResponse::UpdateNotification {
                 update, ..
             }) => {
-                absorb_update(lobby_client, update)?;
+                absorb_update(lobby_contract, update)?;
             }
             HostResponse::ContractResponse(ContractResponse::GetResponse { state, .. }) => {
-                absorb_bytes(lobby_client, state.as_ref())?;
+                absorb_bytes(lobby_contract, state.as_ref())?;
             }
             _ => {}
         }
     }
-    Ok(lobby_client.lobby.clone())
+    Ok(lobby_contract.lobby.clone())
 }
 
 // needed helper: merges one notification into the cached lobby
 fn absorb_update(
-    lobby_client: &mut discovery::freenet::LobbyClient,
+    lobby_contract: &mut discovery::freenet::LobbyContract,
     update: UpdateData<'static>,
 ) -> Result<(), discovery::Error> {
     let bytes = match update {
@@ -43,18 +43,18 @@ fn absorb_update(
         _ => None,
     };
     if let Some(bytes) = bytes {
-        absorb_bytes(lobby_client, &bytes)?;
+        absorb_bytes(lobby_contract, &bytes)?;
     }
     Ok(())
 }
 
 // needed helper: merges raw lobby bytes into the cached lobby
 fn absorb_bytes(
-    lobby_client: &mut discovery::freenet::LobbyClient,
+    lobby_contract: &mut discovery::freenet::LobbyContract,
     bytes: &[u8],
 ) -> Result<(), discovery::Error> {
     let incoming: discovery::Lobby = bincode::deserialize(bytes)?;
-    discovery::freenet::merge_cached_lobby(lobby_client, incoming);
+    discovery::freenet::merge_cached_lobby(lobby_contract, incoming);
     Ok(())
 }
 

@@ -19,19 +19,16 @@ pub fn build_plugin<T: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<T>, app: &mu
         p2p_plugin.mode,
         p2p_plugin.mdns,
     );
-    app.insert_resource(p2p_plugin.own_id);
     app.insert_resource(p2p::Events::<T>::default());
     app.insert_resource(p2p::Commands::<T>::default());
-    app.insert_resource(p2p::Outbox::default());
-    app.insert_resource(p2p::Signals::default());
-    app.insert_resource(p2p::EventTap::default());
+    app.insert_resource(p2p::PendingNetCommands::default());
+    app.insert_resource(p2p::ReadyChannel::default());
+    app.insert_resource(p2p::NetEventChannel::default());
     app.insert_resource(roster::RoomRoster::default());
-    app.insert_resource(roster::Room::default());
-    app.insert_resource(p2p::Bridge {
-        cmd_tx,
-        event_rx: Mutex::new(Some(event_rx)),
-    });
-    app.insert_resource(p2p::NetBridge(net_tx));
+    app.insert_resource(roster::ActiveRoom::default());
+    app.insert_resource(p2p::CommandChannel(cmd_tx));
+    app.insert_resource(p2p::EventChannel(Mutex::new(Some(event_rx))));
+    app.insert_resource(p2p::NetCommandChannel(net_tx));
     app.add_systems(
         Update,
         (
@@ -48,7 +45,7 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     use super::build_plugin;
-    use crate::net_id;
+    use crate::identity;
     use crate::p2p;
     use crate::plugin;
     use crate::roster;
@@ -63,7 +60,6 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         build_plugin(
             &plugin::P2PPlugin(plugin::Config::<Dummy>::new(
-                net_id::NetworkId(1),
                 p2p::TransportMode::Both,
                 p2p::MdnsMode::Disabled,
             )),
@@ -71,13 +67,20 @@ mod tests {
         );
         app.update();
         assert!(app.world().get_resource::<p2p::Events<Dummy>>().is_some());
-        assert!(app.world().get_resource::<p2p::Bridge<Dummy>>().is_some());
-        assert!(app.world().get_resource::<p2p::NetBridge>().is_some());
+        assert!(
+            app.world()
+                .get_resource::<p2p::CommandChannel<Dummy>>()
+                .is_some()
+        );
+        assert!(
+            app.world()
+                .get_resource::<p2p::NetCommandChannel>()
+                .is_some()
+        );
         assert!(app.world().get_resource::<roster::RoomRoster>().is_some());
         assert_eq!(
-            app.world().get_resource::<roster::Room>(),
-            Some(&roster::Room(net_id::RoomName::from("default")))
+            app.world().get_resource::<roster::ActiveRoom>(),
+            Some(&roster::ActiveRoom(identity::RoomName::from("default")))
         );
-        assert!(app.world().get_resource::<net_id::NetworkId>().is_some());
     }
 }

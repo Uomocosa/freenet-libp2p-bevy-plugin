@@ -21,7 +21,7 @@ pub enum Error {
     #[error("contract not found")]
     ContractNotFound,
     #[error("freenet stdlib error: {0}")]
-    FreenetClient(String),
+    Client(String),
     #[error("unexpected response: {0}")]
     UnexpectedResponse(String),
 }
@@ -48,6 +48,6 @@ impl From<std::io::Error> for Error {
 
 #[rustfmt::skip]
 impl From<freenet_stdlib::client_api::ClientError> for Error {
-    fn from(e: freenet_stdlib::client_api::ClientError) -> Self { Self::FreenetClient(e.to_string()) }
+    fn from(e: freenet_stdlib::client_api::ClientError) -> Self { Self::Client(e.to_string()) }
 }
 // no test_usage necessary

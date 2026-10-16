@@ -1,20 +1,23 @@
 use crate::discovery;
+use crate::identity;
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub game_name: discovery::GameName,
-    pub token: discovery::GameToken,
+    pub game: identity::GameId,
+    pub display_name: identity::Username,
     pub timing: discovery::Timing,
-    pub capacity: u16,
+    pub room_size: u16,
+    pub deploy_policy: discovery::freenet::DeployPolicy,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            game_name: discovery::GameName::from("test"),
-            token: discovery::GameToken::from("test"),
+            game: identity::GameId::from("test"),
+            display_name: identity::Username::from("anonymous"),
             timing: discovery::Timing::default(),
-            capacity: 8,
+            room_size: 8,
+            deploy_policy: discovery::freenet::DeployPolicy::default(),
         }
     }
 }
@@ -27,8 +30,12 @@ mod tests {
     #[test]
     fn test_usage() {
         let config = Config::default();
-        let params = discovery::freenet::contract_params(&config.game_name, &config.token);
-        assert_eq!(params, b"test/test".to_vec());
-        assert_eq!(config.capacity, 8);
+        let params = discovery::freenet::contract_params(&config.game);
+        assert_eq!(params, b"test".to_vec());
+        assert_eq!(config.room_size, 8);
+        assert_eq!(
+            config.deploy_policy,
+            discovery::freenet::DeployPolicy::FetchOrDeploy
+        );
     }
 }

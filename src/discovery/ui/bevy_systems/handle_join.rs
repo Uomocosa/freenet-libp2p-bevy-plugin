@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use crate::net_id;
+use crate::identity;
 use discovery::ui::RoomButton;
 
 pub fn handle_join(
@@ -15,12 +15,12 @@ pub fn handle_join(
         if *interaction != Interaction::Pressed {
             continue;
         }
-        let room: &net_id::RoomName = button;
+        let room: &identity::RoomName = button;
         if current == Some(room) {
-            tracing::info!(target: "room_lobby", "ui leave room={}", room.as_str());
+            tracing::info!(target: "discovery", "ui leave room={}", room.as_str());
             commands.write(discovery::Command::Leave);
         } else {
-            tracing::info!(target: "room_lobby", "ui join room={}", room.as_str());
+            tracing::info!(target: "discovery", "ui join room={}", room.as_str());
             commands.write(discovery::Command::Join(room.clone()));
         }
     }
@@ -28,7 +28,7 @@ pub fn handle_join(
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use bevy::prelude::*;
 
     use super::handle_join;
@@ -39,7 +39,7 @@ mod tests {
         let mut app = App::new();
         app.add_message::<discovery::Command>();
         app.init_resource::<discovery::Snapshot>();
-        let room = net_id::RoomName::from("alpha");
+        let room = identity::RoomName::from("alpha");
         app.world_mut().spawn((
             discovery::ui::RoomButton(room.clone()),
             Interaction::Pressed,

@@ -7,21 +7,21 @@ use libp2p::relay;
 use libp2p::request_response;
 use libp2p::swarm::SwarmEvent;
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 pub fn handle_swarm_event<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
-    room_queries: &std::collections::HashMap<libp2p::kad::QueryId, net_id::RoomName>,
-    listen_addrs: &mut Vec<net_id::PeerAddr>,
+    room_queries: &std::collections::HashMap<libp2p::kad::QueryId, identity::RoomName>,
+    listen_addrs: &mut Vec<identity::PeerAddr>,
     ready_deadline: &mut Option<tokio::time::Instant>,
     mode: p2p::TransportMode,
     event: SwarmEvent<p2p::behaviour::BehaviourEvent<T>>,
 ) {
     match event {
         SwarmEvent::NewListenAddr { address, .. } => {
-            listen_addrs.push(net_id::PeerAddr(address.to_string()));
+            listen_addrs.push(identity::PeerAddr(address.to_string()));
             if ready_deadline.is_none() {
                 let now = tokio::time::Instant::now();
                 *ready_deadline = now.checked_add(Duration::from_millis(250));
@@ -66,7 +66,7 @@ pub fn handle_swarm_event<T: p2p::Message>(
         )) => {
             event_tx
                 .send(p2p::Event::Net(p2p::NetEvent::RelayReserved {
-                    relay_peer_id: net_id::PeerId(relay_peer_id.to_string()),
+                    relay_peer_id: identity::PeerId(relay_peer_id.to_string()),
                 }))
                 .ok();
         }
@@ -75,7 +75,7 @@ pub fn handle_swarm_event<T: p2p::Message>(
         )) => {
             event_tx
                 .send(p2p::Event::Net(p2p::NetEvent::ObservedAddr(
-                    net_id::PeerAddr(info.observed_addr.to_string()),
+                    identity::PeerAddr(info.observed_addr.to_string()),
                 )))
                 .ok();
         }

@@ -25,6 +25,10 @@ path = "tests/lobby_room_join.rs"
 required-features = ["e2e"]
 
 [[test]]
+name = "contract_wire"
+path = "tests/contract_wire.rs"
+
+[[test]]
 name = "freenet_harness"
 path = "tests/freenet_harness.rs"
 
@@ -71,14 +75,14 @@ tokio-tungstenite = { version = "=0.27.0", optional = true }
 http = { version = "=1.4.1", optional = true }
 
 [features]
-default = ["room_lobby", "default_ui"]
-room_lobby = [
+default = ["discovery", "default_ui"]
+discovery = [
     "dep:freenet-stdlib",
     "dep:tokio-tungstenite",
     "dep:http",
 ]
-default_ui = ["room_lobby"]
-e2e = ["room_lobby", "default_ui"]
+default_ui = ["discovery"]
+e2e = ["discovery", "default_ui"]
 
 [dev-dependencies]
 telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.1" }

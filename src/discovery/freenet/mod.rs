@@ -3,7 +3,7 @@ pub mod basic;
 
 pub use basic::constants::*;
 pub use basic::enums::DeployPolicy;
-pub use basic::structs::LobbyClient;
+pub use basic::structs::{FreenetConfig, LobbyContract};
 
 mod merge_cached_lobby;
 pub use merge_cached_lobby::merge_cached_lobby;
@@ -17,8 +17,8 @@ pub use contract_params::contract_params;
 mod contract_wasm;
 pub use contract_wasm::contract_wasm;
 
-mod connected_peer_count;
-pub use connected_peer_count::connected_peer_count;
+mod connected_peers;
+pub use connected_peers::connected_peers;
 
 mod attach;
 pub use attach::attach;
@@ -26,8 +26,17 @@ pub use attach::attach;
 mod connect_retry;
 pub use connect_retry::connect_retry;
 
+mod connect_socket;
+pub use connect_socket::connect_socket;
+
+mod poll_peers;
+pub use poll_peers::poll_peers;
+
 mod bridge_subscription;
 pub use bridge_subscription::bridge_subscription;
+
+mod is_ring_ready;
+pub use is_ring_ready::is_ring_ready;
 
 mod wait_until_ring_ready;
 pub use wait_until_ring_ready::wait_until_ring_ready;
@@ -41,8 +50,8 @@ pub use refresh::refresh;
 mod poll;
 pub use poll::poll;
 
-mod publish_presence;
-pub use publish_presence::publish_presence;
+mod publish_heartbeat;
+pub use publish_heartbeat::publish_heartbeat;
 
 mod merge_lobby;
 pub use merge_lobby::merge_lobby;

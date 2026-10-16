@@ -1,6 +1,6 @@
 use libp2p::gossipsub;
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 pub fn handle_gossipsub<T: p2p::Message>(
@@ -62,8 +62,8 @@ fn forward_gossip<T: p2p::Message>(
 ) {
     event_tx
         .send(p2p::Event::Net(p2p::NetEvent::Gossip {
-            topic: net_id::Topic(message.topic.to_string()),
-            from: net_id::PeerId(
+            topic: identity::Topic(message.topic.to_string()),
+            from: identity::PeerId(
                 message
                     .source
                     .map_or_else(|| propagation_source.to_string(), |s| s.to_string()),

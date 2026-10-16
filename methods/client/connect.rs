@@ -14,7 +14,7 @@ pub async fn connect(
     port: u16,
 ) -> Result<discovery::freenet::Client, discovery::Error> {
     let url = format!("ws://{host}:{port}/v1/contract/command?encodingProtocol=native");
-    info!(target: "room_lobby", url = %url, "connecting to freenet node");
+    info!(target: "discovery", url = %url, "connecting to freenet node");
     let mut request = url.into_client_request()?;
     request.headers_mut().insert(
         "encoding-protocol",
@@ -47,7 +47,7 @@ pub async fn connect(
                     }
                 }
                 Message::Close(frame) => {
-                    info!(target: "room_lobby", ?frame, "websocket closed");
+                    info!(target: "discovery", ?frame, "websocket closed");
                     break;
                 }
                 Message::Ping(data) => {

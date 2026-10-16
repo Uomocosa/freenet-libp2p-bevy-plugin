@@ -6,13 +6,14 @@ use crate::UnixTime;
 use crate::basic::newtypes::RemotePeerId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Presence {
+pub struct Heartbeat {
     pub addrs: Vec<String>,
     pub updated_at: UnixTime,
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RoomRecord {
-    pub capacity: u16,
-    pub members: BTreeMap<RemotePeerId, Presence>,
+pub struct Room {
+    pub room_size: u16,
+    pub members: BTreeMap<RemotePeerId, Heartbeat>,
 }

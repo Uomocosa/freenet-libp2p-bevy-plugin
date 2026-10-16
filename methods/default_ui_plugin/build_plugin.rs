@@ -3,7 +3,14 @@ use bevy::prelude::*;
 use crate::discovery;
 
 pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
-    app.add_systems(Startup, discovery::ui::bevy_systems::spawn_root);
+    app.init_resource::<discovery::ui::LeavePromptOpen>();
+    app.add_systems(
+        Startup,
+        (
+            discovery::ui::bevy_systems::spawn_root,
+            discovery::ui::bevy_systems::spawn_leave_door,
+        ),
+    );
     app.add_systems(
         Update,
         (
@@ -13,8 +20,18 @@ pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
             )
                 .chain(),
             discovery::ui::bevy_systems::gate_create,
+            discovery::ui::bevy_systems::animate_hover,
             discovery::ui::bevy_systems::handle_create,
             discovery::ui::bevy_systems::handle_join,
+            discovery::ui::bevy_systems::sync_in_room,
+            (
+                discovery::ui::bevy_systems::request_leave,
+                discovery::ui::bevy_systems::handle_leave_answer,
+                discovery::ui::bevy_systems::sync_leave_prompt,
+                discovery::ui::bevy_systems::animate_door,
+            )
+                .chain()
+                .after(discovery::ui::bevy_systems::sync_in_room),
         ),
     );
 }

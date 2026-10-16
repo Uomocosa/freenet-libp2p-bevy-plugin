@@ -1,10 +1,10 @@
 use crate::discovery;
-use crate::net_id;
+use crate::identity;
 use discovery::state_machine::State;
 
 pub fn add_candidates(
     state: &mut State,
-    peers: impl IntoIterator<Item = net_id::Peer>,
+    peers: impl IntoIterator<Item = identity::Peer>,
     now: discovery::UnixTime,
 ) {
     for peer in peers {
@@ -13,9 +13,10 @@ pub fn add_candidates(
         }
         state.candidates.insert(
             peer.id,
-            discovery::Presence {
+            discovery::Heartbeat {
                 addrs: peer.addrs,
                 updated_at: now,
+                display_name: None,
             },
         );
     }
@@ -25,34 +26,34 @@ pub fn add_candidates(
 mod tests {
     use super::add_candidates;
     use crate::discovery;
-    use crate::net_id;
+    use crate::identity;
     use discovery::state_machine::State;
 
     #[test]
     fn test_usage() {
         let mut state = State::new(
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
+            identity::Peer {
+                id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             },
             discovery::Timing::default(),
         );
         let peers = vec![
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
-                addrs: vec![net_id::PeerAddr::from("/ip4/1")],
+            identity::Peer {
+                id: identity::PeerId::from("me"),
+                addrs: vec![identity::PeerAddr::from("/ip4/1")],
             },
-            net_id::Peer {
-                id: net_id::PeerId::from("a"),
-                addrs: vec![net_id::PeerAddr::from("/ip4/2")],
+            identity::Peer {
+                id: identity::PeerId::from("a"),
+                addrs: vec![identity::PeerAddr::from("/ip4/2")],
             },
-            net_id::Peer {
-                id: net_id::PeerId::from("b"),
+            identity::Peer {
+                id: identity::PeerId::from("b"),
                 addrs: Vec::new(),
             },
         ];
         add_candidates(&mut state, peers, discovery::UnixTime::from_secs(1));
         assert_eq!(state.candidates.len(), 1);
-        assert!(state.candidates.contains_key(&net_id::PeerId::from("a")));
+        assert!(state.candidates.contains_key(&identity::PeerId::from("a")));
     }
 }

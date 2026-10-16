@@ -26,7 +26,6 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     use super::P2PPlugin;
-    use crate::net_id;
     use crate::p2p;
     use crate::plugin;
     use derive_more::Deref;
@@ -39,14 +38,17 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_plugins(P2PPlugin(plugin::Config::<Dummy>::new(
-            net_id::NetworkId(1),
             p2p::TransportMode::Both,
             p2p::MdnsMode::Disabled,
         )));
         app.update();
         assert!(app.world().get_resource::<p2p::Events<Dummy>>().is_some());
-        assert!(app.world().get_resource::<p2p::Outbox>().is_some());
-        assert!(app.world().get_resource::<p2p::EventTap>().is_some());
-        assert!(app.world().get_resource::<p2p::Signals>().is_some());
+        assert!(
+            app.world()
+                .get_resource::<p2p::PendingNetCommands>()
+                .is_some()
+        );
+        assert!(app.world().get_resource::<p2p::NetEventChannel>().is_some());
+        assert!(app.world().get_resource::<p2p::ReadyChannel>().is_some());
     }
 }

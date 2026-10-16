@@ -1,7 +1,7 @@
 #[macro_export]
-macro_rules! game_token {
+macro_rules! game_id {
     () => {
-        $crate::discovery::GameToken(format!(
+        $crate::identity::GameId(format!(
             "{}/{}",
             env!("CARGO_PKG_NAME"),
             env!("CARGO_PKG_REPOSITORY"),

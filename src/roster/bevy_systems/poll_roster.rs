@@ -1,14 +1,14 @@
 use bevy::prelude::*;
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 use crate::roster;
 
 pub fn poll_roster<T: p2p::Message>(
     mut roster: ResMut<roster::RoomRoster>,
-    room: Res<roster::Room>,
+    room: Res<roster::ActiveRoom>,
     mut events: ResMut<p2p::Events<T>>,
-    mut links: Local<std::collections::HashMap<net_id::PeerId, u32, std::hash::RandomState>>,
+    mut links: Local<std::collections::HashMap<identity::PeerId, u32, std::hash::RandomState>>,
 ) {
     let mut rest = Vec::new();
     let room = room.into_inner();
@@ -44,13 +44,13 @@ pub fn poll_roster<T: p2p::Message>(
 }
 
 // needed helper: stable 32-byte roster key for a peer
-fn peer_key(peer: &net_id::PeerId) -> [u8; 32] {
+fn peer_key(peer: &identity::PeerId) -> [u8; 32] {
     *blake3::hash(peer.as_bytes()).as_bytes()
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use std::collections::BTreeMap;
 
     use bevy::prelude::*;
@@ -69,17 +69,17 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(roster::RoomRoster::default());
-        app.insert_resource(roster::Room(net_id::RoomName::from("alpha")));
+        app.insert_resource(roster::ActiveRoom(identity::RoomName::from("alpha")));
         app.insert_resource(p2p::Events::<Dummy>::default());
         app.world_mut()
             .resource_mut::<p2p::Events<Dummy>>()
             .push(p2p::Event::Net(p2p::NetEvent::PeerConnected(
-                net_id::PeerId::from("peer"),
+                identity::PeerId::from("peer"),
             )));
         app.world_mut()
             .resource_mut::<p2p::Events<Dummy>>()
             .push(p2p::Event::Message {
-                from: net_id::PeerId::from("peer"),
+                from: identity::PeerId::from("peer"),
                 payload: Dummy(1),
             });
         app.add_systems(Update, poll_roster::<Dummy>);
@@ -87,19 +87,19 @@ mod tests {
         let alpha = app
             .world()
             .resource::<roster::RoomRoster>()
-            .get(&net_id::RoomName::from("alpha"))
+            .get(&identity::RoomName::from("alpha"))
             .map_or(0, std::collections::BTreeMap::len);
         assert_eq!(alpha, 1);
         assert!(
             app.world()
                 .resource::<roster::RoomRoster>()
-                .get(&net_id::RoomName::from("default"))
+                .get(&identity::RoomName::from("default"))
                 .is_none()
         );
         app.world_mut()
             .resource_mut::<p2p::Events<Dummy>>()
             .push(p2p::Event::Net(p2p::NetEvent::PeerDisconnected(
-                net_id::PeerId::from("peer"),
+                identity::PeerId::from("peer"),
             )));
         app.update();
         let members: usize = app
@@ -117,24 +117,24 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(roster::RoomRoster::default());
-        app.insert_resource(roster::Room(net_id::RoomName::from("alpha")));
+        app.insert_resource(roster::ActiveRoom(identity::RoomName::from("alpha")));
         app.insert_resource(p2p::Events::<Dummy>::default());
         app.world_mut()
             .resource_mut::<p2p::Events<Dummy>>()
             .push(p2p::Event::Net(p2p::NetEvent::PeerConnected(
-                net_id::PeerId::from("peer"),
+                identity::PeerId::from("peer"),
             )));
         app.world_mut()
             .resource_mut::<p2p::Events<Dummy>>()
             .push(p2p::Event::Net(p2p::NetEvent::PeerConnected(
-                net_id::PeerId::from("peer"),
+                identity::PeerId::from("peer"),
             )));
         app.add_systems(Update, poll_roster::<Dummy>);
         app.update();
         app.world_mut()
             .resource_mut::<p2p::Events<Dummy>>()
             .push(p2p::Event::Net(p2p::NetEvent::PeerDisconnected(
-                net_id::PeerId::from("peer"),
+                identity::PeerId::from("peer"),
             )));
         app.update();
         let members: usize = app
@@ -147,7 +147,7 @@ mod tests {
         app.world_mut()
             .resource_mut::<p2p::Events<Dummy>>()
             .push(p2p::Event::Net(p2p::NetEvent::PeerDisconnected(
-                net_id::PeerId::from("peer"),
+                identity::PeerId::from("peer"),
             )));
         app.update();
         let members: usize = app

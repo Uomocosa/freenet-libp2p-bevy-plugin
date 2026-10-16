@@ -23,15 +23,15 @@ impl<T: p2p::Message> Commands<T> {
 #[cfg(test)]
 mod tests {
     use super::Commands;
-    use crate::net_id;
+    use crate::identity;
     use crate::p2p;
 
     #[test]
     fn test_usage() {
         let mut c = Commands::<()>::default();
         assert!(c.is_empty());
-        c.push(p2p::Command::Net(p2p::NetCommand::Dial(net_id::Peer {
-            id: net_id::PeerId::from("p"),
+        c.push(p2p::Command::Net(p2p::NetCommand::Dial(identity::Peer {
+            id: identity::PeerId::from("p"),
             addrs: vec![],
         })));
         assert_eq!(c.take_all().len(), 1);

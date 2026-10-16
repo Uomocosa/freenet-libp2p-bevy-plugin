@@ -1,23 +1,24 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::discovery;
-use crate::net_id;
+use crate::identity;
 
 pub struct State {
-    pub me: net_id::Peer,
+    pub me: identity::Peer,
     pub timing: discovery::Timing,
     pub lobby: discovery::Lobby,
-    pub room: Option<discovery::Room>,
-    pub connected: BTreeSet<net_id::PeerId>,
-    pub candidates: BTreeMap<net_id::PeerId, discovery::Presence>,
-    pub last_dial: BTreeMap<net_id::PeerId, discovery::UnixTime>,
-    pub last_hello: Option<discovery::UnixTime>,
-    pub freenet_peers: usize,
+    pub room: Option<discovery::JoinedRoom>,
+    pub connected: BTreeSet<identity::PeerId>,
+    pub candidates: BTreeMap<identity::PeerId, discovery::Heartbeat>,
+    pub last_dial: BTreeMap<identity::PeerId, discovery::UnixTime>,
+    pub last_handshake: Option<discovery::UnixTime>,
+    pub freenet_peers: Vec<identity::FreenetPeer>,
+    pub display_name: identity::Username,
 }
 
 impl State {
     #[must_use]
-    pub const fn new(me: net_id::Peer, timing: discovery::Timing) -> Self {
+    pub const fn new(me: identity::Peer, timing: discovery::Timing) -> Self {
         Self {
             me,
             timing,
@@ -26,8 +27,9 @@ impl State {
             connected: BTreeSet::new(),
             candidates: BTreeMap::new(),
             last_dial: BTreeMap::new(),
-            last_hello: None,
-            freenet_peers: 0,
+            last_handshake: None,
+            freenet_peers: Vec::new(),
+            display_name: identity::Username(String::new()),
         }
     }
 }
@@ -36,13 +38,13 @@ impl State {
 mod tests {
     use super::State;
     use crate::discovery;
-    use crate::net_id;
+    use crate::identity;
 
     #[test]
     fn test_usage() {
         let state = State::new(
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
+            identity::Peer {
+                id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             },
             discovery::Timing::default(),

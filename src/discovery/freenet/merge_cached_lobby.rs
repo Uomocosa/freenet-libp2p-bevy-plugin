@@ -1,7 +1,7 @@
 use crate::discovery;
 
 pub fn merge_cached_lobby(
-    client: &mut discovery::freenet::LobbyClient,
+    client: &mut discovery::freenet::LobbyContract,
     incoming: discovery::Lobby,
 ) {
     let cached = std::mem::take(&mut client.lobby);

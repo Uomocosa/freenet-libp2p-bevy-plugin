@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use bevy::ui::UiGlobalTransform;
 use bevy::window::PrimaryWindow;
 use freenet_libp2p_bevy_plugin::discovery;
-use freenet_libp2p_bevy_plugin::net_id;
+use freenet_libp2p_bevy_plugin::identity;
 
 use crate::args;
 
@@ -77,7 +77,7 @@ pub fn script_input<F, C, J>(
 ) where
     F: Component,
     C: Component,
-    J: Component + Deref<Target = net_id::RoomName>,
+    J: Component + Deref<Target = identity::RoomName>,
 {
     let Some(action) = intent.action.clone() else {
         return;

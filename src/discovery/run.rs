@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::discovery;
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 use discovery::state_machine::{Input, Output, State};
 
@@ -21,33 +21,32 @@ pub async fn run(
     let Some(ready) = discovery::libp2p::wait_ready(&mut net.ready).await else {
         return;
     };
-    let me = net_id::Peer {
+    let me = identity::Peer {
         addrs: discovery::libp2p::dialable(ready.addrs),
         id: ready.id,
     };
     let timing = config.timing;
-    let capacity = config.capacity;
     let mut state = State::new(me.clone(), timing);
+    state.display_name = config.display_name.clone();
     let (target_tx, target_rx) = tokio::sync::watch::channel(None);
     let (lobby_tx, mut lobbies) = tokio::sync::mpsc::unbounded_channel();
     let (peers_tx, mut peers) = tokio::sync::mpsc::unbounded_channel();
-    let params = discovery::freenet::contract_params(&config.game_name, &config.token);
-    let me_id = me.id.clone();
+    let freenet_config = discovery::freenet::FreenetConfig {
+        host: "127.0.0.1".to_string(),
+        port: *endpoint,
+        me: me.id.clone(),
+        params: discovery::freenet::contract_params(&config.game),
+        room_size: config.room_size,
+        deploy_policy: config.deploy_policy,
+        timing: config.timing,
+    };
+    tokio::spawn(discovery::freenet::poll_peers(
+        freenet_config.clone(),
+        peers_tx,
+    ));
     tokio::spawn(async move {
-        let client = discovery::freenet::connect_retry(
-            "127.0.0.1",
-            *endpoint,
-            &params,
-            &me_id,
-            capacity,
-            &target_rx,
-            timing,
-        )
-        .await;
-        discovery::freenet::run_lobby(
-            client, me.id, capacity, timing, target_rx, lobby_tx, peers_tx,
-        )
-        .await;
+        let client = discovery::freenet::connect_retry(&freenet_config, &target_rx).await;
+        discovery::freenet::run_lobby(&freenet_config, client, target_rx, lobby_tx).await;
     });
     let mut tick = tokio::time::interval(timing.tick.max(Duration::from_secs(1)));
     loop {
@@ -55,7 +54,7 @@ pub async fn run(
             Some(command) = commands.recv() => Input::Command(command),
             Some(event) = net.events.recv() => Input::NetEvent(event),
             Some(lobby) = lobbies.recv() => Input::LobbyUpdated(lobby),
-            Some(count) = peers.recv() => Input::FreenetPeers(count),
+            Some(connected) = peers.recv() => Input::FreenetPeers(connected),
             Ok(()) = net.observed.changed() => {
                 let Some(addrs) = net.observed.borrow_and_update().clone() else {
                     continue;
@@ -67,7 +66,7 @@ pub async fn run(
         let outputs =
             discovery::state_machine::update(&mut state, input, discovery::UnixTime::now());
         flush(outputs, &net.commands, &events);
-        let target = discovery::state_machine::publish_target(&state);
+        let target = discovery::state_machine::heartbeat_target(&state);
         target_tx.send_if_modified(|current| {
             let changed = *current != target;
             if changed {

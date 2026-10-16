@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[path = "__basic__/mod.rs"]
 pub mod basic;
 pub use basic::newtypes::{RemotePeerId, RoomName};
-pub use basic::structs::{Presence, RoomRecord};
+pub use basic::structs::{Heartbeat, Room};
 pub use basic::type_aliases::LobbyState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Deref)]
@@ -32,21 +32,21 @@ fn valid_room_name(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
-fn merge_presence(current: Option<Presence>, incoming: Presence) -> Presence {
+fn merge_heartbeat(current: Option<Heartbeat>, incoming: Heartbeat) -> Heartbeat {
     match current {
         Some(existing) if existing.updated_at >= incoming.updated_at => existing,
         _ => incoming,
     }
 }
 
-fn merge_room(current: Option<RoomRecord>, incoming: RoomRecord) -> RoomRecord {
+fn merge_room(current: Option<Room>, incoming: Room) -> Room {
     match current {
         Some(mut existing) => {
-            for (peer, presence) in incoming.members {
-                let merged = merge_presence(existing.members.remove(&peer), presence);
+            for (peer, heartbeat) in incoming.members {
+                let merged = merge_heartbeat(existing.members.remove(&peer), heartbeat);
                 existing.members.insert(peer, merged);
             }
-            existing.capacity = existing.capacity.max(incoming.capacity);
+            existing.room_size = existing.room_size.max(incoming.room_size);
             existing
         }
         None => incoming,
@@ -59,7 +59,7 @@ fn merge_lobby(mut base: LobbyState, incoming: LobbyState) -> LobbyState {
             continue;
         }
         let merged = merge_room(base.remove(&room), record);
-        if merged.capacity == 0 || merged.members.len() > MAX_MEMBERS_PER_ROOM {
+        if merged.room_size == 0 || merged.members.len() > MAX_MEMBERS_PER_ROOM {
             continue;
         }
         if !base.contains_key(&room) && base.len() >= MAX_ROOMS {
@@ -101,7 +101,7 @@ impl ContractInterface for LobbyContract {
             return Err(ContractError::InvalidState);
         }
         for (room, record) in &lobby {
-            if !valid_room_name(room.as_str()) || record.capacity == 0 {
+            if !valid_room_name(room.as_str()) || record.room_size == 0 {
                 return Err(ContractError::InvalidState);
             }
             if record.members.len() > MAX_MEMBERS_PER_ROOM {
@@ -171,17 +171,18 @@ mod tests {
             .map_or_else(Vec::new, |state| state.as_ref().to_vec())
     }
 
-    fn room(peer: &str, updated_at: UnixTime) -> RoomRecord {
+    fn room(peer: &str, updated_at: UnixTime) -> Room {
         let mut members = BTreeMap::new();
         members.insert(
             RemotePeerId(peer.to_string()),
-            Presence {
+            Heartbeat {
                 addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
                 updated_at,
+                display_name: None,
             },
         );
-        RoomRecord {
-            capacity: 8,
+        Room {
+            room_size: 8,
             members,
         }
     }

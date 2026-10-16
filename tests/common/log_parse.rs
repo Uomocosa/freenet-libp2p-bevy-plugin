@@ -3,7 +3,7 @@ use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tick {
-    pub catalogue: Vec<String>,
+    pub rooms: Vec<String>,
     pub room: Option<String>,
     pub members: usize,
     pub connected: usize,
@@ -75,16 +75,16 @@ fn parse_tick_line(line: &str) -> Option<Tick> {
     let start = line.find("lobby tick ")?;
     let rest = line.get(start.checked_add("lobby tick ".len())?..)?;
     let mut tick = Tick {
-        catalogue: Vec::new(),
+        rooms: Vec::new(),
         room: None,
         members: 0,
         connected: 0,
         freenet_peers: 0,
     };
     for token in rest.split_whitespace() {
-        if let Some(value) = token.strip_prefix("catalogue=") {
+        if let Some(value) = token.strip_prefix("rooms=") {
             if value != "none" {
-                tick.catalogue = value
+                tick.rooms = value
                     .split(',')
                     .filter(|name| !name.is_empty())
                     .map(str::to_string)

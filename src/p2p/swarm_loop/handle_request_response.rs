@@ -1,6 +1,6 @@
 use libp2p::request_response;
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 pub fn handle_request_response<T: p2p::Message>(
@@ -16,7 +16,7 @@ pub fn handle_request_response<T: p2p::Message>(
             let payload_clone = request.clone();
             event_tx
                 .send(p2p::Event::Message {
-                    from: net_id::PeerId(peer.to_string()),
+                    from: identity::PeerId(peer.to_string()),
                     payload: request,
                 })
                 .ok();
@@ -28,7 +28,7 @@ pub fn handle_request_response<T: p2p::Message>(
         request_response::Message::Response { response, .. } => {
             event_tx
                 .send(p2p::Event::Message {
-                    from: net_id::PeerId(peer.to_string()),
+                    from: identity::PeerId(peer.to_string()),
                     payload: response,
                 })
                 .ok();

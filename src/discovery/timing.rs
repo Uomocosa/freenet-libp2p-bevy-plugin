@@ -4,11 +4,11 @@ use std::time::Duration;
 pub struct Timing {
     pub tick: Duration,
     pub republish: Duration,
-    pub presence_ttl: Duration,
+    pub heartbeat_ttl: Duration,
     pub lobby: Duration,
     pub bridge: Duration,
     pub redial: Duration,
-    pub hello: Duration,
+    pub handshake: Duration,
     pub member_grace: Duration,
     pub ring: Duration,
 }
@@ -18,11 +18,11 @@ impl Default for Timing {
         Self {
             tick: Duration::from_secs(1),
             republish: Duration::from_secs(30),
-            presence_ttl: Duration::from_secs(120),
+            heartbeat_ttl: Duration::from_secs(120),
             lobby: Duration::from_secs(5),
             bridge: Duration::from_secs(10),
             redial: Duration::from_secs(2),
-            hello: Duration::from_secs(5),
+            handshake: Duration::from_secs(5),
             member_grace: Duration::from_secs(10),
             ring: Duration::from_secs(30),
         }
@@ -40,6 +40,6 @@ mod tests {
         let timing = Timing::default();
         assert_eq!(timing.tick, Duration::from_secs(1));
         assert!(timing.republish > timing.tick);
-        assert!(timing.bridge < timing.presence_ttl);
+        assert!(timing.bridge < timing.heartbeat_ttl);
     }
 }

@@ -18,7 +18,7 @@ impl bevy::prelude::Plugin for DefaultUiPlugin {
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use bevy::prelude::*;
 
     use crate::discovery;
@@ -27,15 +27,19 @@ mod tests {
         app.add_message::<discovery::Command>();
         app.insert_resource(preview_snapshot());
         app.add_plugins(discovery::ui::DefaultUiPlugin);
+        app.add_systems(
+            Update,
+            pin_hover.before(discovery::ui::bevy_systems::animate_hover),
+        );
     }
 
     fn preview_snapshot() -> discovery::Snapshot {
         let mut snapshot = discovery::Snapshot::default();
-        for (name, capacity) in [("alpha", 8_u16), ("beta", 4_u16)] {
+        for (name, room_size) in [("alpha", 8_u16), ("beta", 4_u16)] {
             snapshot.lobby.insert(
-                net_id::RoomName::from(name),
-                discovery::RoomEntry {
-                    capacity,
+                identity::RoomName::from(name),
+                discovery::Room {
+                    room_size,
                     members: std::collections::BTreeMap::new(),
                 },
             );
@@ -44,6 +48,32 @@ mod tests {
     }
 
     const fn preview_noop(_world: &mut World) {}
+
+    #[derive(Component)]
+    struct PinHover;
+
+    fn pin_hover(mut pinned: Query<&mut Interaction, With<PinHover>>) {
+        for mut interaction in &mut pinned {
+            *interaction = Interaction::Hovered;
+        }
+    }
+
+    fn hover_all(world: &mut World) {
+        let mut inputs = world
+            .query_filtered::<&mut bevy::text::EditableText, With<discovery::ui::RoomNameInput>>();
+        if let Ok(mut input) = inputs.single_mut(world) {
+            input.queue_edit(bevy::text::TextEdit::Insert("gamma".into()));
+        }
+        let mut glows = world.query_filtered::<Entity, With<discovery::ui::HoverGlow>>();
+        let hovered: Vec<Entity> = glows.iter(world).collect();
+        for entity in hovered {
+            world.entity_mut(entity).insert((
+                Interaction::Hovered,
+                PinHover,
+                discovery::ui::HoverGlow(1.0),
+            ));
+        }
+    }
 
     #[test]
     fn test_usage() {
@@ -67,10 +97,16 @@ mod tests {
                 name: String::from("default_ui_plugin"),
                 kind: lele_bevy_preview::scene::Kind::Plugin,
                 build: preview_build,
-                states: vec![lele_bevy_preview::scene::State {
-                    label: String::from("lobby with two rooms"),
-                    apply: preview_noop,
-                }],
+                states: vec![
+                    lele_bevy_preview::scene::State {
+                        label: String::from("lobby with two rooms"),
+                        apply: preview_noop,
+                    },
+                    lele_bevy_preview::scene::State {
+                        label: String::from("all hovered"),
+                        apply: hover_all,
+                    },
+                ],
                 timeline: None,
             },
             &lele_bevy_preview::preview::Config {

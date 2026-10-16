@@ -1,8 +1,8 @@
-use crate::net_id;
+use crate::identity;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RoomDetails {
-    pub name: net_id::RoomName,
+    pub name: identity::RoomName,
     pub members: usize,
-    pub capacity: u16,
+    pub room_size: u16,
 }

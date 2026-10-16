@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use discovery::ui::basic::constants::ROOM_COLOR;
-use discovery::ui::{RoomButton, RoomDetails, RoomList};
+use discovery::ui::{HoverGlow, RoomButton, RoomDetails, RoomList};
 
 pub fn sync_room_list(
     mut commands: Commands,
@@ -17,7 +17,7 @@ pub fn sync_room_list(
         .map(|(name, record)| RoomDetails {
             name: name.clone(),
             members: record.members.len(),
-            capacity: record.capacity,
+            room_size: record.room_size,
         })
         .collect();
     if *shown == wanted {
@@ -30,12 +30,13 @@ pub fn sync_room_list(
         .despawn_related::<Children>()
         .with_children(|parent| {
             for row in &*shown {
-                let label = format!("{} ({}/{})", row.name.as_str(), row.members, row.capacity);
+                let label = format!("> {} [{} online]", row.name.as_str(), row.members);
                 parent.spawn((
                     RoomButton(row.name.clone()),
                     Button,
+                    HoverGlow::default(),
                     Node {
-                        padding: UiRect::axes(Val::Px(12.0), Val::Px(4.0)),
+                        padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
                         ..default()
                     },
                     BackgroundColor(ROOM_COLOR),
@@ -47,7 +48,7 @@ pub fn sync_room_list(
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use bevy::prelude::*;
 
     use super::sync_room_list;
@@ -59,9 +60,9 @@ mod tests {
         let mut snapshot = discovery::Snapshot::default();
         for name in ["alpha", "beta"] {
             snapshot.lobby.insert(
-                net_id::RoomName::from(name),
-                discovery::RoomEntry {
-                    capacity: 8,
+                identity::RoomName::from(name),
+                discovery::Room {
+                    room_size: 8,
                     members: std::collections::BTreeMap::new(),
                 },
             );
@@ -87,11 +88,11 @@ mod tests {
 
     fn preview_snapshot() -> discovery::Snapshot {
         let mut snapshot = discovery::Snapshot::default();
-        for (name, capacity) in [("alpha", 8_u16), ("beta", 4_u16)] {
+        for (name, room_size) in [("alpha", 8_u16), ("beta", 4_u16)] {
             snapshot.lobby.insert(
-                net_id::RoomName::from(name),
-                discovery::RoomEntry {
-                    capacity,
+                identity::RoomName::from(name),
+                discovery::Room {
+                    room_size,
                     members: std::collections::BTreeMap::new(),
                 },
             );
@@ -119,9 +120,9 @@ mod tests {
     fn add_room(world: &mut World) {
         let mut snapshot = world.resource_mut::<discovery::Snapshot>();
         snapshot.lobby.insert(
-            net_id::RoomName::from("gamma"),
-            discovery::RoomEntry {
-                capacity: 4,
+            identity::RoomName::from("gamma"),
+            discovery::Room {
+                room_size: 4,
                 members: std::collections::BTreeMap::new(),
             },
         );

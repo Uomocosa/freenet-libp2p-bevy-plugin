@@ -6,7 +6,7 @@ pub fn handle_lobby(
     lobby: discovery::Lobby,
     now: discovery::UnixTime,
 ) -> Vec<Output> {
-    let lobby = discovery::state_machine::live_lobby(lobby, now, state.timing.presence_ttl);
+    let lobby = discovery::state_machine::live_lobby(lobby, now, state.timing.heartbeat_ttl);
     if lobby == state.lobby {
         return Vec::new();
     }
@@ -17,7 +17,7 @@ pub fn handle_lobby(
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use std::collections::BTreeMap;
 
     use super::handle_lobby;
@@ -27,31 +27,32 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut state = State::new(
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
+            identity::Peer {
+                id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             },
             discovery::Timing::default(),
         );
-        state.room = Some(discovery::Room {
-            name: net_id::RoomName::from("r"),
+        state.room = Some(discovery::JoinedRoom {
+            name: identity::RoomName::from("r"),
             members: discovery::Members::new(),
         });
         let mut members = BTreeMap::new();
         for peer in ["me", "a"] {
             members.insert(
-                net_id::PeerId::from(peer),
-                discovery::Presence {
-                    addrs: vec![net_id::PeerAddr::from("/ip4/1")],
+                identity::PeerId::from(peer),
+                discovery::Heartbeat {
+                    addrs: vec![identity::PeerAddr::from("/ip4/1")],
                     updated_at: discovery::UnixTime::from_secs(3),
+                    display_name: None,
                 },
             );
         }
         let mut lobby = discovery::Lobby::new();
         lobby.insert(
-            net_id::RoomName::from("r"),
-            discovery::RoomEntry {
-                capacity: 8,
+            identity::RoomName::from("r"),
+            discovery::Room {
+                room_size: 8,
                 members,
             },
         );

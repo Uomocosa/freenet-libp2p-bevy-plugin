@@ -33,7 +33,7 @@ different machines/networks. Do **NOT** add any shortcut, in the example or the 
 - Do **not** use `ProvideLobby` / `FindLobby` / `ReserveRelay`.
 - Do **not** hardcode bootstrap peers or peer ids.
 - Do **not** pass peer ids/addrs between instances via files, env vars, or the harness.
-- Discovery must remain: the creator writes its presence to the Freenet board, other
+- Discovery must remain: the creator writes its heartbeat to the Freenet board, other
   peers read that row and `Dial`. Nothing else.
 
 Adding any such shortcut invalidates the test even if it makes it pass.
@@ -57,7 +57,7 @@ Adding any such shortcut invalidates the test even if it makes it pass.
 - Log markers are the oracle (keep them stable, or update `common/log_parse.rs`):
   - `lobby created room=<r>`
   - `lobby joined room=<r>`
-  - `lobby tick catalogue=<a,b|none> room=<r|none> members=<k> connected=<c>`
+  - `lobby tick rooms=<a,b|none> room=<r|none> members=<k> connected=<c>`
   - `lobby freenet ring ready peers=<n>` — emitted by `attach` **only once the node
     has actually read the board** (a local re-Get that never reaches the ring does
     not count); it is the `ring` check.
@@ -68,17 +68,17 @@ Adding any such shortcut invalidates the test even if it makes it pass.
     check also accepts the durable signal (`ring ready … rooms>=1`, i.e. the
     creator read back a board already holding its room).
 - Checks: `spawn`, `board` (creator published), `ring` (every peer read the board),
-  `discovery` (every peer's catalogue lists the room), `join`, `converge`. A node
+  `discovery` (every peer's rooms lists the room), `join`, `converge`. A node
   that never reaches the ring is reported as `ring`/`isolated=[..]`, not as a
   mystery `discovery` failure.
-- Layering: Freenet only seeds candidates (board presence, polled in its own task);
+- Layering: Freenet only seeds candidates (board heartbeat, polled in its own task);
   room membership is libp2p-only — a peer is a member once it is connected AND has sent a
-  `/blackboard/pex/1.0.0` hello for the same room. Hellos carry the sender's members, so one
+  `/blackboard/pex/1.0.0` handshake for the same room. Handshakes carry the sender's members, so one
   Freenet seed is enough to reach the whole room.
 - `lobby mesh room=<r> connected=<c>` is logged the moment the live link count changes; the
   join test's `converge` check = last joiner's press -> every peer at `connected=N-1`,
   budget 500ms (`CONVERGE_BUDGET_MS`).
-- Timings: `discovery_ms` = create → every peer lists the room in `catalogue`;
+- Timings: `discovery_ms` = create → every peer lists the room in `rooms`;
   `join_ms` = last joiner spawned → every peer has `room=<r>` and `connected=N-1`.
   Budgets: 120s discovery, 180s join (constants in `common/scenario.rs`).
 

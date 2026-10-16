@@ -1,8 +1,8 @@
 pub mod room_roster;
 pub use room_roster::RoomRoster;
 
-pub mod room;
-pub use room::Room;
+pub mod active_room;
+pub use active_room::ActiveRoom;
 
 pub mod bevy_systems;
 

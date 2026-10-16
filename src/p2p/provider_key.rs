@@ -1,20 +1,20 @@
 use libp2p::kad::RecordKey;
 
-use crate::net_id;
+use crate::identity;
 
 #[must_use]
-pub fn provider_key(room: &net_id::RoomName) -> RecordKey {
+pub fn provider_key(room: &identity::RoomName) -> RecordKey {
     RecordKey::new(&format!("lobby/room/{}", room.as_str()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::provider_key;
-    use crate::net_id;
+    use crate::identity;
 
     #[test]
     fn test_usage() {
-        let key = provider_key(&net_id::RoomName::from("room-a"));
+        let key = provider_key(&identity::RoomName::from("room-a"));
         assert_ne!(key.as_ref().len(), 0);
     }
 }

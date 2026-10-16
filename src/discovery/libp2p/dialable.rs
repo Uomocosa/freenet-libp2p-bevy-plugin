@@ -1,7 +1,7 @@
-use crate::net_id;
+use crate::identity;
 
 #[must_use]
-pub fn dialable(addrs: Vec<net_id::PeerAddr>) -> Vec<net_id::PeerAddr> {
+pub fn dialable(addrs: Vec<identity::PeerAddr>) -> Vec<identity::PeerAddr> {
     addrs
         .into_iter()
         .filter(|addr| !is_unspecified(addr))
@@ -9,7 +9,7 @@ pub fn dialable(addrs: Vec<net_id::PeerAddr>) -> Vec<net_id::PeerAddr> {
 }
 
 // needed helper: a multiaddr offering 0.0.0.0 cannot be dialled
-fn is_unspecified(addr: &net_id::PeerAddr) -> bool {
+fn is_unspecified(addr: &identity::PeerAddr) -> bool {
     addr.parse::<libp2p::Multiaddr>().is_ok_and(|multiaddr| {
         multiaddr.iter().any(|protocol| {
                 matches!(protocol, libp2p::multiaddr::Protocol::Ip4(ip) if ip.is_unspecified())
@@ -20,16 +20,16 @@ fn is_unspecified(addr: &net_id::PeerAddr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::dialable;
-    use crate::net_id;
+    use crate::identity;
 
     #[test]
     fn test_usage() {
         assert_eq!(
-            dialable(vec![net_id::PeerAddr::from("/ip4/0.0.0.0/tcp/9000")]),
-            Vec::<net_id::PeerAddr>::new()
+            dialable(vec![identity::PeerAddr::from("/ip4/0.0.0.0/tcp/9000")]),
+            Vec::<identity::PeerAddr>::new()
         );
         assert_eq!(
-            dialable(vec![net_id::PeerAddr::from("/ip4/1.2.3.4/tcp/9000")]).len(),
+            dialable(vec![identity::PeerAddr::from("/ip4/1.2.3.4/tcp/9000")]).len(),
             1
         );
     }

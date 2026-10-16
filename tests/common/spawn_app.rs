@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 use super::terminal_guard::TerminalGuard;
 
 const DEFAULT_RUST_LOG: &str =
-    "info,lobby_room=debug,p2p=debug,room_lobby=debug,freenet_libp2p_bevy_plugin=debug";
+    "info,lobby_room=debug,p2p=debug,discovery=debug,freenet_libp2p_bevy_plugin=debug";
 
 /// # Errors
 /// Returns an error if the log cannot be created or the app fails to spawn.

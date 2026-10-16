@@ -1,4 +1,4 @@
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 pub fn note_dial_failure<T: p2p::Message>(
@@ -10,7 +10,7 @@ pub fn note_dial_failure<T: p2p::Message>(
         Some(peer_id) => {
             event_tx
                 .send(p2p::Event::Net(p2p::NetEvent::DialFailed {
-                    peer_id: net_id::PeerId(peer_id.to_string()),
+                    peer_id: identity::PeerId(peer_id.to_string()),
                     reason: error.to_string(),
                 }))
                 .ok();

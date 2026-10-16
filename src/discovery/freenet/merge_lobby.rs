@@ -12,30 +12,31 @@ pub fn merge_lobby(mut base: Lobby, incoming: Lobby) -> Lobby {
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use std::collections::BTreeMap;
 
     use super::merge_lobby;
     use crate::discovery;
 
-    fn record(peer: &str, updated_at: discovery::UnixTime) -> discovery::RoomEntry {
+    fn record(peer: &str, updated_at: discovery::UnixTime) -> discovery::Room {
         let mut members = BTreeMap::new();
         members.insert(
-            net_id::PeerId::from(peer),
-            discovery::Presence {
+            identity::PeerId::from(peer),
+            discovery::Heartbeat {
                 addrs: Vec::new(),
                 updated_at,
+                display_name: None,
             },
         );
-        discovery::RoomEntry {
-            capacity: 8,
+        discovery::Room {
+            room_size: 8,
             members,
         }
     }
 
     #[test]
     fn test_usage() {
-        let room = net_id::RoomName::from("room-a");
+        let room = identity::RoomName::from("room-a");
         let mut base = BTreeMap::new();
         base.insert(
             room.clone(),
@@ -49,9 +50,9 @@ mod tests {
         let merged = merge_lobby(base, incoming);
         let row = merged
             .get(&room)
-            .and_then(|record| record.members.get(&net_id::PeerId::from("peer")));
+            .and_then(|record| record.members.get(&identity::PeerId::from("peer")));
         assert_eq!(
-            row.map(|presence| presence.updated_at),
+            row.map(|heartbeat| heartbeat.updated_at),
             Some(discovery::UnixTime::from_secs(9))
         );
     }

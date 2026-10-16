@@ -4,19 +4,15 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::Receiver;
 
 use crate::discovery;
-use crate::net_id;
 use discovery::freenet::basic::constants;
 
 pub async fn run_lobby(
-    mut lobby_client: discovery::freenet::LobbyClient,
-    me: net_id::PeerId,
-    capacity: u16,
-    timing: discovery::Timing,
-    mut target: Receiver<Option<discovery::state_machine::PublishTarget>>,
+    freenet_config: &discovery::freenet::FreenetConfig,
+    mut lobby_contract: discovery::freenet::LobbyContract,
+    mut target: Receiver<Option<discovery::state_machine::HeartbeatTarget>>,
     lobbies: UnboundedSender<discovery::Lobby>,
-    peers: UnboundedSender<usize>,
 ) {
-    let mut tick = tokio::time::interval(timing.tick.max(Duration::from_secs(1)));
+    let mut tick = tokio::time::interval(freenet_config.timing.tick.max(Duration::from_secs(1)));
     let mut last_sent: Option<discovery::Lobby> = None;
     let mut last_refresh: Option<Instant> = None;
     let mut last_bridge: Option<Instant> = None;
@@ -32,14 +28,14 @@ pub async fn run_lobby(
             }
         }
         let now = Instant::now();
-        let mut lobby = discovery::freenet::poll(&mut lobby_client).await.ok();
-        if is_due(last_bridge, now, timing.bridge) {
-            let _ = discovery::freenet::bridge_subscription(&mut lobby_client);
+        let mut lobby = discovery::freenet::poll(&mut lobby_contract).await.ok();
+        if is_due(last_bridge, now, freenet_config.timing.bridge) {
+            let _ = discovery::freenet::bridge_subscription(&mut lobby_contract);
             last_bridge = Some(now);
         }
-        if is_due(last_refresh, now, timing.lobby) {
+        if is_due(last_refresh, now, freenet_config.timing.lobby) {
             let timeout = constants::REQUEST_TIMEOUT;
-            let refresh = discovery::freenet::refresh(&mut lobby_client);
+            let refresh = discovery::freenet::refresh(&mut lobby_contract);
             if let Ok(Ok(fresh)) = tokio::time::timeout(timeout, refresh).await {
                 lobby = Some(fresh);
             }
@@ -48,35 +44,37 @@ pub async fn run_lobby(
         if let Some(lobby) = lobby
             && last_sent.as_ref() != Some(&lobby)
         {
+            tracing::info!(target: "discovery", rooms = lobby.len(), "lobby board changed");
             last_sent = Some(lobby.clone());
             if lobbies.send(lobby).is_err() {
                 return;
             }
         }
         let current = target.borrow_and_update().clone();
-        if is_due(last_publish, now, timing.republish)
+        if is_due(last_publish, now, freenet_config.timing.republish)
             && let Some(current) = current
         {
-            let presence = discovery::Presence {
+            let heartbeat = discovery::Heartbeat {
                 addrs: current.addrs,
                 updated_at: discovery::UnixTime::now(),
+                display_name: Some(current.display_name),
             };
-            let _ = discovery::freenet::publish_presence(
-                &mut lobby_client,
+            let room = current.room.clone();
+            match discovery::freenet::publish_heartbeat(
+                &mut lobby_contract,
                 &current.room,
-                &me,
-                presence,
-                capacity,
-            );
+                &freenet_config.me,
+                heartbeat,
+                freenet_config.room_size,
+            ) {
+                Ok(()) => {
+                    tracing::info!(target: "discovery", ?room, "lobby heartbeat published");
+                }
+                Err(e) => {
+                    tracing::warn!(target: "discovery", ?room, error = %e, "lobby heartbeat publish failed");
+                }
+            }
             last_publish = Some(now);
-        }
-        if let Ok(Ok(count)) = tokio::time::timeout(
-            constants::REQUEST_TIMEOUT,
-            discovery::freenet::connected_peer_count(&mut lobby_client.client),
-        )
-        .await
-        {
-            let _ = peers.send(count);
         }
     }
 }

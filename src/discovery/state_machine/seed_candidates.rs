@@ -11,23 +11,23 @@ pub fn seed_candidates(state: &mut State) {
     let seeds: Vec<_> = record
         .members
         .iter()
-        .filter(|(peer, presence)| **peer != state.me.id && !presence.addrs.is_empty())
-        .map(|(peer, presence)| (peer.clone(), presence.clone()))
+        .filter(|(peer, heartbeat)| **peer != state.me.id && !heartbeat.addrs.is_empty())
+        .map(|(peer, heartbeat)| (peer.clone(), heartbeat.clone()))
         .collect();
-    for (peer, presence) in seeds {
+    for (peer, heartbeat) in seeds {
         let newer = state
             .candidates
             .get(&peer)
-            .is_none_or(|known| known.updated_at < presence.updated_at);
+            .is_none_or(|known| known.updated_at < heartbeat.updated_at);
         if newer {
-            state.candidates.insert(peer, presence);
+            state.candidates.insert(peer, heartbeat);
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use std::collections::BTreeMap;
 
     use super::seed_candidates;
@@ -37,34 +37,35 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut state = State::new(
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
+            identity::Peer {
+                id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             },
             discovery::Timing::default(),
         );
-        let room = net_id::RoomName::from("r");
-        state.room = Some(discovery::Room {
+        let room = identity::RoomName::from("r");
+        state.room = Some(discovery::JoinedRoom {
             name: room.clone(),
             members: discovery::Members::new(),
         });
-        let presence = discovery::Presence {
-            addrs: vec![net_id::PeerAddr::from("/ip4/1")],
+        let heartbeat = discovery::Heartbeat {
+            addrs: vec![identity::PeerAddr::from("/ip4/1")],
             updated_at: discovery::UnixTime::from_secs(5),
+            display_name: None,
         };
         let members = BTreeMap::from([
-            (net_id::PeerId::from("me"), presence.clone()),
-            (net_id::PeerId::from("a"), presence),
+            (identity::PeerId::from("me"), heartbeat.clone()),
+            (identity::PeerId::from("a"), heartbeat),
         ]);
         state.lobby.insert(
             room,
-            discovery::RoomEntry {
-                capacity: 8,
+            discovery::Room {
+                room_size: 8,
                 members,
             },
         );
         seed_candidates(&mut state);
         let seeded: Vec<_> = state.candidates.keys().cloned().collect();
-        assert_eq!(seeded, vec![net_id::PeerId::from("a")]);
+        assert_eq!(seeded, vec![identity::PeerId::from("a")]);
     }
 }

@@ -1,20 +1,27 @@
 use freenet_stdlib::client_api::{ClientRequest, HostResponse, NodeQuery, QueryResponse};
 
 use crate::discovery;
+use crate::identity;
 
-pub async fn connected_peer_count(
+pub async fn connected_peers(
     client: &mut discovery::freenet::Client,
-) -> Result<usize, discovery::Error> {
+) -> Result<Vec<identity::FreenetPeer>, discovery::Error> {
     client.send(&ClientRequest::NodeQueries(NodeQuery::ConnectedPeers))?;
     match client.recv_response().await? {
-        HostResponse::QueryResponse(QueryResponse::ConnectedPeers { peers }) => Ok(peers.len()),
+        HostResponse::QueryResponse(QueryResponse::ConnectedPeers { peers }) => Ok(peers
+            .into_iter()
+            .map(|(peer, addr)| identity::FreenetPeer {
+                id: identity::FreenetPeerId::from(peer.as_str()),
+                addr,
+            })
+            .collect()),
         other => Err(discovery::Error::UnexpectedResponse(format!("{other:?}"))),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::connected_peer_count;
+    use super::connected_peers;
     use crate::discovery;
 
     #[tokio::test]
@@ -23,6 +30,6 @@ mod tests {
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         drop(read_tx);
         let mut client = discovery::freenet::Client { write, read };
-        assert!(connected_peer_count(&mut client).await.is_err());
+        assert!(connected_peers(&mut client).await.is_err());
     }
 }

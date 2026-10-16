@@ -489,10 +489,10 @@ fn isolated_peers(logs: &[PathBuf]) -> Vec<String> {
         .collect()
 }
 
-// needed helper: every peer's latest tick lists the room in the catalogue
+// needed helper: every peer's latest tick lists the room in the rooms
 fn do_all_peers_see_room(logs: &[PathBuf], room: &str) -> bool {
     logs.iter()
-        .all(|log| last_tick(log).is_some_and(|tick| tick.catalogue.iter().any(|r| r == room)))
+        .all(|log| last_tick(log).is_some_and(|tick| tick.rooms.iter().any(|r| r == room)))
 }
 
 // needed helper: every peer is in the room with a full mesh

@@ -24,7 +24,7 @@ pub fn drain_snapshots(
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use std::sync::Mutex;
 
     use bevy::prelude::*;
@@ -42,11 +42,11 @@ mod tests {
         app.add_systems(Update, drain_snapshots);
         let snapshot = discovery::Snapshot {
             lobby: discovery::Lobby::new(),
-            room: Some(discovery::Room {
-                name: net_id::RoomName::from("r"),
+            room: Some(discovery::JoinedRoom {
+                name: identity::RoomName::from("r"),
                 members: discovery::Members::new(),
             }),
-            freenet_peers: 0,
+            freenet_peers: Vec::new(),
         };
         tx.send(snapshot.clone()).ok();
         app.update();

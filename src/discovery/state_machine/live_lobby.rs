@@ -13,7 +13,7 @@ pub fn live_lobby(
         .filter_map(|(room, mut record)| {
             record
                 .members
-                .retain(|_, presence| now.since(presence.updated_at) <= ttl);
+                .retain(|_, heartbeat| now.since(heartbeat.updated_at) <= ttl);
             (!record.members.is_empty()).then_some((room, record))
         })
         .collect()
@@ -21,16 +21,17 @@ pub fn live_lobby(
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use std::collections::BTreeMap;
 
     use super::live_lobby;
     use crate::discovery;
 
-    fn presence(updated_at: discovery::UnixTime) -> discovery::Presence {
-        discovery::Presence {
+    fn heartbeat(updated_at: discovery::UnixTime) -> discovery::Heartbeat {
+        discovery::Heartbeat {
             addrs: Vec::new(),
             updated_at,
+            display_name: None,
         }
     }
 
@@ -38,40 +39,40 @@ mod tests {
     fn test_usage() {
         let mut lobby = discovery::Lobby::new();
         lobby.insert(
-            net_id::RoomName::from("live"),
-            discovery::RoomEntry {
-                capacity: 8,
+            identity::RoomName::from("live"),
+            discovery::Room {
+                room_size: 8,
                 members: BTreeMap::from([
                     (
-                        net_id::PeerId::from("fresh"),
-                        presence(discovery::UnixTime::from_secs(190)),
+                        identity::PeerId::from("fresh"),
+                        heartbeat(discovery::UnixTime::from_secs(190)),
                     ),
                     (
-                        net_id::PeerId::from("stale"),
-                        presence(discovery::UnixTime::from_secs(1)),
+                        identity::PeerId::from("stale"),
+                        heartbeat(discovery::UnixTime::from_secs(1)),
                     ),
                 ]),
             },
         );
         lobby.insert(
-            net_id::RoomName::from("dead"),
-            discovery::RoomEntry {
-                capacity: 8,
+            identity::RoomName::from("dead"),
+            discovery::Room {
+                room_size: 8,
                 members: BTreeMap::from([(
-                    net_id::PeerId::from("gone"),
-                    presence(discovery::UnixTime::from_secs(1)),
+                    identity::PeerId::from("gone"),
+                    heartbeat(discovery::UnixTime::from_secs(1)),
                 )]),
             },
         );
         let live = live_lobby(
             lobby,
             discovery::UnixTime::from_secs(200),
-            discovery::Timing::default().presence_ttl,
+            discovery::Timing::default().heartbeat_ttl,
         );
         let rooms: Vec<_> = live.keys().map(|room| room.as_str()).collect();
         assert_eq!(rooms, vec!["live"]);
         let members = live
-            .get(&net_id::RoomName::from("live"))
+            .get(&identity::RoomName::from("live"))
             .map_or(0, |record| record.members.len());
         assert_eq!(members, 1);
     }

@@ -1,13 +1,15 @@
 mod args;
 mod dummy;
 mod intent;
+mod journey;
 mod node;
+mod overlay;
 mod status;
 mod ui;
 
 use bevy::prelude::*;
 use clap::Parser;
-use freenet_libp2p_bevy_plugin::{discovery, net_id, p2p, plugin};
+use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin};
 
 #[tokio::main]
 async fn main() {
@@ -28,21 +30,22 @@ async fn main() {
         ..default()
     }));
     app.insert_resource(discovery::FreenetPort(ws_port));
-    app.insert_resource(status::Username(args.username.clone()));
+    let username = identity::Username::from(args.username.clone());
+    app.insert_resource(status::LocalUser(username.clone()));
     app.insert_resource(intent::Intent::new(args.action.clone()));
     app.add_plugins(plugin::P2PPlugin(plugin::Config::<dummy::Dummy>::new(
-        net_id::NetworkId(0),
         transport,
         p2p::MdnsMode::Disabled,
     )));
     let discovery_plugins = discovery::Plugins(discovery::Config {
-        game_name: discovery::GameName::from("lobby_room_example"),
-        token: args.token.clone().map_or_else(
-            || freenet_libp2p_bevy_plugin::game_token!(),
-            discovery::GameToken,
+        display_name: username,
+        game: args.token.clone().map_or_else(
+            || freenet_libp2p_bevy_plugin::game_id!(),
+            identity::GameId::from,
         ),
         timing: discovery::Timing::default(),
-        capacity: 8,
+        room_size: 8,
+        deploy_policy: discovery::freenet::DeployPolicy::FetchOrDeploy,
     });
     // scripted input runs through Bevy's real typing/clicking paths
     match args.ui {
@@ -70,7 +73,7 @@ async fn main() {
             );
         }
     }
-    app.add_systems(Startup, status::setup_ui);
+    app.add_plugins(overlay::Overlay);
     app.add_systems(
         Update,
         (intent::log_joined, status::log_tick, status::log_mesh),

@@ -2,82 +2,70 @@ use tokio::sync::watch::Receiver;
 use tracing::{debug, warn};
 
 use crate::discovery;
-use crate::net_id;
+use crate::identity;
 use discovery::freenet::basic::constants;
 
 pub async fn connect_retry(
-    host: &str,
-    port: u16,
-    params: &[u8],
-    me: &net_id::PeerId,
-    capacity: u16,
-    target: &Receiver<Option<discovery::state_machine::PublishTarget>>,
-    timing: discovery::Timing,
-) -> discovery::freenet::LobbyClient {
+    freenet_config: &discovery::freenet::FreenetConfig,
+    target: &Receiver<Option<discovery::state_machine::HeartbeatTarget>>,
+) -> discovery::freenet::LobbyContract {
     let wasm = discovery::freenet::contract_wasm();
-    let mut client = connect_socket(host, port).await;
+    let mut client =
+        discovery::freenet::connect_socket(&freenet_config.host, freenet_config.port).await;
     let mut tries = 0_u32;
     loop {
         tries = tries.saturating_add(1);
         let current = target.borrow().clone();
-        let deploy = if current.is_some() {
-            discovery::freenet::DeployPolicy::FetchOrDeploy
-        } else {
-            discovery::freenet::DeployPolicy::FetchOnly
-        };
-        let board = initial_board(me, capacity, current.as_ref());
-        let result =
-            discovery::freenet::attach(&mut client, wasm, params, deploy, timing.ring, &board)
-                .await;
+        let seed = initial_board(
+            &freenet_config.me,
+            freenet_config.room_size,
+            current.as_ref(),
+        );
+        let result = discovery::freenet::attach(
+            &mut client,
+            wasm,
+            &freenet_config.params,
+            freenet_config.deploy_policy,
+            freenet_config.timing.ring,
+            &seed,
+        )
+        .await;
         match result {
-            Ok((key, lobby)) => return discovery::freenet::LobbyClient { client, key, lobby },
+            Ok((key, lobby)) => return discovery::freenet::LobbyContract { client, key, lobby },
             Err(discovery::Error::Timeout(step)) => {
-                warn!(target: "room_lobby", tries = tries, step, "lobby {step} timed out, reconnecting");
-                client = connect_socket(host, port).await;
+                warn!(target: "discovery", tries = tries, step, "lobby {step} timed out, reconnecting");
+                client =
+                    discovery::freenet::connect_socket(&freenet_config.host, freenet_config.port)
+                        .await;
             }
             Err(discovery::Error::ContractNotFound) => {
-                debug!(target: "room_lobby", tries = tries, "lobby board absent and not in a room, waiting");
+                debug!(target: "discovery", tries = tries, "lobby board absent and not in a room, waiting");
                 tokio::time::sleep(constants::MISSING_RETRY).await;
             }
             Err(e) => {
-                warn!(target: "room_lobby", tries = tries, error = %e, "lobby board fetch failed, retrying");
+                warn!(target: "discovery", tries = tries, error = %e, "lobby board fetch failed, retrying");
                 tokio::time::sleep(constants::CONNECT_RETRY).await;
             }
         }
     }
 }
 
-// needed helper: opens the local freenet websocket, retrying until it accepts
-async fn connect_socket(host: &str, port: u16) -> discovery::freenet::Client {
-    loop {
-        match discovery::freenet::Client::connect(host, port).await {
-            Ok(client) => return client,
-            Err(e) => {
-                warn!(target: "room_lobby", error = %e, "freenet websocket connect failed, retrying");
-                tokio::time::sleep(constants::CONNECT_RETRY).await;
-            }
-        }
-    }
-}
-
-// needed helper: seeds a fresh board with our own presence so readers never see it empty
+// needed helper: seeds a fresh board with our own heartbeat so readers never see it empty
 fn initial_board(
-    me: &net_id::PeerId,
-    capacity: u16,
-    target: Option<&discovery::state_machine::PublishTarget>,
+    me: &identity::PeerId,
+    room_size: u16,
+    target: Option<&discovery::state_machine::HeartbeatTarget>,
 ) -> discovery::Lobby {
     let Some(target) = target else {
         return discovery::Lobby::new();
     };
-    let presence = discovery::Presence {
+    let heartbeat = discovery::Heartbeat {
         addrs: target.addrs.clone(),
         updated_at: discovery::UnixTime::now(),
+        display_name: Some(target.display_name.clone()),
     };
-    let members = std::collections::BTreeMap::from([(me.clone(), presence)]);
-    discovery::Lobby::from([(
-        target.room.clone(),
-        discovery::RoomEntry { capacity, members },
-    )])
+    let members = std::collections::BTreeMap::from([(me.clone(), heartbeat)]);
+    discovery::Lobby::from([(target.room.clone(), discovery::Room { room_size, members })])
 }
 
 // no test_usage necessary

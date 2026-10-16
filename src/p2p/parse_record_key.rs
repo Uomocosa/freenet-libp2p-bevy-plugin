@@ -1,6 +1,6 @@
 use libp2p::kad::RecordKey;
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 #[must_use]
@@ -9,7 +9,7 @@ pub fn parse_record_key(record_key: &RecordKey) -> Option<p2p::HistoryChunkId> {
     let rest = raw.strip_prefix("lobby/history/")?;
     let (room, chunk) = rest.rsplit_once('/')?;
     Some(p2p::HistoryChunkId {
-        room: net_id::RoomName::from(room),
+        room: identity::RoomName::from(room),
         chunk: p2p::ChunkIndex(chunk.parse().ok()?),
     })
 }
@@ -19,12 +19,12 @@ mod tests {
     use libp2p::kad::RecordKey;
 
     use super::parse_record_key;
-    use crate::net_id;
+    use crate::identity;
     use crate::p2p;
 
     fn chunk_id(room: &str, chunk: u64) -> p2p::HistoryChunkId {
         p2p::HistoryChunkId {
-            room: net_id::RoomName::from(room),
+            room: identity::RoomName::from(room),
             chunk: p2p::ChunkIndex(chunk),
         }
     }

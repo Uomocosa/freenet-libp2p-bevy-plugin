@@ -27,7 +27,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.insert_resource(discovery::CommandSender(command_tx));
 
     let Some(net) = net_link(app) else {
-        error!(target: "room_lobby", "discovery: p2p resources missing, discovery disabled");
+        error!(target: "discovery", "discovery: p2p resources missing, discovery disabled");
         return;
     };
     let Some(endpoint) = app
@@ -35,7 +35,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         .get_resource::<discovery::FreenetPort>()
         .copied()
     else {
-        error!(target: "room_lobby", "discovery: FreenetPort missing, discovery disabled");
+        error!(target: "discovery", "discovery: FreenetPort missing, discovery disabled");
         return;
     };
     let channels = discovery::Channels {
@@ -47,14 +47,14 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     tokio::spawn(discovery::run((**plugin).clone(), endpoint, channels));
 }
 
-fn net_link(app: &mut App) -> Option<discovery::libp2p::Link> {
+fn net_link(app: &mut App) -> Option<discovery::libp2p::P2PChannels> {
     let events = app
         .world_mut()
-        .get_resource_mut::<p2p::EventTap>()
+        .get_resource_mut::<p2p::NetEventChannel>()
         .and_then(|tap| tap.take_rx())?;
-    let commands = (**app.world().get_resource::<p2p::NetBridge>()?).clone();
-    let (ready, observed) = app.world().get_resource::<p2p::Signals>()?.subscribe();
-    Some(discovery::libp2p::Link {
+    let commands = (**app.world().get_resource::<p2p::NetCommandChannel>()?).clone();
+    let (ready, observed) = app.world().get_resource::<p2p::ReadyChannel>()?.subscribe();
+    Some(discovery::libp2p::P2PChannels {
         commands,
         events,
         ready,

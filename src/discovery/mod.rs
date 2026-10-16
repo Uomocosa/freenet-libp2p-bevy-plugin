@@ -10,9 +10,8 @@ pub mod basic;
 
 pub use basic::enums::LinkStatus;
 pub use basic::messages::{Command, Event};
-pub use basic::newtypes::{GameName, GameToken};
 pub use basic::resources::{CommandSender, EventFeed, FreenetPort, Snapshot, SnapshotFeed};
-pub use basic::structs::{Channels, Member, Presence, Room, RoomEntry};
+pub use basic::structs::{Channels, Heartbeat, JoinedRoom, Member, Room};
 pub use basic::type_aliases::{Lobby, Members};
 
 mod unix_time;
@@ -29,7 +28,7 @@ pub use error::Error;
 
 pub mod common;
 
-mod game_token;
+mod game_id;
 
 mod run;
 pub use run::run;

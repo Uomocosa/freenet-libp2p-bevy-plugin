@@ -44,16 +44,16 @@ mod tests {
     use bevy::prelude::*;
 
     use crate::discovery;
-    use crate::net_id;
+    use crate::identity;
 
     use super::highlight_current_room;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        let room = net_id::RoomName::from("alpha");
+        let room = identity::RoomName::from("alpha");
         let snapshot = discovery::Snapshot {
-            room: Some(discovery::Room {
+            room: Some(discovery::JoinedRoom {
                 name: room.clone(),
                 members: discovery::Members::new(),
             }),
@@ -78,8 +78,8 @@ mod tests {
 
     fn preview_snapshot(room: &str) -> discovery::Snapshot {
         discovery::Snapshot {
-            room: Some(discovery::Room {
-                name: net_id::RoomName::from(room),
+            room: Some(discovery::JoinedRoom {
+                name: identity::RoomName::from(room),
                 members: discovery::Members::new(),
             }),
             ..Default::default()
@@ -93,7 +93,7 @@ mod tests {
         for name in ["alpha", "beta"] {
             commands.spawn((
                 ChildOf(root),
-                discovery::ui::RoomButton(net_id::RoomName::from(name)),
+                discovery::ui::RoomButton(identity::RoomName::from(name)),
                 Button,
                 Node {
                     width: Val::Px(160.0),
@@ -115,8 +115,8 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn pick_beta(world: &mut World) {
-        world.resource_mut::<discovery::Snapshot>().room = Some(discovery::Room {
-            name: net_id::RoomName::from("beta"),
+        world.resource_mut::<discovery::Snapshot>().room = Some(discovery::JoinedRoom {
+            name: identity::RoomName::from("beta"),
             members: discovery::Members::new(),
         });
     }

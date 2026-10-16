@@ -2,7 +2,7 @@
 pub mod basic;
 
 pub use basic::enums::{Input, Output};
-pub use basic::structs::{Hello, PublishTarget};
+pub use basic::structs::{Handshake, HeartbeatTarget};
 
 mod state;
 pub use state::State;
@@ -16,8 +16,8 @@ pub use handle_command::handle_command;
 mod handle_net_event;
 pub use handle_net_event::handle_net_event;
 
-mod handle_hello;
-pub use handle_hello::handle_hello;
+mod handle_handshake;
+pub use handle_handshake::handle_handshake;
 
 mod handle_lobby;
 pub use handle_lobby::handle_lobby;
@@ -40,17 +40,17 @@ pub use dial_candidates::dial_candidates;
 mod prune_members;
 pub use prune_members::prune_members;
 
-mod hello;
-pub use hello::hello;
+mod handshake;
+pub use handshake::handshake;
 
-mod send_hello;
-pub use send_hello::send_hello;
+mod send_handshake;
+pub use send_handshake::send_handshake;
 
-mod broadcast_hello;
-pub use broadcast_hello::broadcast_hello;
+mod broadcast_handshake;
+pub use broadcast_handshake::broadcast_handshake;
 
 mod snapshot;
 pub use snapshot::snapshot;
 
-mod publish_target;
-pub use publish_target::publish_target;
+mod heartbeat_target;
+pub use heartbeat_target::heartbeat_target;

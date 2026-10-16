@@ -6,7 +6,7 @@ pub fn snapshot(state: &State) -> discovery::Snapshot {
     discovery::Snapshot {
         lobby: state.lobby.clone(),
         room: state.room.clone(),
-        freenet_peers: state.freenet_peers,
+        freenet_peers: state.freenet_peers.clone(),
     }
 }
 
@@ -14,15 +14,15 @@ pub fn snapshot(state: &State) -> discovery::Snapshot {
 mod tests {
     use super::snapshot;
     use crate::discovery;
-    use crate::net_id;
+    use crate::identity;
     use discovery::state_machine::State;
 
     #[test]
     fn test_usage() {
         let state = State::new(
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
-                addrs: vec![net_id::PeerAddr::from("/ip4/9")],
+            identity::Peer {
+                id: identity::PeerId::from("me"),
+                addrs: vec![identity::PeerAddr::from("/ip4/9")],
             },
             discovery::Timing::default(),
         );

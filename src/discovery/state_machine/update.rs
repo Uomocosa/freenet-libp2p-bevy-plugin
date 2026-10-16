@@ -6,8 +6,8 @@ pub fn update(state: &mut State, input: Input, now: discovery::UnixTime) -> Vec<
         Input::Command(command) => discovery::state_machine::handle_command(state, command, now),
         Input::NetEvent(event) => discovery::state_machine::handle_net_event(state, event, now),
         Input::LobbyUpdated(lobby) => discovery::state_machine::handle_lobby(state, lobby, now),
-        Input::FreenetPeers(count) => {
-            state.freenet_peers = count;
+        Input::FreenetPeers(peers) => {
+            state.freenet_peers = peers;
             Vec::new()
         }
         Input::OwnAddrsChanged(addrs) => {
@@ -22,19 +22,19 @@ pub fn update(state: &mut State, input: Input, now: discovery::UnixTime) -> Vec<
 mod tests {
     use super::update;
     use crate::discovery;
-    use crate::net_id;
+    use crate::identity;
     use discovery::state_machine::{Input, Output, State};
 
     #[test]
     fn test_usage() {
         let mut state = State::new(
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
+            identity::Peer {
+                id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             },
             discovery::Timing::default(),
         );
-        let room = net_id::RoomName::from("r");
+        let room = identity::RoomName::from("r");
         let outputs = update(
             &mut state,
             Input::Command(discovery::Command::Join(room.clone())),
@@ -49,13 +49,13 @@ mod tests {
     #[test]
     fn own_addrs_changed_replaces_own_addrs() {
         let mut state = State::new(
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
-                addrs: vec![net_id::PeerAddr::from("/ip4/1")],
+            identity::Peer {
+                id: identity::PeerId::from("me"),
+                addrs: vec![identity::PeerAddr::from("/ip4/1")],
             },
             discovery::Timing::default(),
         );
-        let addrs = vec![net_id::PeerAddr::from("/ip4/2")];
+        let addrs = vec![identity::PeerAddr::from("/ip4/2")];
         update(
             &mut state,
             Input::OwnAddrsChanged(addrs.clone()),

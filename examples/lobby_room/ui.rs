@@ -4,14 +4,13 @@
 //! plugin only reads `discovery::Snapshot` and writes `discovery::Command`.
 #![allow(clippy::needless_pass_by_value)]
 use bevy::prelude::*;
-use bevy::text::EditableText;
+use bevy::text::{EditableText, TextCursorStyle};
 use derive_more::Deref;
 use freenet_libp2p_bevy_plugin::discovery;
-use freenet_libp2p_bevy_plugin::net_id;
+use freenet_libp2p_bevy_plugin::identity;
 
-const PANEL_COLOR: Color = Color::srgb(0.30, 0.12, 0.34);
-const FIELD_COLOR: Color = Color::srgb(0.10, 0.10, 0.12);
-const ROOM_COLOR: Color = Color::srgb(0.12, 0.28, 0.38);
+const FIELD_COLOR: Color = Color::srgb(0.10, 0.11, 0.14);
+const ROOM_COLOR: Color = Color::srgb(0.16, 0.18, 0.22);
 const BUTTON_COLOR: Color = Color::srgb(0.20, 0.24, 0.32);
 const DISABLED_COLOR: Color = Color::srgb(0.13, 0.13, 0.14);
 const LABEL_COLOR: Color = Color::WHITE;
@@ -36,40 +35,51 @@ pub struct NewRoomButton;
 struct RoomColumn;
 
 #[derive(Component, Deref)]
-pub struct JoinButton(pub net_id::RoomName);
+pub struct JoinButton(pub identity::RoomName);
 
 fn spawn(mut commands: Commands) {
     commands.spawn((
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(48.0),
-            right: Val::Px(12.0),
+            left: Val::Px(12.0),
             flex_direction: FlexDirection::Column,
-            row_gap: Val::Px(8.0),
-            padding: UiRect::all(Val::Px(8.0)),
+            row_gap: Val::Px(6.0),
             ..default()
         },
-        BackgroundColor(PANEL_COLOR),
         children![
             (
-                NameField,
-                EditableText::new(""),
                 Node {
-                    width: Val::Px(200.0),
-                    padding: UiRect::axes(Val::Px(6.0), Val::Px(4.0)),
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(6.0),
                     ..default()
                 },
-                BackgroundColor(FIELD_COLOR),
-            ),
-            (
-                NewRoomButton,
-                Button,
-                Node {
-                    padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
-                    ..default()
-                },
-                BackgroundColor(BUTTON_COLOR),
-                children![Text::new("+ Create New Room")],
+                children![
+                    (
+                        NameField,
+                        EditableText::new(""),
+                        TextCursorStyle {
+                            color: LABEL_COLOR,
+                            ..default()
+                        },
+                        Node {
+                            width: Val::Px(220.0),
+                            padding: UiRect::axes(Val::Px(8.0), Val::Px(6.0)),
+                            ..default()
+                        },
+                        BackgroundColor(FIELD_COLOR),
+                    ),
+                    (
+                        NewRoomButton,
+                        Button,
+                        Node {
+                            padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
+                            ..default()
+                        },
+                        BackgroundColor(BUTTON_COLOR),
+                        children![Text::new("Create New Room")],
+                    ),
+                ],
             ),
             (
                 RoomColumn,
@@ -101,14 +111,15 @@ fn rebuild_list(
                     JoinButton(name.clone()),
                     Button,
                     Node {
-                        padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                        padding: UiRect::axes(Val::Px(12.0), Val::Px(4.0)),
                         ..default()
                     },
                     BackgroundColor(ROOM_COLOR),
                     children![Text::new(format!(
-                        "> {} [{} online]",
+                        "{} ({}/{})",
                         name.as_str(),
-                        record.members.len()
+                        record.members.len(),
+                        record.room_size
                     ))],
                 ));
             }
@@ -131,7 +142,7 @@ fn on_create(
             continue;
         }
         tracing::info!("lobby ui click create room={name}");
-        commands.write(discovery::Command::Create(net_id::RoomName::from(name)));
+        commands.write(discovery::Command::Create(identity::RoomName::from(name)));
     }
 }
 
@@ -195,7 +206,7 @@ fn on_join(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::net_id;
+    use freenet_libp2p_bevy_plugin::identity;
 
     use super::{JoinButton, LobbyUi, NameField, NewRoomButton, RoomColumn};
     use freenet_libp2p_bevy_plugin::discovery;
@@ -209,9 +220,9 @@ mod tests {
     fn preview_snapshot() -> discovery::Snapshot {
         let mut snapshot = discovery::Snapshot::default();
         snapshot.lobby.insert(
-            net_id::RoomName::from("alpha"),
-            discovery::RoomEntry {
-                capacity: 8,
+            identity::RoomName::from("alpha"),
+            discovery::Room {
+                room_size: 8,
                 members: std::collections::BTreeMap::new(),
             },
         );
@@ -223,9 +234,9 @@ mod tests {
     fn add_room(world: &mut World) {
         let mut snapshot = world.resource_mut::<discovery::Snapshot>();
         snapshot.lobby.insert(
-            net_id::RoomName::from("gamma"),
-            discovery::RoomEntry {
-                capacity: 4,
+            identity::RoomName::from("gamma"),
+            discovery::Room {
+                room_size: 4,
                 members: std::collections::BTreeMap::new(),
             },
         );

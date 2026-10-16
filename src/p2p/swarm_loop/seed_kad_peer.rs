@@ -1,12 +1,12 @@
 use libp2p::kad;
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 pub fn seed_kad_peer<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
-    peer_id: &net_id::PeerId,
-    addrs: &[net_id::PeerAddr],
+    peer_id: &identity::PeerId,
+    addrs: &[identity::PeerAddr],
 ) {
     let Ok(pid) = peer_id.parse::<libp2p::PeerId>() else {
         return;
@@ -29,7 +29,7 @@ mod tests {
     use libp2p::identity::Keypair;
 
     use super::seed_kad_peer;
-    use crate::net_id;
+    use crate::identity;
     use crate::p2p;
 
     fn swarm() -> libp2p::Swarm<p2p::Behaviour<u32>> {
@@ -41,10 +41,10 @@ mod tests {
         let mut swarm = swarm();
         let peer = libp2p::PeerId::random();
         let addrs = vec![
-            net_id::PeerAddr::from("/ip4/10.0.0.2/tcp/4001"),
-            net_id::PeerAddr::from("not-an-addr"),
+            identity::PeerAddr::from("/ip4/10.0.0.2/tcp/4001"),
+            identity::PeerAddr::from("not-an-addr"),
         ];
-        seed_kad_peer(&mut swarm, &net_id::PeerId(peer.to_string()), &addrs);
+        seed_kad_peer(&mut swarm, &identity::PeerId(peer.to_string()), &addrs);
         let known = swarm.behaviour_mut().kademlia.kbuckets().any(|bucket| {
             bucket
                 .iter()

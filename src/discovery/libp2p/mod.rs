@@ -1,7 +1,7 @@
 #[path = "__basic__/mod.rs"]
 pub mod basic;
 
-pub use basic::structs::Link;
+pub use basic::structs::P2PChannels;
 
 mod dialable;
 pub use dialable::dialable;

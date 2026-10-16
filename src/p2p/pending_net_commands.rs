@@ -6,10 +6,10 @@ use crate::p2p;
 use p2p::NetCommand;
 
 #[derive(Resource, Debug, Default, Deref, DerefMut, Serialize, Deserialize)]
-pub struct Outbox(pub Vec<NetCommand>);
+pub struct PendingNetCommands(pub Vec<NetCommand>);
 
 #[rustfmt::skip]
-impl Outbox {
+impl PendingNetCommands {
     pub fn take_all(&mut self) -> Vec<NetCommand> {
         self.split_off(0)
     }
@@ -17,16 +17,16 @@ impl Outbox {
 
 #[cfg(test)]
 mod tests {
-    use super::Outbox;
-    use crate::net_id;
+    use super::PendingNetCommands;
+    use crate::identity;
     use crate::p2p;
 
     #[test]
     fn test_usage() {
-        let mut commands = Outbox::default();
+        let mut commands = PendingNetCommands::default();
         assert!(commands.is_empty());
         commands.push(p2p::NetCommand::FindRoom {
-            room: net_id::RoomName::from("room"),
+            room: identity::RoomName::from("room"),
         });
         assert_eq!(commands.len(), 1);
     }

@@ -2,13 +2,13 @@ use libp2p::gossipsub;
 use libp2p::kad;
 use libp2p::swarm::dial_opts::PeerCondition;
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 pub fn dispatch_net_command<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
-    room_queries: &mut std::collections::HashMap<libp2p::kad::QueryId, net_id::RoomName>,
+    room_queries: &mut std::collections::HashMap<libp2p::kad::QueryId, identity::RoomName>,
     command: p2p::NetCommand,
 ) {
     match command {
@@ -101,7 +101,7 @@ mod tests {
     use libp2p::identity::Keypair;
 
     use super::dispatch_net_command;
-    use crate::net_id;
+    use crate::identity;
     use crate::p2p;
 
     fn swarm() -> libp2p::Swarm<p2p::Behaviour<u32>> {
@@ -113,7 +113,7 @@ mod tests {
         let mut swarm = swarm();
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
         let mut room_queries = HashMap::new();
-        let topic = net_id::Topic::from("lobby/topic");
+        let topic = identity::Topic::from("lobby/topic");
         dispatch_net_command(
             &mut swarm,
             &tx,
@@ -125,7 +125,7 @@ mod tests {
         let hash = IdentTopic::new(topic.as_str()).hash();
         assert!(swarm.behaviour().gossipsub.topics().any(|t| *t == hash));
 
-        let room = net_id::RoomName::from("room-a");
+        let room = identity::RoomName::from("room-a");
         dispatch_net_command(
             &mut swarm,
             &tx,

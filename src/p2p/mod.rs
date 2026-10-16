@@ -25,7 +25,7 @@ pub mod basic;
 pub use basic::constants::*;
 pub use basic::enums::{Command, Event, MdnsMode, NetCommand, NetEvent, TransportMode};
 pub use basic::newtypes::ChunkIndex;
-pub use basic::resources::{Bridge, NetBridge};
+pub use basic::resources::{CommandChannel, EventChannel, NetCommandChannel};
 pub use basic::structs::HistoryChunkId;
 
 pub mod mdns_behaviour;
@@ -48,16 +48,13 @@ pub use commands::Commands;
 pub mod events;
 pub use events::Events;
 
-pub mod signals;
-pub use signals::Signals;
+pub mod ready_channel;
+pub use ready_channel::ReadyChannel;
 
-pub mod event_tap;
-pub use event_tap::EventTap;
+pub mod net_event_channel;
+pub use net_event_channel::NetEventChannel;
 
-pub mod outbox;
-pub use outbox::Outbox;
-
-pub mod config;
-pub use config::Config;
+pub mod pending_net_commands;
+pub use pending_net_commands::PendingNetCommands;
 
 pub mod bevy_systems;

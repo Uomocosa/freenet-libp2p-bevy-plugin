@@ -77,3 +77,43 @@ pub struct RoomName(pub String);
 #[reflect(Hash)]
 #[from(forward)]
 pub struct Topic(pub String);
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Deref,
+    Display,
+    From,
+    Reflect,
+)]
+#[reflect(Hash)]
+#[from(forward)]
+pub struct FreenetPeerId(pub String);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deref, Display, From)]
+#[from(forward)]
+pub struct GameId(pub String);
+
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Deref,
+    Display,
+    From,
+    Reflect,
+)]
+#[from(forward)]
+pub struct Username(pub String);

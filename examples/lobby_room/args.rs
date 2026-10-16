@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use clap::{Parser, ValueEnum};
-use freenet_libp2p_bevy_plugin::net_id::RoomName;
+use freenet_libp2p_bevy_plugin::identity::RoomName;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
 /// Scripted interaction: `create:<room>` types the room name into the input and
@@ -73,7 +73,7 @@ pub const fn transport_mode(arg: TransportArg) -> TransportMode {
 #[cfg(test)]
 mod tests {
     use super::Action;
-    use freenet_libp2p_bevy_plugin::net_id::RoomName;
+    use freenet_libp2p_bevy_plugin::identity::RoomName;
 
     #[test]
     fn test_usage() {

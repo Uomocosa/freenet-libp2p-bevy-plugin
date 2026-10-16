@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,51 +18,51 @@ pub enum MdnsMode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetEvent {
-    Ready(net_id::Peer),
-    ObservedAddr(net_id::PeerAddr),
-    PeerConnected(net_id::PeerId),
-    PeerDisconnected(net_id::PeerId),
+    Ready(identity::Peer),
+    ObservedAddr(identity::PeerAddr),
+    PeerConnected(identity::PeerId),
+    PeerDisconnected(identity::PeerId),
     DialFailed {
-        peer_id: net_id::PeerId,
+        peer_id: identity::PeerId,
         reason: String,
     },
     RelayReserved {
-        relay_peer_id: net_id::PeerId,
+        relay_peer_id: identity::PeerId,
     },
     RoomProviders {
-        room: net_id::RoomName,
-        peers: Vec<net_id::PeerId>,
+        room: identity::RoomName,
+        peers: Vec<identity::PeerId>,
     },
     HistoryChunk {
         id: p2p::HistoryChunkId,
         data: Vec<u8>,
     },
     Gossip {
-        topic: net_id::Topic,
-        from: net_id::PeerId,
+        topic: identity::Topic,
+        from: identity::PeerId,
         data: Vec<u8>,
     },
     Exchange {
-        from: net_id::PeerId,
+        from: identity::PeerId,
         data: Vec<u8>,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetCommand {
-    Dial(net_id::Peer),
+    Dial(identity::Peer),
     ReserveRelay {
-        relay_addr: net_id::PeerAddr,
+        relay_addr: identity::PeerAddr,
     },
     SetMdns {
         mode: MdnsMode,
     },
-    AddKadPeer(net_id::Peer),
+    AddKadPeer(identity::Peer),
     ProvideRoom {
-        room: net_id::RoomName,
+        room: identity::RoomName,
     },
     FindRoom {
-        room: net_id::RoomName,
+        room: identity::RoomName,
     },
     PutHistory {
         id: p2p::HistoryChunkId,
@@ -72,17 +72,17 @@ pub enum NetCommand {
         id: p2p::HistoryChunkId,
     },
     FetchRoster {
-        room: net_id::RoomName,
+        room: identity::RoomName,
     },
     Subscribe {
-        topic: net_id::Topic,
+        topic: identity::Topic,
     },
     Publish {
-        topic: net_id::Topic,
+        topic: identity::Topic,
         data: Vec<u8>,
     },
     Exchange {
-        peer_id: net_id::PeerId,
+        peer_id: identity::PeerId,
         data: Vec<u8>,
     },
 }
@@ -90,12 +90,15 @@ pub enum NetCommand {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command<T> {
     Net(NetCommand),
-    Send { peer_id: net_id::PeerId, payload: T },
+    Send {
+        peer_id: identity::PeerId,
+        payload: T,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Event<T> {
     Net(NetEvent),
-    Message { from: net_id::PeerId, payload: T },
+    Message { from: identity::PeerId, payload: T },
     Error(String),
 }

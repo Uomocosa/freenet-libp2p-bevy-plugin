@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
 use crate::basic::newtypes::RoomName;
-use crate::basic::structs::RoomRecord;
+use crate::basic::structs::Room;
 
-pub type LobbyState = BTreeMap<RoomName, RoomRecord>;
+pub type LobbyState = BTreeMap<RoomName, Room>;

@@ -1,13 +1,27 @@
+pub mod animate_door;
+pub mod animate_hover;
 pub mod gate_create;
 pub mod handle_create;
 pub mod handle_join;
+pub mod handle_leave_answer;
 pub mod highlight_current_room;
+pub mod request_leave;
+pub mod spawn_leave_door;
 pub mod spawn_root;
+pub mod sync_in_room;
+pub mod sync_leave_prompt;
 pub mod sync_room_list;
 
+pub use animate_door::animate_door;
+pub use animate_hover::animate_hover;
 pub use gate_create::gate_create;
 pub use handle_create::handle_create;
 pub use handle_join::handle_join;
+pub use handle_leave_answer::handle_leave_answer;
 pub use highlight_current_room::highlight_current_room;
+pub use request_leave::request_leave;
+pub use spawn_leave_door::spawn_leave_door;
 pub use spawn_root::spawn_root;
+pub use sync_in_room::sync_in_room;
+pub use sync_leave_prompt::sync_leave_prompt;
 pub use sync_room_list::sync_room_list;

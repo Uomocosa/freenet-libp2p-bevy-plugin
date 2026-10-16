@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::text::EditableText;
 
 use crate::discovery;
-use crate::net_id;
+use crate::identity;
 use discovery::ui::{CreateRoomButton, RoomNameInput};
 
 pub fn handle_create(
@@ -17,17 +17,17 @@ pub fn handle_create(
         }
         let name = typed.trim();
         if name.is_empty() {
-            tracing::error!(target: "room_lobby", "ui create rejected: empty room name");
+            tracing::error!(target: "discovery", "ui create rejected: empty room name");
             continue;
         }
-        tracing::info!(target: "room_lobby", "ui create room={name}");
-        commands.write(discovery::Command::Create(net_id::RoomName::from(name)));
+        tracing::info!(target: "discovery", "ui create room={name}");
+        commands.write(discovery::Command::Create(identity::RoomName::from(name)));
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::net_id;
+    use crate::identity;
     use bevy::prelude::*;
     use bevy::text::EditableText;
 
@@ -52,7 +52,9 @@ mod tests {
     fn test_usage() {
         assert_eq!(
             sent_after_press(" alpha "),
-            vec![discovery::Command::Create(net_id::RoomName::from("alpha"))]
+            vec![discovery::Command::Create(identity::RoomName::from(
+                "alpha"
+            ))]
         );
         assert_eq!(sent_after_press("   "), Vec::new());
     }

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use freenet_contract_harness::{SuiteConfig, run_suite};
 use freenet_stdlib::prelude::*;
 use lobby_contract::{
-    LobbyContract, LobbyState, Presence, RemotePeerId, RoomName, RoomRecord, UnixTime,
+    Heartbeat, LobbyContract, LobbyState, RemotePeerId, Room, RoomName, UnixTime,
 };
 
 fn encode(lobby: &LobbyState) -> State<'static> {
@@ -15,16 +15,17 @@ fn one_room(updated_at: u64) -> LobbyState {
     let mut members = BTreeMap::new();
     members.insert(
         RemotePeerId("peer".to_string()),
-        Presence {
+        Heartbeat {
             addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
             updated_at: UnixTime(updated_at),
+            display_name: None,
         },
     );
     let mut lobby = LobbyState::new();
     lobby.insert(
         RoomName("room-a".to_string()),
-        RoomRecord {
-            capacity: 8,
+        Room {
+            room_size: 8,
             members,
         },
     );

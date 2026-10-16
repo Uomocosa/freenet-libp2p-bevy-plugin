@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures::StreamExt;
 use libp2p::identity::Keypair;
 
-use crate::net_id;
+use crate::identity;
 use crate::p2p;
 
 pub async fn run<T: p2p::Message>(
@@ -33,11 +33,11 @@ pub async fn run<T: p2p::Message>(
         let _ = swarm.listen_on(tcp_addr);
     }
 
-    let own_peer_id = net_id::PeerId(swarm.local_peer_id().to_string());
-    let mut listen_addrs: Vec<net_id::PeerAddr> = Vec::new();
+    let own_peer_id = identity::PeerId(swarm.local_peer_id().to_string());
+    let mut listen_addrs: Vec<identity::PeerAddr> = Vec::new();
     let mut ready_deadline: Option<tokio::time::Instant> = None;
     let mut mesh_deadline = tokio::time::Instant::now().checked_add(Duration::from_secs(30));
-    let mut room_queries: std::collections::HashMap<libp2p::kad::QueryId, net_id::RoomName> =
+    let mut room_queries: std::collections::HashMap<libp2p::kad::QueryId, identity::RoomName> =
         std::collections::HashMap::new();
 
     loop {
@@ -50,7 +50,7 @@ pub async fn run<T: p2p::Message>(
         tokio::select! {
             () = &mut ready_sleep, if ready_deadline.is_some() => {
                 let addrs = std::mem::take(&mut listen_addrs);
-                let me = net_id::Peer { id: own_peer_id.clone(), addrs };
+                let me = identity::Peer { id: own_peer_id.clone(), addrs };
                 event_tx.send(p2p::Event::Net(p2p::NetEvent::Ready(me))).ok();
                 ready_deadline = None;
             }

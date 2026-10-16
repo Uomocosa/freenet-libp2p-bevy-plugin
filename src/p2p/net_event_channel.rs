@@ -7,26 +7,26 @@ use crate::p2p;
 use p2p::NetEvent;
 
 #[derive(Resource)]
-pub struct EventTap {
+pub struct NetEventChannel {
     pub tx: UnboundedSender<NetEvent>,
     pub rx: Mutex<Option<UnboundedReceiver<NetEvent>>>,
 }
 
 #[rustfmt::skip]
-impl EventTap {
+impl NetEventChannel {
     pub fn take_rx(&self) -> Option<UnboundedReceiver<NetEvent>> {
         self.rx.lock().ok()?.take()
     }
 }
 
-impl EventTap {
+impl NetEventChannel {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl Default for EventTap {
+impl Default for NetEventChannel {
     fn default() -> Self {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         Self {
@@ -38,16 +38,16 @@ impl Default for EventTap {
 
 #[cfg(test)]
 mod tests {
-    use super::EventTap;
-    use crate::net_id;
+    use super::NetEventChannel;
+    use crate::identity;
     use crate::p2p;
 
     #[test]
     fn test_usage() {
-        let tap = EventTap::default();
+        let tap = NetEventChannel::default();
         assert!(
             tap.tx
-                .send(p2p::NetEvent::PeerConnected(net_id::PeerId::from("p")))
+                .send(p2p::NetEvent::PeerConnected(identity::PeerId::from("p")))
                 .is_ok()
         );
         assert!(tap.take_rx().is_some());

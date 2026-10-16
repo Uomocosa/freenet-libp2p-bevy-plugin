@@ -1,5 +1,5 @@
 use crate::discovery;
-use crate::net_id;
+use crate::identity;
 use discovery::state_machine::{Output, State};
 
 pub fn handle_command(
@@ -10,7 +10,7 @@ pub fn handle_command(
     match command {
         discovery::Command::Create(room) | discovery::Command::Join(room) => {
             if room.as_str().trim().is_empty() {
-                tracing::error!(target: "room_lobby", "discovery rejected: empty room name");
+                tracing::error!(target: "discovery", "discovery rejected: empty room name");
                 Vec::new()
             } else {
                 join(state, room, now)
@@ -20,17 +20,17 @@ pub fn handle_command(
     }
 }
 
-// needed helper: enters a room, says hello to every live link and dials the lobby seeds
-fn join(state: &mut State, room: net_id::RoomName, now: discovery::UnixTime) -> Vec<Output> {
+// needed helper: enters a room, says handshake to every live link and dials the lobby seeds
+fn join(state: &mut State, room: identity::RoomName, now: discovery::UnixTime) -> Vec<Output> {
     let mut outputs = leave(state);
-    state.room = Some(discovery::Room {
+    state.room = Some(discovery::JoinedRoom {
         name: room.clone(),
         members: discovery::Members::new(),
     });
     discovery::state_machine::seed_candidates(state);
-    outputs.extend(discovery::state_machine::broadcast_hello(state));
+    outputs.extend(discovery::state_machine::broadcast_handshake(state));
     outputs.extend(discovery::state_machine::dial_candidates(state, now));
-    tracing::info!(target: "room_lobby", room = %room.as_str(), "discovery joined room");
+    tracing::info!(target: "discovery", room = %room.as_str(), "discovery joined room");
     outputs.push(Output::Notify(discovery::Event::Joined(room)));
     outputs
 }
@@ -42,7 +42,7 @@ fn leave(state: &mut State) -> Vec<Output> {
     };
     state.candidates.clear();
     state.last_dial.clear();
-    let mut outputs = discovery::state_machine::broadcast_hello(state);
+    let mut outputs = discovery::state_machine::broadcast_handshake(state);
     outputs.push(Output::Notify(discovery::Event::Left(room.name)));
     outputs
 }
@@ -51,21 +51,21 @@ fn leave(state: &mut State) -> Vec<Output> {
 mod tests {
     use super::handle_command;
     use crate::discovery;
-    use crate::net_id;
+    use crate::identity;
     use crate::p2p;
     use discovery::state_machine::{Output, State};
 
     #[test]
     fn test_usage() {
         let mut state = State::new(
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
+            identity::Peer {
+                id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             },
             discovery::Timing::default(),
         );
-        state.connected.insert(net_id::PeerId::from("a"));
-        let room = net_id::RoomName::from("r");
+        state.connected.insert(identity::PeerId::from("a"));
+        let room = identity::RoomName::from("r");
         let mut outputs = handle_command(
             &mut state,
             discovery::Command::Create(room),
@@ -92,15 +92,15 @@ mod tests {
     #[test]
     fn test_empty_room_rejected() {
         let mut state = State::new(
-            net_id::Peer {
-                id: net_id::PeerId::from("me"),
+            identity::Peer {
+                id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             },
             discovery::Timing::default(),
         );
         let outputs = handle_command(
             &mut state,
-            discovery::Command::Create(net_id::RoomName::from("   ")),
+            discovery::Command::Create(identity::RoomName::from("   ")),
             discovery::UnixTime::from_secs(1),
         );
         assert_eq!(outputs.len(), 0);
