@@ -93,14 +93,27 @@ mod tests {
         assert_eq!(clickable(&mut blank), 0);
     }
 
+    fn centered_root() -> Node {
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            row_gap: Val::Px(6.0),
+            ..default()
+        }
+    }
+
     fn spawn_button(mut commands: Commands) {
         commands.spawn((discovery::ui::RoomNameInput, EditableText::new("")));
+        let root = commands.spawn(centered_root()).id();
         commands.spawn((
+            ChildOf(root),
             discovery::ui::CreateRoomButton,
             Button,
             Node {
-                width: Val::Px(160.0),
-                height: Val::Px(32.0),
+                padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
                 ..default()
             },
             BackgroundColor(Color::BLACK),

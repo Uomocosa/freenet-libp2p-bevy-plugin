@@ -86,9 +86,23 @@ mod tests {
         }
     }
 
+    fn centered_root() -> Node {
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            row_gap: Val::Px(6.0),
+            ..default()
+        }
+    }
+
     fn spawn_rows(mut commands: Commands) {
+        let root = commands.spawn(centered_root()).id();
         for name in ["alpha", "beta"] {
             commands.spawn((
+                ChildOf(root),
                 discovery::ui::RoomButton(net_id::RoomName::from(name)),
                 Button,
                 Node {
