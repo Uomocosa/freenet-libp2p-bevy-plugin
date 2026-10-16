@@ -3949,7 +3949,7 @@ dependencies = [
  "libp2p",
  "lobby_contract",
  "serde",
- "telegram-bot-helper",
+ "telegram-bot-helper 0.0.1",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -5701,15 +5701,15 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "lele-bevy-preview"
-version = "0.0.1"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.1#139ec8e383e15077efbde8ee7a6feac88ae4af0a"
+version = "0.0.2"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.2#cb69e13bc84420ef23bb4915c19d29046f58443a"
 dependencies = [
  "bevy",
  "blake3",
  "derive_more",
  "serde",
  "serde_json",
- "telegram-bot-helper",
+ "telegram-bot-helper 0.0.2",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -9476,7 +9476,21 @@ dependencies = [
  "dotenvy",
  "reqwest",
  "serde_json",
- "telegram-bot-helper-macros",
+ "telegram-bot-helper-macros 0.0.1",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "telegram-bot-helper"
+version = "0.0.2"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.2#cb69e13bc84420ef23bb4915c19d29046f58443a"
+dependencies = [
+ "atomic-delegate-macros",
+ "chrono",
+ "dotenvy",
+ "reqwest",
+ "serde_json",
+ "telegram-bot-helper-macros 0.0.2",
  "thiserror 2.0.18",
 ]
 
@@ -9484,6 +9498,16 @@ dependencies = [
 name = "telegram-bot-helper-macros"
 version = "0.0.1"
 source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.1#139ec8e383e15077efbde8ee7a6feac88ae4af0a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "telegram-bot-helper-macros"
+version = "0.0.2"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.2#cb69e13bc84420ef23bb4915c19d29046f58443a"
 dependencies = [
  "proc-macro2",
  "quote",
