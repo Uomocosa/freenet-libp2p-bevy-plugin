@@ -82,7 +82,7 @@ e2e = ["room_lobby", "default_ui"]
 
 [dev-dependencies]
 telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.1" }
-lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.3" }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.4" }
 freenet = "=0.2.132"
 tempfile = "=3.27.0"
 freenet-stdlib = { version = "=0.8.5", features = ["contract"] }
