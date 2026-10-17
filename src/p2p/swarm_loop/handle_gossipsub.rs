@@ -80,7 +80,6 @@ fn forward_gossip<T: p2p::Message>(
                     room: room.clone(),
                     from,
                     payload,
-                    via: p2p::Via::Gossipsub,
                 })
                 .ok();
         }
@@ -175,15 +174,12 @@ mod tests {
             ),
         );
         let Ok(p2p::Event::RoomMessage {
-            room: got,
-            payload,
-            via,
-            ..
+            room: got, payload, ..
         }) = rx.try_recv()
         else {
             panic!("expected a room message");
         };
-        assert_eq!((got, payload, via), (room, 9, p2p::Via::Gossipsub));
+        assert_eq!((got, payload), (room, 9));
     }
 
     #[test]

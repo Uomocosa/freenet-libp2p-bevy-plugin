@@ -36,7 +36,7 @@ mod tests {
                 mode: p2p::TransportMode::Both,
                 mdns: p2p::MdnsMode::Disabled,
                 game: identity::GameId::from("test"),
-                gossipsub: p2p::GossipsubConfig::default(),
+                room: p2p::RoomConfig::default(),
             },
         );
         let found = tokio::time::timeout(std::time::Duration::from_secs(10), async {

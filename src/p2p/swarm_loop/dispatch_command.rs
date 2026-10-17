@@ -6,7 +6,7 @@ pub fn dispatch_command<T: p2p::Message>(
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
     room_queries: &mut std::collections::HashMap<libp2p::kad::QueryId, identity::RoomName>,
     rooms: &mut p2p::swarm_loop::RoomTopics,
-    gossipsub: &p2p::GossipsubConfig,
+    room_config: &p2p::RoomConfig,
     cmd: Option<p2p::Command<T>>,
 ) -> bool {
     match cmd {
@@ -21,12 +21,34 @@ pub fn dispatch_command<T: p2p::Message>(
                     .send_request(&pid, payload);
             }
         }
-        Some(p2p::Command::Publish { room, payload }) => {
-            publish_room(swarm, event_tx, rooms, gossipsub, &room, &payload);
+        Some(p2p::Command::Publish { payload }) => {
+            publish_joined(swarm, event_tx, rooms, room_config, &payload);
+        }
+        Some(p2p::Command::PublishTo { room, payload }) => {
+            publish_room(swarm, event_tx, rooms, room_config, &room, &payload);
         }
         None => return false,
     }
     true
+}
+
+// needed helper: publishes to the joined room, or reports that there is none
+fn publish_joined<T: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+    rooms: &p2p::swarm_loop::RoomTopics,
+    room_config: &p2p::RoomConfig,
+    payload: &T,
+) {
+    let Some(room) = rooms.joined.as_ref() else {
+        event_tx
+            .send(p2p::Event::Error(
+                "room publish: no joined room".to_string(),
+            ))
+            .ok();
+        return;
+    };
+    publish_room(swarm, event_tx, rooms, room_config, room, payload);
 }
 
 // needed helper: serializes one room publish and reports every rejection
@@ -34,7 +56,7 @@ fn publish_room<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
     rooms: &p2p::swarm_loop::RoomTopics,
-    gossipsub: &p2p::GossipsubConfig,
+    room_config: &p2p::RoomConfig,
     room: &identity::RoomName,
     payload: &T,
 ) {
@@ -47,13 +69,13 @@ fn publish_room<T: p2p::Message>(
             .ok();
         return;
     };
-    if data.len() > gossipsub.max_transmit_size {
+    if data.len() > room_config.gossipsub.max_transmit_size {
         event_tx
             .send(p2p::Event::Error(format!(
                 "room publish {}: payload {} bytes exceeds limit {}",
                 room.as_str(),
                 data.len(),
-                gossipsub.max_transmit_size
+                room_config.gossipsub.max_transmit_size
             )))
             .ok();
         return;
@@ -98,7 +120,7 @@ mod tests {
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
         let mut room_queries = HashMap::new();
         let mut rooms = rooms();
-        let gossipsub = p2p::GossipsubConfig::default();
+        let room_config = p2p::RoomConfig::default();
         let subscribe = p2p::Command::Net(p2p::NetCommand::Subscribe {
             topic: identity::Topic::from("lobby/topic"),
         });
@@ -107,7 +129,7 @@ mod tests {
             &tx,
             &mut room_queries,
             &mut rooms,
-            &gossipsub,
+            &room_config,
             Some(subscribe)
         ));
         assert_eq!(swarm.behaviour().gossipsub.topics().count(), 1);
@@ -116,18 +138,18 @@ mod tests {
             &tx,
             &mut room_queries,
             &mut rooms,
-            &gossipsub,
+            &room_config,
             None
         ));
     }
 
     #[tokio::test]
-    async fn subscribe_room_registers_its_topic() {
+    async fn subscribe_room_registers_its_topic_and_joins_it() {
         let mut swarm = swarm();
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
         let mut room_queries = HashMap::new();
         let mut rooms = rooms();
-        let gossipsub = p2p::GossipsubConfig::default();
+        let room_config = p2p::RoomConfig::default();
         let room = identity::RoomName::from("room-a");
         let command = p2p::Command::Net(p2p::NetCommand::SubscribeRoom { room: room.clone() });
         assert!(dispatch_command(
@@ -135,12 +157,37 @@ mod tests {
             &tx,
             &mut room_queries,
             &mut rooms,
-            &gossipsub,
+            &room_config,
             Some(command)
         ));
         let topic =
             libp2p::gossipsub::IdentTopic::new(p2p::room_topic(&rooms.game, &room).as_str());
         assert_eq!(rooms.room(&topic.hash()), Some(&room));
+        assert_eq!(rooms.joined, Some(room));
+    }
+
+    #[tokio::test]
+    async fn publish_without_a_joined_room_is_an_error() {
+        let mut swarm = swarm();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut room_queries = HashMap::new();
+        let mut rooms = rooms();
+        let room_config = p2p::RoomConfig::default();
+        let command = p2p::Command::Publish {
+            payload: Vec::new(),
+        };
+        assert!(dispatch_command(
+            &mut swarm,
+            &tx,
+            &mut room_queries,
+            &mut rooms,
+            &room_config,
+            Some(command)
+        ));
+        let Ok(p2p::Event::Error(message)) = rx.try_recv() else {
+            panic!("expected an error event");
+        };
+        assert!(message.contains("no joined room"));
     }
 
     #[tokio::test]
@@ -149,8 +196,8 @@ mod tests {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let mut room_queries = HashMap::new();
         let mut rooms = rooms();
-        let gossipsub = p2p::GossipsubConfig::default();
-        let command = p2p::Command::Publish {
+        let room_config = p2p::RoomConfig::default();
+        let command = p2p::Command::PublishTo {
             room: identity::RoomName::from("room-a"),
             payload: vec![0; 70_000],
         };
@@ -159,7 +206,7 @@ mod tests {
             &tx,
             &mut room_queries,
             &mut rooms,
-            &gossipsub,
+            &room_config,
             Some(command)
         ));
         let Ok(p2p::Event::Error(message)) = rx.try_recv() else {

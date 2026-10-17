@@ -14,8 +14,9 @@ pub async fn run<T: p2p::Message>(
     config: p2p::RunnerConfig,
 ) {
     let mode = config.mode;
-    let gossipsub = config.gossipsub;
-    let mut swarm = match p2p::build_swarm::build_swarm::<T>(keypair, config.mdns, &gossipsub) {
+    let room = config.room;
+    let mut swarm = match p2p::build_swarm::build_swarm::<T>(keypair, config.mdns, &room.gossipsub)
+    {
         Ok(s) => s,
         Err(e) => {
             event_tx.send(p2p::Event::Error(e)).ok();
@@ -66,7 +67,7 @@ pub async fn run<T: p2p::Message>(
                     &event_tx,
                     &mut room_queries,
                     &mut rooms,
-                    &gossipsub,
+                    &room,
                     cmd,
                 ) {
                     break;
@@ -131,7 +132,7 @@ mod tests {
                 mode: p2p::TransportMode::Tcp,
                 mdns: p2p::MdnsMode::Disabled,
                 game: game.clone(),
-                gossipsub: p2p::GossipsubConfig::default(),
+                room: p2p::RoomConfig::default(),
             },
         );
         Node {
@@ -267,7 +268,6 @@ mod tests {
 
         hub.commands
             .send(p2p::Command::Publish {
-                room: room.clone(),
                 payload: Payload(42),
             })
             .unwrap();
@@ -278,7 +278,6 @@ mod tests {
                 room: seen,
                 from,
                 payload,
-                via,
             } = event
             else {
                 panic!("expected a room message");
@@ -286,7 +285,6 @@ mod tests {
             assert_eq!(seen, room);
             assert_eq!(from, hub_peer.id);
             assert_eq!(payload, Payload(42));
-            assert_eq!(via, p2p::Via::Gossipsub);
             assert_eq!(
                 count_room_messages(node, &room, Duration::from_millis(500)).await,
                 0

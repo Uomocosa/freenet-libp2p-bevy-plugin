@@ -335,45 +335,78 @@ the 5 instances logged `p2p room subscribed room=room-1792234085` 33–45 ms aft
 
 ---
 
-## Step A4 — Room API over gossipsub + member tracking
+## Step A4 — Room API over gossipsub
 
-Goal: apps call one room API on the only transport; the swarm loop knows each room's
-members so later steps can address peers individually.
+Goal: apps call one room API on the only transport.
 
 > Decision D1 revised: the room transport is **gossipsub only**. The `Broadcast` /
 > `RoomTransport::Stream` design is dropped (no stable `libp2p-stream`; see §1 D1). Step
-> A3 was deleted; the membership plumbing every later step needs now lands here.
+> A3 was deleted. The reliability split (`Room { reliability: Lossy | Reliable }`) was
+> dropped as well; reliable transfers stay internal to A5/A6. Room-member tracking moved
+> to **A5**, whose snapshot request is its first consumer.
 
-- [ ] `plugin::Config` gains `room: RoomConfig { anti_entropy: Option<AntiEntropyConfig>,
+- [x] `plugin::Config` gains `room: RoomConfig { anti_entropy: Option<AntiEntropyConfig>,
       gossipsub: GossipsubConfig }` with `Default` (anti-entropy on). Keep `Config::new`
       working (builder methods for new fields).
-- [ ] `Command::<T>::Room{ payload }` (publishes to the currently joined room's topic).
-      `Publish` remains available for explicit-topic use. No reliability split on the app
-      API: reliable transfers (snapshots, tile parts) stay internal to A5/A6
-      (request-response).
-- [ ] `NetCommand::SetRoomMembers { room, peers: Vec<identity::PeerId> }`; the swarm loop
-      keeps each room's member set and clears it on `Left`. New bevy system
-      `discovery::bevy_systems::sync_room_members` pushes the `status == Connected`
-      members from `discovery::Snapshot.room` on `Event::{Joined, MembersChanged}` (and an
-      empty list on `Left`), registered after `drain_events`/`drain_snapshots` and gated
-      on `AutoSubscribe::Enabled`.
-- [ ] Remove the now-single-variant `Via` enum and the `via` field on
-      `Event::RoomMessage` (only `Gossipsub` would remain); update `handle_gossipsub` and
-      the A2 tests.
-- [ ] Unit tests for config defaults/builders, `SetRoomMembers` store/clear, and
-      `sync_room_members` on Joined / MembersChanged / Left; headless test: 2 Apps,
-      `SetRoomMembers` → `Command::Send` to that member arrives.
-- [ ] Update `README.md` "Using the plugin" with the room API + defaults.
-- [ ] Gate green.
+- [x] `Command::<T>::Publish{ payload }` publishes to the currently joined room's topic;
+      `Command::<T>::PublishTo{ room, payload }` names an explicit room. (`Room{payload}`
+      was renamed: it named a noun, not the action.)
+- [x] Remove the now-single-variant `Via` enum and the `via` field on
+      `Event::RoomMessage`; update `handle_gossipsub` and the A2 tests.
+- [x] Unit tests for config defaults/builders, the joined-room tracking and the
+      no-joined-room error; the 3-swarm headless test now publishes via `Command::Publish`.
+- [x] Update `README.md` "Using the plugin" with the room API + defaults.
+- [x] Gate green.
 
 ### What was done (Step A4)
-_(agent fills)_
+
+**Files added (product):** `src/p2p/room_config.rs` (`RoomConfig`),
+`src/p2p/anti_entropy_config.rs` (`AntiEntropyConfig { interval, max_parts_in_flight }`,
+default 2 s / 8).
+
+**Files changed (product):** `src/p2p/mod.rs` (exports `RoomConfig`/`AntiEntropyConfig`,
+drops `Via`); `src/p2p/__basic__/structs.rs` (`RunnerConfig.gossipsub` → `room`);
+`src/p2p/__basic__/enums.rs` (`Via` deleted, `RoomMessage.via` dropped,
+`Command::{Publish{payload}, PublishTo{room,payload}}`); `src/p2p/swarm_loop/room_topics.rs`
+(`RoomTopics.joined`, set on `register`, cleared on `unregister`);
+`src/p2p/swarm_loop/dispatch_command.rs` (`publish_joined` helper, "no joined room" error);
+`src/p2p/swarm_loop/handle_gossipsub.rs`, `src/p2p/run.rs`, `src/p2p/spawn_runner.rs`,
+`src/plugin/config.rs` (`room` field + `with_room`), `methods/p2p_plugin/build_plugin.rs`,
+`README.md`.
+
+**Public API added:** `p2p::{RoomConfig, AntiEntropyConfig}`;
+`Command::{Publish, PublishTo}`; `plugin::Config::{room, with_room}`. Removed:
+`p2p::Via`, `Event::RoomMessage.via`, `plugin::Config::{gossipsub, with_gossipsub}`,
+`Command::Publish{room,..}` (breaking, 0.0.1).
+
+**Tests:** `p2p::room_config`, `p2p::anti_entropy_config`, `room_topics::tests::test_usage`
+(joined set/clear), `dispatch_command::tests::{subscribe_room_registers_its_topic_and_joins_it,
+publish_without_a_joined_room_is_an_error, oversize_room_payload_is_an_error}`;
+`run::tests::transport_only_…` updated to `Command::Publish{payload}`.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**141 passed**, 3 skipped), `just lint`, `just bevy-lint`.
+
+**Deviations / decisions:**
+- **`Publish` / `PublishTo` instead of `Room`** (user call): the bare verb is the common
+  case (joined room), the qualified one names a room.
+- **No reliability split**: reliable transfers are internal to A5/A6, not app-facing.
+- **Member tracking deferred to A5**: A4 has no product consumer for it (write-only state).
+
+**Open issues (for later steps):**
+- `RoomTopics.joined` is a single slot: a later `SubscribeRoom` replaces it. One room per
+  session is the current model.
 
 ---
 
 ## Step A5 — Generic room state sync: Lamport clock + snapshot on join
 
 Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
+
+> Decision (A5 design): `RoomSync<S>` ships ops on its **own raw gossip topic**
+> `<game>/room/<room>/sync` (app's `T` stays free on the room topic); snapshots go over a
+> **new request/response behaviour** (`/<game>/room-sync/1`) with distinct request/response
+> frames. Both need the member tracking this step also introduces.
 
 - [ ] Define a trait in the plugin (name per lele conventions), e.g.
       ```rust
@@ -388,6 +421,8 @@ Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
       ```
       and a `RoomSyncPlugin<S: RoomState>` that owns `Resource<S>` and a `LamportClock`
       resource (`tick()`, `observe(remote)`).
+- [ ] `NetCommand::SetRoomMembers { room, peers }` + `sync_room_members` bevy system (the
+      bridge from `discovery::Snapshot.room` that A4 deferred here).
 - [ ] On `Joined`: request snapshot (reliable request-response) from one connected
       member (lowest peer id that is `Connected`; retry next on failure/timeout).
       Snapshots are sent **in parts** (one response per part/tile), never one huge

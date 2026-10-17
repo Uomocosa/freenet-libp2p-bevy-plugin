@@ -21,6 +21,22 @@ freenet-libp2p-bevy-plugin = { git = "https://github.com/Uomocosa/freenet-libp2p
 - GPU: uses the OS driver; headless falls back to WARP (Windows) / Metal
   (macOS) / lavapipe (Linux).
 
+### Rooms
+
+One room channel: gossipsub, one topic per room. Joining a room (through
+`discovery`) auto-subscribes the plugin to that room's topic.
+
+- `p2p::Command::Publish { payload }` publishes to the room you have joined.
+- `p2p::Command::PublishTo { room, payload }` publishes to a named room.
+- Inbound payloads arrive as `p2p::Event::RoomMessage { room, from, payload }`.
+- A payload larger than `p2p::RoomConfig::gossipsub.max_transmit_size` (64 KiB)
+  is rejected with `p2p::Event::Error`, not silently dropped.
+- `p2p::RoomConfig` also carries `anti_entropy` (default on, 2 s interval) and
+  is reached from `plugin::Config` and its `with_room` builder.
+
+Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
+2, `flood_publish` enabled.
+
 ## Developing this crate (examples, previews, e2e)
 
 ```sh
