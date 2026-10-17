@@ -25,7 +25,7 @@ pub async fn attach(
     let started = std::time::Instant::now();
     let first = discovery::common::within(
         FETCH_TIMEOUT,
-        "fetch",
+        discovery::Step::Fetch,
         discovery::freenet::fetch(client, instance_id),
     )
     .await;
@@ -47,14 +47,14 @@ pub async fn attach(
             let container = ContractContainer::from(ContractWasmAPIVersion::V1(wrapped));
             discovery::common::within(
                 DEPLOY_TIMEOUT,
-                "deploy",
+                discovery::Step::Deploy,
                 deploy_contract(client, container, initial_lobby),
             )
             .await
             .inspect_err(|e| warn!(target: "discovery", error = %e, "lobby deploy failed"))?;
             discovery::common::within(
                 FETCH_TIMEOUT,
-                "fetch",
+                discovery::Step::Fetch,
                 discovery::freenet::fetch(client, instance_id),
             )
             .await?

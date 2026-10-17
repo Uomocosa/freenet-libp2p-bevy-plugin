@@ -56,6 +56,18 @@ bevy-lint:
 contract:
     cargo build --manifest-path contract/lobby/Cargo.toml --release --target wasm32-unknown-unknown
 
+# The lobby contract is its own workspace root (`[workspace]` in its Cargo.toml), so the
+# parent's fmt/clippy/lint never reach it. Run each check here too, from the repo root so
+# rustup picks up rust-toolchain.toml.
+contract-fmt:
+    cargo fmt --manifest-path contract/lobby/Cargo.toml -- --check
+
+contract-clippy:
+    cargo clippy --manifest-path contract/lobby/Cargo.toml --all-targets --all-features -- -D warnings
+
+contract-lint:
+    lele-lint --config lele.toml contract/lobby
+
 # Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
 freenet-harness:
     cargo nextest run --test freenet_harness --all-features --run-ignored all -- --nocapture

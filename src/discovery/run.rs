@@ -33,8 +33,7 @@ pub async fn run(
         port: *endpoint,
         me: me.id.clone(),
         params: discovery::freenet::contract_params(&config.game),
-        room_size: config.room_size,
-        deploy_policy: config.deploy_policy,
+        discovery: config,
     };
     tokio::spawn(discovery::freenet::poll_peers(
         freenet_config.clone(),

@@ -11,7 +11,7 @@ pub fn publish_heartbeat(
     room: &identity::RoomName,
     me: &identity::PeerId,
     heartbeat: discovery::Heartbeat,
-    room_size: u16,
+    room_size: discovery::RoomSize,
 ) -> Result<(), discovery::Error> {
     let members = BTreeMap::from([(me.clone(), heartbeat)]);
     let update = discovery::Lobby::from([(room.clone(), discovery::Room { room_size, members })]);
@@ -25,4 +25,49 @@ pub fn publish_heartbeat(
     Ok(())
 }
 
-// no test_usage necessary
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use freenet_stdlib::prelude::{ContractCode, ContractKey, Parameters, WrappedContract};
+
+    use super::publish_heartbeat;
+    use crate::{discovery, identity};
+
+    fn contract_key() -> ContractKey {
+        WrappedContract::new(
+            Arc::new(ContractCode::from(
+                discovery::freenet::contract_wasm().to_vec(),
+            )),
+            Parameters::from(Vec::new()),
+        )
+        .key
+    }
+
+    #[test]
+    fn test_usage() {
+        let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        let mut subscription = discovery::freenet::LobbyContractSubscription {
+            client: discovery::freenet::Client { write, read },
+            key: contract_key(),
+            lobby: discovery::Lobby::default(),
+        };
+        let heartbeat = discovery::Heartbeat {
+            addrs: Vec::new(),
+            updated_at: discovery::UnixTime::from_secs(1),
+            display_name: None,
+        };
+        assert!(
+            publish_heartbeat(
+                &mut subscription,
+                &identity::RoomName::from("room-a"),
+                &identity::PeerId::from("me"),
+                heartbeat,
+                discovery::RoomSize::DEFAULT,
+            )
+            .is_ok()
+        );
+        assert!(write_rx.try_recv().is_ok());
+    }
+}

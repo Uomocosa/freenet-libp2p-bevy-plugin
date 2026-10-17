@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use discovery::ui::basic::constants::{
-    HOVER_OUTLINE_COLOR, HOVER_OUTLINE_WIDTH, HOVER_PER_SEC, HOVER_SCALE,
+    ACCENT_COLOR, HOVER_OUTLINE_WIDTH, HOVER_PER_SEC, HOVER_SCALE,
 };
 use discovery::ui::{HoverGlow, HoverOutlineOnly};
 
@@ -48,7 +48,7 @@ pub fn animate_hover(
         if transform.scale != scale {
             transform.scale = scale;
         }
-        let color = HOVER_OUTLINE_COLOR.with_alpha(progress);
+        let color = ACCENT_COLOR.with_alpha(progress);
         if outline.color != color {
             outline.color = color;
         }

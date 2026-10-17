@@ -1,11 +1,13 @@
 use thiserror::Error;
 
+use crate::discovery;
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("connection timed out")]
     ConnectionTimeout,
     #[error("freenet {0} timed out")]
-    Timeout(&'static str),
+    Timeout(discovery::Step),
     #[error("disconnected")]
     Disconnected,
     #[error("websocket error: {0}")]
@@ -24,6 +26,8 @@ pub enum Error {
     Client(String),
     #[error("unexpected response: {0}")]
     UnexpectedResponse(String),
+    #[error("room size must be non-zero")]
+    ZeroRoomSize,
 }
 
 #[rustfmt::skip]

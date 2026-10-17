@@ -15,6 +15,5 @@ pub struct Config {
     pub port: u16,
     pub me: identity::PeerId,
     pub params: Vec<u8>,
-    pub room_size: u16,
-    pub deploy_policy: discovery::freenet::DeployPolicy,
+    pub discovery: discovery::Config,
 }

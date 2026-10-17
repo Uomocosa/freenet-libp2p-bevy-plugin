@@ -17,4 +17,4 @@ reason = "rustc `unreachable_code` is emitted inside the libp2p `#[derive(Networ
 [[lele.lint.clippy_allow_whitelist]]
 allow = "unexpected_cfgs"
 file = "src/lib.rs"
-reason = "freenet-macros' `#[contract]` expansion emits `cfg(...)` references the compiler cannot resolve from the crate source; the lobby contract's crate-root `#![allow(unexpected_cfgs)]` cannot be replaced by editing generated code"
+reason = "the lobby CONTRACT crate's `src/lib.rs`: `file` is relative to that crate's own root, not this crate's. Only consulted by the standalone run `lele-lint --config lele.toml contract/lobby`; the repo's `just lint` (`lele-lint .`) never walks `contract/`, so the entry is inert for it. Deleting it turns the standalone run red: freenet-macros' `#[contract]` expansion emits `cfg(...)` references the compiler cannot resolve from the crate source, and the generated code cannot be edited"

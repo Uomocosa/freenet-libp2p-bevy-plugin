@@ -33,7 +33,7 @@ mod tests {
         lobby.insert(
             identity::RoomName::from("live"),
             discovery::Room {
-                room_size: 8,
+                room_size: discovery::RoomSize::DEFAULT,
                 members: BTreeMap::from([
                     (
                         identity::PeerId::from("fresh"),
@@ -49,7 +49,7 @@ mod tests {
         lobby.insert(
             identity::RoomName::from("dead"),
             discovery::Room {
-                room_size: 8,
+                room_size: discovery::RoomSize::DEFAULT,
                 members: BTreeMap::from([(
                     identity::PeerId::from("gone"),
                     heartbeat(discovery::UnixTime::from_secs(1)),

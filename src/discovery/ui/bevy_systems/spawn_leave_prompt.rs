@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use discovery::ui::basic::constants::{
-    NO_COLOR, PROMPT_BACKDROP_COLOR, PROMPT_PANEL_COLOR, YES_COLOR,
+    BUTTON_COLOR, PANEL_COLOR, PROMPT_BACKDROP_COLOR, YES_COLOR,
 };
 use discovery::ui::{LeaveDialog, LeaveNoButton, LeavePrompt, LeaveYesButton};
 
@@ -30,7 +30,7 @@ pub fn spawn_leave_prompt(mut commands: Commands) {
                 padding: UiRect::all(Val::Px(18.0)),
                 ..default()
             },
-            BackgroundColor(PROMPT_PANEL_COLOR),
+            BackgroundColor(PANEL_COLOR),
             children![
                 Text::new("Are you sure to leave the room?"),
                 (
@@ -41,7 +41,7 @@ pub fn spawn_leave_prompt(mut commands: Commands) {
                     },
                     children![
                         answer_button(LeaveYesButton, "Yes", YES_COLOR),
-                        answer_button(LeaveNoButton, "No", NO_COLOR),
+                        answer_button(LeaveNoButton, "No", BUTTON_COLOR),
                     ],
                 ),
             ],

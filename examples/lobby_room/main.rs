@@ -43,8 +43,7 @@ async fn main() {
             || freenet_libp2p_bevy_plugin::game_id!(),
             identity::GameId::from,
         ),
-        room_size: 8,
-        deploy_policy: discovery::freenet::DeployPolicy::FetchOrDeploy,
+        ..discovery::Config::default()
     });
     // scripted input runs through Bevy's real typing/clicking paths
     match args.ui {

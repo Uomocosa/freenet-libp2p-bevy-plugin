@@ -152,11 +152,12 @@ mod tests {
 
     fn list_lobby(world: &mut World) {
         let mut snapshot = world.resource_mut::<discovery::Snapshot>();
-        for (name, room_size) in [("alpha", 8_u16), ("beta", 4_u16), (JOIN_ROOM, 8_u16)] {
+        for (name, room_size) in [("alpha", 8), ("beta", 4), (JOIN_ROOM, 8)] {
             snapshot.lobby.insert(
                 identity::RoomName::from(name),
                 discovery::Room {
-                    room_size,
+                    room_size: discovery::RoomSize::try_from(room_size)
+                        .expect("fixture room size is non-zero"),
                     members: std::collections::BTreeMap::new(),
                 },
             );

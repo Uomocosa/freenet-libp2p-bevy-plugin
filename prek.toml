@@ -52,6 +52,36 @@ priority = "checks"
 stages = ["pre-commit"]
 
 [[repos.hooks]]
+id = "contract-fmt"
+name = "just contract-fmt"
+language = "system"
+entry = "just contract-fmt"
+pass_filenames = false
+always_run = true
+priority = "format"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "contract-clippy"
+name = "just contract-clippy"
+language = "system"
+entry = "just contract-clippy"
+pass_filenames = false
+always_run = true
+priority = "checks"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "contract-lint"
+name = "just contract-lint"
+language = "system"
+entry = "just contract-lint"
+pass_filenames = false
+always_run = true
+priority = "checks"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
 id = "test"
 name = "just test"
 language = "system"

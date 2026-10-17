@@ -38,7 +38,7 @@ mod tests {
         let incoming = discovery::Lobby::from([(
             identity::RoomName::from("room-a"),
             discovery::Room {
-                room_size: 8,
+                room_size: discovery::RoomSize::DEFAULT,
                 members: BTreeMap::from([(identity::PeerId::from("peer"), heartbeat)]),
             },
         )]);

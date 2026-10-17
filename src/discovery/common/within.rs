@@ -4,7 +4,7 @@ use crate::discovery;
 
 pub async fn within<T>(
     budget: Duration,
-    step: &'static str,
+    step: discovery::Step,
     request: impl Future<Output = Result<T, discovery::Error>>,
 ) -> Result<T, discovery::Error> {
     tokio::time::timeout(budget, request)
@@ -25,12 +25,17 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(50)).await;
             Ok::<u8, discovery::Error>(1)
         };
-        let result = within(Duration::from_millis(5), "deploy", slow).await;
-        assert!(matches!(result, Err(discovery::Error::Timeout("deploy"))));
+        let result = within(Duration::from_millis(5), discovery::Step::Deploy, slow).await;
+        assert!(matches!(
+            result,
+            Err(discovery::Error::Timeout(discovery::Step::Deploy))
+        ));
 
         let fast = async { Ok::<u8, discovery::Error>(7) };
         assert_eq!(
-            within(Duration::from_secs(1), "fetch", fast).await.unwrap(),
+            within(Duration::from_secs(1), discovery::Step::Fetch, fast)
+                .await
+                .unwrap(),
             7
         );
     }

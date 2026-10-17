@@ -30,7 +30,12 @@ pub fn sync_room_list(
         .despawn_related::<Children>()
         .with_children(|parent| {
             for row in &*shown {
-                let label = format!("> {} [{} online]", row.name.as_str(), row.members);
+                let label = format!(
+                    "> {} [{}/{} online]",
+                    row.name.as_str(),
+                    row.members,
+                    row.room_size
+                );
                 parent.spawn((
                     RoomButton(row.name.clone()),
                     Button,
@@ -62,7 +67,7 @@ mod tests {
             snapshot.lobby.insert(
                 identity::RoomName::from(name),
                 discovery::Room {
-                    room_size: 8,
+                    room_size: discovery::RoomSize::DEFAULT,
                     members: std::collections::BTreeMap::new(),
                 },
             );
@@ -88,11 +93,12 @@ mod tests {
 
     fn preview_snapshot() -> discovery::Snapshot {
         let mut snapshot = discovery::Snapshot::default();
-        for (name, room_size) in [("alpha", 8_u16), ("beta", 4_u16)] {
+        for (name, room_size) in [("alpha", 8), ("beta", 4)] {
             snapshot.lobby.insert(
                 identity::RoomName::from(name),
                 discovery::Room {
-                    room_size,
+                    room_size: discovery::RoomSize::try_from(room_size)
+                        .expect("fixture room size is non-zero"),
                     members: std::collections::BTreeMap::new(),
                 },
             );
@@ -122,7 +128,7 @@ mod tests {
         snapshot.lobby.insert(
             identity::RoomName::from("gamma"),
             discovery::Room {
-                room_size: 4,
+                room_size: discovery::RoomSize::try_from(4).expect("fixture room size is non-zero"),
                 members: std::collections::BTreeMap::new(),
             },
         );

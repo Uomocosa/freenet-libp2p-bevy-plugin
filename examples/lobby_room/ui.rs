@@ -7,14 +7,14 @@ use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
 use derive_more::Deref;
 use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::discovery::ui::basic::constants::{
+    BUTTON_COLOR, BUTTON_LABEL_COLOR, CARET_COLOR, DISABLED_BUTTON_COLOR,
+    DISABLED_BUTTON_LABEL_COLOR,
+};
 use freenet_libp2p_bevy_plugin::identity;
 
 const FIELD_COLOR: Color = Color::srgb(0.10, 0.11, 0.14);
 const ROOM_COLOR: Color = Color::srgb(0.16, 0.18, 0.22);
-const BUTTON_COLOR: Color = Color::srgb(0.20, 0.24, 0.32);
-const DISABLED_COLOR: Color = Color::srgb(0.13, 0.13, 0.14);
-const LABEL_COLOR: Color = Color::WHITE;
-const DISABLED_LABEL_COLOR: Color = Color::srgb(0.38, 0.38, 0.40);
 
 pub struct LobbyUi;
 
@@ -59,7 +59,7 @@ fn spawn(mut commands: Commands) {
                         NameField,
                         EditableText::new(""),
                         TextCursorStyle {
-                            color: LABEL_COLOR,
+                            color: CARET_COLOR,
                             ..default()
                         },
                         Node {
@@ -166,9 +166,9 @@ fn gate_create(
     let (entity, interaction, mut background, children) = button.into_inner();
     let BackgroundColor(existing) = &mut *background;
     let (color, label_color) = if enabled {
-        (BUTTON_COLOR, LABEL_COLOR)
+        (BUTTON_COLOR, BUTTON_LABEL_COLOR)
     } else {
-        (DISABLED_COLOR, DISABLED_LABEL_COLOR)
+        (DISABLED_BUTTON_COLOR, DISABLED_BUTTON_LABEL_COLOR)
     };
     if *existing != color {
         *existing = color;
@@ -222,7 +222,7 @@ mod tests {
         snapshot.lobby.insert(
             identity::RoomName::from("alpha"),
             discovery::Room {
-                room_size: 8,
+                room_size: discovery::RoomSize::DEFAULT,
                 members: std::collections::BTreeMap::new(),
             },
         );
@@ -236,7 +236,7 @@ mod tests {
         snapshot.lobby.insert(
             identity::RoomName::from("gamma"),
             discovery::Room {
-                room_size: 4,
+                room_size: discovery::RoomSize::try_from(4).expect("fixture room size is non-zero"),
                 members: std::collections::BTreeMap::new(),
             },
         );

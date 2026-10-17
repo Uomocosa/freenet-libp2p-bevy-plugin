@@ -65,7 +65,7 @@ pub async fn run_lobby(
                 &current.room,
                 &freenet_config.me,
                 heartbeat,
-                freenet_config.room_size,
+                freenet_config.discovery.room_size,
             ) {
                 Ok(()) => {
                     tracing::info!(target: "discovery", ?room, "lobby heartbeat published");

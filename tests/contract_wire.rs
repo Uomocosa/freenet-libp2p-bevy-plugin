@@ -18,7 +18,7 @@ fn plugin_lobby() -> discovery::Lobby {
     discovery::Lobby::from([(
         identity::RoomName::from("room-a"),
         discovery::Room {
-            room_size: 8,
+            room_size: discovery::RoomSize::DEFAULT,
             members,
         },
     )])

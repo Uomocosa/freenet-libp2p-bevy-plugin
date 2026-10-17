@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use freenet_stdlib::client_api::{ContractResponse, HostResponse};
-use freenet_stdlib::prelude::UpdateData;
 
 use crate::discovery;
 
@@ -15,37 +14,12 @@ pub async fn poll(
         .recv_response_timeout(DRAIN_TIMEOUT)
         .await
     {
-        match result? {
-            HostResponse::ContractResponse(ContractResponse::UpdateNotification {
-                update, ..
-            }) => {
-                absorb_update(subscription, update)?;
-            }
-            HostResponse::ContractResponse(ContractResponse::GetResponse { state, .. }) => {
-                absorb_bytes(subscription, state.as_ref())?;
-            }
-            _ => {}
+        if let HostResponse::ContractResponse(ContractResponse::GetResponse { state, .. }) = result?
+        {
+            absorb_bytes(subscription, state.as_ref())?;
         }
     }
     Ok(subscription.lobby.clone())
-}
-
-// needed helper: merges one notification into the cached lobby
-fn absorb_update(
-    subscription: &mut discovery::freenet::LobbyContractSubscription,
-    update: UpdateData<'static>,
-) -> Result<(), discovery::Error> {
-    let bytes = match update {
-        UpdateData::State(state) | UpdateData::StateAndDelta { state, .. } => {
-            Some(state.as_ref().to_vec())
-        }
-        UpdateData::Delta(delta) => Some(delta.as_ref().to_vec()),
-        _ => None,
-    };
-    if let Some(bytes) = bytes {
-        absorb_bytes(subscription, &bytes)?;
-    }
-    Ok(())
 }
 
 // needed helper: merges raw lobby bytes into the cached lobby
@@ -60,8 +34,59 @@ fn absorb_bytes(
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_usage() {
-        std::hint::black_box(super::poll);
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
+    use freenet_stdlib::client_api::{ContractResponse, HostResponse};
+    use freenet_stdlib::prelude::{
+        ContractCode, ContractKey, Parameters, WrappedContract, WrappedState,
+    };
+
+    use super::poll;
+    use crate::{discovery, identity};
+
+    fn contract_key() -> ContractKey {
+        WrappedContract::new(
+            Arc::new(ContractCode::from(
+                discovery::freenet::contract_wasm().to_vec(),
+            )),
+            Parameters::from(Vec::new()),
+        )
+        .key
+    }
+
+    fn room_lobby() -> discovery::Lobby {
+        discovery::Lobby::from([(
+            identity::RoomName::from("room-a"),
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                members: BTreeMap::new(),
+            },
+        )])
+    }
+
+    #[tokio::test]
+    async fn test_usage() {
+        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        let key = contract_key();
+        let incoming = room_lobby();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::GetResponse {
+                    key,
+                    contract: None,
+                    state: WrappedState::new(bincode::serialize(&incoming).unwrap_or_default()),
+                },
+            )))
+            .ok();
+        let mut subscription = discovery::freenet::LobbyContractSubscription {
+            client: discovery::freenet::Client { write, read },
+            key,
+            lobby: discovery::Lobby::default(),
+        };
+        let polled = poll(&mut subscription).await;
+        assert_eq!(polled.ok(), Some(incoming));
+        assert_eq!(subscription.lobby.len(), 1);
     }
 }

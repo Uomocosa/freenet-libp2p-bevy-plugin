@@ -49,7 +49,7 @@ mod tests {
         lobby.insert(
             identity::RoomName::from("r"),
             discovery::Room {
-                room_size: 8,
+                room_size: discovery::RoomSize::DEFAULT,
                 members,
             },
         );

@@ -2,12 +2,10 @@ use bevy::prelude::*;
 use bevy::text::EditableText;
 
 use crate::discovery;
+use discovery::ui::basic::constants::{
+    BUTTON_COLOR, BUTTON_LABEL_COLOR, DISABLED_BUTTON_COLOR, DISABLED_BUTTON_LABEL_COLOR,
+};
 use discovery::ui::{CreateRoomButton, RoomNameInput};
-
-const ENABLED_COLOR: Color = Color::srgb(0.20, 0.24, 0.32);
-const DISABLED_COLOR: Color = Color::srgb(0.13, 0.13, 0.14);
-const LABEL_COLOR: Color = Color::WHITE;
-const DISABLED_LABEL_COLOR: Color = Color::srgb(0.38, 0.38, 0.40);
 
 type CreateButtonParts<'a> = (
     Entity,
@@ -28,9 +26,9 @@ pub fn gate_create(
     let (entity, interaction, mut background, children) = button.into_inner();
     let BackgroundColor(existing) = &mut *background;
     let (color, label_color) = if enabled {
-        (ENABLED_COLOR, LABEL_COLOR)
+        (BUTTON_COLOR, BUTTON_LABEL_COLOR)
     } else {
-        (DISABLED_COLOR, DISABLED_LABEL_COLOR)
+        (DISABLED_BUTTON_COLOR, DISABLED_BUTTON_LABEL_COLOR)
     };
     if *existing != color {
         *existing = color;

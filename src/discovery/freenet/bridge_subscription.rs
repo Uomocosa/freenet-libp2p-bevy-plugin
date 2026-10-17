@@ -19,8 +19,33 @@ pub fn bridge_subscription(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use freenet_stdlib::prelude::{ContractCode, ContractKey, Parameters, WrappedContract};
+
+    use super::bridge_subscription;
+    use crate::discovery;
+
+    fn contract_key() -> ContractKey {
+        WrappedContract::new(
+            Arc::new(ContractCode::from(
+                discovery::freenet::contract_wasm().to_vec(),
+            )),
+            Parameters::from(Vec::new()),
+        )
+        .key
+    }
+
     #[test]
     fn test_usage() {
-        std::hint::black_box(super::bridge_subscription);
+        let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        let mut subscription = discovery::freenet::LobbyContractSubscription {
+            client: discovery::freenet::Client { write, read },
+            key: contract_key(),
+            lobby: discovery::Lobby::default(),
+        };
+        assert!(bridge_subscription(&mut subscription).is_ok());
+        assert!(write_rx.try_recv().is_ok());
     }
 }

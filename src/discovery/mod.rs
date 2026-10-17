@@ -9,7 +9,7 @@ pub mod ui;
 pub mod basic;
 
 pub use basic::constants::*;
-pub use basic::enums::LinkStatus;
+pub use basic::enums::{LinkStatus, Step};
 pub use basic::messages::{Command, Event};
 pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, Snapshot, SnapshotReceiver};
 pub use basic::structs::{Heartbeat, JoinedRoom, Member, Room, RunChannels};
@@ -17,6 +17,9 @@ pub use basic::type_aliases::Members;
 
 mod lobby;
 pub use lobby::Lobby;
+
+mod room_size;
+pub use room_size::RoomSize;
 
 mod unix_time;
 pub use unix_time::UnixTime;

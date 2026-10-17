@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use discovery::ui::basic::constants::{
-    CONNECTING_TEXT_COLOR, SPINNER_ACCENT_COLOR, SPINNER_SIZE, SPINNER_TRACK_COLOR,
+    ACCENT_COLOR, CONNECTING_TEXT_COLOR, SPINNER_SIZE, SPINNER_TRACK_COLOR,
 };
 use discovery::ui::{ConnectingRoot, Screen, SpinnerRing};
 
@@ -31,7 +31,7 @@ pub fn spawn_connecting(mut commands: Commands) {
                     ..default()
                 },
                 BorderColor {
-                    top: SPINNER_ACCENT_COLOR,
+                    top: ACCENT_COLOR,
                     ..BorderColor::all(SPINNER_TRACK_COLOR)
                 },
                 UiTransform::default(),

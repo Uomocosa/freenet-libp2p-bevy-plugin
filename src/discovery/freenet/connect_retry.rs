@@ -18,14 +18,14 @@ pub async fn connect_retry(
         let current = target.borrow().clone();
         let seed = initial_lobby(
             &freenet_config.me,
-            freenet_config.room_size,
+            freenet_config.discovery.room_size,
             current.as_ref(),
         );
         let result = discovery::freenet::attach(
             &mut client,
             wasm,
             &freenet_config.params,
-            freenet_config.deploy_policy,
+            freenet_config.discovery.deploy_policy,
             constants::RING_WAIT,
             &seed,
         )
@@ -35,7 +35,7 @@ pub async fn connect_retry(
                 return discovery::freenet::LobbyContractSubscription { client, key, lobby };
             }
             Err(discovery::Error::Timeout(step)) => {
-                warn!(target: "discovery", tries = tries, step, "lobby {step} timed out, reconnecting");
+                warn!(target: "discovery", tries = tries, step = %step, "lobby {step} timed out, reconnecting");
                 client =
                     discovery::freenet::connect_socket(&freenet_config.host, freenet_config.port)
                         .await;
@@ -55,7 +55,7 @@ pub async fn connect_retry(
 // needed helper: seeds a fresh lobby with our own heartbeat so readers never see it empty
 fn initial_lobby(
     me: &identity::PeerId,
-    room_size: u16,
+    room_size: discovery::RoomSize,
     target: Option<&discovery::state_machine::HeartbeatTarget>,
 ) -> discovery::Lobby {
     let Some(target) = target else {

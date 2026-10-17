@@ -44,7 +44,7 @@ mod tests {
             },
         );
         let current = discovery::Room {
-            room_size: 8,
+            room_size: discovery::RoomSize::DEFAULT,
             members,
         };
         let mut newer = BTreeMap::new();
@@ -57,7 +57,7 @@ mod tests {
             },
         );
         let incoming = discovery::Room {
-            room_size: 8,
+            room_size: discovery::RoomSize::DEFAULT,
             members: newer,
         };
         let merged = merge_room(Some(current), incoming);

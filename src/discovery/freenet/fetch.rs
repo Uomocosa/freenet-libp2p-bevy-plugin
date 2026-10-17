@@ -28,4 +28,59 @@ pub async fn fetch(
     }
 }
 
-// no test_usage necessary
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use freenet_stdlib::client_api::{ContractResponse, HostResponse};
+    use freenet_stdlib::prelude::{
+        ContractCode, ContractKey, Parameters, WrappedContract, WrappedState,
+    };
+
+    use super::fetch;
+    use crate::discovery;
+
+    fn contract_key() -> ContractKey {
+        WrappedContract::new(
+            Arc::new(ContractCode::from(
+                discovery::freenet::contract_wasm().to_vec(),
+            )),
+            Parameters::from(Vec::new()),
+        )
+        .key
+    }
+
+    #[tokio::test]
+    async fn test_usage() {
+        let key = contract_key();
+        let lobby = discovery::Lobby::default();
+        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::GetResponse {
+                    key,
+                    contract: None,
+                    state: WrappedState::new(bincode::serialize(&lobby).unwrap_or_default()),
+                },
+            )))
+            .ok();
+        let mut client = discovery::freenet::Client { write, read };
+        assert_eq!(fetch(&mut client, *key.id()).await.ok(), Some(lobby));
+
+        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::NotFound {
+                    instance_id: *key.id(),
+                },
+            )))
+            .ok();
+        let mut missing = discovery::freenet::Client { write, read };
+        assert!(matches!(
+            fetch(&mut missing, *key.id()).await,
+            Err(discovery::Error::ContractNotFound)
+        ));
+    }
+}

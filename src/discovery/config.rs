@@ -5,7 +5,7 @@ use crate::identity;
 pub struct Config {
     pub game: identity::GameId,
     pub display_name: identity::Username,
-    pub room_size: u16,
+    pub room_size: discovery::RoomSize,
     pub deploy_policy: discovery::freenet::DeployPolicy,
 }
 
@@ -14,7 +14,7 @@ impl Default for Config {
         Self {
             game: identity::GameId::from("test"),
             display_name: identity::Username::from("anonymous"),
-            room_size: 8,
+            room_size: discovery::RoomSize::DEFAULT,
             deploy_policy: discovery::freenet::DeployPolicy::default(),
         }
     }
@@ -30,7 +30,7 @@ mod tests {
         let config = Config::default();
         let params = discovery::freenet::contract_params(&config.game);
         assert_eq!(params, b"test".to_vec());
-        assert_eq!(config.room_size, 8);
+        assert_eq!(config.room_size, discovery::RoomSize::DEFAULT);
         assert_eq!(
             config.deploy_policy,
             discovery::freenet::DeployPolicy::FetchOrDeploy

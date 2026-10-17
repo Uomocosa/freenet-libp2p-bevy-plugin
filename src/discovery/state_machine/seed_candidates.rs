@@ -63,7 +63,7 @@ mod tests {
         state.lobby.insert(
             room,
             discovery::Room {
-                room_size: 8,
+                room_size: discovery::RoomSize::DEFAULT,
                 members,
             },
         );
