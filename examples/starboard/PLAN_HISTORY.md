@@ -14,10 +14,14 @@ peers download it on join; it is continuously updated.
 - Store in the existing libp2p **Kademlia** (`Behaviour.kademlia`, `MemoryStore`).
 - Record key base: `blake3(game_id ‖ room_name ‖ created_at)` (`created_at` from PLAN A1).
 - Value: `RoomState::Snapshot` of touched tiles, `bincode` + compression (same codec as
-  PLAN B2), split into chunks ≤ 60 KB: records `key‖"chunk"‖i`, plus a **manifest**
+  PLAN B2), split into chunks ≤ 60 KB: records `key‖content_hash‖"chunk"‖i` (content hash in the
+  key so concurrent writers never mix chunks), plus a **manifest**
   record `key‖"manifest"` = `{ lamport_max, n_chunks, content_hash }`.
-- Writer policy: every 30 s each member reads the manifest; if its own `lamport_max` is
-  greater, it `put_record`s chunks then manifest (manifest last). Replication/expiry:
+- Writer policy (**merge before write**): every 30 s each member reads the manifest +
+  chunks, verifies the hash, `RoomState::merge`s the stored history into a copy of its
+  own state, and if the merged result differs from what is stored it `put_record`s the
+  merged chunks then the manifest (manifest last). Never overwrite based on
+  `lamport_max` alone — a higher lamport does not imply a superset of ops. Replication/expiry:
   libp2p defaults, document them.
 - Reader policy on join: (1) snapshot from a live member (existing PLAN A5 path);
   (2) if none answers within timeout, `get_record` manifest → chunks → verify hash →
@@ -28,7 +32,10 @@ peers download it on join; it is continuously updated.
 ## Step H1 — Record keys, chunking codec
 
 - [ ] Key builders, manifest type, chunk/unchunk + hash verify (pure).
-- [ ] Tests: round-trip for sizes 0, 1 B, 59 KB, 61 KB, 5 MB; corrupted chunk detected.
+- [ ] Tests: round-trip for sizes 0, 1 B, 59 KB, 61 KB, 5 MB; corrupted chunk detected;
+      chunk keys differ for different content hashes.
+- [ ] **STOP before H3:** the "Open questions" at the bottom of this file must be answered
+      by the user first. Ask them; do not guess.
 
 ### What was done (Step H1)
 _(agent fills)_

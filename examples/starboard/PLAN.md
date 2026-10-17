@@ -43,6 +43,9 @@
    is acceptable — do not add migration logic.
 10. If a step turns out to be wrong or impossible, do NOT silently redesign. Write the
     problem in "What was done", propose the change, and stop.
+11. **e2e honesty:** if an e2e/X11/Freenet step cannot run in your environment, leave its
+    box `[ ]`, write `NOT RUN: <reason>` in "What was done", and stop. A step with an
+    unticked e2e box is NOT complete.
 
 ---
 
@@ -53,9 +56,9 @@
 | D1 | Room transports | Plugin offers **both**: (a) gossipsub `Publish{topic,payload}` / `Subscribe{topic}` / `Unsubscribe`, one topic per room; (b) `Broadcast{payload}` over a **new libp2p stream protocol**: unreliable, fire-and-forget, low-latency, one stream per room member. Selected via `RoomTransport::{Gossipsub, Stream}` in config. |
 | D2 | Choosing default | Build both, benchmark (`just compare-starboard`), set plugin default to the winner. Plugin philosophy: many options, **sensible defaults**, "hook it up and it just works". Initial default: `Gossipsub`. |
 | D3 | Generic vs app code | Generic room-sync machinery (room broadcast, Lamport clock, snapshot-on-join request/response, tile anti-entropy) lives in the **plugin**. Pixels, shapes, input, rendering live in `examples/starboard/`. |
-| D4 | Consistency model | Canvas = **dense, fixed, tiled LWW grid**: 1024×1024 cells, 32×32-cell tiles (32×32 tiles). Cell = `{ lamport: u32, author: u16 (room-local index), color: Option<u8 palette idx> }` (`None` = erased). Merge per cell = keep max `(lamport, author)`. This is a CRDT (commutative, associative, idempotent) under loss/dup/reorder. **No tombstone GC / no `forget()`**: max raw size is bounded (~8 MB). Untouched tiles are never sent. Revisit sparse+GC only if measurement says so. |
+| D4 | Consistency model | Canvas = **dense, fixed, tiled LWW grid**: 1024×1024 cells, 32×32-cell tiles (32×32 tiles). Cell = `{ lamport: u32, author: u16 (stable 16-bit hash of peer id), color: Option<u8 palette idx> }` (`None` = erased). Merge per cell = keep max `(lamport, author, color)` with `None < Some(_)` — the color tie-break makes a full `(lamport, author)` hash collision harmless (deterministic on every peer). This is a CRDT (commutative, associative, idempotent) under loss/dup/reorder. **No tombstone GC / no `forget()`**: max raw size is bounded (~8 MB). Untouched tiles are never sent. Revisit sparse+GC only if measurement says so. |
 | D5 | Lossy repair | Draw ops travel on the fast (possibly lossy) path. **Anti-entropy**: every ~2 s each peer broadcasts per-tile digests (blake3 of the tile's cells, truncated); a peer that sees a differing digest requests that tile (reliable request-response) and merges it. Cursors are lossy, latest-wins, never repaired. |
-| D6 | Daily identity | Lobby `Room` gains `created_at: UnixTime` (contract change). `day = (now - created_at) / 86400`. Seed = `blake3(peer_id ‖ created_at ‖ day)`. Shape and color change live on rollover; existing pixels keep their colors. Players cannot change shape/color. |
+| D6 | Daily identity | Lobby `Room` gains `created_at: UnixTime` (contract change). `day = (now - created_at) / 86400`. Seed = `blake3(peer_id ‖ created_at ‖ day)`. Shape and color change live on rollover; existing pixels keep their colors. Players cannot change shape/color. **Collision resolution:** sort members by peer id; a later member whose `(shape, color)` is already taken steps to the next free combination (of 72) for that day. **Known limitation (accepted):** rooms are never deleted from the lobby and `created_at` merges by min, so a reused room name keeps its old `created_at` (day counter, seed, history key carry over) and anyone can push `created_at` back to 0. |
 | D7 | Shapes / colors | Shapes: `Circle, Star, Square, Triangle, Diamond, Hexagon`. Colors: fixed palette of 12 high-contrast hues (palette index stored in cells). |
 | D8 | Canvas geometry | Logical grid 1024×1024, scaled to fit window (letterboxed). Base shape radius = 16 cells. |
 | D9 | Size notches | `SIZES = [0.1, 0.2, 0.35, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0]`, start index 5 (1.0). One scroll notch = ±1 index, clamped. Local per player, sent with cursor and ops. |
@@ -130,6 +133,11 @@ Goal: app can publish a payload to all peers of a room via gossipsub.
       `flood_publish = true`), all values in a `GossipsubConfig` struct with defaults.
 - [ ] Discovery integration: on `discovery::Event::Joined(room)` the plugin auto-
       subscribes; on `Left` auto-unsubscribes (configurable, default on).
+- [ ] Check gossipsub `max_transmit_size` (default 64 KiB) and document it; room
+      payloads larger than the limit must be rejected with an error, not silently dropped.
+- [ ] Test-only seam: a way (`#[cfg(test)]` / dev-only feature) to inject
+      `discovery::Event::Joined` + a member set into headless Apps without Freenet, so
+      A5/A6/B5 headless tests need no lobby. Starboard bins and `lobby_room` must NOT use it.
 - [ ] Unit tests: topic name builder, config defaults.
 - [ ] Headless in-process test: 3 swarms on localhost (direct dial allowed — comment
       why), all subscribe, one publishes, the other two receive exactly once.
@@ -154,7 +162,8 @@ Goal: lowest-latency room fan-out over a dedicated libp2p stream protocol.
       (from discovery `Members`, status `Connected`). Incoming → `Event::RoomMessage{..,
       via: Via::Stream}`.
 - [ ] Reopen streams on reconnect; close on `Left`/`PeerDisconnected`.
-- [ ] Unit tests: frame codec round-trip, queue drop policy.
+- [ ] Max frame size constant (document it); oversize frames rejected with an error.
+- [ ] Unit tests: frame codec round-trip, queue drop policy, oversize frame rejected.
 - [ ] Headless test: 3 swarms, broadcast 1000 small msgs, receivers get ≥ 99 % on
       localhost and none duplicated.
 - [ ] Gate green.
@@ -195,7 +204,8 @@ Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
       pub trait RoomState: Default + Send + Sync + 'static {
           type Op: p2p::Message;          // fast-path delta
           type Snapshot: p2p::Message;    // full/partial state
-          fn apply(&mut self, op: &Self::Op);           // must be CRDT-safe
+          fn apply(&mut self, meta: OpMeta, op: &Self::Op); // must be CRDT-safe
+          // OpMeta { lamport: u32, author: u16 } is assigned by the plugin
           fn snapshot(&self) -> Self::Snapshot;
           fn merge(&mut self, snap: Self::Snapshot);    // commutative/idempotent
       }
@@ -203,7 +213,10 @@ Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
       and a `RoomSyncPlugin<S: RoomState>` that owns `Resource<S>` and a `LamportClock`
       resource (`tick()`, `observe(remote)`).
 - [ ] On `Joined`: request snapshot (reliable request-response) from one connected
-      member (lowest peer id that is `Connected`; retry next on failure/timeout). Ops
+      member (lowest peer id that is `Connected`; retry next on failure/timeout).
+      Snapshots are sent **in parts** (one response per part/tile), never one huge
+      message; check the request-response codec size limit in `src/p2p/message_codec.rs`
+      and document it. Add a size test with a fully painted canvas (all tiles touched). Ops
       received before the snapshot arrives are buffered and applied after merge.
 - [ ] App sends ops via a `RoomSync<S>` writer; plugin wraps them with lamport + author
       and sends via the configured room transport.
@@ -276,8 +289,11 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 - [ ] `Shape` enum (D7), `PaletteColor(u8)` newtype + 12-color palette constant.
 - [ ] `fn daily_identity(peer_id, created_at, now) -> (Shape, PaletteColor)` per D6
       (pure). `fn day_index(created_at, now) -> u64`.
+- [ ] `fn room_identities(members, created_at, now) -> BTreeMap<PeerId, (Shape, PaletteColor)>`
+      applying D6 collision resolution (pure).
 - [ ] Tests: deterministic for same inputs; changes when day rolls over (`created_at +
-      86400`); distribution sanity over 10 000 fake ids (every shape and color used).
+      86400`); distribution sanity over 10 000 fake ids (every shape and color used);
+      8 members whose raw seeds collide still get 8 distinct identities.
 
 ### What was done (Step B1)
 _(agent fills)_
@@ -291,9 +307,10 @@ _(agent fills)_
 - [ ] `Canvas::write(pos, cell)` LWW by `(lamport, author)`; `Canvas::merge_tile`.
 - [ ] Implement plugin `RoomState` for `Canvas` (Op = `DrawOp`, Snapshot = list of
       `(TileId, Tile)`, digests per tile with blake3).
-- [ ] `author: u16` = index of peer in the room's member list sorted by peer id **is not
-      stable** when members change — instead use a stable 16-bit hash of peer id and
-      break ties by full peer id inside `DrawOp`; document the choice.
+- [ ] `author: u16` = stable 16-bit hash of peer id (from `OpMeta`). Per-cell merge key
+      is `(lamport, author, color)` (D4) — do NOT rely on the full peer id, cells only
+      store the `u16`. Test: two ops with equal `(lamport, author)` but different colors
+      merge to the same result in both orders.
 - [ ] Tests (proptest recommended): merge commutative / associative / idempotent; apply
       ops in random permutations → identical canvas hash.
 - [ ] **Size test**: N = 1k/10k random strokes → report touched tiles, raw bytes,
@@ -307,12 +324,14 @@ _(agent fills, include size measurements)_
 ## Step B3 — Rasterizer: shapes, stamps, strokes
 
 - [ ] `DrawOp { kind: Paint(PaletteColor) | Erase, shape, size_idx, from: (f32,f32),
-      to: (f32,f32) }` (a click = `from == to`). Coordinates in logical cell space.
+      to: (i16,i16) }` (a click = `from == to`). Coordinates are **integer cells**,
+      quantized on the sender before the op is created — no floats on the wire.
 - [ ] `fn rasterize(op) -> impl Iterator<Item = CellPos>`: stamps along the segment every
       `radius/2` (radius = `16 * SIZES[size_idx]`, min 1 cell); per-shape coverage
       tests (circle, star 5-point, square, triangle, diamond, hexagon). Pure integer
-      results — must be identical on every peer (avoid platform-dependent float paths;
-      quantize to cells before shape tests).
+      math — must be identical on every peer. **No `sin/cos/sqrt` or other float math
+      at runtime**: build shapes from precomputed integer vertex tables / masks;
+      interpolate stamps with integer (Bresenham-style) stepping.
 - [ ] Tests: snapshot-style tests of small rasters per shape; segment with no gaps;
       size 0.1 still covers ≥ 1 cell; clipping at canvas borders.
 
