@@ -50,3 +50,9 @@ pub struct HoverGlow(pub f32);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct HoverOutlineOnly;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct ConnectingRoot;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct SpinnerRing;

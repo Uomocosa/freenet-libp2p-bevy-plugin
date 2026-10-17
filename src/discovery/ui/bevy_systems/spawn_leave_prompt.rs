@@ -4,29 +4,14 @@ use crate::discovery;
 use discovery::ui::basic::constants::{
     NO_COLOR, PROMPT_BACKDROP_COLOR, PROMPT_PANEL_COLOR, YES_COLOR,
 };
-use discovery::ui::{LeaveNoButton, LeavePrompt, LeavePromptOpen, LeaveYesButton};
+use discovery::ui::{LeaveDialog, LeaveNoButton, LeavePrompt, LeaveYesButton};
 
 const PROMPT_Z: i32 = 100;
 
-pub fn sync_leave_prompt(
-    mut commands: Commands,
-    prompt: Res<LeavePromptOpen>,
-    shown: Query<Entity, With<LeavePrompt>>,
-) {
-    if !prompt.is_changed() {
-        return;
-    }
-    if !**prompt.into_inner() {
-        for entity in &shown {
-            commands.entity(entity).despawn();
-        }
-        return;
-    }
-    if !shown.is_empty() {
-        return;
-    }
+pub fn spawn_leave_prompt(mut commands: Commands) {
     commands.spawn((
         LeavePrompt,
+        DespawnOnExit(LeaveDialog::Open),
         GlobalZIndex(PROMPT_Z),
         Node {
             position_type: PositionType::Absolute,
@@ -82,57 +67,44 @@ fn answer_button(marker: impl Component, label: &str, color: Color) -> impl Bund
 mod tests {
     use bevy::prelude::*;
 
-    use super::sync_leave_prompt;
+    use super::spawn_leave_prompt;
     use crate::discovery;
-
-    fn prompts(app: &mut App) -> usize {
-        let mut query = app
-            .world_mut()
-            .query_filtered::<(), With<discovery::ui::LeavePrompt>>();
-        query.iter(app.world()).count()
-    }
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        app.insert_resource(discovery::ui::LeavePromptOpen(true));
-        app.add_systems(Update, sync_leave_prompt);
+        app.add_systems(Startup, spawn_leave_prompt);
         app.update();
-        assert_eq!(prompts(&mut app), 1);
-        **app
+        let mut prompts = app
             .world_mut()
-            .resource_mut::<discovery::ui::LeavePromptOpen>() = false;
-        app.update();
-        assert_eq!(prompts(&mut app), 0);
+            .query_filtered::<(), With<discovery::ui::LeavePrompt>>();
+        assert_eq!(prompts.iter(app.world()).count(), 1);
     }
 
     fn preview_build(app: &mut App) {
-        app.init_resource::<discovery::ui::LeavePromptOpen>();
         app.add_systems(
-            Update,
+            Startup,
             (
-                sync_leave_prompt,
+                spawn_leave_prompt,
                 lele_bevy_preview::scene::bevy_systems::center_roots,
             )
                 .chain(),
         );
     }
 
-    fn open(world: &mut World) {
-        **world.resource_mut::<discovery::ui::LeavePromptOpen>() = true;
-    }
+    const fn preview_noop(_world: &mut World) {}
 
     #[test]
-    fn sync_leave_prompt_ui_png_preview() {
+    fn spawn_leave_prompt_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::run(
             &lele_bevy_preview::scene::Scene {
-                name: String::from("sync_leave_prompt"),
+                name: String::from("spawn_leave_prompt"),
                 kind: lele_bevy_preview::scene::Kind::System,
                 build: preview_build,
                 states: vec![lele_bevy_preview::scene::State {
                     label: String::from("leave prompt"),
-                    apply: open,
+                    apply: preview_noop,
                 }],
                 timeline: None,
             },

@@ -1,5 +1,5 @@
 //! End-to-end UI preview of the whole `lobby_room` passage, with a fake discovery backend:
-//! app start (connecting spinner) -> freenet ring ready + lobby listed -> click Join
+//! app start (plugin connecting screen) -> freenet ring ready + lobby listed -> click Join
 //! on a room -> peers arrive one by one -> hover the leave door -> click it, answer No
 //! -> press Esc, answer Yes -> back in the lobby. Only `discovery::Snapshot` is faked; the click
 //! goes through the plugin's real `discovery::ui::DefaultUiPlugin` button path and the
@@ -218,7 +218,13 @@ mod tests {
 
     fn leave_prompt(world: &mut World) {
         room_full(world);
-        **world.resource_mut::<discovery::ui::LeavePromptOpen>() = true;
+        world
+            .resource_mut::<NextState<discovery::ui::UiScreen>>()
+            .set(discovery::ui::UiScreen::InRoom);
+        world.run_schedule(StateTransition);
+        world
+            .resource_mut::<NextState<discovery::ui::LeaveDialog>>()
+            .set(discovery::ui::LeaveDialog::Open);
     }
 
     fn config() -> lele_bevy_preview::preview::Config {

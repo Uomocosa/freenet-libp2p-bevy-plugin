@@ -22,3 +22,9 @@ pub const HOVER_OUTLINE_WIDTH: f32 = 2.0;
 pub const HOVER_OUTLINE_COLOR: Color = Color::srgb(0.38, 0.65, 0.98);
 pub const CARET_COLOR: Color = Color::srgb(0.92, 0.94, 0.98);
 pub const CARET_SELECTION_COLOR: Color = Color::srgba(0.38, 0.65, 0.98, 0.45);
+
+pub const SPINNER_SIZE: f32 = 48.0;
+pub const SPIN_TURNS_PER_SEC: f32 = 1.0;
+pub const SPINNER_ACCENT_COLOR: Color = Color::srgb(0.38, 0.65, 0.98);
+pub const SPINNER_TRACK_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.08);
+pub const CONNECTING_TEXT_COLOR: Color = Color::srgb(0.62, 0.66, 0.72);

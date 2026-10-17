@@ -2,17 +2,18 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use discovery::ui::basic::constants::{DOOR_OPEN_PER_SEC, DOOR_SWING};
-use discovery::ui::{DoorLabel, DoorOpening, DoorPanel, LeaveDoor, LeavePromptOpen};
+use discovery::ui::{DoorLabel, DoorOpening, DoorPanel, LeaveDialog, LeaveDoor};
 
 pub fn animate_door(
     time: Res<Time>,
-    prompt: Res<LeavePromptOpen>,
+    dialog: Option<Res<State<LeaveDialog>>>,
     door: Single<(&Interaction, &mut DoorOpening), With<LeaveDoor>>,
     mut panel: Single<&mut Node, With<DoorPanel>>,
     mut label: Single<&mut TextColor, With<DoorLabel>>,
 ) {
     let (interaction, mut opening) = door.into_inner();
-    let wants_open = **prompt.into_inner() || *interaction != Interaction::None;
+    let dialog_open = dialog.is_some_and(|dialog| *dialog.get() == LeaveDialog::Open);
+    let wants_open = dialog_open || *interaction != Interaction::None;
     let target = if wants_open { 1.0 } else { 0.0 };
     let step = DOOR_OPEN_PER_SEC * time.into_inner().delta_secs();
     let progress = if **opening < target {
@@ -48,7 +49,6 @@ mod tests {
         app.insert_resource(TimeUpdateStrategy::ManualDuration(
             std::time::Duration::from_millis(100),
         ));
-        app.init_resource::<discovery::ui::LeavePromptOpen>();
         app.world_mut().spawn((
             discovery::ui::LeaveDoor,
             discovery::ui::DoorOpening::default(),
@@ -74,12 +74,10 @@ mod tests {
     }
 
     fn preview_build(app: &mut App) {
-        app.init_resource::<discovery::ui::LeavePromptOpen>();
         app.add_systems(
             Startup,
             (
                 discovery::ui::bevy_systems::spawn_leave_door,
-                show,
                 lele_bevy_preview::scene::bevy_systems::center_roots,
             )
                 .chain(),
@@ -87,16 +85,10 @@ mod tests {
         app.add_systems(Update, animate_door);
     }
 
-    fn show(mut roots: Query<&mut Node, With<discovery::ui::LeaveDoorRoot>>) {
-        for mut node in &mut roots {
-            node.display = Display::Flex;
-        }
-    }
-
     const fn preview_noop(_world: &mut World) {}
 
     fn open_prompt(world: &mut World) {
-        **world.resource_mut::<discovery::ui::LeavePromptOpen>() = true;
+        world.insert_resource(State::new(discovery::ui::LeaveDialog::Open));
     }
 
     fn opened(world: &mut World) {

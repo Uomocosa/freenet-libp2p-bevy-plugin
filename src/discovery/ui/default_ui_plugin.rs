@@ -7,12 +7,16 @@ pub struct DefaultUiPlugin;
 #[atomic_delegates]
 impl DefaultUiPlugin {
     pub fn build_plugin(&self, app: &mut App) {}
+    pub fn finish_plugin(&self, app: &mut App) {}
 }
 
 #[rustfmt::skip]
 impl bevy::prelude::Plugin for DefaultUiPlugin {
     fn build(&self, app: &mut App) {
         self.build_plugin(app);
+    }
+    fn finish(&self, app: &mut App) {
+        self.finish_plugin(app);
     }
 }
 
@@ -34,7 +38,15 @@ mod tests {
     }
 
     fn preview_snapshot() -> discovery::Snapshot {
-        let mut snapshot = discovery::Snapshot::default();
+        let mut snapshot = discovery::Snapshot {
+            freenet_peers: (1..=3_u16)
+                .map(|port| identity::FreenetPeer {
+                    id: identity::FreenetPeerId::from(format!("peer-{port}").as_str()),
+                    addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+                })
+                .collect(),
+            ..Default::default()
+        };
         for (name, room_size) in [("alpha", 8_u16), ("beta", 4_u16)] {
             snapshot.lobby.insert(
                 identity::RoomName::from(name),
@@ -78,11 +90,14 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
         app.add_message::<discovery::Command>();
-        app.init_resource::<discovery::Snapshot>();
+        app.insert_resource(preview_snapshot());
         app.add_plugins(discovery::ui::DefaultUiPlugin);
-        app.update();
+        app.finish();
+        for _ in 0..3 {
+            app.update();
+        }
         let mut buttons = app
             .world_mut()
             .query_filtered::<(), With<discovery::ui::CreateRoomButton>>();

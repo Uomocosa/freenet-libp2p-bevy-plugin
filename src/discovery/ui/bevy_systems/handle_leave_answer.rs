@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use discovery::ui::{LeaveNoButton, LeavePromptOpen, LeaveYesButton};
+use discovery::ui::{LeaveDialog, LeaveNoButton, LeaveYesButton};
 
 pub fn handle_leave_answer(
     yes: Query<&Interaction, (Changed<Interaction>, With<LeaveYesButton>)>,
     no: Query<&Interaction, (Changed<Interaction>, With<LeaveNoButton>)>,
-    mut prompt: ResMut<LeavePromptOpen>,
+    mut next: ResMut<NextState<LeaveDialog>>,
     mut commands: MessageWriter<discovery::Command>,
 ) {
     let pressed = |interaction: &Interaction| *interaction == Interaction::Pressed;
@@ -16,8 +16,8 @@ pub fn handle_leave_answer(
         tracing::info!(target: "discovery", "ui leave confirmed");
         commands.write(discovery::Command::Leave);
     }
-    if (confirmed || cancelled) && **prompt {
-        **prompt = false;
+    if confirmed || cancelled {
+        next.set(LeaveDialog::Closed);
     }
 }
 
@@ -31,26 +31,27 @@ mod tests {
     fn sent_after(marker: impl Component) -> (Vec<discovery::Command>, bool) {
         let mut app = App::new();
         app.add_message::<discovery::Command>();
-        app.insert_resource(discovery::ui::LeavePromptOpen(true));
+        app.init_resource::<NextState<discovery::ui::LeaveDialog>>();
         app.world_mut().spawn((marker, Interaction::Pressed));
         app.add_systems(Update, handle_leave_answer);
         app.update();
         let messages = app.world().resource::<Messages<discovery::Command>>();
         let mut cursor = messages.get_cursor();
         let sent = cursor.read(messages).cloned().collect();
-        let open = **app.world().resource::<discovery::ui::LeavePromptOpen>();
-        (sent, open)
+        let closing = matches!(
+            app.world()
+                .resource::<NextState<discovery::ui::LeaveDialog>>(),
+            NextState::Pending(discovery::ui::LeaveDialog::Closed)
+        );
+        (sent, closing)
     }
 
     #[test]
     fn test_usage() {
         assert_eq!(
             sent_after(discovery::ui::LeaveYesButton),
-            (vec![discovery::Command::Leave], false)
+            (vec![discovery::Command::Leave], true)
         );
-        assert_eq!(
-            sent_after(discovery::ui::LeaveNoButton),
-            (Vec::new(), false)
-        );
+        assert_eq!(sent_after(discovery::ui::LeaveNoButton), (Vec::new(), true));
     }
 }

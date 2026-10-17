@@ -7,7 +7,7 @@ use discovery::ui::{HoverGlow, RoomButton, RoomDetails, RoomList};
 pub fn sync_room_list(
     mut commands: Commands,
     snapshot: Res<discovery::Snapshot>,
-    list: Single<Entity, With<RoomList>>,
+    list: Single<(Entity, Ref<RoomList>)>,
     mut shown: Local<Vec<RoomDetails>>,
 ) {
     let snapshot = snapshot.into_inner();
@@ -20,11 +20,11 @@ pub fn sync_room_list(
             room_size: record.room_size,
         })
         .collect();
-    if *shown == wanted {
+    let (list, marker) = list.into_inner();
+    if *shown == wanted && !marker.is_added() {
         return;
     }
     *shown = wanted;
-    let list = list.into_inner();
     commands
         .entity(list)
         .despawn_related::<Children>()

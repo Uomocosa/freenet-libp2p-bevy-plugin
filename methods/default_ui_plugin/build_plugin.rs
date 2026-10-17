@@ -3,35 +3,33 @@ use bevy::prelude::*;
 use crate::discovery;
 
 pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
-    app.init_resource::<discovery::ui::LeavePromptOpen>();
-    app.add_systems(
-        Startup,
-        (
-            discovery::ui::bevy_systems::spawn_root,
-            discovery::ui::bevy_systems::spawn_leave_door,
-        ),
-    );
+    use discovery::ui::bevy_systems as ui;
+    use discovery::ui::{LeaveDialog, UiScreen};
+
+    app.add_systems(OnEnter(UiScreen::Connecting), ui::spawn_connecting);
+    app.add_systems(OnEnter(UiScreen::Lobby), ui::spawn_root);
+    app.add_systems(OnEnter(UiScreen::InRoom), ui::spawn_leave_door);
+    app.add_systems(OnEnter(LeaveDialog::Open), ui::spawn_leave_prompt);
     app.add_systems(
         Update,
         (
+            ui::pick_screen,
+            ui::animate_hover,
+            ui::spin_connecting.run_if(in_state(UiScreen::Connecting)),
             (
-                discovery::ui::bevy_systems::sync_room_list,
-                discovery::ui::bevy_systems::highlight_current_room,
+                (ui::sync_room_list, ui::highlight_current_room).chain(),
+                ui::gate_create,
+                ui::handle_create,
+                ui::handle_join,
             )
-                .chain(),
-            discovery::ui::bevy_systems::gate_create,
-            discovery::ui::bevy_systems::animate_hover,
-            discovery::ui::bevy_systems::handle_create,
-            discovery::ui::bevy_systems::handle_join,
-            discovery::ui::bevy_systems::sync_in_room,
+                .run_if(in_state(UiScreen::Lobby)),
             (
-                discovery::ui::bevy_systems::request_leave,
-                discovery::ui::bevy_systems::handle_leave_answer,
-                discovery::ui::bevy_systems::sync_leave_prompt,
-                discovery::ui::bevy_systems::animate_door,
+                ui::request_leave,
+                ui::handle_leave_answer.run_if(in_state(LeaveDialog::Open)),
+                ui::animate_door,
             )
                 .chain()
-                .after(discovery::ui::bevy_systems::sync_in_room),
+                .run_if(in_state(UiScreen::InRoom)),
         ),
     );
 }
@@ -46,14 +44,15 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
         app.add_message::<discovery::Command>();
         app.init_resource::<discovery::Snapshot>();
         build_plugin(&discovery::ui::DefaultUiPlugin, &mut app);
+        super::super::finish_plugin(&discovery::ui::DefaultUiPlugin, &mut app);
         app.update();
-        let mut buttons = app
+        let mut spinners = app
             .world_mut()
-            .query_filtered::<(), With<discovery::ui::CreateRoomButton>>();
-        assert_eq!(buttons.iter(app.world()).count(), 1);
+            .query_filtered::<(), With<discovery::ui::SpinnerRing>>();
+        assert_eq!(spinners.iter(app.world()).count(), 1);
     }
 }

@@ -1,22 +1,16 @@
-//! Status overlay: a spinner while connecting, and a top bar with the current
-//! room and its peers once joined. Reads `discovery::Snapshot` only.
+//! Status overlay: a top bar with the current room and its peers once joined.
+//! Reads `discovery::Snapshot` only; the connecting spinner is the plugin's own screen.
 #![allow(clippy::needless_pass_by_value)]
-use std::f32::consts::TAU;
-
 use bevy::prelude::*;
 use freenet_libp2p_bevy_plugin::{discovery, identity};
 
 use crate::status;
 
 const BAR_COLOR: Color = Color::srgb(0.106, 0.122, 0.153);
-const ACCENT_COLOR: Color = Color::srgb(0.38, 0.65, 0.98);
-const RING_TRACK_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.08);
 const DIM_COLOR: Color = Color::srgb(0.62, 0.66, 0.72);
 const ROW_COLOR: Color = Color::srgb(0.16, 0.18, 0.23);
 const CONNECTED_COLOR: Color = Color::srgb(0.30, 0.82, 0.45);
 const KNOWN_COLOR: Color = Color::srgb(0.45, 0.48, 0.53);
-const SPINNER_SIZE: f32 = 48.0;
-const SPIN_TURNS_PER_SEC: f32 = 1.0;
 const PEER_SUFFIX_LEN: usize = 6;
 
 pub struct Overlay;
@@ -24,15 +18,9 @@ pub struct Overlay;
 impl Plugin for Overlay {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn)
-            .add_systems(Update, (spin, sync_visibility, sync_room_bar));
+            .add_systems(Update, (sync_visibility, sync_room_bar));
     }
 }
-
-#[derive(Component)]
-pub struct Spinner;
-
-#[derive(Component)]
-pub struct SpinnerRing;
 
 #[derive(Component)]
 pub struct RoomBar;
@@ -54,44 +42,6 @@ pub struct PeerList;
 
 fn spawn(mut commands: Commands) {
     commands.spawn(Camera2d);
-    // decorative only: must not swallow clicks meant for the lobby UI beneath it
-    commands.spawn((
-        Spinner,
-        Pickable::IGNORE,
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            position_type: PositionType::Absolute,
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            row_gap: Val::Px(16.0),
-            ..default()
-        },
-        children![
-            (
-                SpinnerRing,
-                Node {
-                    width: Val::Px(SPINNER_SIZE),
-                    height: Val::Px(SPINNER_SIZE),
-                    border: UiRect::all(Val::Px(4.0)),
-                    border_radius: BorderRadius::MAX,
-                    ..default()
-                },
-                BorderColor {
-                    top: ACCENT_COLOR,
-                    ..BorderColor::all(RING_TRACK_COLOR)
-                },
-                UiTransform::default(),
-                Pickable::IGNORE,
-            ),
-            (
-                Text::new("Connecting to network..."),
-                TextColor(DIM_COLOR),
-                Pickable::IGNORE,
-            ),
-        ],
-    ));
     commands.spawn((
         RoomBar,
         RoomView,
@@ -144,27 +94,13 @@ fn spawn(mut commands: Commands) {
     ));
 }
 
-fn spin(time: Res<Time>, mut rings: Query<&mut UiTransform, With<SpinnerRing>>) {
-    let angle = time.elapsed_secs() * SPIN_TURNS_PER_SEC * TAU;
-    for mut transform in &mut rings {
-        transform.rotation = Rot2::radians(angle);
-    }
-}
-
 fn sync_visibility(
     snapshot: Res<discovery::Snapshot>,
-    mut spinner: Single<&mut Node, (With<Spinner>, Without<RoomView>)>,
-    mut views: Query<&mut Node, (With<RoomView>, Without<Spinner>)>,
+    mut views: Query<&mut Node, With<RoomView>>,
 ) {
     if !snapshot.is_changed() {
         return;
     }
-    let is_connecting = snapshot.room.is_none()
-        && !discovery::freenet::is_ring_ready(
-            &snapshot.freenet_peers,
-            discovery::freenet::MIN_RING_PEERS,
-        );
-    spinner.display = display_for(is_connecting);
     for mut view in &mut views {
         view.display = display_for(snapshot.room.is_some());
     }
@@ -274,10 +210,7 @@ mod tests {
     use bevy::prelude::*;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
-    use super::{
-        Overlay, PeerCard, PeerCount, PeerList, RoomBar, RoomTitle, RoomView, Spinner, SpinnerRing,
-        short_peer,
-    };
+    use super::{Overlay, PeerCard, PeerCount, PeerList, RoomBar, RoomTitle, RoomView, short_peer};
 
     fn preview_build(app: &mut App) {
         app.insert_resource(discovery::Snapshot::default());
@@ -285,7 +218,12 @@ mod tests {
         app.add_plugins(Overlay);
     }
 
-    const fn preview_noop(_world: &mut World) {}
+    fn join_first_room(world: &mut World) {
+        world.resource_mut::<discovery::Snapshot>().room = Some(discovery::JoinedRoom {
+            name: identity::RoomName::from("alpha"),
+            members: discovery::Members::new(),
+        });
+    }
 
     fn join_room(world: &mut World) {
         let mut snapshot = world.resource_mut::<discovery::Snapshot>();
@@ -342,11 +280,11 @@ mod tests {
             build: preview_build,
             states: vec![
                 lele_bevy_preview::scene::State {
-                    label: String::from("connecting"),
-                    apply: preview_noop,
+                    label: String::from("room without peers"),
+                    apply: join_first_room,
                 },
                 lele_bevy_preview::scene::State {
-                    label: String::from("in_room"),
+                    label: String::from("room with peers"),
                     apply: join_room,
                 },
             ],
@@ -362,7 +300,7 @@ mod tests {
 
     #[test]
     fn overlay_ui_png_preview() {
-        let _markers: Option<(Spinner, SpinnerRing, RoomBar, PeerCard, RoomView)> = None;
+        let _markers: Option<(RoomBar, PeerCard, RoomView)> = None;
         let _labels: Option<(RoomTitle, PeerCount, PeerList)> = None;
         lele_bevy_preview::run(&scene(None), &config(), env!("CARGO_PKG_NAME")).expect("preview");
     }
@@ -370,17 +308,5 @@ mod tests {
     #[test]
     fn overlay_ui_scene_preview() {
         lele_bevy_preview::run(&scene(None), &config(), env!("CARGO_PKG_NAME")).expect("preview");
-    }
-
-    #[test]
-    fn overlay_ui_mp4_preview() {
-        let timeline = lele_bevy_preview::scene::Timeline {
-            label: String::from("connect_then_join"),
-            frames: 90,
-            fps: 30,
-            apply: join_room,
-        };
-        lele_bevy_preview::run(&scene(Some(timeline)), &config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
     }
 }

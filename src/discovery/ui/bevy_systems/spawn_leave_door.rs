@@ -4,11 +4,12 @@ use crate::discovery;
 use discovery::ui::basic::constants::{
     DOOR_FRAME_COLOR, DOOR_HEIGHT, DOOR_KNOB_COLOR, DOOR_LIGHT_COLOR, DOOR_PANEL_COLOR, DOOR_WIDTH,
 };
-use discovery::ui::{DoorLabel, DoorOpening, DoorPanel, LeaveDoor, LeaveDoorRoot};
+use discovery::ui::{DoorLabel, DoorOpening, DoorPanel, LeaveDoor, LeaveDoorRoot, UiScreen};
 
 pub fn spawn_leave_door(mut commands: Commands) {
     commands.spawn((
         LeaveDoorRoot,
+        DespawnOnExit(UiScreen::InRoom),
         Node {
             position_type: PositionType::Absolute,
             right: Val::Px(16.0),
@@ -16,7 +17,6 @@ pub fn spawn_leave_door(mut commands: Commands) {
             flex_direction: FlexDirection::Row,
             align_items: AlignItems::Center,
             column_gap: Val::Px(10.0),
-            display: Display::None,
             ..default()
         },
         children![
@@ -94,12 +94,7 @@ mod tests {
         );
     }
 
-    fn show(world: &mut World) {
-        let mut roots = world.query_filtered::<&mut Node, With<discovery::ui::LeaveDoorRoot>>();
-        for mut node in roots.iter_mut(world) {
-            node.display = Display::Flex;
-        }
-    }
+    const fn preview_noop(_world: &mut World) {}
 
     #[test]
     fn spawn_leave_door_ui_png_preview() {
@@ -111,7 +106,7 @@ mod tests {
                 build: preview_build,
                 states: vec![lele_bevy_preview::scene::State {
                     label: String::from("closed door"),
-                    apply: show,
+                    apply: preview_noop,
                 }],
                 timeline: None,
             },
