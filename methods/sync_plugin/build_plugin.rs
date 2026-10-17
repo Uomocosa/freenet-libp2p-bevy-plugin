@@ -1,0 +1,102 @@
+use std::sync::Mutex;
+
+use bevy::prelude::*;
+
+use crate::discovery;
+use crate::p2p;
+use crate::room_sync;
+
+pub fn build_plugin<S: room_sync::RoomState>(plugin: &room_sync::SyncPlugin<S>, app: &mut App) {
+    let Some(net_events) = app
+        .world()
+        .get_resource::<p2p::NetEventChannel>()
+        .map(p2p::NetEventChannel::subscribe)
+    else {
+        tracing::error!(target: "room_sync", "room_sync: p2p NetEventChannel missing");
+        return;
+    };
+    app.init_resource::<S>();
+    app.init_resource::<room_sync::LamportClock>();
+    app.init_resource::<room_sync::RoomSync<S>>();
+    app.init_resource::<room_sync::bevy_systems::SyncState<S::Op>>();
+    app.insert_resource(room_sync::RoomSyncGame(plugin.game.clone()));
+    app.insert_resource(room_sync::bevy_systems::NetEvents {
+        receiver: Mutex::new(net_events),
+    });
+    app.add_systems(
+        Update,
+        (
+            room_sync::bevy_systems::drive::<S>
+                .after(discovery::bevy_systems::drain_events)
+                .after(discovery::bevy_systems::drain_snapshots),
+            room_sync::bevy_systems::write_ops::<S>,
+        ),
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use bevy::prelude::*;
+    use derive_more::{Deref, DerefMut};
+    use serde::{Deserialize, Serialize};
+
+    use crate::identity;
+    use crate::p2p;
+    use crate::plugin;
+    use crate::room_sync;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    struct Op {
+        key: u8,
+        value: u32,
+    }
+
+    #[derive(Resource, Default, Deref, DerefMut)]
+    struct Map {
+        entries: BTreeMap<u8, u32>,
+    }
+
+    impl room_sync::RoomState for Map {
+        type Op = Op;
+        type Snapshot = Vec<(u8, u32)>;
+
+        fn apply(&mut self, _meta: room_sync::OpMeta, op: &Self::Op) {
+            self.entries.insert(op.key, op.value);
+        }
+
+        fn snapshot(&self) -> Self::Snapshot {
+            self.entries
+                .iter()
+                .map(|(key, value)| (*key, *value))
+                .collect()
+        }
+
+        fn merge(&mut self, snapshot: Self::Snapshot) {
+            for (key, value) in snapshot {
+                self.entries.insert(key, value);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_usage() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(plugin::P2PPlugin(plugin::Config::<u8>::new(
+            p2p::TransportMode::Both,
+            p2p::MdnsMode::Disabled,
+        )));
+        app.add_plugins(room_sync::SyncPlugin::<Map>::new(identity::GameId::from(
+            "test",
+        )));
+        app.update();
+        assert!(
+            app.world()
+                .get_resource::<room_sync::RoomSync<Map>>()
+                .is_some()
+        );
+        assert!(app.world().get_resource::<Map>().is_some());
+    }
+}

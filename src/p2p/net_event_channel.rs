@@ -1,22 +1,21 @@
-use std::sync::Mutex;
-
 use bevy::prelude::Resource;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use derive_more::Deref;
+use tokio::sync::broadcast;
 
 use crate::p2p;
-use p2p::NetEvent;
 
-#[derive(Resource)]
+const NET_EVENT_CAPACITY: usize = 1024;
+
+#[derive(Resource, Deref)]
 pub struct NetEventChannel {
-    pub tx: UnboundedSender<NetEvent>,
-    pub rx: Mutex<Option<UnboundedReceiver<NetEvent>>>,
+    pub tx: broadcast::Sender<p2p::NetEvent>,
 }
 
 #[rustfmt::skip]
 impl NetEventChannel {
-    pub fn take_rx(&self) -> Option<UnboundedReceiver<NetEvent>> {
-        self.rx.lock().ok()?.take()
-    }
+    #[must_use]
+    pub fn subscribe(&self) -> broadcast::Receiver<p2p::NetEvent> { self.tx.subscribe() }
+    pub fn send(&self, event: p2p::NetEvent) { self.tx.send(event).ok(); }
 }
 
 impl NetEventChannel {
@@ -28,11 +27,8 @@ impl NetEventChannel {
 
 impl Default for NetEventChannel {
     fn default() -> Self {
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        Self {
-            tx,
-            rx: Mutex::new(Some(rx)),
-        }
+        let (tx, _) = broadcast::channel(NET_EVENT_CAPACITY);
+        Self { tx }
     }
 }
 
@@ -45,12 +41,11 @@ mod tests {
     #[test]
     fn test_usage() {
         let tap = NetEventChannel::default();
-        assert!(
-            tap.tx
-                .send(p2p::NetEvent::PeerConnected(identity::PeerId::from("p")))
-                .is_ok()
-        );
-        assert!(tap.take_rx().is_some());
-        assert!(tap.take_rx().is_none());
+        let mut first = tap.subscribe();
+        let mut second = tap.subscribe();
+        tap.send(p2p::NetEvent::PeerConnected(identity::PeerId::from("p")));
+        let expected = p2p::NetEvent::PeerConnected(identity::PeerId::from("p"));
+        assert_eq!(first.try_recv(), Ok(expected.clone()));
+        assert_eq!(second.try_recv(), Ok(expected));
     }
 }

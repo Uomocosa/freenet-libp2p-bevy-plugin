@@ -53,7 +53,7 @@ pub fn poll_p2p_events<T: p2p::Message>(
     if let Some(net_events) = net_events {
         for event in &drained {
             if let Some(net_event) = net_event_of(event) {
-                net_events.tx.send(net_event).ok();
+                net_events.send(net_event);
             }
         }
     }
@@ -126,7 +126,8 @@ mod tests {
     fn net_event_channel_forwards_non_generic_events() {
         let (cmd_tx, _cmd_rx) = tokio::sync::mpsc::unbounded_channel::<p2p::Command<Dummy>>();
         let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel::<p2p::Event<Dummy>>();
-        let (tap_tx, mut tap_rx) = tokio::sync::mpsc::unbounded_channel::<p2p::NetEvent>();
+        let channel = p2p::NetEventChannel::default();
+        let mut tap_rx = channel.subscribe();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(p2p::Events::<Dummy>::default());
@@ -134,10 +135,7 @@ mod tests {
         app.insert_resource(p2p::PendingNetCommands::default());
         app.insert_resource(p2p::CommandSender(cmd_tx));
         app.insert_resource(p2p::EventReceiver(std::sync::Mutex::new(Some(event_rx))));
-        app.insert_resource(p2p::NetEventChannel {
-            tx: tap_tx,
-            rx: std::sync::Mutex::new(None),
-        });
+        app.insert_resource(channel);
         event_tx
             .send(p2p::Event::Net(p2p::NetEvent::PeerConnected(
                 identity::PeerId::from("peer"),

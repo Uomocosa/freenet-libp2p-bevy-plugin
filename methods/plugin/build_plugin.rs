@@ -54,11 +54,11 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     tokio::spawn(discovery::run((**plugin).clone(), endpoint, channels));
 }
 
-fn net_link(app: &mut App) -> Option<discovery::libp2p::NetLink> {
+fn net_link(app: &App) -> Option<discovery::libp2p::NetLink> {
     let events = app
-        .world_mut()
-        .get_resource_mut::<p2p::NetEventChannel>()
-        .and_then(|tap| tap.take_rx())?;
+        .world()
+        .get_resource::<p2p::NetEventChannel>()?
+        .subscribe();
     let commands = (**app.world().get_resource::<p2p::NetCommandSender>()?).clone();
     let (ready, observed) = app.world().get_resource::<p2p::ReadyChannel>()?.subscribe();
     Some(discovery::libp2p::NetLink {

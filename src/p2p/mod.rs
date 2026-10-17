@@ -22,7 +22,9 @@ pub use matches_transport::matches_transport;
 #[path = "__basic__/mod.rs"]
 pub mod basic;
 
-pub use basic::enums::{Command, Event, MdnsMode, NetCommand, NetEvent, TransportMode};
+pub use basic::enums::{
+    Command, Event, MdnsMode, NetCommand, NetEvent, RoomSyncFrame, TransportMode,
+};
 pub use basic::newtypes::ChunkIndex;
 pub use basic::resources::{CommandSender, EventReceiver, NetCommandSender};
 pub use basic::structs::{HistoryChunkId, RunnerConfig};
@@ -47,6 +49,9 @@ pub use room_topic::room_topic;
 
 pub mod run;
 pub use run::run;
+
+pub mod sync_protocol;
+pub use sync_protocol::sync_protocol;
 
 pub(crate) mod swarm_loop;
 

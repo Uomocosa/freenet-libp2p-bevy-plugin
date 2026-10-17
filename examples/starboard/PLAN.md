@@ -406,36 +406,75 @@ Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
 > Decision (A5 design): `RoomSync<S>` ships ops on its **own raw gossip topic**
 > `<game>/room/<room>/sync` (app's `T` stays free on the room topic); snapshots go over a
 > **new request/response behaviour** (`/<game>/room-sync/1`) with distinct request/response
-> frames. Both need the member tracking this step also introduces.
+> frames. The member set comes from `discovery::Snapshot`, not from the swarm loop.
 
-- [ ] Define a trait in the plugin (name per lele conventions), e.g.
-      ```rust
-      pub trait RoomState: Default + Send + Sync + 'static {
-          type Op: p2p::Message;          // fast-path delta
-          type Snapshot: p2p::Message;    // full/partial state
-          fn apply(&mut self, meta: OpMeta, op: &Self::Op); // must be CRDT-safe
-          // OpMeta { lamport: u32, author: u16 } is assigned by the plugin
-          fn snapshot(&self) -> Self::Snapshot;
-          fn merge(&mut self, snap: Self::Snapshot);    // commutative/idempotent
-      }
-      ```
-      and a `RoomSyncPlugin<S: RoomState>` that owns `Resource<S>` and a `LamportClock`
-      resource (`tick()`, `observe(remote)`).
-- [ ] `NetCommand::SetRoomMembers { room, peers }` + `sync_room_members` bevy system (the
-      bridge from `discovery::Snapshot.room` that A4 deferred here).
-- [ ] On `Joined`: request snapshot (reliable request-response) from one connected
-      member (lowest peer id that is `Connected`; retry next on failure/timeout).
-      Snapshots are sent **in parts** (one response per part/tile), never one huge
-      message; check the request-response codec size limit in `src/p2p/message_codec.rs`
-      and document it. Add a size test with a fully painted canvas (all tiles touched). Ops
-      received before the snapshot arrives are buffered and applied after merge.
-- [ ] App sends ops via a `RoomSync<S>` writer; plugin wraps them with lamport + author
-      and publishes them on the room's gossipsub topic.
-- [ ] Unit tests: Lamport clock laws; buffering-before-snapshot reducer (pure state
-      machine, see `definition-state-machine`).
-- [ ] Headless test with a toy `RoomState` (e.g. LWW map `u8 → u32`): A applies ops,
-      B joins late, B converges to A.
-- [ ] Gate green.
+- [x] `RoomState` trait (`Op`/`Snapshot`, `apply`/`snapshot`/`merge`) and a
+      `RoomSyncPlugin<S>` owning `Resource<S>` and a `LamportClock` resource (`tick`,
+      `observe`).
+- [x] On `Joined`: `Fetch{part: 0}` to the **lowest connected member** (self excluded), retry
+      the next on `SnapshotMissing`/`Tick`. Snapshots split into `PART_BYTES` (48 KiB) parts,
+      one response per part; ops received before the snapshot are buffered and applied after
+      `merge`.
+- [x] App ops go through the `RoomSync<S>` writer; the plugin wraps them with lamport +
+      author and publishes them on the room's sync topic.
+- [x] Unit tests: Lamport laws; buffering-before-snapshot reducer; part split/join round-trip;
+      frame codec; sync topic; peer author.
+- [ ] Headless **2-`App`** late-join convergence test — NOT DONE (see "What was done").
+- [x] Gate green.
+
+### What was done (Step A5)
+
+**p2p surface (new):** `RoomSyncFrame` (`Fetch`/`Part`/`Missing`, in
+`src/p2p/__basic__/enums.rs`), `p2p::sync_protocol(&GameId)` (`/<game>/room-sync/1`), a third
+`request_response` behaviour `room_sync`, `RoomLoop` (bundles `queries`/`topics`/`pending`/
+`next_request`/`config`), `handle_room_sync`, and the `NetCommand::{Unsubscribe,
+FetchSnapshot, RespondSnapshot}` / `NetEvent::{SnapshotRequest, SnapshotPart, SnapshotMissing}`
+variants. The responder cannot compute `S::Snapshot` in the swarm loop, so the loop holds the
+`ResponseChannel` under a `u64` id and the plugin answers later via `RespondSnapshot`.
+`NetEventChannel` became a **multi-subscriber broadcast bus** (`subscribe()`), so discovery and
+`room_sync` both consume `NetEvent`s; `discovery::libp2p::NetLink.events` and
+`discovery/run.rs` follow.
+
+**`room_sync` domain (new):** `RoomState`, `OpMeta`, `LamportClock`, `peer_author`,
+`SyncFrame`, `sync_topic`, `split_parts`/`join_parts`, `RoomSync<S>` writer,
+`RoomSyncPlugin<S>` (+ `methods/sync_plugin/build_plugin.rs`), and a pure `state_machine`
+(`State`, `Input`, `Output`, `Phase`, `update`, `fetch_next`, `handle_*`, `tick`) with Bevy
+systems `drive` (inbound) and `write_ops` (outbound).
+
+**Public API added:** `room_sync::{RoomState, OpMeta, LamportClock, peer_author, SyncFrame,
+sync_topic, split_parts, join_parts, RoomSync, RoomSyncPlugin, SyncState, NetEvents}`;
+`p2p::{RoomSyncFrame, sync_protocol}`; `NetCommand::{Unsubscribe, FetchSnapshot,
+RespondSnapshot}`; `NetEvent::{SnapshotRequest, SnapshotPart, SnapshotMissing}`.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**155 passed**, 3 skipped), `just lint`, `just bevy-lint`.
+
+**Deviations / decisions:**
+- **Removed the swarm-loop member map.** `NetCommand::SetRoomMembers`, `RoomMembers` and
+  `sync_room_members` were dropped: the reducer reads members from `discovery::Snapshot`, so
+  the loop-side map was write-only state. The plugin is discovery-*optional*
+  (`Option<Res<Snapshot>>`, `Option<MessageReader<Event>>`).
+- **Snapshot parts recompute per `Fetch{part}`**, split by the `PART_BYTES` constant (48 KiB)
+  rather than a `RoomSyncConfig` struct; `merge` is idempotent so a mid-fetch re-split is
+  harmless.
+- The plugin type is `room_sync::SyncPlugin` (not `RoomSyncPlugin`): LELE012 forbids a type
+  repeating its module name, and a second `Plugin` would collide with discovery's
+  `#[atomic_delegates]` path (`methods/plugin/`).
+- `p2p::sync_protocol` (not `room_sync_protocol`): the old name was parsed as a `RoomSync`
+  method file.
+
+**Open issues (for later steps):**
+- **The 2-`App` headless convergence test is not written.** The plan's A5 asks for two Apps
+  where A has state and a late-joining B converges. The reducer half is covered by
+  `room_sync::state_machine::update::tests::{buffers_ops_until_the_snapshot_arrives,
+  late_joiner_fetches_then_applies_buffered_ops}`, but the end-to-end half (two `App`s wired
+  to real swarms exchanging a snapshot over the new behaviour) is still owed; the p2p
+  request/response path has no dedicated 2-swarm test yet. Do it before B5 relies on snapshots.
+- `reject` on a `SnapshotFrame` that is a `Fetch` answered back is logged as `Event::Error`.
+
+### What was done (Step A5) — continued
+
+_(nothing further)_
 
 ### What was done (Step A5)
 _(agent fills)_

@@ -47,7 +47,7 @@ pub async fn run(
     loop {
         let input = tokio::select! {
             Some(command) = commands.recv() => Input::Command(command),
-            Some(event) = net.events.recv() => Input::NetEvent(event),
+            Ok(event) = net.events.recv() => Input::NetEvent(event),
             Some(lobby) = lobbies.recv() => Input::LobbyUpdated(lobby),
             Some(connected) = peers.recv() => Input::FreenetPeers(connected),
             Ok(()) = net.observed.changed() => {

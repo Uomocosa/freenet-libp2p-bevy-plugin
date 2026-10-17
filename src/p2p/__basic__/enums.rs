@@ -46,6 +46,40 @@ pub enum NetEvent {
         from: identity::PeerId,
         data: Vec<u8>,
     },
+    SnapshotRequest {
+        id: u64,
+        from: identity::PeerId,
+        room: identity::RoomName,
+        part: u32,
+    },
+    SnapshotPart {
+        from: identity::PeerId,
+        room: identity::RoomName,
+        part: u32,
+        total: u32,
+        data: Vec<u8>,
+    },
+    SnapshotMissing {
+        from: identity::PeerId,
+        room: identity::RoomName,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RoomSyncFrame {
+    Fetch {
+        room: identity::RoomName,
+        part: u32,
+    },
+    Part {
+        room: identity::RoomName,
+        part: u32,
+        total: u32,
+        data: Vec<u8>,
+    },
+    Missing {
+        room: identity::RoomName,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -74,11 +108,23 @@ pub enum NetCommand {
     Subscribe {
         topic: identity::Topic,
     },
+    Unsubscribe {
+        topic: identity::Topic,
+    },
     SubscribeRoom {
         room: identity::RoomName,
     },
     UnsubscribeRoom {
         room: identity::RoomName,
+    },
+    FetchSnapshot {
+        peer_id: identity::PeerId,
+        room: identity::RoomName,
+        part: u32,
+    },
+    RespondSnapshot {
+        id: u64,
+        frame: p2p::RoomSyncFrame,
     },
     Publish {
         topic: identity::Topic,

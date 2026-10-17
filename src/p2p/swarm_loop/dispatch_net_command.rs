@@ -1,15 +1,12 @@
 use libp2p::gossipsub;
-use libp2p::kad;
 use libp2p::swarm::dial_opts::PeerCondition;
 
-use crate::identity;
 use crate::p2p;
 
 pub fn dispatch_net_command<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
-    room_queries: &mut std::collections::HashMap<libp2p::kad::QueryId, identity::RoomName>,
-    rooms: &mut p2p::swarm_loop::RoomTopics,
+    rooms: &mut p2p::swarm_loop::RoomLoop,
     command: p2p::NetCommand,
 ) {
     match command {
@@ -45,21 +42,10 @@ pub fn dispatch_net_command<T: p2p::Message>(
                 .behaviour_mut()
                 .kademlia
                 .get_providers(p2p::provider_key(&room));
-            room_queries.insert(id, room);
+            rooms.queries.insert(id, room);
         }
         p2p::NetCommand::PutHistory { id, data } => {
-            let record_key = p2p::record_key(&id);
-            let record = kad::Record {
-                key: record_key.clone(),
-                value: data,
-                publisher: None,
-                expires: None,
-            };
-            let _ = swarm
-                .behaviour_mut()
-                .kademlia
-                .put_record(record, kad::Quorum::One);
-            let _ = swarm.behaviour_mut().kademlia.start_providing(record_key);
+            p2p::swarm_loop::put_history(swarm, &id, data);
         }
         p2p::NetCommand::FetchHistory { id } => {
             swarm
@@ -71,28 +57,35 @@ pub fn dispatch_net_command<T: p2p::Message>(
             let topic = gossipsub::IdentTopic::new(topic.as_str());
             let _ = swarm.behaviour_mut().gossipsub.subscribe(&topic);
         }
+        p2p::NetCommand::Unsubscribe { topic } => {
+            let topic = gossipsub::IdentTopic::new(topic.as_str());
+            let _ = swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
+        }
         p2p::NetCommand::SubscribeRoom { room } => {
-            let topic = gossipsub::IdentTopic::new(p2p::room_topic(&rooms.game, &room).as_str());
-            match swarm.behaviour_mut().gossipsub.subscribe(&topic) {
-                Ok(_) => {
-                    tracing::info!(target: "p2p", room = %room.as_str(), "p2p room subscribed");
-                    rooms.register(&topic, room);
-                }
-                Err(error) => {
-                    event_tx
-                        .send(p2p::Event::Error(format!(
-                            "room subscribe {}: {error}",
-                            room.as_str()
-                        )))
-                        .ok();
-                }
-            }
+            p2p::swarm_loop::subscribe_room(swarm, event_tx, rooms, room);
         }
         p2p::NetCommand::UnsubscribeRoom { room } => {
-            let topic = gossipsub::IdentTopic::new(p2p::room_topic(&rooms.game, &room).as_str());
-            let _ = swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
-            rooms.unregister(&topic);
-            tracing::info!(target: "p2p", room = %room.as_str(), "p2p room unsubscribed");
+            p2p::swarm_loop::unsubscribe_room(swarm, rooms, &room);
+        }
+        p2p::NetCommand::FetchSnapshot {
+            peer_id,
+            room,
+            part,
+        } => {
+            if let Ok(pid) = peer_id.parse::<libp2p::PeerId>() {
+                swarm
+                    .behaviour_mut()
+                    .room_sync
+                    .send_request(&pid, p2p::RoomSyncFrame::Fetch { room, part });
+            }
+        }
+        p2p::NetCommand::RespondSnapshot { id, frame } => {
+            if let Some(channel) = rooms.pending.remove(&id) {
+                let _ = swarm
+                    .behaviour_mut()
+                    .room_sync
+                    .send_response(channel, frame);
+            }
         }
         p2p::NetCommand::Publish { topic, data } => {
             let topic = gossipsub::IdentTopic::new(topic.as_str());
@@ -112,8 +105,6 @@ pub fn dispatch_net_command<T: p2p::Message>(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use libp2p::gossipsub;
     use libp2p::gossipsub::IdentTopic;
     use libp2p::identity::Keypair;
@@ -126,26 +117,25 @@ mod tests {
         p2p::build_swarm::<u32>(
             Keypair::generate_ed25519(),
             p2p::MdnsMode::Disabled,
+            &identity::GameId::from("test"),
             &p2p::GossipsubConfig::default(),
         )
         .unwrap()
     }
 
-    fn rooms() -> p2p::swarm_loop::RoomTopics {
-        p2p::swarm_loop::RoomTopics::new(identity::GameId::from("game"))
+    fn rooms() -> p2p::swarm_loop::RoomLoop {
+        p2p::swarm_loop::RoomLoop::new(identity::GameId::from("game"), p2p::RoomConfig::default())
     }
 
     #[tokio::test]
     async fn test_usage() {
         let mut swarm = swarm();
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        let mut room_queries = HashMap::new();
         let mut rooms = rooms();
         let topic = identity::Topic::from("lobby/topic");
         dispatch_net_command(
             &mut swarm,
             &tx,
-            &mut room_queries,
             &mut rooms,
             p2p::NetCommand::Subscribe {
                 topic: topic.clone(),
@@ -158,38 +148,60 @@ mod tests {
         dispatch_net_command(
             &mut swarm,
             &tx,
-            &mut room_queries,
             &mut rooms,
             p2p::NetCommand::FindRoom { room: room.clone() },
         );
-        assert_eq!(room_queries.values().collect::<Vec<_>>(), vec![&room]);
+        assert_eq!(rooms.queries.values().collect::<Vec<_>>(), vec![&room]);
     }
 
     #[tokio::test]
     async fn room_subscribe_and_unsubscribe_track_the_map() {
         let mut swarm = swarm();
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
-        let mut room_queries = HashMap::new();
         let mut rooms = rooms();
         let room = identity::RoomName::from("room-a");
-        let hash = gossipsub::IdentTopic::new(p2p::room_topic(&rooms.game, &room).as_str()).hash();
+        let hash =
+            gossipsub::IdentTopic::new(p2p::room_topic(&rooms.topics.game, &room).as_str()).hash();
         dispatch_net_command(
             &mut swarm,
             &tx,
-            &mut room_queries,
             &mut rooms,
             p2p::NetCommand::SubscribeRoom { room: room.clone() },
         );
-        assert_eq!(rooms.room(&hash), Some(&room));
+        assert_eq!(rooms.topics.room(&hash), Some(&room));
         assert!(swarm.behaviour().gossipsub.topics().any(|t| *t == hash));
         dispatch_net_command(
             &mut swarm,
             &tx,
-            &mut room_queries,
             &mut rooms,
             p2p::NetCommand::UnsubscribeRoom { room },
         );
-        assert!(rooms.room(&hash).is_none());
+        assert!(rooms.topics.room(&hash).is_none());
+        assert!(!swarm.behaviour().gossipsub.topics().any(|t| *t == hash));
+    }
+
+    #[tokio::test]
+    async fn raw_unsubscribe_leaves_the_swarm() {
+        let mut swarm = swarm();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut rooms = rooms();
+        let topic = identity::Topic::from("lobby/topic");
+        let hash = IdentTopic::new(topic.as_str()).hash();
+        dispatch_net_command(
+            &mut swarm,
+            &tx,
+            &mut rooms,
+            p2p::NetCommand::Subscribe {
+                topic: topic.clone(),
+            },
+        );
+        assert!(swarm.behaviour().gossipsub.topics().any(|t| *t == hash));
+        dispatch_net_command(
+            &mut swarm,
+            &tx,
+            &mut rooms,
+            p2p::NetCommand::Unsubscribe { topic },
+        );
         assert!(!swarm.behaviour().gossipsub.topics().any(|t| *t == hash));
     }
 }

@@ -5,11 +5,13 @@ use libp2p::{
     yamux,
 };
 
+use crate::identity;
 use crate::p2p;
 
 pub fn build_swarm<T: p2p::Message>(
     keypair: Keypair,
     mdns: p2p::MdnsMode,
+    game: &identity::GameId,
     gossipsub_config: &p2p::GossipsubConfig,
 ) -> Result<libp2p::Swarm<p2p::Behaviour<T>>, String> {
     let peer_id = keypair.public().to_peer_id();
@@ -54,6 +56,14 @@ pub fn build_swarm<T: p2p::Message>(
                     )],
                     request_response::Config::default(),
                 );
+                let room_sync = request_response::Behaviour::with_codec(
+                    p2p::MessageCodec::<p2p::RoomSyncFrame>::default(),
+                    [(
+                        p2p::sync_protocol(game).map_err(|error| format!("room sync: {error}"))?,
+                        request_response::ProtocolSupport::Full,
+                    )],
+                    request_response::Config::default(),
+                );
                 let gossipsub = gossipsub::Behaviour::new(
                     gossipsub::MessageAuthenticity::Signed(kp.clone()),
                     gossipsub_config
@@ -64,6 +74,7 @@ pub fn build_swarm<T: p2p::Message>(
                 Ok(p2p::Behaviour {
                     request_response: rr,
                     exchange,
+                    room_sync,
                     kademlia,
                     identify: identify::Behaviour::new(identify::Config::new(
                         "/lobby/id/1.0.0".to_string(),
@@ -91,6 +102,7 @@ mod tests {
     use libp2p::identity::Keypair;
 
     use super::build_swarm;
+    use crate::identity;
     use crate::p2p;
     use derive_more::Deref;
     use serde::{Deserialize, Serialize};
@@ -104,6 +116,7 @@ mod tests {
         let swarm = build_swarm::<Dummy>(
             kp,
             p2p::MdnsMode::Disabled,
+            &identity::GameId::from("test"),
             &p2p::GossipsubConfig::default(),
         );
         assert!(swarm.is_ok());

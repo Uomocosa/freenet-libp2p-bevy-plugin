@@ -36,6 +36,7 @@ mod tests {
         p2p::build_swarm::<u32>(
             Keypair::generate_ed25519(),
             p2p::MdnsMode::Disabled,
+            &identity::GameId::from("test"),
             &p2p::GossipsubConfig::default(),
         )
         .unwrap()

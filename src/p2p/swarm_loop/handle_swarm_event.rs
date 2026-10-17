@@ -13,8 +13,7 @@ use crate::p2p;
 pub fn handle_swarm_event<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
-    room_queries: &std::collections::HashMap<libp2p::kad::QueryId, identity::RoomName>,
-    rooms: &p2p::swarm_loop::RoomTopics,
+    rooms: &mut p2p::swarm_loop::RoomLoop,
     listen_addrs: &mut Vec<identity::PeerAddr>,
     ready_deadline: &mut Option<tokio::time::Instant>,
     mode: p2p::TransportMode,
@@ -38,6 +37,11 @@ pub fn handle_swarm_event<T: p2p::Message>(
         )) => {
             p2p::swarm_loop::handle_exchange(swarm, event_tx, &peer, message);
         }
+        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RoomSync(
+            request_response::Event::Message { peer, message, .. },
+        )) => {
+            p2p::swarm_loop::handle_room_sync(event_tx, rooms, &peer, message);
+        }
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Kademlia(
             kad::Event::OutboundQueryProgressed {
                 result: kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))),
@@ -57,10 +61,10 @@ pub fn handle_swarm_event<T: p2p::Message>(
                 ..
             },
         )) => {
-            p2p::swarm_loop::handle_found_providers(event_tx, room_queries, id, &providers);
+            p2p::swarm_loop::handle_found_providers(event_tx, &rooms.queries, id, &providers);
         }
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Gossipsub(gossip_event)) => {
-            p2p::swarm_loop::handle_gossipsub(swarm, event_tx, rooms, gossip_event);
+            p2p::swarm_loop::handle_gossipsub(swarm, event_tx, &rooms.topics, gossip_event);
         }
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RelayClient(
             relay::client::Event::ReservationReqAccepted { relay_peer_id, .. },

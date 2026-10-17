@@ -15,8 +15,12 @@ pub async fn run<T: p2p::Message>(
 ) {
     let mode = config.mode;
     let room = config.room;
-    let mut swarm = match p2p::build_swarm::build_swarm::<T>(keypair, config.mdns, &room.gossipsub)
-    {
+    let mut swarm = match p2p::build_swarm::build_swarm::<T>(
+        keypair,
+        config.mdns,
+        &config.game,
+        &room.gossipsub,
+    ) {
         Ok(s) => s,
         Err(e) => {
             event_tx.send(p2p::Event::Error(e)).ok();
@@ -39,9 +43,7 @@ pub async fn run<T: p2p::Message>(
     let mut listen_addrs: Vec<identity::PeerAddr> = Vec::new();
     let mut ready_deadline: Option<tokio::time::Instant> = None;
     let mut mesh_deadline = tokio::time::Instant::now().checked_add(Duration::from_secs(30));
-    let mut room_queries: std::collections::HashMap<libp2p::kad::QueryId, identity::RoomName> =
-        std::collections::HashMap::new();
-    let mut rooms = p2p::swarm_loop::RoomTopics::new(config.game);
+    let mut rooms = p2p::swarm_loop::RoomLoop::new(config.game, room);
 
     loop {
         let now = tokio::time::Instant::now();
@@ -65,9 +67,7 @@ pub async fn run<T: p2p::Message>(
                 if !p2p::swarm_loop::dispatch_command(
                     &mut swarm,
                     &event_tx,
-                    &mut room_queries,
                     &mut rooms,
-                    &room,
                     cmd,
                 ) {
                     break;
@@ -75,7 +75,7 @@ pub async fn run<T: p2p::Message>(
             }
             net_cmd = net_rx.recv() => {
                 if let Some(net) = net_cmd {
-                    p2p::swarm_loop::dispatch_net_command(&mut swarm, &event_tx, &mut room_queries, &mut rooms, net);
+                    p2p::swarm_loop::dispatch_net_command(&mut swarm, &event_tx, &mut rooms, net);
                 } else {
                     break;
                 }
@@ -84,8 +84,7 @@ pub async fn run<T: p2p::Message>(
                 p2p::swarm_loop::handle_swarm_event(
                     &mut swarm,
                     &event_tx,
-                    &room_queries,
-                    &rooms,
+                    &mut rooms,
                     &mut listen_addrs,
                     &mut ready_deadline,
                     mode,

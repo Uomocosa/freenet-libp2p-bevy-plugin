@@ -7,3 +7,4 @@ pub mod lobby;
 pub mod p2p_plugin;
 #[cfg(feature = "discovery")]
 pub mod plugin;
+pub mod sync_plugin;
