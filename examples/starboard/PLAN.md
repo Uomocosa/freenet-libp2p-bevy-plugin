@@ -419,7 +419,9 @@ Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
       author and publishes them on the room's sync topic.
 - [x] Unit tests: Lamport laws; buffering-before-snapshot reducer; part split/join round-trip;
       frame codec; sync topic; peer author.
-- [ ] Headless **2-`App`** late-join convergence test — NOT DONE (see "What was done").
+- [x] Headless **2-`App`** late-join convergence test: two in-process `App`s wired by direct
+      dial (§0.8 allows in-process transport tests); the incumbent holds `7 → 42`, the joiner
+      joins late and must receive a `SnapshotPart` and converge to the same `Map`.
 - [x] Gate green.
 
 ### What was done (Step A5)
@@ -464,13 +466,14 @@ RespondSnapshot}`; `NetEvent::{SnapshotRequest, SnapshotPart, SnapshotMissing}`.
   method file.
 
 **Open issues (for later steps):**
-- **The 2-`App` headless convergence test is not written.** The plan's A5 asks for two Apps
-  where A has state and a late-joining B converges. The reducer half is covered by
-  `room_sync::state_machine::update::tests::{buffers_ops_until_the_snapshot_arrives,
-  late_joiner_fetches_then_applies_buffered_ops}`, but the end-to-end half (two `App`s wired
-  to real swarms exchanging a snapshot over the new behaviour) is still owed; the p2p
-  request/response path has no dedicated 2-swarm test yet. Do it before B5 relies on snapshots.
-- `reject` on a `SnapshotFrame` that is a `Fetch` answered back is logged as `Event::Error`.
+- **Outbound-failure retry is missing.** If a `FetchSnapshot` is emitted before the connection
+  is up, `request_response` reports `OutboundFailure`, which `handle_room_sync` ignores, so the
+  reducer never ticks to the next member. The headless test sidesteps it (the joiner joins
+  only after `PeerConnected`), but a real app can hit it; map `OutboundFailure` to
+  `NetEvent::SnapshotMissing` so `tick` retries.
+- A real-lobby convergence e2e (two examples meeting via Freenet, asserting equal hashes) is
+  still **A7** (`tests/room_messaging.rs`, `just e2e-room`) — the HARD RULE requires lobby
+  discovery in examples, so it is a separate, X11/Freenet step.
 
 ### What was done (Step A5) — continued
 

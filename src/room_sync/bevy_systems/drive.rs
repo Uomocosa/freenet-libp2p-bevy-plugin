@@ -183,4 +183,217 @@ fn snapshot_frame<S: room_sync::RoomState>(
     }
 }
 
-// no test_usage necessary
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::time::Duration;
+
+    use bevy::prelude::*;
+    use derive_more::{Deref, DerefMut};
+    use serde::{Deserialize, Serialize};
+
+    use crate::discovery;
+    use crate::identity;
+    use crate::p2p;
+    use crate::plugin;
+    use crate::room_sync;
+
+    const SETTLE: Duration = Duration::from_millis(20);
+    const MAX_ROUNDS: usize = 400;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    struct Op {
+        key: u8,
+        value: u32,
+    }
+
+    #[derive(Resource, Default, Debug, Clone, PartialEq, Eq, Deref, DerefMut)]
+    struct Map {
+        entries: BTreeMap<u8, u32>,
+    }
+
+    impl room_sync::RoomState for Map {
+        type Op = Op;
+        type Snapshot = Vec<(u8, u32)>;
+
+        fn apply(&mut self, _meta: room_sync::OpMeta, op: &Self::Op) {
+            self.entries.insert(op.key, op.value);
+        }
+
+        fn snapshot(&self) -> Self::Snapshot {
+            self.entries
+                .iter()
+                .map(|(key, value)| (*key, *value))
+                .collect()
+        }
+
+        fn merge(&mut self, snapshot: Self::Snapshot) {
+            for (key, value) in snapshot {
+                self.entries.insert(key, value);
+            }
+        }
+    }
+
+    fn node(game: &identity::GameId) -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(plugin::P2PPlugin(
+            plugin::Config::<u8>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
+                .with_game(game.clone()),
+        ));
+        app.add_plugins(room_sync::SyncPlugin::<Map>::new(game.clone()));
+        app.add_message::<discovery::Event>();
+        app.init_resource::<discovery::Snapshot>();
+        app.update();
+        app
+    }
+
+    fn dialable(peer: &identity::Peer) -> identity::Peer {
+        identity::Peer {
+            id: peer.id.clone(),
+            addrs: peer
+                .addrs
+                .iter()
+                .map(|addr| identity::PeerAddr(addr.replace("/ip4/0.0.0.0/", "/ip4/127.0.0.1/")))
+                .collect(),
+        }
+    }
+
+    fn ready(app: &App) -> Option<identity::Peer> {
+        app.world()
+            .resource::<p2p::ReadyChannel>()
+            .ready_rx
+            .borrow()
+            .clone()
+    }
+
+    fn snapshot(room: &identity::RoomName, members: Vec<identity::PeerId>) -> discovery::Snapshot {
+        discovery::Snapshot {
+            lobby: discovery::Lobby::default(),
+            room: Some(discovery::JoinedRoom {
+                name: room.clone(),
+                created_at: discovery::UnixTime::from_secs(1),
+                phase: discovery::RoomPhase::Ready,
+                members: members
+                    .into_iter()
+                    .map(|peer| {
+                        (
+                            peer,
+                            discovery::Member {
+                                heartbeat: discovery::Heartbeat {
+                                    addrs: Vec::new(),
+                                    updated_at: discovery::UnixTime::from_secs(1),
+                                    display_name: None,
+                                },
+                                status: discovery::LinkStatus::Connected,
+                            },
+                        )
+                    })
+                    .collect(),
+            }),
+            freenet_peers: Vec::new(),
+            lobby_attached: true,
+        }
+    }
+
+    fn join(app: &mut App, room: &identity::RoomName, members: Vec<identity::PeerId>) {
+        app.insert_resource(snapshot(room, members));
+        app.world_mut()
+            .resource_mut::<Messages<discovery::Event>>()
+            .write(discovery::Event::Joined(room.clone()));
+    }
+
+    fn wait_ready(app: &mut App) -> identity::Peer {
+        for _ in 0..MAX_ROUNDS {
+            app.update();
+            if let Some(peer) = ready(app) {
+                return peer;
+            }
+            std::thread::sleep(SETTLE);
+        }
+        panic!("node never became ready");
+    }
+
+    fn wait_connected(
+        app: &mut App,
+        events: &mut tokio::sync::broadcast::Receiver<p2p::NetEvent>,
+        peer: &identity::PeerId,
+    ) {
+        for _ in 0..MAX_ROUNDS {
+            app.update();
+            while let Ok(event) = events.try_recv() {
+                if let p2p::NetEvent::PeerConnected(id) = event
+                    && &id == peer
+                {
+                    return;
+                }
+            }
+            std::thread::sleep(SETTLE);
+        }
+        panic!("peer never connected");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_usage() {
+        let mut app = node(&identity::GameId::from("game"));
+        app.update();
+        assert!(
+            app.world()
+                .get_resource::<room_sync::bevy_systems::SyncState<Op>>()
+                .is_some()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn late_joiner_converges_over_the_new_behaviour() {
+        let game = identity::GameId::from("game");
+        let room = identity::RoomName::from("room-a");
+        let mut incumbent = node(&game);
+        let mut joiner = node(&game);
+
+        let a = wait_ready(&mut incumbent);
+        let _b = wait_ready(&mut joiner);
+
+        let mut joiner_events = joiner
+            .world()
+            .resource::<p2p::NetEventChannel>()
+            .subscribe();
+        joiner
+            .world()
+            .resource::<p2p::NetCommandSender>()
+            .send(p2p::NetCommand::Dial(dialable(&a)))
+            .expect("dial");
+        wait_connected(&mut joiner, &mut joiner_events, &a.id);
+
+        incumbent
+            .world_mut()
+            .resource_mut::<Map>()
+            .entries
+            .insert(7, 42);
+        join(&mut incumbent, &room, Vec::new());
+        join(&mut joiner, &room, vec![a.id.clone()]);
+
+        let mut saw_part = false;
+        for _ in 0..MAX_ROUNDS {
+            incumbent.update();
+            joiner.update();
+            while let Ok(event) = joiner_events.try_recv() {
+                if matches!(event, p2p::NetEvent::SnapshotPart { .. }) {
+                    saw_part = true;
+                }
+            }
+            let expected = incumbent.world().resource::<Map>().clone();
+            let actual = joiner.world().resource::<Map>().clone();
+            if actual == expected && !expected.entries.is_empty() {
+                assert!(saw_part, "converged without a snapshot part");
+                assert_eq!(actual.entries.get(&7), Some(&42));
+                return;
+            }
+            tokio::time::sleep(SETTLE).await;
+        }
+        panic!(
+            "joiner did not converge: {:?}",
+            joiner.world().resource::<Map>()
+        );
+    }
+}
