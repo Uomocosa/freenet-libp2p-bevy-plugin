@@ -4,32 +4,32 @@ use crate::discovery;
 
 pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
     use discovery::ui::bevy_systems as ui;
-    use discovery::ui::{LeaveDialog, UiScreen};
+    use discovery::ui::{LeaveDialog, Screen};
 
-    app.add_systems(OnEnter(UiScreen::Connecting), ui::spawn_connecting);
-    app.add_systems(OnEnter(UiScreen::Lobby), ui::spawn_root);
-    app.add_systems(OnEnter(UiScreen::InRoom), ui::spawn_leave_door);
+    app.add_systems(OnEnter(Screen::Connecting), ui::spawn_connecting);
+    app.add_systems(OnEnter(Screen::Lobby), ui::spawn_root);
+    app.add_systems(OnEnter(Screen::InRoom), ui::spawn_leave_door);
     app.add_systems(OnEnter(LeaveDialog::Open), ui::spawn_leave_prompt);
     app.add_systems(
         Update,
         (
             ui::pick_screen,
             ui::animate_hover,
-            ui::spin_connecting.run_if(in_state(UiScreen::Connecting)),
+            ui::spin_connecting.run_if(in_state(Screen::Connecting)),
             (
                 (ui::sync_room_list, ui::highlight_current_room).chain(),
                 ui::gate_create,
                 ui::handle_create,
                 ui::handle_join,
             )
-                .run_if(in_state(UiScreen::Lobby)),
+                .run_if(in_state(Screen::Lobby)),
             (
                 ui::request_leave,
                 ui::handle_leave_answer.run_if(in_state(LeaveDialog::Open)),
                 ui::animate_door,
             )
                 .chain()
-                .run_if(in_state(UiScreen::InRoom)),
+                .run_if(in_state(Screen::InRoom)),
         ),
     );
 }

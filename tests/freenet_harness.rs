@@ -2,26 +2,24 @@ use std::collections::BTreeMap;
 
 use freenet_contract_harness::{SuiteConfig, run_suite};
 use freenet_stdlib::prelude::*;
-use lobby_contract::{
-    Heartbeat, LobbyContract, LobbyState, RemotePeerId, Room, RoomName, UnixTime,
-};
+use lobby_contract::{Heartbeat, Lobby, LobbyContract, PeerId, Room, RoomName, UnixTime};
 
-fn encode(lobby: &LobbyState) -> State<'static> {
+fn encode(lobby: &Lobby) -> State<'static> {
     State::from(bincode::serialize(lobby).unwrap_or_default())
 }
 
 // needed helper: a lobby with one room holding one member at the given time
-fn one_room(updated_at: u64) -> LobbyState {
+fn one_room(updated_at: u64) -> Lobby {
     let mut members = BTreeMap::new();
     members.insert(
-        RemotePeerId("peer".to_string()),
+        PeerId("peer".to_string()),
         Heartbeat {
             addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
             updated_at: UnixTime(updated_at),
             display_name: None,
         },
     );
-    let mut lobby = LobbyState::new();
+    let mut lobby = Lobby::new();
     lobby.insert(
         RoomName("room-a".to_string()),
         Room {
@@ -42,7 +40,7 @@ fn gen_update(_base: &State<'static>) -> UpdateData<'static> {
 }
 
 fn empty_state() -> State<'static> {
-    encode(&LobbyState::new())
+    encode(&Lobby::new())
 }
 
 #[test]

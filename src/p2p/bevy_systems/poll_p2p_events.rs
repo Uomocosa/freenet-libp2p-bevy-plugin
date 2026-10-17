@@ -6,9 +6,9 @@ pub fn poll_p2p_events<T: p2p::Message>(
     mut events: ResMut<p2p::Events<T>>,
     mut commands: ResMut<p2p::Commands<T>>,
     mut pending: ResMut<p2p::PendingNetCommands>,
-    command_channel: Res<p2p::CommandChannel<T>>,
-    event_channel: Res<p2p::EventChannel<T>>,
-    net_commands: Option<Res<p2p::NetCommandChannel>>,
+    command_channel: Res<p2p::CommandSender<T>>,
+    event_channel: Res<p2p::EventReceiver<T>>,
+    net_commands: Option<Res<p2p::NetCommandSender>>,
     ready: Option<Res<p2p::ReadyChannel>>,
     net_events: Option<Res<p2p::NetEventChannel>>,
 ) {
@@ -34,6 +34,17 @@ pub fn poll_p2p_events<T: p2p::Message>(
             drained
         },
     );
+    for event in &drained {
+        match event {
+            p2p::Event::Net(p2p::NetEvent::Ready(me)) => {
+                tracing::info!("ready peer_id={} addrs={:?}", me.id, me.addrs);
+            }
+            p2p::Event::Error(message) => {
+                tracing::warn!("p2p error: {message}");
+            }
+            _ => {}
+        }
+    }
     if let Some(ready) = ready {
         for event in &drained {
             publish_ready(&ready, event);
@@ -103,8 +114,8 @@ mod tests {
                 id: identity::PeerId::from("peer"),
                 addrs: vec![],
             })));
-        app.insert_resource(p2p::CommandChannel(cmd_tx));
-        app.insert_resource(p2p::EventChannel(std::sync::Mutex::new(Some(event_rx))));
+        app.insert_resource(p2p::CommandSender(cmd_tx));
+        app.insert_resource(p2p::EventReceiver(std::sync::Mutex::new(Some(event_rx))));
         app.add_systems(Update, poll_p2p_events::<Dummy>);
         app.update();
         assert!(cmd_rx.try_recv().is_ok());
@@ -121,8 +132,8 @@ mod tests {
         app.insert_resource(p2p::Events::<Dummy>::default());
         app.insert_resource(p2p::Commands::<Dummy>::default());
         app.insert_resource(p2p::PendingNetCommands::default());
-        app.insert_resource(p2p::CommandChannel(cmd_tx));
-        app.insert_resource(p2p::EventChannel(std::sync::Mutex::new(Some(event_rx))));
+        app.insert_resource(p2p::CommandSender(cmd_tx));
+        app.insert_resource(p2p::EventReceiver(std::sync::Mutex::new(Some(event_rx))));
         app.insert_resource(p2p::NetEventChannel {
             tx: tap_tx,
             rx: std::sync::Mutex::new(None),

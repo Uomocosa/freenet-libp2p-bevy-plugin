@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::discovery;
 use crate::identity;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -15,4 +16,10 @@ pub struct HeartbeatTarget {
     pub room: identity::RoomName,
     pub addrs: Vec<identity::PeerAddr>,
     pub display_name: identity::Username,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Candidate {
+    pub addrs: Vec<identity::PeerAddr>,
+    pub seen_at: discovery::UnixTime,
 }

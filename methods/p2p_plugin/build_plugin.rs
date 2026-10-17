@@ -4,7 +4,6 @@ use bevy::prelude::*;
 
 use crate::p2p;
 use crate::plugin;
-use crate::roster;
 
 pub fn build_plugin<T: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<T>, app: &mut App) {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -24,19 +23,10 @@ pub fn build_plugin<T: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<T>, app: &mu
     app.insert_resource(p2p::PendingNetCommands::default());
     app.insert_resource(p2p::ReadyChannel::default());
     app.insert_resource(p2p::NetEventChannel::default());
-    app.insert_resource(roster::RoomRoster::default());
-    app.insert_resource(roster::ActiveRoom::default());
-    app.insert_resource(p2p::CommandChannel(cmd_tx));
-    app.insert_resource(p2p::EventChannel(Mutex::new(Some(event_rx))));
-    app.insert_resource(p2p::NetCommandChannel(net_tx));
-    app.add_systems(
-        Update,
-        (
-            p2p::bevy_systems::poll_p2p_events::<T>,
-            roster::bevy_systems::poll_roster::<T>,
-        )
-            .chain(),
-    );
+    app.insert_resource(p2p::CommandSender(cmd_tx));
+    app.insert_resource(p2p::EventReceiver(Mutex::new(Some(event_rx))));
+    app.insert_resource(p2p::NetCommandSender(net_tx));
+    app.add_systems(Update, p2p::bevy_systems::poll_p2p_events::<T>);
 }
 
 #[cfg(test)]
@@ -45,10 +35,8 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     use super::build_plugin;
-    use crate::identity;
     use crate::p2p;
     use crate::plugin;
-    use crate::roster;
     use derive_more::Deref;
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Deref)]
@@ -69,18 +57,13 @@ mod tests {
         assert!(app.world().get_resource::<p2p::Events<Dummy>>().is_some());
         assert!(
             app.world()
-                .get_resource::<p2p::CommandChannel<Dummy>>()
+                .get_resource::<p2p::CommandSender<Dummy>>()
                 .is_some()
         );
         assert!(
             app.world()
-                .get_resource::<p2p::NetCommandChannel>()
+                .get_resource::<p2p::NetCommandSender>()
                 .is_some()
-        );
-        assert!(app.world().get_resource::<roster::RoomRoster>().is_some());
-        assert_eq!(
-            app.world().get_resource::<roster::ActiveRoom>(),
-            Some(&roster::ActiveRoom(identity::RoomName::from("default")))
         );
     }
 }

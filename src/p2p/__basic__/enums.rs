@@ -71,9 +71,6 @@ pub enum NetCommand {
     FetchHistory {
         id: p2p::HistoryChunkId,
     },
-    FetchRoster {
-        room: identity::RoomName,
-    },
     Subscribe {
         topic: identity::Topic,
     },

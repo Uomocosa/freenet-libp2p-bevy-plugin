@@ -1,13 +1,11 @@
 use crate::discovery;
-use discovery::Lobby;
 
-#[must_use]
-pub fn merge_lobby(mut base: Lobby, incoming: Lobby) -> Lobby {
-    for (room, record) in incoming {
-        let merged = discovery::freenet::merge_room(base.remove(&room), record);
-        base.insert(room, merged);
+pub fn merge(lobby: &mut discovery::Lobby, incoming: discovery::Lobby) {
+    let discovery::Lobby(rooms) = incoming;
+    for (room, record) in rooms {
+        let merged = discovery::freenet::merge_room(lobby.remove(&room), record);
+        lobby.insert(room, merged);
     }
-    base
 }
 
 #[cfg(test)]
@@ -15,7 +13,7 @@ mod tests {
     use crate::identity;
     use std::collections::BTreeMap;
 
-    use super::merge_lobby;
+    use super::merge;
     use crate::discovery;
 
     fn record(peer: &str, updated_at: discovery::UnixTime) -> discovery::Room {
@@ -37,18 +35,18 @@ mod tests {
     #[test]
     fn test_usage() {
         let room = identity::RoomName::from("room-a");
-        let mut base = BTreeMap::new();
+        let mut base = discovery::Lobby::default();
         base.insert(
             room.clone(),
             record("peer", discovery::UnixTime::from_secs(5)),
         );
-        let mut incoming = BTreeMap::new();
+        let mut incoming = discovery::Lobby::default();
         incoming.insert(
             room.clone(),
             record("peer", discovery::UnixTime::from_secs(9)),
         );
-        let merged = merge_lobby(base, incoming);
-        let row = merged
+        merge(&mut base, incoming);
+        let row = base
             .get(&room)
             .and_then(|record| record.members.get(&identity::PeerId::from("peer")));
         assert_eq!(

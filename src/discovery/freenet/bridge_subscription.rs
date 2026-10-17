@@ -4,14 +4,14 @@ use freenet_stdlib::prelude::StateSummary;
 use crate::discovery;
 
 pub fn bridge_subscription(
-    lobby_contract: &mut discovery::freenet::LobbyContract,
+    subscription: &mut discovery::freenet::LobbyContractSubscription,
 ) -> Result<(), discovery::Error> {
-    let summary = bincode::serialize(&lobby_contract.lobby)?;
+    let summary = bincode::serialize(&subscription.lobby)?;
     let request = ContractRequest::Subscribe {
-        key: *lobby_contract.key.id(),
+        key: *subscription.key.id(),
         summary: Some(StateSummary::from(summary)),
     };
-    lobby_contract
+    subscription
         .client
         .send(&ClientRequest::ContractOp(request))?;
     Ok(())

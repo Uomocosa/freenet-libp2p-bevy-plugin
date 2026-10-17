@@ -1,6 +1,6 @@
 # Discovery e2e tests
 
-Real, visual, `#[ignore]`d end-to-end tests for the Freennet room board + libp2p mesh.
+Real, visual, `#[ignore]`d end-to-end tests for the Freenet room lobby + libp2p mesh.
 They spawn real `lobby_room` windows (one embedded Freenet node each), record the
 screen, and send the clip to Telegram.
 
@@ -25,7 +25,7 @@ optional (video send is best-effort).
 ## HARD RULE — no out-of-band peer discovery
 
 These tests exist to prove that app-level peers know **nothing** about each other and
-meet **only** through the Freenet `directory` board contract, exactly as if they were on
+meet **only** through the Freenet lobby contract, exactly as if they were on
 different machines/networks. Do **NOT** add any shortcut, in the example or the tests:
 
 - Do **not** enable mDNS (the example hardcodes `mdns = false`; keep it that way).
@@ -33,7 +33,7 @@ different machines/networks. Do **NOT** add any shortcut, in the example or the 
 - Do **not** use `ProvideLobby` / `FindLobby` / `ReserveRelay`.
 - Do **not** hardcode bootstrap peers or peer ids.
 - Do **not** pass peer ids/addrs between instances via files, env vars, or the harness.
-- Discovery must remain: the creator writes its heartbeat to the Freenet board, other
+- Discovery must remain: the creator writes its heartbeat to the Freenet lobby, other
   peers read that row and `Dial`. Nothing else.
 
 Adding any such shortcut invalidates the test even if it makes it pass.
@@ -59,19 +59,19 @@ Adding any such shortcut invalidates the test even if it makes it pass.
   - `lobby joined room=<r>`
   - `lobby tick rooms=<a,b|none> room=<r|none> members=<k> connected=<c>`
   - `lobby freenet ring ready peers=<n>` — emitted by `attach` **only once the node
-    has actually read the board** (a local re-Get that never reaches the ring does
+    has actually read the lobby** (a local re-Get that never reaches the ring does
     not count); it is the `ring` check.
   - `lobby freenet transport connected peers=<n>` — informational: the transient
     gateway handshake lands within ~100ms and is **not** ring membership.
   - `discovery: lobby contract deployed` — the creator's embedded node acked the
-    board Put. The deploy ack can arrive after `REQUEST_TIMEOUT`, so the `board`
+    lobby Put. The deploy ack can arrive after `REQUEST_TIMEOUT`, so the `lobby`
     check also accepts the durable signal (`ring ready … rooms>=1`, i.e. the
-    creator read back a board already holding its room).
-- Checks: `spawn`, `board` (creator published), `ring` (every peer read the board),
+    creator read back a lobby already holding its room).
+- Checks: `spawn`, `lobby` (creator published), `ring` (every peer read the lobby),
   `discovery` (every peer's rooms lists the room), `join`, `converge`. A node
   that never reaches the ring is reported as `ring`/`isolated=[..]`, not as a
   mystery `discovery` failure.
-- Layering: Freenet only seeds candidates (board heartbeat, polled in its own task);
+- Layering: Freenet only seeds candidates (lobby heartbeat, polled in its own task);
   room membership is libp2p-only — a peer is a member once it is connected AND has sent a
   `/blackboard/pex/1.0.0` handshake for the same room. Handshakes carry the sender's members, so one
   Freenet seed is enough to reach the whole room.

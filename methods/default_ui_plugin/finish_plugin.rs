@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::discovery;
 
 pub fn finish_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
-    app.init_state::<discovery::ui::UiScreen>();
+    app.init_state::<discovery::ui::Screen>();
     app.add_sub_state::<discovery::ui::LeaveDialog>();
 }
 
@@ -21,10 +21,7 @@ mod tests {
         app.add_plugins(StatesPlugin);
         finish_plugin(&discovery::ui::DefaultUiPlugin, &mut app);
         app.update();
-        let screen = *app
-            .world()
-            .resource::<State<discovery::ui::UiScreen>>()
-            .get();
-        assert_eq!(screen, discovery::ui::UiScreen::Connecting);
+        let screen = *app.world().resource::<State<discovery::ui::Screen>>().get();
+        assert_eq!(screen, discovery::ui::Screen::Connecting);
     }
 }

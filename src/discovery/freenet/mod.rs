@@ -3,10 +3,7 @@ pub mod basic;
 
 pub use basic::constants::*;
 pub use basic::enums::DeployPolicy;
-pub use basic::structs::{FreenetConfig, LobbyContract};
-
-mod merge_cached_lobby;
-pub use merge_cached_lobby::merge_cached_lobby;
+pub use basic::structs::{Config, LobbyContractSubscription};
 
 mod client;
 pub use client::Client;
@@ -52,9 +49,6 @@ pub use poll::poll;
 
 mod publish_heartbeat;
 pub use publish_heartbeat::publish_heartbeat;
-
-mod merge_lobby;
-pub use merge_lobby::merge_lobby;
 
 mod merge_room;
 pub use merge_room::merge_room;

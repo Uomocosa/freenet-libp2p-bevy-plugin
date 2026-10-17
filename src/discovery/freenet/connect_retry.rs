@@ -6,9 +6,9 @@ use crate::identity;
 use discovery::freenet::basic::constants;
 
 pub async fn connect_retry(
-    freenet_config: &discovery::freenet::FreenetConfig,
+    freenet_config: &discovery::freenet::Config,
     target: &Receiver<Option<discovery::state_machine::HeartbeatTarget>>,
-) -> discovery::freenet::LobbyContract {
+) -> discovery::freenet::LobbyContractSubscription {
     let wasm = discovery::freenet::contract_wasm();
     let mut client =
         discovery::freenet::connect_socket(&freenet_config.host, freenet_config.port).await;
@@ -16,7 +16,7 @@ pub async fn connect_retry(
     loop {
         tries = tries.saturating_add(1);
         let current = target.borrow().clone();
-        let seed = initial_board(
+        let seed = initial_lobby(
             &freenet_config.me,
             freenet_config.room_size,
             current.as_ref(),
@@ -26,12 +26,14 @@ pub async fn connect_retry(
             wasm,
             &freenet_config.params,
             freenet_config.deploy_policy,
-            freenet_config.timing.ring,
+            constants::RING_WAIT,
             &seed,
         )
         .await;
         match result {
-            Ok((key, lobby)) => return discovery::freenet::LobbyContract { client, key, lobby },
+            Ok((key, lobby)) => {
+                return discovery::freenet::LobbyContractSubscription { client, key, lobby };
+            }
             Err(discovery::Error::Timeout(step)) => {
                 warn!(target: "discovery", tries = tries, step, "lobby {step} timed out, reconnecting");
                 client =
@@ -39,25 +41,25 @@ pub async fn connect_retry(
                         .await;
             }
             Err(discovery::Error::ContractNotFound) => {
-                debug!(target: "discovery", tries = tries, "lobby board absent and not in a room, waiting");
+                debug!(target: "discovery", tries = tries, "lobby absent and not in a room, waiting");
                 tokio::time::sleep(constants::MISSING_RETRY).await;
             }
             Err(e) => {
-                warn!(target: "discovery", tries = tries, error = %e, "lobby board fetch failed, retrying");
+                warn!(target: "discovery", tries = tries, error = %e, "lobby attach failed, retrying");
                 tokio::time::sleep(constants::CONNECT_RETRY).await;
             }
         }
     }
 }
 
-// needed helper: seeds a fresh board with our own heartbeat so readers never see it empty
-fn initial_board(
+// needed helper: seeds a fresh lobby with our own heartbeat so readers never see it empty
+fn initial_lobby(
     me: &identity::PeerId,
     room_size: u16,
     target: Option<&discovery::state_machine::HeartbeatTarget>,
 ) -> discovery::Lobby {
     let Some(target) = target else {
-        return discovery::Lobby::new();
+        return discovery::Lobby::default();
     };
     let heartbeat = discovery::Heartbeat {
         addrs: target.addrs.clone(),

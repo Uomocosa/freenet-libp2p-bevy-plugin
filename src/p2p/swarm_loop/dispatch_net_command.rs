@@ -66,17 +66,6 @@ pub fn dispatch_net_command<T: p2p::Message>(
                 .kademlia
                 .get_record(p2p::record_key(&id));
         }
-        p2p::NetCommand::FetchRoster { room } => {
-            let _ = swarm
-                .behaviour_mut()
-                .kademlia
-                .start_providing(p2p::provider_key(&room));
-            let id = swarm
-                .behaviour_mut()
-                .kademlia
-                .get_providers(p2p::provider_key(&room));
-            room_queries.insert(id, room);
-        }
         p2p::NetCommand::Subscribe { topic } => {
             let topic = gossipsub::IdentTopic::new(topic.as_str());
             let _ = swarm.behaviour_mut().gossipsub.subscribe(&topic);

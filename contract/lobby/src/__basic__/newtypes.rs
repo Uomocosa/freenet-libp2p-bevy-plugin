@@ -5,4 +5,4 @@ use serde::{Deserialize, Serialize};
 pub struct RoomName(pub String);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Deref)]
-pub struct RemotePeerId(pub String);
+pub struct PeerId(pub String);

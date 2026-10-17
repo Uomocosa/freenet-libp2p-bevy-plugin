@@ -219,8 +219,8 @@ mod tests {
     fn leave_prompt(world: &mut World) {
         room_full(world);
         world
-            .resource_mut::<NextState<discovery::ui::UiScreen>>()
-            .set(discovery::ui::UiScreen::InRoom);
+            .resource_mut::<NextState<discovery::ui::Screen>>()
+            .set(discovery::ui::Screen::InRoom);
         world.run_schedule(StateTransition);
         world
             .resource_mut::<NextState<discovery::ui::LeaveDialog>>()

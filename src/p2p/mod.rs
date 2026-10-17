@@ -22,10 +22,9 @@ pub use matches_transport::matches_transport;
 #[path = "__basic__/mod.rs"]
 pub mod basic;
 
-pub use basic::constants::*;
 pub use basic::enums::{Command, Event, MdnsMode, NetCommand, NetEvent, TransportMode};
 pub use basic::newtypes::ChunkIndex;
-pub use basic::resources::{CommandChannel, EventChannel, NetCommandChannel};
+pub use basic::resources::{CommandSender, EventReceiver, NetCommandSender};
 pub use basic::structs::HistoryChunkId;
 
 pub mod mdns_behaviour;

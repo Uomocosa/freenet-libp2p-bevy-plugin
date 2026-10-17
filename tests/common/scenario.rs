@@ -222,10 +222,10 @@ fn push_peer(
 }
 
 async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
-    // Wait for the board row itself, not a transport-connection proxy. `ring ready`
-    // is emitted once a node actually reads the board, which on mainnet can take
-    // tens of seconds; the two checks then separate "a node never read the board"
-    // (ring) from "board read but the row is missing" (discovery).
+    // Wait for the lobby row itself, not a transport-connection proxy. `ring ready`
+    // is emitted once a node actually reads the lobby, which on mainnet can take
+    // tens of seconds; the two checks then separate "a node never read the lobby"
+    // (ring) from "lobby read but the row is missing" (discovery).
     let seen =
         did_predicate_hold_within(Duration::from_secs(scenario.discovery_budget_secs), || {
             do_all_peers_see_room(&peers.logs, &peers.room)
@@ -246,8 +246,8 @@ async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
         detail: format!("{}/{} instances", peers.logs.len(), scenario.peers),
     };
     let published = creator_published(&peers.logs);
-    let board_check = Check {
-        name: "board".to_string(),
+    let lobby_check = Check {
+        name: "lobby".to_string(),
         ok: peers.created && published,
         detail: format!("created={} published={published}", peers.created),
     };
@@ -276,7 +276,7 @@ async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
     };
     let mut checks = vec![
         spawn_check,
-        board_check,
+        lobby_check,
         ring_check,
         discovery_check,
         join_check,
@@ -440,7 +440,7 @@ fn spawn_peer(
     Ok(log)
 }
 
-// needed helper: names the peers whose freenet node never read the board
+// needed helper: names the peers whose freenet node never read the lobby
 fn ring_detail(logs: &[PathBuf], ring_ready: &[bool]) -> String {
     let missing: Vec<String> = ring_ready
         .iter()
@@ -449,16 +449,16 @@ fn ring_detail(logs: &[PathBuf], ring_ready: &[bool]) -> String {
         .map(|(index, _)| format!("p{}", index.saturating_add(1)))
         .collect();
     if missing.is_empty() {
-        format!("{}/{} peers read the board", ring_ready.len(), logs.len())
+        format!("{}/{} peers read the lobby", ring_ready.len(), logs.len())
     } else {
-        format!("never read the board: {}", missing.join(","))
+        format!("never read the lobby: {}", missing.join(","))
     }
 }
 
-// needed helper: the creator's embedded freenet node seeded a board with its room
+// needed helper: the creator's embedded freenet node seeded a lobby with its room
 //
 // The deploy ack can land after `REQUEST_TIMEOUT`, so the ack log line alone is a
-// false negative; reading back a board that already holds our room (the seeded
+// false negative; reading back a lobby that already holds our room (the seeded
 // `rooms>=1`) is the durable signal that the `Put` landed.
 fn creator_published(logs: &[PathBuf]) -> bool {
     let Some(log) = logs.first() else {

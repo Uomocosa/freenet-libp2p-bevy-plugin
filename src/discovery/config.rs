@@ -5,7 +5,6 @@ use crate::identity;
 pub struct Config {
     pub game: identity::GameId,
     pub display_name: identity::Username,
-    pub timing: discovery::Timing,
     pub room_size: u16,
     pub deploy_policy: discovery::freenet::DeployPolicy,
 }
@@ -15,7 +14,6 @@ impl Default for Config {
         Self {
             game: identity::GameId::from("test"),
             display_name: identity::Username::from("anonymous"),
-            timing: discovery::Timing::default(),
             room_size: 8,
             deploy_policy: discovery::freenet::DeployPolicy::default(),
         }

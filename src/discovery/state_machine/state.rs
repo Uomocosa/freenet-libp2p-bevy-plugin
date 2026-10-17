@@ -5,11 +5,10 @@ use crate::identity;
 
 pub struct State {
     pub me: identity::Peer,
-    pub timing: discovery::Timing,
     pub lobby: discovery::Lobby,
     pub room: Option<discovery::JoinedRoom>,
     pub connected: BTreeSet<identity::PeerId>,
-    pub candidates: BTreeMap<identity::PeerId, discovery::Heartbeat>,
+    pub candidates: BTreeMap<identity::PeerId, discovery::state_machine::Candidate>,
     pub last_dial: BTreeMap<identity::PeerId, discovery::UnixTime>,
     pub last_handshake: Option<discovery::UnixTime>,
     pub freenet_peers: Vec<identity::FreenetPeer>,
@@ -18,11 +17,10 @@ pub struct State {
 
 impl State {
     #[must_use]
-    pub const fn new(me: identity::Peer, timing: discovery::Timing) -> Self {
+    pub const fn new(me: identity::Peer) -> Self {
         Self {
             me,
-            timing,
-            lobby: discovery::Lobby::new(),
+            lobby: discovery::Lobby(BTreeMap::new()),
             room: None,
             connected: BTreeSet::new(),
             candidates: BTreeMap::new(),
@@ -37,18 +35,14 @@ impl State {
 #[cfg(test)]
 mod tests {
     use super::State;
-    use crate::discovery;
     use crate::identity;
 
     #[test]
     fn test_usage() {
-        let state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         assert!(state.room.is_none());
     }
 }

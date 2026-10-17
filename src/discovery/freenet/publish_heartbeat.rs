@@ -7,7 +7,7 @@ use crate::discovery;
 use crate::identity;
 
 pub fn publish_heartbeat(
-    lobby_contract: &mut discovery::freenet::LobbyContract,
+    subscription: &mut discovery::freenet::LobbyContractSubscription,
     room: &identity::RoomName,
     me: &identity::PeerId,
     heartbeat: discovery::Heartbeat,
@@ -16,10 +16,10 @@ pub fn publish_heartbeat(
     let members = BTreeMap::from([(me.clone(), heartbeat)]);
     let update = discovery::Lobby::from([(room.clone(), discovery::Room { room_size, members })]);
     let request = ContractRequest::Update {
-        key: lobby_contract.key,
+        key: subscription.key,
         data: UpdateData::Delta(StateDelta::from(bincode::serialize(&update)?)),
     };
-    lobby_contract
+    subscription
         .client
         .send(&ClientRequest::ContractOp(request))?;
     Ok(())

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::UnixTime;
-use crate::basic::newtypes::RemotePeerId;
+use crate::basic::newtypes::PeerId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Heartbeat {
@@ -15,5 +15,5 @@ pub struct Heartbeat {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Room {
     pub room_size: u16,
-    pub members: BTreeMap<RemotePeerId, Heartbeat>,
+    pub members: BTreeMap<PeerId, Heartbeat>,
 }

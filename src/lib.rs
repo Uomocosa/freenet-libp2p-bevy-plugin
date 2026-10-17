@@ -6,4 +6,3 @@ pub mod identity;
 pub mod methods;
 pub mod p2p;
 pub mod plugin;
-pub mod roster;

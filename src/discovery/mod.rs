@@ -8,20 +8,21 @@ pub mod ui;
 #[path = "__basic__/mod.rs"]
 pub mod basic;
 
+pub use basic::constants::*;
 pub use basic::enums::LinkStatus;
 pub use basic::messages::{Command, Event};
-pub use basic::resources::{CommandSender, EventFeed, FreenetPort, Snapshot, SnapshotFeed};
-pub use basic::structs::{Channels, Heartbeat, JoinedRoom, Member, Room};
-pub use basic::type_aliases::{Lobby, Members};
+pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, Snapshot, SnapshotReceiver};
+pub use basic::structs::{Heartbeat, JoinedRoom, Member, Room, RunChannels};
+pub use basic::type_aliases::Members;
+
+mod lobby;
+pub use lobby::Lobby;
 
 mod unix_time;
 pub use unix_time::UnixTime;
 
 mod config;
 pub use config::Config;
-
-mod timing;
-pub use timing::Timing;
 
 mod error;
 pub use error::Error;

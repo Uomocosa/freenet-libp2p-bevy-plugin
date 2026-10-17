@@ -8,7 +8,7 @@ pub fn dial_candidates(state: &mut State, now: discovery::UnixTime) -> Vec<Outpu
     if state.room.is_none() {
         return Vec::new();
     }
-    let redial = state.timing.redial;
+    let redial = discovery::state_machine::REDIAL;
     let due: Vec<identity::Peer> = state
         .candidates
         .iter()
@@ -19,9 +19,9 @@ pub fn dial_candidates(state: &mut State, now: discovery::UnixTime) -> Vec<Outpu
                 .get(*peer)
                 .is_none_or(|last| now.since(*last) >= redial)
         })
-        .map(|(peer, heartbeat)| identity::Peer {
+        .map(|(peer, candidate)| identity::Peer {
             id: peer.clone(),
-            addrs: heartbeat.addrs.clone(),
+            addrs: candidate.addrs.clone(),
         })
         .collect();
     let mut outputs = Vec::new();
@@ -43,13 +43,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
             members: discovery::Members::new(),

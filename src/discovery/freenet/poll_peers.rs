@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::discovery;
@@ -7,12 +5,12 @@ use crate::identity;
 use discovery::freenet::basic::constants;
 
 pub async fn poll_peers(
-    freenet_config: discovery::freenet::FreenetConfig,
+    freenet_config: discovery::freenet::Config,
     peers: UnboundedSender<Vec<identity::FreenetPeer>>,
 ) {
     let mut client =
         discovery::freenet::connect_socket(&freenet_config.host, freenet_config.port).await;
-    let mut tick = tokio::time::interval(freenet_config.timing.tick.max(Duration::from_secs(1)));
+    let mut tick = tokio::time::interval(discovery::TICK);
     loop {
         tick.tick().await;
         let connected = tokio::time::timeout(

@@ -4,12 +4,12 @@ use crate::discovery;
 use discovery::ui::basic::constants::{
     DOOR_FRAME_COLOR, DOOR_HEIGHT, DOOR_KNOB_COLOR, DOOR_LIGHT_COLOR, DOOR_PANEL_COLOR, DOOR_WIDTH,
 };
-use discovery::ui::{DoorLabel, DoorOpening, DoorPanel, LeaveDoor, LeaveDoorRoot, UiScreen};
+use discovery::ui::{DoorLabel, DoorOpening, DoorPanel, LeaveDoor, LeaveDoorRoot, Screen};
 
 pub fn spawn_leave_door(mut commands: Commands) {
     commands.spawn((
         LeaveDoorRoot,
-        DespawnOnExit(UiScreen::InRoom),
+        DespawnOnExit(Screen::InRoom),
         Node {
             position_type: PositionType::Absolute,
             right: Val::Px(16.0),

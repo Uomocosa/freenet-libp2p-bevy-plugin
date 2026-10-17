@@ -13,10 +13,9 @@ pub fn add_candidates(
         }
         state.candidates.insert(
             peer.id,
-            discovery::Heartbeat {
+            discovery::state_machine::Candidate {
                 addrs: peer.addrs,
-                updated_at: now,
-                display_name: None,
+                seen_at: now,
             },
         );
     }
@@ -31,13 +30,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         let peers = vec![
             identity::Peer {
                 id: identity::PeerId::from("me"),

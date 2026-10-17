@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::discovery;
@@ -10,9 +8,9 @@ use discovery::state_machine::{Input, Output, State};
 pub async fn run(
     config: discovery::Config,
     endpoint: discovery::FreenetPort,
-    channels: discovery::Channels,
+    channels: discovery::RunChannels,
 ) {
-    let discovery::Channels {
+    let discovery::RunChannels {
         mut net,
         mut commands,
         snapshots,
@@ -25,20 +23,18 @@ pub async fn run(
         addrs: discovery::libp2p::dialable(ready.addrs),
         id: ready.id,
     };
-    let timing = config.timing;
-    let mut state = State::new(me.clone(), timing);
+    let mut state = State::new(me.clone());
     state.display_name = config.display_name.clone();
     let (target_tx, target_rx) = tokio::sync::watch::channel(None);
     let (lobby_tx, mut lobbies) = tokio::sync::mpsc::unbounded_channel();
     let (peers_tx, mut peers) = tokio::sync::mpsc::unbounded_channel();
-    let freenet_config = discovery::freenet::FreenetConfig {
+    let freenet_config = discovery::freenet::Config {
         host: "127.0.0.1".to_string(),
         port: *endpoint,
         me: me.id.clone(),
         params: discovery::freenet::contract_params(&config.game),
         room_size: config.room_size,
         deploy_policy: config.deploy_policy,
-        timing: config.timing,
     };
     tokio::spawn(discovery::freenet::poll_peers(
         freenet_config.clone(),
@@ -48,7 +44,7 @@ pub async fn run(
         let client = discovery::freenet::connect_retry(&freenet_config, &target_rx).await;
         discovery::freenet::run_lobby(&freenet_config, client, target_rx, lobby_tx).await;
     });
-    let mut tick = tokio::time::interval(timing.tick.max(Duration::from_secs(1)));
+    let mut tick = tokio::time::interval(discovery::TICK);
     loop {
         let input = tokio::select! {
             Some(command) = commands.recv() => Input::Command(command),

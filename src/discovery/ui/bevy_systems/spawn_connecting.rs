@@ -4,12 +4,12 @@ use crate::discovery;
 use discovery::ui::basic::constants::{
     CONNECTING_TEXT_COLOR, SPINNER_ACCENT_COLOR, SPINNER_SIZE, SPINNER_TRACK_COLOR,
 };
-use discovery::ui::{ConnectingRoot, SpinnerRing, UiScreen};
+use discovery::ui::{ConnectingRoot, Screen, SpinnerRing};
 
 pub fn spawn_connecting(mut commands: Commands) {
     commands.spawn((
         ConnectingRoot,
-        DespawnOnExit(UiScreen::Connecting),
+        DespawnOnExit(Screen::Connecting),
         Node {
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),

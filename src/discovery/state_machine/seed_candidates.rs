@@ -18,9 +18,15 @@ pub fn seed_candidates(state: &mut State) {
         let newer = state
             .candidates
             .get(&peer)
-            .is_none_or(|known| known.updated_at < heartbeat.updated_at);
+            .is_none_or(|known| known.seen_at < heartbeat.updated_at);
         if newer {
-            state.candidates.insert(peer, heartbeat);
+            state.candidates.insert(
+                peer,
+                discovery::state_machine::Candidate {
+                    addrs: heartbeat.addrs,
+                    seen_at: heartbeat.updated_at,
+                },
+            );
         }
     }
 }
@@ -36,13 +42,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         let room = identity::RoomName::from("r");
         state.room = Some(discovery::JoinedRoom {
             name: room.clone(),

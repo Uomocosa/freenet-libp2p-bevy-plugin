@@ -10,7 +10,7 @@ const BAR_COLOR: Color = Color::srgb(0.106, 0.122, 0.153);
 const DIM_COLOR: Color = Color::srgb(0.62, 0.66, 0.72);
 const ROW_COLOR: Color = Color::srgb(0.16, 0.18, 0.23);
 const CONNECTED_COLOR: Color = Color::srgb(0.30, 0.82, 0.45);
-const KNOWN_COLOR: Color = Color::srgb(0.45, 0.48, 0.53);
+const LOST_COLOR: Color = Color::srgb(0.45, 0.48, 0.53);
 const PEER_SUFFIX_LEN: usize = 6;
 
 pub struct Overlay;
@@ -141,7 +141,7 @@ fn sync_room_bar(
             for (peer, member) in &room.members {
                 let dot = match member.status {
                     discovery::LinkStatus::Connected => CONNECTED_COLOR,
-                    discovery::LinkStatus::Known => KNOWN_COLOR,
+                    discovery::LinkStatus::Lost => LOST_COLOR,
                 };
                 rows.spawn((
                     Node {
@@ -177,7 +177,7 @@ fn sync_room_bar(
 const fn status_word(status: discovery::LinkStatus) -> &'static str {
     match status {
         discovery::LinkStatus::Connected => "connected",
-        discovery::LinkStatus::Known => "known",
+        discovery::LinkStatus::Lost => "lost",
     }
 }
 
@@ -243,7 +243,7 @@ mod tests {
                 Some("carol"),
                 discovery::LinkStatus::Connected,
             ),
-            ("12D3KooWdave00Qx7f", None, discovery::LinkStatus::Known),
+            ("12D3KooWdave00Qx7f", None, discovery::LinkStatus::Lost),
         ] {
             members.insert(
                 identity::PeerId::from(peer),

@@ -74,13 +74,10 @@ mod tests {
     use discovery::state_machine::{Handshake, Output, State};
 
     fn session_in_room() -> State {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
             members: discovery::Members::new(),

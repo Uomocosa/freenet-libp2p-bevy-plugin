@@ -4,7 +4,7 @@ use bevy::text::{EditableText, TextCursorStyle};
 use crate::discovery;
 use discovery::ui::basic::constants::{CARET_COLOR, CARET_SELECTION_COLOR};
 use discovery::ui::{
-    CreateRoomButton, HoverGlow, HoverOutlineOnly, RoomList, RoomNameInput, UiRoot, UiScreen,
+    CreateRoomButton, HoverGlow, HoverOutlineOnly, RoomList, RoomNameInput, Root, Screen,
 };
 
 const PANEL_COLOR: Color = Color::srgb(0.30, 0.12, 0.34);
@@ -13,8 +13,8 @@ const INPUT_COLOR: Color = Color::srgb(0.10, 0.10, 0.12);
 
 pub fn spawn_root(mut commands: Commands) {
     commands.spawn((
-        UiRoot,
-        DespawnOnExit(UiScreen::Lobby),
+        Root,
+        DespawnOnExit(Screen::Lobby),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(48.0),

@@ -1,9 +1,9 @@
 fn main() {
-    println!("{}", token_hex());
+    println!("{}", new_game_id());
 }
 
 #[must_use]
-pub fn token_hex() -> String {
+pub fn new_game_id() -> String {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
@@ -14,11 +14,11 @@ pub fn token_hex() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::token_hex;
+    use super::new_game_id;
 
     #[test]
     fn test_usage() {
-        let token = token_hex();
+        let token = new_game_id();
         assert_eq!(token.len(), 16);
         assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
     }

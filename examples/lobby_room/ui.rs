@@ -106,7 +106,7 @@ fn rebuild_list(
         .entity(*column)
         .despawn_related::<Children>()
         .with_children(|parent| {
-            for (name, record) in &snapshot.lobby {
+            for (name, record) in snapshot.lobby.iter() {
                 parent.spawn((
                     JoinButton(name.clone()),
                     Button,

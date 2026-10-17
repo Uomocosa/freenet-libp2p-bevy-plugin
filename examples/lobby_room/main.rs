@@ -43,7 +43,6 @@ async fn main() {
             || freenet_libp2p_bevy_plugin::game_id!(),
             identity::GameId::from,
         ),
-        timing: discovery::Timing::default(),
         room_size: 8,
         deploy_policy: discovery::freenet::DeployPolicy::FetchOrDeploy,
     });

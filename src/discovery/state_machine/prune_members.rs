@@ -3,11 +3,11 @@ use discovery::state_machine::{Output, State};
 
 #[must_use]
 pub fn prune_members(state: &mut State, now: discovery::UnixTime) -> Vec<Output> {
-    let ttl = state.timing.heartbeat_ttl;
-    let grace = state.timing.member_grace;
+    let ttl = discovery::state_machine::HEARTBEAT_TTL;
+    let grace = discovery::state_machine::MEMBER_GRACE;
     state
         .candidates
-        .retain(|_, heartbeat| now.since(heartbeat.updated_at) <= ttl);
+        .retain(|_, candidate| now.since(candidate.seen_at) <= ttl);
     let connected = &state.connected;
     let Some(room) = state.room.as_mut() else {
         return Vec::new();
@@ -32,13 +32,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         let mut members = discovery::Members::new();
         for peer in ["live", "gone"] {
             members.insert(
@@ -49,7 +46,7 @@ mod tests {
                         updated_at: discovery::UnixTime::from_secs(0),
                         display_name: None,
                     },
-                    status: discovery::LinkStatus::Known,
+                    status: discovery::LinkStatus::Lost,
                 },
             );
         }

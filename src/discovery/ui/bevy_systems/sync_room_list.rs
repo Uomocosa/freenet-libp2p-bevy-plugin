@@ -2,19 +2,19 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use discovery::ui::basic::constants::ROOM_COLOR;
-use discovery::ui::{HoverGlow, RoomButton, RoomDetails, RoomList};
+use discovery::ui::{HoverGlow, RoomButton, RoomList, RoomRow};
 
 pub fn sync_room_list(
     mut commands: Commands,
     snapshot: Res<discovery::Snapshot>,
     list: Single<(Entity, Ref<RoomList>)>,
-    mut shown: Local<Vec<RoomDetails>>,
+    mut shown: Local<Vec<RoomRow>>,
 ) {
     let snapshot = snapshot.into_inner();
-    let wanted: Vec<RoomDetails> = snapshot
+    let wanted: Vec<RoomRow> = snapshot
         .lobby
         .iter()
-        .map(|(name, record)| RoomDetails {
+        .map(|(name, record)| RoomRow {
             name: name.clone(),
             members: record.members.len(),
             room_size: record.room_size,

@@ -35,7 +35,7 @@ fn mark_lost(state: &mut State, peer: &identity::PeerId, now: discovery::UnixTim
     else {
         return Vec::new();
     };
-    member.status = discovery::LinkStatus::Known;
+    member.status = discovery::LinkStatus::Lost;
     member.heartbeat.updated_at = now;
     vec![Output::Notify(discovery::Event::MembersChanged)]
 }
@@ -50,13 +50,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         let outputs = handle_net_event(
             &mut state,
             p2p::NetEvent::PeerConnected(identity::PeerId::from("a")),

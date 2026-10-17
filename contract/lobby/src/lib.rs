@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 
 #[path = "__basic__/mod.rs"]
 pub mod basic;
-pub use basic::newtypes::{RemotePeerId, RoomName};
+pub use basic::newtypes::{PeerId, RoomName};
 pub use basic::structs::{Heartbeat, Room};
-pub use basic::type_aliases::LobbyState;
+pub use basic::type_aliases::Lobby;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Deref)]
 pub struct UnixTime(pub u64);
@@ -53,7 +53,7 @@ fn merge_room(current: Option<Room>, incoming: Room) -> Room {
     }
 }
 
-fn merge_lobby(mut base: LobbyState, incoming: LobbyState) -> LobbyState {
+fn merge_lobby(mut base: Lobby, incoming: Lobby) -> Lobby {
     for (room, record) in incoming {
         if !valid_room_name(room.as_str()) {
             continue;
@@ -80,7 +80,7 @@ fn decode_update(data: UpdateData<'static>) -> Option<Vec<u8>> {
     }
 }
 
-fn decode_lobby(bytes: &[u8]) -> Result<LobbyState, ContractError> {
+fn decode_lobby(bytes: &[u8]) -> Result<Lobby, ContractError> {
     bincode::deserialize(bytes).map_err(|e| ContractError::InvalidUpdateWithInfo {
         reason: e.to_string(),
     })
@@ -95,7 +95,7 @@ impl ContractInterface for LobbyContract {
         state: State<'static>,
         _related: RelatedContracts<'static>,
     ) -> Result<ValidateResult, ContractError> {
-        let lobby: LobbyState =
+        let lobby: Lobby =
             bincode::deserialize(state.as_ref()).map_err(|_| ContractError::InvalidState)?;
         if lobby.len() > MAX_ROOMS {
             return Err(ContractError::InvalidState);
@@ -116,7 +116,7 @@ impl ContractInterface for LobbyContract {
         state: State<'static>,
         data: Vec<UpdateData<'static>>,
     ) -> Result<UpdateModification<'static>, ContractError> {
-        let mut merged: LobbyState = bincode::deserialize(state.as_ref()).unwrap_or_default();
+        let mut merged: Lobby = bincode::deserialize(state.as_ref()).unwrap_or_default();
         for update in data {
             let Some(bytes) = decode_update(update) else {
                 continue;
@@ -136,7 +136,7 @@ impl ContractInterface for LobbyContract {
         _parameters: Parameters<'static>,
         state: State<'static>,
     ) -> Result<StateSummary<'static>, ContractError> {
-        let lobby: LobbyState =
+        let lobby: Lobby =
             bincode::deserialize(state.as_ref()).map_err(|_| ContractError::InvalidState)?;
         Ok(StateSummary::from(bincode::serialize(&lobby)?))
     }
@@ -146,7 +146,7 @@ impl ContractInterface for LobbyContract {
         state: State<'static>,
         summary: StateSummary<'static>,
     ) -> Result<StateDelta<'static>, ContractError> {
-        let ours: LobbyState =
+        let ours: Lobby =
             bincode::deserialize(state.as_ref()).map_err(|_| ContractError::InvalidState)?;
         if summary.as_ref() == bincode::serialize(&ours)?.as_slice() {
             return Ok(StateDelta::from(Vec::new()));
@@ -161,7 +161,7 @@ mod tests {
 
     use super::*;
 
-    fn state_of(lobby: &LobbyState) -> State<'static> {
+    fn state_of(lobby: &Lobby) -> State<'static> {
         State::from(bincode::serialize(lobby).unwrap())
     }
 
@@ -174,7 +174,7 @@ mod tests {
     fn room(peer: &str, updated_at: UnixTime) -> Room {
         let mut members = BTreeMap::new();
         members.insert(
-            RemotePeerId(peer.to_string()),
+            PeerId(peer.to_string()),
             Heartbeat {
                 addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
                 updated_at,
@@ -191,31 +191,28 @@ mod tests {
     fn test_usage() {
         let params = Parameters::from(Vec::new());
         let related = RelatedContracts::default();
-        let empty = state_of(&LobbyState::default());
+        let empty = state_of(&Lobby::default());
         assert!(matches!(
             LobbyContract::validate_state(params.clone(), empty, related.clone()),
             Ok(ValidateResult::Valid)
         ));
 
-        let mut base = LobbyState::new();
+        let mut base = Lobby::new();
         base.insert(
             RoomName("room-a".to_string()),
             room("peer", UnixTime::from_secs(5)),
         );
         let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&base).unwrap()));
-        let merged = LobbyContract::update_state(
-            params.clone(),
-            state_of(&LobbyState::default()),
-            vec![update],
-        )
-        .unwrap();
+        let merged =
+            LobbyContract::update_state(params.clone(), state_of(&Lobby::default()), vec![update])
+                .unwrap();
         let bytes = state_bytes(merged);
-        let decoded: LobbyState = bincode::deserialize(&bytes).unwrap();
+        let decoded: Lobby = bincode::deserialize(&bytes).unwrap();
         assert_eq!(decoded.len(), 1);
 
         let older = UpdateData::Delta(StateDelta::from(
             bincode::serialize(&{
-                let mut old = LobbyState::new();
+                let mut old = Lobby::new();
                 old.insert(
                     RoomName("room-a".to_string()),
                     room("peer", UnixTime::from_secs(1)),
@@ -226,9 +223,9 @@ mod tests {
         ));
         let merged = LobbyContract::update_state(params, State::from(bytes), vec![older]).unwrap();
         let bytes = state_bytes(merged);
-        let decoded: LobbyState = bincode::deserialize(&bytes).unwrap();
+        let decoded: Lobby = bincode::deserialize(&bytes).unwrap();
         assert_eq!(
-            decoded[&RoomName("room-a".to_string())].members[&RemotePeerId("peer".to_string())]
+            decoded[&RoomName("room-a".to_string())].members[&PeerId("peer".to_string())]
                 .updated_at,
             UnixTime::from_secs(5)
         );

@@ -22,7 +22,7 @@ pub struct FreenetPort(pub u16);
 pub struct CommandSender(pub UnboundedSender<discovery::Command>);
 
 #[derive(Resource, Debug, Deref)]
-pub struct EventFeed(pub Mutex<Option<UnboundedReceiver<discovery::Event>>>);
+pub struct EventReceiver(pub Mutex<Option<UnboundedReceiver<discovery::Event>>>);
 
 #[derive(Resource, Debug, Deref)]
-pub struct SnapshotFeed(pub Mutex<Option<UnboundedReceiver<Snapshot>>>);
+pub struct SnapshotReceiver(pub Mutex<Option<UnboundedReceiver<Snapshot>>>);

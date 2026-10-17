@@ -19,13 +19,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: vec![identity::PeerAddr::from("/ip4/9")],
-            },
-            discovery::Timing::default(),
-        );
+        let state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: vec![identity::PeerAddr::from("/ip4/9")],
+        });
         assert_eq!(snapshot(&state), discovery::Snapshot::default());
     }
 }

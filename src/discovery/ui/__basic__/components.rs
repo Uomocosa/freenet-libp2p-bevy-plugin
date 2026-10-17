@@ -4,7 +4,7 @@ use derive_more::{Deref, DerefMut};
 use crate::identity;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
-pub struct UiRoot;
+pub struct Root;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomNameInput;

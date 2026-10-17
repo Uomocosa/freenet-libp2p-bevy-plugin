@@ -19,13 +19,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: vec![identity::PeerAddr::from("/ip4/9")],
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: vec![identity::PeerAddr::from("/ip4/9")],
+        });
         assert!(heartbeat_target(&state).is_none());
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),

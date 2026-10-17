@@ -2,21 +2,13 @@ use std::time::Duration;
 
 use crate::discovery;
 
-#[must_use]
-pub fn live_lobby(
-    lobby: discovery::Lobby,
-    now: discovery::UnixTime,
-    ttl: Duration,
-) -> discovery::Lobby {
-    lobby
-        .into_iter()
-        .filter_map(|(room, mut record)| {
-            record
-                .members
-                .retain(|_, heartbeat| now.since(heartbeat.updated_at) <= ttl);
-            (!record.members.is_empty()).then_some((room, record))
-        })
-        .collect()
+pub fn prune(lobby: &mut discovery::Lobby, now: discovery::UnixTime, ttl: Duration) {
+    for record in lobby.values_mut() {
+        record
+            .members
+            .retain(|_, heartbeat| now.since(heartbeat.updated_at) <= ttl);
+    }
+    lobby.retain(|_, record| !record.members.is_empty());
 }
 
 #[cfg(test)]
@@ -24,7 +16,7 @@ mod tests {
     use crate::identity;
     use std::collections::BTreeMap;
 
-    use super::live_lobby;
+    use super::prune;
     use crate::discovery;
 
     fn heartbeat(updated_at: discovery::UnixTime) -> discovery::Heartbeat {
@@ -37,7 +29,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut lobby = discovery::Lobby::new();
+        let mut lobby = discovery::Lobby::default();
         lobby.insert(
             identity::RoomName::from("live"),
             discovery::Room {
@@ -64,11 +56,12 @@ mod tests {
                 )]),
             },
         );
-        let live = live_lobby(
-            lobby,
+        prune(
+            &mut lobby,
             discovery::UnixTime::from_secs(200),
-            discovery::Timing::default().heartbeat_ttl,
+            discovery::state_machine::HEARTBEAT_TTL,
         );
+        let live = lobby;
         let rooms: Vec<_> = live.keys().map(|room| room.as_str()).collect();
         assert_eq!(rooms, vec!["live"]);
         let members = live

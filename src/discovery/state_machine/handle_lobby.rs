@@ -3,10 +3,10 @@ use discovery::state_machine::{Output, State};
 
 pub fn handle_lobby(
     state: &mut State,
-    lobby: discovery::Lobby,
+    mut lobby: discovery::Lobby,
     now: discovery::UnixTime,
 ) -> Vec<Output> {
-    let lobby = discovery::state_machine::live_lobby(lobby, now, state.timing.heartbeat_ttl);
+    lobby.prune(now, discovery::state_machine::HEARTBEAT_TTL);
     if lobby == state.lobby {
         return Vec::new();
     }
@@ -26,13 +26,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
             members: discovery::Members::new(),
@@ -48,7 +45,7 @@ mod tests {
                 },
             );
         }
-        let mut lobby = discovery::Lobby::new();
+        let mut lobby = discovery::Lobby::default();
         lobby.insert(
             identity::RoomName::from("r"),
             discovery::Room {

@@ -22,8 +22,8 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     let (snapshot_tx, snapshot_rx) = tokio::sync::mpsc::unbounded_channel();
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
     let (command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel();
-    app.insert_resource(discovery::SnapshotFeed(Mutex::new(Some(snapshot_rx))));
-    app.insert_resource(discovery::EventFeed(Mutex::new(Some(event_rx))));
+    app.insert_resource(discovery::SnapshotReceiver(Mutex::new(Some(snapshot_rx))));
+    app.insert_resource(discovery::EventReceiver(Mutex::new(Some(event_rx))));
     app.insert_resource(discovery::CommandSender(command_tx));
 
     let Some(net) = net_link(app) else {
@@ -38,7 +38,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         error!(target: "discovery", "discovery: FreenetPort missing, discovery disabled");
         return;
     };
-    let channels = discovery::Channels {
+    let channels = discovery::RunChannels {
         net,
         commands: command_rx,
         snapshots: snapshot_tx,
@@ -47,14 +47,14 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     tokio::spawn(discovery::run((**plugin).clone(), endpoint, channels));
 }
 
-fn net_link(app: &mut App) -> Option<discovery::libp2p::P2PChannels> {
+fn net_link(app: &mut App) -> Option<discovery::libp2p::NetLink> {
     let events = app
         .world_mut()
         .get_resource_mut::<p2p::NetEventChannel>()
         .and_then(|tap| tap.take_rx())?;
-    let commands = (**app.world().get_resource::<p2p::NetCommandChannel>()?).clone();
+    let commands = (**app.world().get_resource::<p2p::NetCommandSender>()?).clone();
     let (ready, observed) = app.world().get_resource::<p2p::ReadyChannel>()?.subscribe();
-    Some(discovery::libp2p::P2PChannels {
+    Some(discovery::libp2p::NetLink {
         commands,
         events,
         ready,

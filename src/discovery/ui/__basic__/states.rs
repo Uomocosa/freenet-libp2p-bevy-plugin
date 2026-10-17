@@ -1,7 +1,7 @@
 use bevy::prelude::{States, SubStates};
 
 #[derive(States, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum UiScreen {
+pub enum Screen {
     #[default]
     Connecting,
     Lobby,
@@ -9,7 +9,7 @@ pub enum UiScreen {
 }
 
 #[derive(SubStates, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-#[source(UiScreen = UiScreen::InRoom)]
+#[source(Screen = Screen::InRoom)]
 pub enum LeaveDialog {
     #[default]
     Closed,

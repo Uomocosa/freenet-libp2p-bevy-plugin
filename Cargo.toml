@@ -2,12 +2,12 @@
 name = "freenet-libp2p-bevy-plugin"
 version = "0.0.1"
 edition = "2024"
-description = "Generic P2PBevyPlugin (Freenet discovery + libp2p Kademlia history) — Directory contract"
+description = "Generic P2PBevyPlugin (Freenet discovery + libp2p Kademlia history) — Freenet lobby contract"
 license = "MIT OR Apache-2.0"
 
 [[bin]]
 name = "new-game-id"
-path = "src/bin/token_hex.rs"
+path = "src/bin/new_game_id.rs"
 
 [[example]]
 name = "lobby_room"

@@ -27,13 +27,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         let room = identity::RoomName::from("r");
         let outputs = update(
             &mut state,
@@ -48,13 +45,10 @@ mod tests {
 
     #[test]
     fn own_addrs_changed_replaces_own_addrs() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: vec![identity::PeerAddr::from("/ip4/1")],
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: vec![identity::PeerAddr::from("/ip4/1")],
+        });
         let addrs = vec![identity::PeerAddr::from("/ip4/2")];
         update(
             &mut state,

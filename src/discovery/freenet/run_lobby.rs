@@ -7,12 +7,12 @@ use crate::discovery;
 use discovery::freenet::basic::constants;
 
 pub async fn run_lobby(
-    freenet_config: &discovery::freenet::FreenetConfig,
-    mut lobby_contract: discovery::freenet::LobbyContract,
+    freenet_config: &discovery::freenet::Config,
+    mut subscription: discovery::freenet::LobbyContractSubscription,
     mut target: Receiver<Option<discovery::state_machine::HeartbeatTarget>>,
     lobbies: UnboundedSender<discovery::Lobby>,
 ) {
-    let mut tick = tokio::time::interval(freenet_config.timing.tick.max(Duration::from_secs(1)));
+    let mut tick = tokio::time::interval(discovery::TICK);
     let mut last_sent: Option<discovery::Lobby> = None;
     let mut last_refresh: Option<Instant> = None;
     let mut last_bridge: Option<Instant> = None;
@@ -28,14 +28,14 @@ pub async fn run_lobby(
             }
         }
         let now = Instant::now();
-        let mut lobby = discovery::freenet::poll(&mut lobby_contract).await.ok();
-        if is_due(last_bridge, now, freenet_config.timing.bridge) {
-            let _ = discovery::freenet::bridge_subscription(&mut lobby_contract);
+        let mut lobby = discovery::freenet::poll(&mut subscription).await.ok();
+        if is_due(last_bridge, now, constants::RESUBSCRIBE) {
+            let _ = discovery::freenet::bridge_subscription(&mut subscription);
             last_bridge = Some(now);
         }
-        if is_due(last_refresh, now, freenet_config.timing.lobby) {
+        if is_due(last_refresh, now, constants::LOBBY_REFRESH) {
             let timeout = constants::REQUEST_TIMEOUT;
-            let refresh = discovery::freenet::refresh(&mut lobby_contract);
+            let refresh = discovery::freenet::refresh(&mut subscription);
             if let Ok(Ok(fresh)) = tokio::time::timeout(timeout, refresh).await {
                 lobby = Some(fresh);
             }
@@ -44,14 +44,14 @@ pub async fn run_lobby(
         if let Some(lobby) = lobby
             && last_sent.as_ref() != Some(&lobby)
         {
-            tracing::info!(target: "discovery", rooms = lobby.len(), "lobby board changed");
+            tracing::info!(target: "discovery", rooms = lobby.len(), "lobby changed");
             last_sent = Some(lobby.clone());
             if lobbies.send(lobby).is_err() {
                 return;
             }
         }
         let current = target.borrow_and_update().clone();
-        if is_due(last_publish, now, freenet_config.timing.republish)
+        if is_due(last_publish, now, constants::REPUBLISH)
             && let Some(current) = current
         {
             let heartbeat = discovery::Heartbeat {
@@ -61,7 +61,7 @@ pub async fn run_lobby(
             };
             let room = current.room.clone();
             match discovery::freenet::publish_heartbeat(
-                &mut lobby_contract,
+                &mut subscription,
                 &current.room,
                 &freenet_config.me,
                 heartbeat,

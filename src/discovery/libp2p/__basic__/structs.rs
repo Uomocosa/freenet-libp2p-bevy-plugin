@@ -4,7 +4,7 @@ use tokio::sync::watch::Receiver;
 use crate::identity;
 use crate::p2p;
 
-pub struct P2PChannels {
+pub struct NetLink {
     pub commands: UnboundedSender<p2p::NetCommand>,
     pub events: UnboundedReceiver<p2p::NetEvent>,
     pub ready: Receiver<Option<identity::Peer>>,

@@ -6,7 +6,7 @@ pub fn tick(state: &mut State, now: discovery::UnixTime) -> Vec<Output> {
     let mut outputs = discovery::state_machine::dial_candidates(state, now);
     let handshake_due = state
         .last_handshake
-        .is_none_or(|last| now.since(last) >= state.timing.handshake);
+        .is_none_or(|last| now.since(last) >= discovery::state_machine::HANDSHAKE_EVERY);
     if handshake_due && state.room.is_some() {
         outputs.extend(discovery::state_machine::broadcast_handshake(state));
         state.last_handshake = Some(now);
@@ -24,13 +24,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         state.connected.insert(identity::PeerId::from("a"));
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),

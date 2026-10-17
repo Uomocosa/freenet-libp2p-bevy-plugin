@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use discovery::{Event, EventFeed};
+use discovery::{Event, EventReceiver};
 
-pub fn drain_events(feed: Res<EventFeed>, mut events: MessageWriter<Event>) {
+pub fn drain_events(feed: Res<EventReceiver>, mut events: MessageWriter<Event>) {
     let feed = feed.into_inner();
     let Ok(mut guard) = feed.lock() else {
         return;
@@ -31,7 +31,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_message::<discovery::Event>();
-        app.insert_resource(discovery::EventFeed(Mutex::new(Some(rx))));
+        app.insert_resource(discovery::EventReceiver(Mutex::new(Some(rx))));
         app.add_systems(Update, drain_events);
         tx.send(discovery::Event::LobbyChanged).ok();
         app.update();

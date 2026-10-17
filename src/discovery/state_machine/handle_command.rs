@@ -57,13 +57,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         state.connected.insert(identity::PeerId::from("a"));
         let room = identity::RoomName::from("r");
         let mut outputs = handle_command(
@@ -91,13 +88,10 @@ mod tests {
 
     #[test]
     fn test_empty_room_rejected() {
-        let mut state = State::new(
-            identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            discovery::Timing::default(),
-        );
+        let mut state = State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         let outputs = handle_command(
             &mut state,
             discovery::Command::Create(identity::RoomName::from("   ")),

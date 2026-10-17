@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::discovery;
 
 pub fn drain_snapshots(
-    feed: Res<discovery::SnapshotFeed>,
+    feed: Res<discovery::SnapshotReceiver>,
     mut current: ResMut<discovery::Snapshot>,
 ) {
     let feed = feed.into_inner();
@@ -38,10 +38,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.init_resource::<discovery::Snapshot>();
-        app.insert_resource(discovery::SnapshotFeed(Mutex::new(Some(rx))));
+        app.insert_resource(discovery::SnapshotReceiver(Mutex::new(Some(rx))));
         app.add_systems(Update, drain_snapshots);
         let snapshot = discovery::Snapshot {
-            lobby: discovery::Lobby::new(),
+            lobby: discovery::Lobby::default(),
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("r"),
                 members: discovery::Members::new(),
