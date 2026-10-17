@@ -7,6 +7,7 @@ pub struct Config {
     pub display_name: identity::Username,
     pub room_size: discovery::RoomSize,
     pub deploy_policy: discovery::freenet::DeployPolicy,
+    pub auto_subscribe: discovery::AutoSubscribe,
 }
 
 impl Default for Config {
@@ -16,6 +17,7 @@ impl Default for Config {
             display_name: identity::Username::from("anonymous"),
             room_size: discovery::RoomSize::DEFAULT,
             deploy_policy: discovery::freenet::DeployPolicy::default(),
+            auto_subscribe: discovery::AutoSubscribe::default(),
         }
     }
 }
@@ -35,5 +37,6 @@ mod tests {
             config.deploy_policy,
             discovery::freenet::DeployPolicy::FetchOrDeploy
         );
+        assert_eq!(config.auto_subscribe, discovery::AutoSubscribe::Enabled);
     }
 }

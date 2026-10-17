@@ -16,6 +16,12 @@ pub enum MdnsMode {
     Disabled,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Via {
+    Gossipsub,
+    Stream,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetEvent {
     Ready(identity::Peer),
@@ -74,6 +80,12 @@ pub enum NetCommand {
     Subscribe {
         topic: identity::Topic,
     },
+    SubscribeRoom {
+        room: identity::RoomName,
+    },
+    UnsubscribeRoom {
+        room: identity::RoomName,
+    },
     Publish {
         topic: identity::Topic,
         data: Vec<u8>,
@@ -91,11 +103,24 @@ pub enum Command<T> {
         peer_id: identity::PeerId,
         payload: T,
     },
+    Publish {
+        room: identity::RoomName,
+        payload: T,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Event<T> {
     Net(NetEvent),
-    Message { from: identity::PeerId, payload: T },
+    Message {
+        from: identity::PeerId,
+        payload: T,
+    },
+    RoomMessage {
+        room: identity::RoomName,
+        from: identity::PeerId,
+        payload: T,
+        via: Via,
+    },
     Error(String),
 }

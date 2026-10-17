@@ -38,6 +38,13 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         error!(target: "discovery", "discovery: FreenetPort missing, discovery disabled");
         return;
     };
+    if plugin.auto_subscribe == discovery::AutoSubscribe::Enabled {
+        app.add_systems(
+            Update,
+            discovery::bevy_systems::sync_room_subscription
+                .after(discovery::bevy_systems::drain_events),
+        );
+    }
     let channels = discovery::RunChannels {
         net,
         commands: command_rx,

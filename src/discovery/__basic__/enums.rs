@@ -14,6 +14,13 @@ pub enum RoomPhase {
     Ready,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Default)]
+pub enum AutoSubscribe {
+    #[default]
+    Enabled,
+    Disabled,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 pub enum Step {
     #[display("fetch")]

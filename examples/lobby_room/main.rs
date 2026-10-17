@@ -33,16 +33,17 @@ async fn main() {
     let username = identity::Username::from(args.username.clone());
     app.insert_resource(status::LocalUser(username.clone()));
     app.insert_resource(intent::Intent::new(args.action.clone()));
-    app.add_plugins(plugin::P2PPlugin(plugin::Config::<dummy::Dummy>::new(
-        transport,
-        p2p::MdnsMode::Disabled,
-    )));
+    let game = args.token.clone().map_or_else(
+        || freenet_libp2p_bevy_plugin::game_id!(),
+        identity::GameId::from,
+    );
+    app.add_plugins(plugin::P2PPlugin(
+        plugin::Config::<dummy::Dummy>::new(transport, p2p::MdnsMode::Disabled)
+            .with_game(game.clone()),
+    ));
     let discovery_plugins = discovery::Plugins(discovery::Config {
         display_name: username,
-        game: args.token.clone().map_or_else(
-            || freenet_libp2p_bevy_plugin::game_id!(),
-            identity::GameId::from,
-        ),
+        game,
         ..discovery::Config::default()
     });
     // scripted input runs through Bevy's real typing/clicking paths

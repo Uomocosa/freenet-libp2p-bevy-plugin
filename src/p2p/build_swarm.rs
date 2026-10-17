@@ -10,6 +10,7 @@ use crate::p2p;
 pub fn build_swarm<T: p2p::Message>(
     keypair: Keypair,
     mdns: p2p::MdnsMode,
+    gossipsub_config: &p2p::GossipsubConfig,
 ) -> Result<libp2p::Swarm<p2p::Behaviour<T>>, String> {
     let peer_id = keypair.public().to_peer_id();
     let swarm = libp2p::SwarmBuilder::with_existing_identity(keypair)
@@ -55,7 +56,9 @@ pub fn build_swarm<T: p2p::Message>(
                 );
                 let gossipsub = gossipsub::Behaviour::new(
                     gossipsub::MessageAuthenticity::Signed(kp.clone()),
-                    gossipsub::Config::default(),
+                    gossipsub_config
+                        .config()
+                        .map_err(|e| format!("gossipsub: {e}"))?,
                 )
                 .map_err(|e| format!("gossipsub: {e}"))?;
                 Ok(p2p::Behaviour {
@@ -98,7 +101,11 @@ mod tests {
     #[test]
     fn test_usage() {
         let kp = Keypair::generate_ed25519();
-        let swarm = build_swarm::<Dummy>(kp, p2p::MdnsMode::Disabled);
+        let swarm = build_swarm::<Dummy>(
+            kp,
+            p2p::MdnsMode::Disabled,
+            &p2p::GossipsubConfig::default(),
+        );
         assert!(swarm.is_ok());
     }
 }

@@ -9,7 +9,7 @@ pub mod ui;
 pub mod basic;
 
 pub use basic::constants::*;
-pub use basic::enums::{LinkStatus, RoomPhase, Step};
+pub use basic::enums::{AutoSubscribe, LinkStatus, RoomPhase, Step};
 pub use basic::messages::{Command, Event};
 pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, Snapshot, SnapshotReceiver};
 pub use basic::structs::{Heartbeat, JoinedRoom, Member, Room, RunChannels};

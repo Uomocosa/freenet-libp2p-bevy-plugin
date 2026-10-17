@@ -201,28 +201,137 @@ full mesh, converge 112 ms).
 
 Goal: app can publish a payload to all peers of a room via gossipsub.
 
-- [ ] Add `NetCommand::{SubscribeRoom{room}, UnsubscribeRoom{room}}` and
+- [x] Add `NetCommand::{SubscribeRoom{room}, UnsubscribeRoom{room}}` and
       `Command::<T>::Publish{ room, payload: T }` (or a dedicated generic room message
       type — decide and document). Topic name = `"<game_id>/room/<room_name>"`.
-- [ ] Event: `Event::<T>::RoomMessage { room, from, payload, via: Via::Gossipsub }`
+- [x] Event: `Event::<T>::RoomMessage { room, from, payload, via: Via::Gossipsub }`
       (introduce `Via` enum now; Stream comes in A3).
-- [ ] Wire `handle_gossipsub.rs` + `dispatch_command.rs`. Tune gossipsub for low
+- [x] Wire `handle_gossipsub.rs` + `dispatch_command.rs`. Tune gossipsub for low
       latency in small rooms (heartbeat ~100 ms, `mesh_n_low` suitable for ≤8 peers,
       `flood_publish = true`), all values in a `GossipsubConfig` struct with defaults.
-- [ ] Discovery integration: on `discovery::Event::Joined(room)` the plugin auto-
+- [x] Discovery integration: on `discovery::Event::Joined(room)` the plugin auto-
       subscribes; on `Left` auto-unsubscribes (configurable, default on).
-- [ ] Check gossipsub `max_transmit_size` (default 64 KiB) and document it; room
+- [x] Check gossipsub `max_transmit_size` (default 64 KiB) and document it; room
       payloads larger than the limit must be rejected with an error, not silently dropped.
-- [ ] Test-only seam: a way (`#[cfg(test)]` / dev-only feature) to inject
+- [x] Test-only seam: a way (`#[cfg(test)]` / dev-only feature) to inject
       `discovery::Event::Joined` + a member set into headless Apps without Freenet, so
       A5/A6/B5 headless tests need no lobby. Starboard bins and `lobby_room` must NOT use it.
-- [ ] Unit tests: topic name builder, config defaults.
-- [ ] Headless in-process test: 3 swarms on localhost (direct dial allowed — comment
+- [x] Unit tests: topic name builder, config defaults.
+- [x] Headless in-process test: 3 swarms on localhost (direct dial allowed — comment
       why), all subscribe, one publishes, the other two receive exactly once.
-- [ ] Gate green.
+- [x] Gate green.
 
 ### What was done (Step A2)
-_(agent fills)_
+
+**Files added (product):**
+- `src/p2p/room_topic.rs` — `room_topic(game, room) -> identity::Topic`, the
+  `"<game_id>/room/<room_name>"` builder (test covers a slash-bearing game id).
+- `src/p2p/gossipsub_config.rs` — `GossipsubConfig` with `Default`
+  (`heartbeat 100 ms`, `mesh_n_low 2`, `mesh_n 4`, `mesh_n_high 8`,
+  `max_transmit_size 65536`, `is_flood_publish_enabled true`) and
+  `config() -> Result<gossipsub::Config, ConfigBuilderError>`.
+- `src/p2p/swarm_loop/room_topics.rs` — `RoomTopics { game, by_hash }`: registers
+  `TopicHash → RoomName` on subscribe, drops it on unsubscribe, looks up inbound
+  topics. Routing never parses the topic string (game ids contain `/`).
+- `src/discovery/bevy_systems/sync_room_subscription.rs` — reads
+  `discovery::Event` messages and pushes `p2p::NetCommand::{SubscribeRoom,
+  UnsubscribeRoom}` into `p2p::PendingNetCommands`.
+
+**Files changed (product):**
+- `src/p2p/__basic__/enums.rs` — `Via::{Gossipsub,Stream}`;
+  `NetCommand::{SubscribeRoom,UnsubscribeRoom}`; `Command::Publish{room,payload}`;
+  `Event::RoomMessage{room,from,payload,via}`.
+- `src/p2p/__basic__/structs.rs` — `RunnerConfig { mode, mdns, game, gossipsub }`.
+- `src/p2p/build_swarm.rs` — takes `&GossipsubConfig`; builds the behaviour from
+  `config()` (map error to `String`).
+- `src/p2p/run.rs`, `src/p2p/spawn_runner.rs` — take `RunnerConfig`; `run` owns a
+  `RoomTopics` and threads it (plus the gossipsub limits) through dispatch/handle.
+- `src/p2p/swarm_loop/{dispatch_command,dispatch_net_command,handle_swarm_event,
+  handle_gossipsub}.rs` — room subscribe/unsubscribe/publish; inbound registered
+  topics decode into `RoomMessage`, unknown topics still emit `NetEvent::Gossip`,
+  undecodable payloads emit `Event::Error`.
+- `src/p2p/mod.rs` — exports `GossipsubConfig`, `room_topic`, `RunnerConfig`, `Via`.
+- `src/plugin/config.rs` — `Config` gains `game: GameId` (default `"test"`) and
+  `gossipsub: GossipsubConfig`; `with_game`/`with_gossipsub` constructors.
+- `methods/p2p_plugin/build_plugin.rs` — builds `RunnerConfig` from the plugin config.
+- `src/discovery/__basic__/enums.rs`, `src/discovery/config.rs` — `AutoSubscribe
+  { Enabled, Disabled }` (default `Enabled`), `Config::auto_subscribe`.
+- `methods/plugin/build_plugin.rs` — registers `sync_room_subscription` after the
+  `net_link` check (so a discovery-without-P2P app does not panic on the missing
+  `PendingNetCommands`) and only when `Enabled`.
+- `examples/lobby_room/main.rs` — one `game` value is passed to both the p2p and the
+  discovery config.
+
+**Public API added:** `p2p::GossipsubConfig`, `p2p::RunnerConfig`, `p2p::room_topic`,
+`p2p::Via`; `NetCommand::{SubscribeRoom,UnsubscribeRoom}`, `Command::Publish`,
+`Event::RoomMessage`; `plugin::Config::{game,gossipsub,with_game,with_gossipsub}`;
+`discovery::AutoSubscribe`, `discovery::Config::auto_subscribe`. Breaking (0.0.1):
+`build_swarm`, `run`, `spawn_runner` signatures.
+
+**Tests added / extended:**
+- `p2p::room_topic::tests::test_usage` (topic shape; `game/id` keeps its slash).
+- `p2p::gossipsub_config::tests::test_usage` (defaults and the built config's getters).
+- `p2p::swarm_loop::room_topics::tests::test_usage` (register / lookup / unregister).
+- `p2p::swarm_loop::dispatch_command::tests::{subscribe_room_registers_its_topic,
+  oversize_room_payload_is_an_error}` (70 000-byte payload → `Event::Error`).
+- `p2p::swarm_loop::dispatch_net_command::tests::
+  room_subscribe_and_unsubscribe_track_the_map`.
+- `p2p::swarm_loop::handle_gossipsub::tests::{registered_room_topic_becomes_a_room_message,
+  undecodable_room_payload_is_an_error}`; the raw-topic `test_usage` still passes.
+- `discovery::bevy_systems::sync_room_subscription::tests::{test_usage,
+  unrelated_events_are_ignored}` (Bevy App + `Messages<Event>` + `PendingNetCommands`).
+- `p2p::run::tests::transport_only_three_swarms_receive_a_room_payload_exactly_once`
+  (3 swarms, TCP, one publishes, both others receive exactly once, 1.8 s).
+- `discovery::config::tests::test_usage` asserts `auto_subscribe == Enabled`.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**138 passed**, 3 skipped), `just lint`, `just bevy-lint`, and `just e2e-join`
+(5 real windows over the Freenet mainnet: ring 5/5, discovery 6344 ms, join 3940 ms
+full mesh, converge 112 ms). No contract changes, so no contract recipes; A2 has no
+e2e box, but the join e2e was run as extra evidence.
+
+**Log evidence (real join, `.local-run/lobby_room_join-1792234085/`):** every one of
+the 5 instances logged `p2p room subscribed room=room-1792234085` 33–45 ms after its
+`discovery joined room` line, exactly once, with zero `p2p room unsubscribed` and zero
+`p2p error` lines. The subscribe marker is a new `tracing::info!` in
+`dispatch_net_command` (`p2p room subscribed` / `p2p room unsubscribed`).
+
+**Deviations / decisions:**
+- **Auto-subscribe is a Bevy system, not a state-machine transition.** The state
+  machine folder is an honest boundary (no Bevy/libp2p); the bridge reads
+  `discovery::Event` and writes `PendingNetCommands`. It is registered after the
+  `net_link` check so a discovery-only app keeps working.
+- **The game id for topics lives in `plugin::Config`.** The plan did not say where it
+  comes from; `NetCommand::SubscribeRoom{room}` needs it, so `RunnerConfig.game` carries
+  it into the swarm loop. The example passes one `game` to both plugins so the topic
+  namespace and the lobby namespace cannot drift.
+- **The test seam needs no `cfg(test)`/dev feature.** Headless injection is just the
+  normal plugin boundary: write the `discovery::Snapshot` resource (it already holds
+  `room.members`) and write `discovery::Event` messages. A5/A6/B5 reuse it; starboard
+  bins and `lobby_room` receive real events instead.
+- **`NetEvent::Gossip` is kept** for unregistered topics (raw bytes). `NetCommand::
+  {Subscribe,Publish}` also remain as the explicit-topic escape hatch, and `Publish`
+  errors are now surfaced instead of ignored.
+- **The 3-swarm test wires peers by direct dial** (HARD RULE §0.8 allows in-process
+  transport tests). Its rationale is recorded here because `LELE031` forbids comments in
+  `src/`; the test is named `transport_only_…` and settles 500 ms after full connection
+  (five heartbeats) before publishing.
+- **Oversize policy.** The plan says reject, not drop: `Command::Publish` pre-checks the
+  serialized length against `GossipsubConfig::max_transmit_size` (65536, libp2p's own
+  default) and any remaining `PublishError` is mapped to `Event::Error`.
+- **`plugin::Config::new` is no longer `const`** (it builds the default `GameId`); A4 can
+  revisit if a const constructor matters.
+
+**Open issues (for later steps):**
+- A publish before the gossipsub mesh knows the subscription returns
+  `NoPeersSubscribedToTopic` → `Event::Error`; starboard must tolerate that until peers
+  connect. A6's anti-entropy is the repair path.
+- `game` is now set in two configs (`plugin::Config` + `discovery::Config`); A4's
+  `RoomConfig` should unify it.
+- `NetEvent::Gossip` and `Command::Publish` overlap; A4 can drop the raw variant once
+  nothing needs it.
+- `MIN_RING_PEERS` no longer exists on `main` (commit `87a73ce` replaced the ring gate
+  with `lobby_attached`); the §2 orientation is stale there.
 
 ---
 

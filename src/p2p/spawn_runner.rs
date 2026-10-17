@@ -10,15 +10,15 @@ pub fn spawn_runner<T: p2p::Message>(
     net_rx: UnboundedReceiver<p2p::NetCommand>,
     event_tx: UnboundedSender<p2p::Event<T>>,
     keypair: Keypair,
-    mode: p2p::TransportMode,
-    mdns: p2p::MdnsMode,
+    config: p2p::RunnerConfig,
 ) -> JoinHandle<()> {
-    tokio::spawn(p2p::run(cmd_rx, net_rx, event_tx, keypair, mode, mdns))
+    tokio::spawn(p2p::run(cmd_rx, net_rx, event_tx, keypair, config))
 }
 
 #[cfg(test)]
 mod tests {
     use super::spawn_runner;
+    use crate::identity;
     use crate::p2p;
 
     #[tokio::test]
@@ -32,8 +32,12 @@ mod tests {
             net_rx,
             event_tx,
             keypair,
-            p2p::TransportMode::Both,
-            p2p::MdnsMode::Disabled,
+            p2p::RunnerConfig {
+                mode: p2p::TransportMode::Both,
+                mdns: p2p::MdnsMode::Disabled,
+                game: identity::GameId::from("test"),
+                gossipsub: p2p::GossipsubConfig::default(),
+            },
         );
         let found = tokio::time::timeout(std::time::Duration::from_secs(10), async {
             while let Some(event) = event_rx.recv().await {

@@ -22,16 +22,22 @@ pub use matches_transport::matches_transport;
 #[path = "__basic__/mod.rs"]
 pub mod basic;
 
-pub use basic::enums::{Command, Event, MdnsMode, NetCommand, NetEvent, TransportMode};
+pub use basic::enums::{Command, Event, MdnsMode, NetCommand, NetEvent, TransportMode, Via};
 pub use basic::newtypes::ChunkIndex;
 pub use basic::resources::{CommandSender, EventReceiver, NetCommandSender};
-pub use basic::structs::HistoryChunkId;
+pub use basic::structs::{HistoryChunkId, RunnerConfig};
 
 pub mod mdns_behaviour;
 pub use mdns_behaviour::mdns_behaviour;
 
 pub mod build_swarm;
 pub use build_swarm::build_swarm;
+
+pub mod gossipsub_config;
+pub use gossipsub_config::GossipsubConfig;
+
+pub mod room_topic;
+pub use room_topic::room_topic;
 
 pub mod run;
 pub use run::run;

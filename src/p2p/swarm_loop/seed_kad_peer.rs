@@ -33,7 +33,12 @@ mod tests {
     use crate::p2p;
 
     fn swarm() -> libp2p::Swarm<p2p::Behaviour<u32>> {
-        p2p::build_swarm::<u32>(Keypair::generate_ed25519(), p2p::MdnsMode::Disabled).unwrap()
+        p2p::build_swarm::<u32>(
+            Keypair::generate_ed25519(),
+            p2p::MdnsMode::Disabled,
+            &p2p::GossipsubConfig::default(),
+        )
+        .unwrap()
     }
 
     #[tokio::test]
