@@ -216,6 +216,7 @@ mod tests {
         app.insert_resource(discovery::Snapshot::default());
         app.insert_resource(crate::status::LocalUser(identity::Username::from("alice")));
         app.add_plugins(Overlay);
+        join_first_room(app.world_mut());
     }
 
     fn join_first_room(world: &mut World) {
@@ -224,6 +225,8 @@ mod tests {
             members: discovery::Members::new(),
         });
     }
+
+    const fn preview_noop(_world: &mut World) {}
 
     fn join_room(world: &mut World) {
         let mut snapshot = world.resource_mut::<discovery::Snapshot>();
@@ -281,7 +284,7 @@ mod tests {
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("room without peers"),
-                    apply: join_first_room,
+                    apply: preview_noop,
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("room with peers"),
