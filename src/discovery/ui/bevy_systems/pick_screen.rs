@@ -4,17 +4,17 @@ use crate::discovery;
 use discovery::ui::Screen;
 
 pub fn pick_screen(
-    snapshot: Res<discovery::Snapshot>,
+    status: Res<discovery::Status>,
     screen: Res<State<Screen>>,
     mut next: ResMut<NextState<Screen>>,
 ) {
-    let snapshot = snapshot.into_inner();
+    let status = status.into_inner();
     let current = *screen.into_inner().get();
-    let phase = snapshot.room.as_ref().map(|room| room.phase);
+    let phase = status.room.as_ref().map(|room| room.phase);
     let wanted = match (phase, current) {
         (Some(discovery::RoomPhase::Ready), _) => Screen::InRoom,
         (Some(discovery::RoomPhase::Joining), _) => Screen::JoiningRoom,
-        (None, Screen::Connecting) if !snapshot.lobby_attached => Screen::Connecting,
+        (None, Screen::Connecting) if !status.is_lobby_attached => Screen::Connecting,
         (None, _) => Screen::Lobby,
     };
     if wanted != current {
@@ -40,11 +40,11 @@ mod tests {
             .collect()
     }
 
-    fn screen_after(snapshot: discovery::Snapshot) -> discovery::ui::Screen {
+    fn screen_after(status: discovery::Status) -> discovery::ui::Screen {
         let mut app = App::new();
         app.add_plugins(StatesPlugin);
         app.init_state::<discovery::ui::Screen>();
-        app.insert_resource(snapshot);
+        app.insert_resource(status);
         app.add_systems(Update, pick_screen);
         app.update();
         app.update();
@@ -54,16 +54,16 @@ mod tests {
     #[test]
     fn test_usage() {
         assert_eq!(
-            screen_after(discovery::Snapshot::default()),
+            screen_after(discovery::Status::default()),
             discovery::ui::Screen::Connecting
         );
-        let ready = discovery::Snapshot {
+        let ready = discovery::Status {
             freenet_peers: ready_peers(),
-            lobby_attached: true,
+            is_lobby_attached: true,
             ..Default::default()
         };
         assert_eq!(screen_after(ready.clone()), discovery::ui::Screen::Lobby);
-        let joining = discovery::Snapshot {
+        let joining = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: discovery::UnixTime::from_secs(0),
@@ -73,7 +73,7 @@ mod tests {
             ..ready.clone()
         };
         assert_eq!(screen_after(joining), discovery::ui::Screen::JoiningRoom);
-        let joined = discovery::Snapshot {
+        let joined = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: discovery::UnixTime::from_secs(0),

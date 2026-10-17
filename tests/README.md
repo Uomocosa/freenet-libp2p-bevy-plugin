@@ -30,7 +30,7 @@ different machines/networks. Do **NOT** add any shortcut, in the example or the 
 
 - Do **not** enable mDNS (the example hardcodes `mdns = false`; keep it that way).
 - Do **not** seed Kademlia (`AddKadPeer`) or call `bootstrap()` with known addresses.
-- Do **not** use `ProvideLobby` / `FindLobby` / `ReserveRelay`.
+- Do **not** use `ReserveRelay`.
 - Do **not** hardcode bootstrap peers or peer ids.
 - Do **not** pass peer ids/addrs between instances via files, env vars, or the harness.
 - Discovery must remain: the creator writes its heartbeat to the Freenet lobby, other

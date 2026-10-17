@@ -17,7 +17,7 @@ pub fn handle_net_event(
             state.connected.remove(&peer);
             mark_lost(state, &peer, now)
         }
-        p2p::NetEvent::Exchange { from, data } => {
+        p2p::NetEvent::PeerExchange { from, data } => {
             discovery::state_machine::handle_handshake(state, &from, &data, now)
         }
         _ => return Vec::new(),
@@ -62,7 +62,7 @@ mod tests {
         assert!(state.connected.contains(&identity::PeerId::from("a")));
         assert!(matches!(
             outputs.as_slice(),
-            [Output::NetCommand(p2p::NetCommand::Exchange { peer_id, .. })] if peer_id.as_str() == "a"
+            [Output::NetCommand(p2p::NetCommand::PeerExchange { peer_id, .. })] if peer_id.as_str() == "a"
         ));
         let _ = handle_net_event(
             &mut state,

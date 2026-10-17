@@ -1,7 +1,7 @@
 //! End-to-end UI preview of the whole `lobby_room` passage, with a fake discovery backend:
 //! app start (plugin connecting screen) -> freenet ring ready + lobby listed -> click Join
 //! on a room -> peers arrive one by one -> hover the leave door -> click it, answer No
-//! -> press Esc, answer Yes -> back in the lobby. Only `discovery::Snapshot` is faked; the click
+//! -> press Esc, answer Yes -> back in the lobby. Only `discovery::Status` is faked; the click
 //! goes through the plugin's real `discovery::ui::DefaultUiPlugin` button path and the
 //! real `discovery::Command`.
 
@@ -41,7 +41,7 @@ mod tests {
 
     fn preview_build(app: &mut App) {
         app.add_message::<discovery::Command>();
-        app.insert_resource(discovery::Snapshot::default());
+        app.insert_resource(discovery::Status::default());
         app.insert_resource(status::LocalUser(identity::Username::from("alice")));
         app.init_resource::<ButtonInput<KeyCode>>();
         app.add_plugins((discovery::ui::DefaultUiPlugin, overlay::Overlay));
@@ -124,39 +124,39 @@ mod tests {
     /// drops it
     fn fake_backend(
         mut commands: MessageReader<discovery::Command>,
-        mut snapshot: ResMut<discovery::Snapshot>,
+        mut status: ResMut<discovery::Status>,
     ) {
         for command in commands.read() {
             match command {
                 discovery::Command::Join(name) => {
-                    snapshot.room = Some(discovery::JoinedRoom {
+                    status.room = Some(discovery::JoinedRoom {
                         name: name.clone(),
                         created_at: discovery::UnixTime::from_secs(0),
                         phase: discovery::RoomPhase::Ready,
                         members: discovery::Members::new(),
                     });
                 }
-                discovery::Command::Leave => snapshot.room = None,
+                discovery::Command::Leave => status.room = None,
                 _ => {}
             }
         }
     }
 
     fn ring_ready(world: &mut World) {
-        let mut snapshot = world.resource_mut::<discovery::Snapshot>();
-        snapshot.freenet_peers = (0..1)
+        let mut status = world.resource_mut::<discovery::Status>();
+        status.freenet_peers = (0..1)
             .map(|index| identity::FreenetPeer {
                 id: identity::FreenetPeerId::from(format!("gateway-{index}").as_str()),
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
             })
             .collect();
-        snapshot.lobby_attached = true;
+        status.is_lobby_attached = true;
     }
 
     fn list_lobby(world: &mut World) {
-        let mut snapshot = world.resource_mut::<discovery::Snapshot>();
+        let mut status = world.resource_mut::<discovery::Status>();
         for (name, room_size) in [("alpha", 8), ("beta", 4), (JOIN_ROOM, 8)] {
-            snapshot.lobby.insert(
+            status.lobby.insert(
                 identity::RoomName::from(name),
                 discovery::Room {
                     room_size: discovery::RoomSize::try_from(room_size)
@@ -182,8 +182,8 @@ mod tests {
         let Some((peer, name)) = PEERS.get(index) else {
             return;
         };
-        let mut snapshot = world.resource_mut::<discovery::Snapshot>();
-        let Some(room) = snapshot.room.as_mut() else {
+        let mut status = world.resource_mut::<discovery::Status>();
+        let Some(room) = status.room.as_mut() else {
             return;
         };
         room.members.insert(
@@ -212,7 +212,7 @@ mod tests {
 
     fn room_full(world: &mut World) {
         lobby_listed(world);
-        world.resource_mut::<discovery::Snapshot>().room = Some(discovery::JoinedRoom {
+        world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from(JOIN_ROOM),
             created_at: discovery::UnixTime::from_secs(0),
             phase: discovery::RoomPhase::Ready,

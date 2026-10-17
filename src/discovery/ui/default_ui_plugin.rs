@@ -37,19 +37,19 @@ mod tests {
         );
     }
 
-    fn preview_snapshot() -> discovery::Snapshot {
-        let mut snapshot = discovery::Snapshot {
+    fn preview_snapshot() -> discovery::Status {
+        let mut status = discovery::Status {
             freenet_peers: (1..=3_u16)
                 .map(|port| identity::FreenetPeer {
                     id: identity::FreenetPeerId::from(format!("peer-{port}").as_str()),
                     addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
                 })
                 .collect(),
-            lobby_attached: true,
+            is_lobby_attached: true,
             ..Default::default()
         };
         for (name, room_size) in [("alpha", 8), ("beta", 4)] {
-            snapshot.lobby.insert(
+            status.lobby.insert(
                 identity::RoomName::from(name),
                 discovery::Room {
                     room_size: discovery::RoomSize::try_from(room_size)
@@ -59,7 +59,7 @@ mod tests {
                 },
             );
         }
-        snapshot
+        status
     }
 
     const fn preview_noop(_world: &mut World) {}

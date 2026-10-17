@@ -38,6 +38,6 @@ pub struct JoinedRoom {
 pub struct RunChannels {
     pub net: discovery::libp2p::NetLink,
     pub commands: UnboundedReceiver<discovery::Command>,
-    pub snapshots: UnboundedSender<discovery::Snapshot>,
+    pub statuses: UnboundedSender<discovery::Status>,
     pub events: UnboundedSender<discovery::Event>,
 }

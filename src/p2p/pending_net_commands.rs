@@ -25,9 +25,10 @@ mod tests {
     fn test_usage() {
         let mut commands = PendingNetCommands::default();
         assert!(commands.is_empty());
-        commands.push(p2p::NetCommand::FindRoom {
-            room: identity::RoomName::from("room"),
-        });
+        commands.push(p2p::NetCommand::Dial(identity::Peer {
+            id: identity::PeerId::from("room"),
+            addrs: Vec::new(),
+        }));
         assert_eq!(commands.len(), 1);
     }
 }

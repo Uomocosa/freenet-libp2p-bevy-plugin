@@ -6,7 +6,7 @@ use crate::p2p;
 pub fn handle_gossipsub<T: p2p::Message>(
     swarm: &libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
-    rooms: &p2p::swarm_loop::RoomTopics,
+    subscriptions: &p2p::swarm_loop::RoomSubscriptions,
     gossip_event: gossipsub::Event,
 ) {
     match gossip_event {
@@ -16,7 +16,7 @@ pub fn handle_gossipsub<T: p2p::Message>(
             message,
         } => {
             log_gossip_in(swarm, &propagation_source, &message_id, &message);
-            forward_gossip(event_tx, rooms, propagation_source, message);
+            forward_gossip(event_tx, subscriptions, propagation_source, message);
         }
         gossipsub::Event::Subscribed { peer_id, topic } => {
             tracing::debug!(target: "p2p", peer = %peer_id, topic = %topic, "p2p gossip subscribed");
@@ -58,12 +58,12 @@ fn log_gossip_in<T: p2p::Message>(
 // needed helper: converts a gossipsub wire message into a Bevy event
 fn forward_gossip<T: p2p::Message>(
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
-    rooms: &p2p::swarm_loop::RoomTopics,
+    subscriptions: &p2p::swarm_loop::RoomSubscriptions,
     propagation_source: libp2p::PeerId,
     message: gossipsub::Message,
 ) {
     let from = identity::PeerId(message.source.unwrap_or(propagation_source).to_string());
-    let Some(room) = rooms.room(&message.topic) else {
+    let Some(room) = subscriptions.room(&message.topic) else {
         event_tx
             .send(p2p::Event::Net(p2p::NetEvent::Gossip {
                 topic: identity::Topic(message.topic.to_string()),
@@ -112,8 +112,8 @@ mod tests {
         .unwrap()
     }
 
-    fn rooms() -> p2p::swarm_loop::RoomTopics {
-        p2p::swarm_loop::RoomTopics::new(identity::GameId::from("game"))
+    fn subscriptions() -> p2p::swarm_loop::RoomSubscriptions {
+        p2p::swarm_loop::RoomSubscriptions::new(identity::GameId::from("game"))
     }
 
     fn message_event(
@@ -138,7 +138,7 @@ mod tests {
     fn test_usage() {
         let swarm = swarm();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let rooms = rooms();
+        let subscriptions = subscriptions();
         let relay = libp2p::PeerId::random();
         let event = message_event(
             &relay,
@@ -146,7 +146,7 @@ mod tests {
             vec![7],
             gossipsub::TopicHash::from_raw("lobby/topic"),
         );
-        handle_gossipsub(&swarm, &tx, &rooms, event);
+        handle_gossipsub(&swarm, &tx, &subscriptions, event);
         let Ok(p2p::Event::Net(p2p::NetEvent::Gossip { topic, from, data })) = rx.try_recv() else {
             panic!("expected a gossip event");
         };
@@ -158,15 +158,16 @@ mod tests {
     fn registered_room_topic_becomes_a_room_message() {
         let swarm = swarm();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let mut rooms = rooms();
+        let mut subscriptions = subscriptions();
         let room = identity::RoomName::from("room-a");
-        let topic = gossipsub::IdentTopic::new(p2p::room_topic(&rooms.game, &room).as_str());
-        rooms.register(&topic, room.clone());
+        let topic =
+            gossipsub::IdentTopic::new(p2p::room_topic(&subscriptions.game, &room).as_str());
+        subscriptions.register(&topic, room.clone());
         let data = bincode::serialize(&9u32).unwrap();
         handle_gossipsub(
             &swarm,
             &tx,
-            &rooms,
+            &subscriptions,
             message_event(
                 &libp2p::PeerId::random(),
                 Some(libp2p::PeerId::random()),
@@ -187,14 +188,15 @@ mod tests {
     fn undecodable_room_payload_is_an_error() {
         let swarm = swarm();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let mut rooms = rooms();
+        let mut subscriptions = subscriptions();
         let room = identity::RoomName::from("room-a");
-        let topic = gossipsub::IdentTopic::new(p2p::room_topic(&rooms.game, &room).as_str());
-        rooms.register(&topic, room);
+        let topic =
+            gossipsub::IdentTopic::new(p2p::room_topic(&subscriptions.game, &room).as_str());
+        subscriptions.register(&topic, room);
         handle_gossipsub(
             &swarm,
             &tx,
-            &rooms,
+            &subscriptions,
             message_event(&libp2p::PeerId::random(), None, Vec::new(), topic.hash()),
         );
         let Ok(p2p::Event::Error(message)) = rx.try_recv() else {

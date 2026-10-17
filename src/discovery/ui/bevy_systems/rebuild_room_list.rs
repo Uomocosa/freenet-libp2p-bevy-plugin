@@ -4,14 +4,14 @@ use crate::discovery;
 use discovery::ui::basic::constants::ROOM_COLOR;
 use discovery::ui::{HoverGlow, RoomButton, RoomList, RoomRow};
 
-pub fn sync_room_list(
+pub fn rebuild_room_list(
     mut commands: Commands,
-    snapshot: Res<discovery::Snapshot>,
+    status: Res<discovery::Status>,
     list: Single<(Entity, Ref<RoomList>)>,
     mut shown: Local<Vec<RoomRow>>,
 ) {
-    let snapshot = snapshot.into_inner();
-    let wanted: Vec<RoomRow> = snapshot
+    let status = status.into_inner();
+    let wanted: Vec<RoomRow> = status
         .lobby
         .iter()
         .map(|(name, record)| RoomRow {
@@ -56,15 +56,15 @@ mod tests {
     use crate::identity;
     use bevy::prelude::*;
 
-    use super::sync_room_list;
+    use super::rebuild_room_list;
     use crate::discovery;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        let mut snapshot = discovery::Snapshot::default();
+        let mut status = discovery::Status::default();
         for name in ["alpha", "beta"] {
-            snapshot.lobby.insert(
+            status.lobby.insert(
                 identity::RoomName::from(name),
                 discovery::Room {
                     room_size: discovery::RoomSize::DEFAULT,
@@ -73,9 +73,9 @@ mod tests {
                 },
             );
         }
-        app.insert_resource(snapshot);
+        app.insert_resource(status);
         app.world_mut().spawn(discovery::ui::RoomList);
-        app.add_systems(Update, sync_room_list);
+        app.add_systems(Update, rebuild_room_list);
         app.update();
         let mut buttons = app.world_mut().query::<&discovery::ui::RoomButton>();
         let mut names: Vec<String> = buttons
@@ -89,13 +89,13 @@ mod tests {
     fn preview_build(app: &mut App) {
         app.insert_resource(preview_snapshot());
         app.add_systems(Startup, spawn_list);
-        app.add_systems(Update, sync_room_list);
+        app.add_systems(Update, rebuild_room_list);
     }
 
-    fn preview_snapshot() -> discovery::Snapshot {
-        let mut snapshot = discovery::Snapshot::default();
+    fn preview_snapshot() -> discovery::Status {
+        let mut status = discovery::Status::default();
         for (name, room_size) in [("alpha", 8), ("beta", 4)] {
-            snapshot.lobby.insert(
+            status.lobby.insert(
                 identity::RoomName::from(name),
                 discovery::Room {
                     room_size: discovery::RoomSize::try_from(room_size)
@@ -105,7 +105,7 @@ mod tests {
                 },
             );
         }
-        snapshot
+        status
     }
 
     fn spawn_list(mut commands: Commands) {
@@ -126,8 +126,8 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn add_room(world: &mut World) {
-        let mut snapshot = world.resource_mut::<discovery::Snapshot>();
-        snapshot.lobby.insert(
+        let mut status = world.resource_mut::<discovery::Status>();
+        status.lobby.insert(
             identity::RoomName::from("gamma"),
             discovery::Room {
                 room_size: discovery::RoomSize::try_from(4).expect("fixture room size is non-zero"),
@@ -138,11 +138,11 @@ mod tests {
     }
 
     #[test]
-    fn sync_room_list_ui_png_preview() {
+    fn rebuild_room_list_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::run(
             &lele_bevy_preview::scene::Scene {
-                name: String::from("sync_room_list"),
+                name: String::from("rebuild_room_list"),
                 kind: lele_bevy_preview::scene::Kind::System,
                 build: preview_build,
                 states: vec![

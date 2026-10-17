@@ -6,19 +6,19 @@ use libp2p::request_response::Codec;
 use crate::p2p;
 
 #[derive(Clone, Debug, Deref)]
-pub struct MessageCodec<T>(std::marker::PhantomData<T>);
+pub struct MessageCodec<Req, Resp = Req>(std::marker::PhantomData<(Req, Resp)>);
 
-impl<T> Default for MessageCodec<T> {
+impl<Req, Resp> Default for MessageCodec<Req, Resp> {
     fn default() -> Self {
         Self(std::marker::PhantomData)
     }
 }
 
 #[async_trait]
-impl<T: p2p::Message> Codec for MessageCodec<T> {
+impl<Req: p2p::Message, Resp: p2p::Message> Codec for MessageCodec<Req, Resp> {
     type Protocol = StreamProtocol;
-    type Request = T;
-    type Response = T;
+    type Request = Req;
+    type Response = Resp;
 
     async fn read_request<R>(
         &mut self,

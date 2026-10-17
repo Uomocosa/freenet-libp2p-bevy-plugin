@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::discovery;
 use crate::p2p;
 
-pub fn sync_room_subscription(
+pub fn follow_room(
     mut events: MessageReader<discovery::Event>,
     mut pending: ResMut<p2p::PendingNetCommands>,
 ) {
@@ -24,7 +24,7 @@ pub fn sync_room_subscription(
 mod tests {
     use bevy::prelude::*;
 
-    use super::sync_room_subscription;
+    use super::follow_room;
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
@@ -34,7 +34,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.add_message::<discovery::Event>();
         app.init_resource::<p2p::PendingNetCommands>();
-        app.add_systems(Update, sync_room_subscription);
+        app.add_systems(Update, follow_room);
         app
     }
 

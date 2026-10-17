@@ -5,23 +5,21 @@ use crate::p2p;
 use crate::room_sync;
 
 pub fn write_ops<S: room_sync::RoomState>(
-    mut writer: ResMut<room_sync::RoomSync<S>>,
+    mut writer: ResMut<room_sync::PendingOps<S>>,
     mut clock: ResMut<room_sync::LamportClock>,
     ready: Res<p2p::ReadyChannel>,
-    snapshot: Option<Res<discovery::Snapshot>>,
-    game: Res<room_sync::RoomSyncGame>,
+    status: Option<Res<discovery::Status>>,
+    game: Res<room_sync::SyncGame>,
     mut pending: ResMut<p2p::PendingNetCommands>,
 ) {
     let ready = ready.into_inner();
-    let snapshot = snapshot.map(Res::into_inner);
+    let status = status.map(Res::into_inner);
     let game = game.into_inner();
     let ops = writer.take_all();
     if ops.is_empty() {
         return;
     }
-    let joined = snapshot
-        .as_ref()
-        .and_then(|snapshot| snapshot.room.as_ref());
+    let joined = status.as_ref().and_then(|status| status.room.as_ref());
     let (Some(joined), Some(me)) = (joined, ready.ready_rx.borrow().clone()) else {
         writer.restore(ops);
         return;

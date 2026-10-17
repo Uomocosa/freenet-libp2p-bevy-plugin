@@ -6,11 +6,11 @@ use discovery::ui::RoomButton;
 
 pub fn handle_join(
     buttons: Query<(&Interaction, &RoomButton), Changed<Interaction>>,
-    snapshot: Res<discovery::Snapshot>,
+    status: Res<discovery::Status>,
     mut commands: MessageWriter<discovery::Command>,
 ) {
-    let snapshot = snapshot.into_inner();
-    let current = snapshot.room.as_ref().map(|room| &room.name);
+    let status = status.into_inner();
+    let current = status.room.as_ref().map(|room| &room.name);
     for (interaction, button) in &buttons {
         if *interaction != Interaction::Pressed {
             continue;
@@ -38,7 +38,7 @@ mod tests {
     fn test_usage() {
         let mut app = App::new();
         app.add_message::<discovery::Command>();
-        app.init_resource::<discovery::Snapshot>();
+        app.init_resource::<discovery::Status>();
         let room = identity::RoomName::from("alpha");
         app.world_mut().spawn((
             discovery::ui::RoomButton(room.clone()),

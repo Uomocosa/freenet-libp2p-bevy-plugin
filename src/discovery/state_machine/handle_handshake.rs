@@ -109,7 +109,7 @@ mod tests {
             outputs.as_slice(),
             [
                 Output::Notify(discovery::Event::MembersChanged),
-                Output::NetCommand(p2p::NetCommand::Exchange { .. }),
+                Output::NetCommand(p2p::NetCommand::PeerExchange { .. }),
             ]
         ));
         let left = bincode::serialize(&Handshake::default()).unwrap_or_default();

@@ -1,7 +1,7 @@
 use crate::discovery;
 use discovery::state_machine::State;
 
-pub fn sync_room_created_at(state: &mut State) {
+pub fn align_room_created_at(state: &mut State) {
     let Some(room) = state.room.as_ref() else {
         return;
     };
@@ -18,7 +18,7 @@ pub fn sync_room_created_at(state: &mut State) {
 mod tests {
     use std::collections::BTreeMap;
 
-    use super::sync_room_created_at;
+    use super::align_room_created_at;
     use crate::discovery;
     use crate::identity;
     use discovery::state_machine::State;
@@ -44,7 +44,7 @@ mod tests {
                 members: BTreeMap::new(),
             },
         );
-        sync_room_created_at(&mut state);
+        align_room_created_at(&mut state);
         assert_eq!(
             state.room.as_ref().map(|room| room.created_at),
             Some(discovery::UnixTime::from_secs(100))
@@ -63,7 +63,7 @@ mod tests {
             phase: discovery::RoomPhase::Joining,
             members: discovery::Members::new(),
         });
-        sync_room_created_at(&mut state);
+        align_room_created_at(&mut state);
         assert_eq!(
             state.room.as_ref().map(|room| room.created_at),
             Some(discovery::UnixTime::from_secs(500))

@@ -6,3 +6,8 @@ use serde::{Deserialize, Serialize};
 )]
 #[from(forward)]
 pub struct ChunkIndex(pub u64);
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref,
+)]
+pub struct ReplyId(pub u64);

@@ -11,7 +11,7 @@ pub mod basic;
 pub use basic::constants::*;
 pub use basic::enums::{AutoSubscribe, LinkStatus, RoomPhase, Step};
 pub use basic::messages::{Command, Event};
-pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, Snapshot, SnapshotReceiver};
+pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, Status, StatusReceiver};
 pub use basic::structs::{Heartbeat, JoinedRoom, Member, Room, RunChannels};
 pub use basic::type_aliases::Members;
 
@@ -29,8 +29,6 @@ pub use config::Config;
 
 mod error;
 pub use error::Error;
-
-pub mod common;
 
 mod game_id;
 

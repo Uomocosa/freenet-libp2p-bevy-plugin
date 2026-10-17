@@ -13,7 +13,7 @@ pub async fn run(
     let discovery::RunChannels {
         mut net,
         mut commands,
-        snapshots,
+        statuses,
         events,
     } = channels;
     let Some(ready) = discovery::libp2p::wait_ready(&mut net.ready).await else {
@@ -69,7 +69,7 @@ pub async fn run(
             }
             changed
         });
-        let _ = snapshots.send(discovery::state_machine::snapshot(&state));
+        let _ = statuses.send(discovery::state_machine::status(&state));
     }
 }
 

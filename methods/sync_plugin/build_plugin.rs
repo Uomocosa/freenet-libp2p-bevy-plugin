@@ -17,9 +17,9 @@ pub fn build_plugin<S: room_sync::RoomState>(plugin: &room_sync::SyncPlugin<S>, 
     };
     app.init_resource::<S>();
     app.init_resource::<room_sync::LamportClock>();
-    app.init_resource::<room_sync::RoomSync<S>>();
+    app.init_resource::<room_sync::PendingOps<S>>();
     app.init_resource::<room_sync::bevy_systems::SyncState<S::Op>>();
-    app.insert_resource(room_sync::RoomSyncGame(plugin.game.clone()));
+    app.insert_resource(room_sync::SyncGame(plugin.game.clone()));
     app.insert_resource(room_sync::bevy_systems::NetEvents {
         receiver: Mutex::new(net_events),
     });
@@ -28,7 +28,7 @@ pub fn build_plugin<S: room_sync::RoomState>(plugin: &room_sync::SyncPlugin<S>, 
         (
             room_sync::bevy_systems::drive::<S>
                 .after(discovery::bevy_systems::drain_events)
-                .after(discovery::bevy_systems::drain_snapshots),
+                .after(discovery::bevy_systems::drain_status),
             room_sync::bevy_systems::write_ops::<S>,
         ),
     );
@@ -94,7 +94,7 @@ mod tests {
         app.update();
         assert!(
             app.world()
-                .get_resource::<room_sync::RoomSync<Map>>()
+                .get_resource::<room_sync::PendingOps<Map>>()
                 .is_some()
         );
         assert!(app.world().get_resource::<Map>().is_some());

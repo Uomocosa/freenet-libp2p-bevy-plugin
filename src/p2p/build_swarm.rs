@@ -48,7 +48,7 @@ pub fn build_swarm<T: p2p::Message>(
                     )],
                     request_response::Config::default(),
                 );
-                let exchange = request_response::Behaviour::with_codec(
+                let peer_exchange = request_response::Behaviour::with_codec(
                     p2p::MessageCodec::<Vec<u8>>::default(),
                     [(
                         StreamProtocol::new("/lobby/pex/1.0.0"),
@@ -57,7 +57,7 @@ pub fn build_swarm<T: p2p::Message>(
                     request_response::Config::default(),
                 );
                 let room_sync = request_response::Behaviour::with_codec(
-                    p2p::MessageCodec::<p2p::RoomSyncFrame>::default(),
+                    p2p::MessageCodec::<p2p::SnapshotRequest, p2p::SnapshotResponse>::default(),
                     [(
                         p2p::sync_protocol(game).map_err(|error| format!("room sync: {error}"))?,
                         request_response::ProtocolSupport::Full,
@@ -73,7 +73,7 @@ pub fn build_swarm<T: p2p::Message>(
                 .map_err(|e| format!("gossipsub: {e}"))?;
                 Ok(p2p::Behaviour {
                     request_response: rr,
-                    exchange,
+                    peer_exchange,
                     room_sync,
                     kademlia,
                     identify: identify::Behaviour::new(identify::Config::new(

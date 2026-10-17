@@ -2,7 +2,7 @@
 pub mod basic;
 
 pub use basic::constants::PART_BYTES;
-pub use basic::resources::RoomSyncGame;
+pub use basic::resources::SyncGame;
 pub use basic::structs::{OpMeta, SyncFrame};
 
 mod join_parts;
@@ -17,8 +17,8 @@ pub use peer_author::peer_author;
 mod room_state;
 pub use room_state::RoomState;
 
-mod room_sync;
-pub use room_sync::RoomSync;
+mod pending_ops;
+pub use pending_ops::PendingOps;
 
 mod sync_plugin;
 pub use sync_plugin::SyncPlugin;

@@ -18,7 +18,7 @@ pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
             ui::animate_hover,
             ui::spin_connecting.run_if(in_state(Screen::Connecting)),
             (
-                (ui::sync_room_list, ui::highlight_current_room).chain(),
+                (ui::rebuild_room_list, ui::highlight_current_room).chain(),
                 ui::gate_create,
                 ui::handle_create,
                 ui::handle_join,
@@ -47,7 +47,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
         app.add_message::<discovery::Command>();
-        app.init_resource::<discovery::Snapshot>();
+        app.init_resource::<discovery::Status>();
         build_plugin(&discovery::ui::DefaultUiPlugin, &mut app);
         super::super::finish_plugin(&discovery::ui::DefaultUiPlugin, &mut app);
         app.update();

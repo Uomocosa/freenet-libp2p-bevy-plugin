@@ -7,23 +7,23 @@ use crate::room_sync;
 
 pub fn drive<S: room_sync::RoomState>(
     room_events: Option<MessageReader<discovery::Event>>,
-    snapshot: Option<Res<discovery::Snapshot>>,
+    status: Option<Res<discovery::Status>>,
     net_events: Res<room_sync::bevy_systems::NetEvents>,
-    game: Res<room_sync::RoomSyncGame>,
+    game: Res<room_sync::SyncGame>,
     ready: Res<p2p::ReadyChannel>,
     mut clock: ResMut<room_sync::LamportClock>,
     mut state: ResMut<room_sync::bevy_systems::SyncState<S::Op>>,
     mut room: ResMut<S>,
     mut pending: ResMut<p2p::PendingNetCommands>,
 ) {
-    let snapshot = snapshot.map(Res::into_inner);
+    let status = status.map(Res::into_inner);
     let net_events = net_events.into_inner();
     let game = game.into_inner();
     let ready = ready.into_inner();
     let own = ready.ready_rx.borrow().clone().map(|peer| peer.id);
-    let members: Vec<identity::PeerId> = snapshot
+    let members: Vec<identity::PeerId> = status
         .as_ref()
-        .and_then(|snapshot| snapshot.room.as_ref())
+        .and_then(|status| status.room.as_ref())
         .map_or_else(Vec::new, |joined| {
             joined
                 .members
@@ -164,9 +164,9 @@ fn snapshot_frame<S: room_sync::RoomState>(
     room: &S,
     room_name: identity::RoomName,
     part: u32,
-) -> p2p::RoomSyncFrame {
+) -> p2p::SnapshotResponse {
     let Ok(bytes) = bincode::serialize(&room.snapshot()) else {
-        return p2p::RoomSyncFrame::Missing { room: room_name };
+        return p2p::SnapshotResponse::Missing { room: room_name };
     };
     let parts = room_sync::split_parts(&bytes, room_sync::PART_BYTES);
     let total = u32::try_from(parts.len()).unwrap_or(u32::MAX);
@@ -174,13 +174,13 @@ fn snapshot_frame<S: room_sync::RoomState>(
         .ok()
         .and_then(|index| parts.get(index).cloned());
     match data {
-        Some(data) => p2p::RoomSyncFrame::Part {
+        Some(data) => p2p::SnapshotResponse::Part {
             room: room_name,
             part,
             total,
             data,
         },
-        None => p2p::RoomSyncFrame::Missing { room: room_name },
+        None => p2p::SnapshotResponse::Missing { room: room_name },
     }
 }
 
@@ -244,7 +244,7 @@ mod tests {
         ));
         app.add_plugins(room_sync::SyncPlugin::<Map>::new(game.clone()));
         app.add_message::<discovery::Event>();
-        app.init_resource::<discovery::Snapshot>();
+        app.init_resource::<discovery::Status>();
         app.update();
         app
     }
@@ -268,8 +268,8 @@ mod tests {
             .clone()
     }
 
-    fn snapshot(room: &identity::RoomName, members: Vec<identity::PeerId>) -> discovery::Snapshot {
-        discovery::Snapshot {
+    fn status(room: &identity::RoomName, members: Vec<identity::PeerId>) -> discovery::Status {
+        discovery::Status {
             lobby: discovery::Lobby::default(),
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
@@ -293,12 +293,12 @@ mod tests {
                     .collect(),
             }),
             freenet_peers: Vec::new(),
-            lobby_attached: true,
+            is_lobby_attached: true,
         }
     }
 
     fn join(app: &mut App, room: &identity::RoomName, members: Vec<identity::PeerId>) {
-        app.insert_resource(snapshot(room, members));
+        app.insert_resource(status(room, members));
         app.world_mut()
             .resource_mut::<Messages<discovery::Event>>()
             .write(discovery::Event::Joined(room.clone()));

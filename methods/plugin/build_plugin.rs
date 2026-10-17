@@ -7,22 +7,22 @@ use crate::discovery;
 use crate::p2p;
 
 pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
-    app.init_resource::<discovery::Snapshot>();
+    app.init_resource::<discovery::Status>();
     app.add_message::<discovery::Command>();
     app.add_message::<discovery::Event>();
     app.add_systems(
         Update,
         (
-            discovery::bevy_systems::drain_snapshots,
+            discovery::bevy_systems::drain_status,
             discovery::bevy_systems::drain_events,
             discovery::bevy_systems::forward_commands,
         ),
     );
 
-    let (snapshot_tx, snapshot_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (status_tx, status_rx) = tokio::sync::mpsc::unbounded_channel();
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
     let (command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel();
-    app.insert_resource(discovery::SnapshotReceiver(Mutex::new(Some(snapshot_rx))));
+    app.insert_resource(discovery::StatusReceiver(Mutex::new(Some(status_rx))));
     app.insert_resource(discovery::EventReceiver(Mutex::new(Some(event_rx))));
     app.insert_resource(discovery::CommandSender(command_tx));
 
@@ -41,14 +41,13 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     if plugin.auto_subscribe == discovery::AutoSubscribe::Enabled {
         app.add_systems(
             Update,
-            discovery::bevy_systems::sync_room_subscription
-                .after(discovery::bevy_systems::drain_events),
+            discovery::bevy_systems::follow_room.after(discovery::bevy_systems::drain_events),
         );
     }
     let channels = discovery::RunChannels {
         net,
         commands: command_rx,
-        snapshots: snapshot_tx,
+        statuses: status_tx,
         events: event_tx,
     };
     tokio::spawn(discovery::run((**plugin).clone(), endpoint, channels));
@@ -82,6 +81,6 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         let plugin = discovery::Plugin::new(discovery::Config::default());
         build_plugin(&plugin, &mut app);
-        assert!(app.world().get_resource::<discovery::Snapshot>().is_some());
+        assert!(app.world().get_resource::<discovery::Status>().is_some());
     }
 }

@@ -96,13 +96,13 @@ first**. Loading a skill is cheap; skipping one is a correctness bug.
 
 - Crate root: `freenet-libp2p-bevy-plugin/` (this repo). Workspace tasks in `justfile`.
 - `src/p2p/`: libp2p swarm. `Behaviour<T>` (`src/p2p/behaviour.rs`) already contains
-  `request_response`, `exchange`, `kademlia`, `identify`, `ping`, **`gossipsub`** (present
+  `request_response`, `peer_exchange`, `kademlia`, `identify`, `ping`, **`gossipsub`** (present
   but no public command uses it yet), `relay`, `relay_client`, `dcutr`, `mdns`.
   Public API: `p2p::Command<T>::{Net(NetCommand), Send{peer_id,payload}}`,
   `p2p::Event<T>::{Net(NetEvent), Message{from,payload}, Error}` in
   `src/p2p/__basic__/enums.rs`; Bevy resources `p2p::Commands<T>` / `p2p::Events<T>`.
   Swarm loop handlers in `src/p2p/swarm_loop/` (`dispatch_command.rs`,
-  `handle_gossipsub.rs`, `handle_request_response.rs`, ...).
+  `handle_gossipsub.rs`, `handle_message.rs`, ...).
 - `src/discovery/`: Freenet lobby + room state machine (`state_machine/`), `Room`
   struct in `src/discovery/__basic__/structs.rs` (`room_size`, `members`),
   `UnixTime` in `src/discovery/unix_time.rs`, discovery `Command::{Create,Join,Leave}` /
@@ -150,7 +150,7 @@ Goal: rooms carry the unix time they were created; it is immutable once set.
   usage test now asserts `merged.created_at == min(200, 100)`.
 - `src/discovery/state_machine/handle_command.rs` — `join()` derives
   `created_at = state.lobby.get(&room).map_or(now, |record| record.created_at)`.
-- `src/discovery/state_machine/sync_room_created_at.rs` (**new**) — a transition that
+- `src/discovery/state_machine/align_room_created_at.rs` (**new**) — a transition that
   pulls the authoritative (min) `created_at` from `state.lobby` into `state.room`, so
   `JoinedRoom` self-heals once the contract's value is read back.
 - `src/discovery/state_machine/__basic__/structs.rs` — `HeartbeatTarget` carries
@@ -166,7 +166,7 @@ contract and plugin `Room`. `tests/contract_wire.rs` now builds the plugin room 
 
 **Tests added / extended:**
 - Contract unit: `merge_keeps_min_created_at_both_orders` (contract/lobby/src/lib.rs).
-- Plugin unit: `sync_room_created_at::tests::{test_usage,
+- Plugin unit: `align_room_created_at::tests::{test_usage,
   leaves_room_untouched_without_a_record}`; min assertion in `merge_room::tests`.
 - Harness: `tests/freenet_harness.rs` `one_room(updated_at, created_at)` — `gen_state`
   uses `created_at=100`, `gen_update` `created_at=200`, so the CRDT suite exercises the
@@ -187,7 +187,7 @@ full mesh, converge 112 ms).
 - **No blocking wait on the min-merge.** There is no consumable "your Update was merged"
   ack (`publish_heartbeat` is fire-and-forget; `poll` only reads `GetResponse`). Convergence
   is bounded by one `LOBBY_REFRESH` (5 s): a returned lobby carrying a lower `created_at`
-  is proof the min landed, and `handle_lobby` → `sync_room_created_at` folds it into
+  is proof the min landed, and `handle_lobby` → `align_room_created_at` folds it into
   `JoinedRoom`. No new timer, no join-path fetch.
 
 **Open issues (for later steps):**
@@ -230,10 +230,10 @@ Goal: app can publish a payload to all peers of a room via gossipsub.
   (`heartbeat 100 ms`, `mesh_n_low 2`, `mesh_n 4`, `mesh_n_high 8`,
   `max_transmit_size 65536`, `is_flood_publish_enabled true`) and
   `config() -> Result<gossipsub::Config, ConfigBuilderError>`.
-- `src/p2p/swarm_loop/room_topics.rs` — `RoomTopics { game, by_hash }`: registers
+- `src/p2p/swarm_loop/room_subscriptions.rs` — `RoomSubscriptions { game, by_topic }`: registers
   `TopicHash → RoomName` on subscribe, drops it on unsubscribe, looks up inbound
   topics. Routing never parses the topic string (game ids contain `/`).
-- `src/discovery/bevy_systems/sync_room_subscription.rs` — reads
+- `src/discovery/bevy_systems/follow_room.rs` — reads
   `discovery::Event` messages and pushes `p2p::NetCommand::{SubscribeRoom,
   UnsubscribeRoom}` into `p2p::PendingNetCommands`.
 
@@ -245,7 +245,7 @@ Goal: app can publish a payload to all peers of a room via gossipsub.
 - `src/p2p/build_swarm.rs` — takes `&GossipsubConfig`; builds the behaviour from
   `config()` (map error to `String`).
 - `src/p2p/run.rs`, `src/p2p/spawn_runner.rs` — take `RunnerConfig`; `run` owns a
-  `RoomTopics` and threads it (plus the gossipsub limits) through dispatch/handle.
+  `RoomSubscriptions` and threads it (plus the gossipsub limits) through dispatch/handle.
 - `src/p2p/swarm_loop/{dispatch_command,dispatch_net_command,handle_swarm_event,
   handle_gossipsub}.rs` — room subscribe/unsubscribe/publish; inbound registered
   topics decode into `RoomMessage`, unknown topics still emit `NetEvent::Gossip`,
@@ -256,7 +256,7 @@ Goal: app can publish a payload to all peers of a room via gossipsub.
 - `methods/p2p_plugin/build_plugin.rs` — builds `RunnerConfig` from the plugin config.
 - `src/discovery/__basic__/enums.rs`, `src/discovery/config.rs` — `AutoSubscribe
   { Enabled, Disabled }` (default `Enabled`), `Config::auto_subscribe`.
-- `methods/plugin/build_plugin.rs` — registers `sync_room_subscription` after the
+- `methods/plugin/build_plugin.rs` — registers `follow_room` after the
   `net_link` check (so a discovery-without-P2P app does not panic on the missing
   `PendingNetCommands`) and only when `Enabled`.
 - `examples/lobby_room/main.rs` — one `game` value is passed to both the p2p and the
@@ -278,7 +278,7 @@ Goal: app can publish a payload to all peers of a room via gossipsub.
   room_subscribe_and_unsubscribe_track_the_map`.
 - `p2p::swarm_loop::handle_gossipsub::tests::{registered_room_topic_becomes_a_room_message,
   undecodable_room_payload_is_an_error}`; the raw-topic `test_usage` still passes.
-- `discovery::bevy_systems::sync_room_subscription::tests::{test_usage,
+- `discovery::bevy_systems::follow_room::tests::{test_usage,
   unrelated_events_are_ignored}` (Bevy App + `Messages<Event>` + `PendingNetCommands`).
 - `p2p::run::tests::transport_only_three_swarms_receive_a_room_payload_exactly_once`
   (3 swarms, TCP, one publishes, both others receive exactly once, 1.8 s).
@@ -306,7 +306,7 @@ the 5 instances logged `p2p room subscribed room=room-1792234085` 33–45 ms aft
   it into the swarm loop. The example passes one `game` to both plugins so the topic
   namespace and the lobby namespace cannot drift.
 - **The test seam needs no `cfg(test)`/dev feature.** Headless injection is just the
-  normal plugin boundary: write the `discovery::Snapshot` resource (it already holds
+  normal plugin boundary: write the `discovery::Status` resource (it already holds
   `room.members`) and write `discovery::Event` messages. A5/A6/B5 reuse it; starboard
   bins and `lobby_room` receive real events instead.
 - **`NetEvent::Gossip` is kept** for unregistered topics (raw bytes). `NetCommand::
@@ -331,7 +331,7 @@ the 5 instances logged `p2p room subscribed room=room-1792234085` 33–45 ms aft
 - `NetEvent::Gossip` and `Command::Publish` overlap; A4 can drop the raw variant once
   nothing needs it.
 - `MIN_RING_PEERS` no longer exists on `main` (commit `87a73ce` replaced the ring gate
-  with `lobby_attached`); the §2 orientation is stale there.
+  with `is_lobby_attached`); the §2 orientation is stale there.
 
 ---
 
@@ -368,7 +368,7 @@ default 2 s / 8).
 drops `Via`); `src/p2p/__basic__/structs.rs` (`RunnerConfig.gossipsub` → `room`);
 `src/p2p/__basic__/enums.rs` (`Via` deleted, `RoomMessage.via` dropped,
 `Command::{Publish{payload}, PublishTo{room,payload}}`); `src/p2p/swarm_loop/room_topics.rs`
-(`RoomTopics.joined`, set on `register`, cleared on `unregister`);
+(`RoomSubscriptions.joined`, set on `register`, cleared on `unregister`);
 `src/p2p/swarm_loop/dispatch_command.rs` (`publish_joined` helper, "no joined room" error);
 `src/p2p/swarm_loop/handle_gossipsub.rs`, `src/p2p/run.rs`, `src/p2p/spawn_runner.rs`,
 `src/plugin/config.rs` (`room` field + `with_room`), `methods/p2p_plugin/build_plugin.rs`,
@@ -394,7 +394,7 @@ publish_without_a_joined_room_is_an_error, oversize_room_payload_is_an_error}`;
 - **Member tracking deferred to A5**: A4 has no product consumer for it (write-only state).
 
 **Open issues (for later steps):**
-- `RoomTopics.joined` is a single slot: a later `SubscribeRoom` replaces it. One room per
+- `RoomSubscriptions.joined` is a single slot: a later `SubscribeRoom` replaces it. One room per
   session is the current model.
 
 ---
@@ -403,19 +403,19 @@ publish_without_a_joined_room_is_an_error, oversize_room_payload_is_an_error}`;
 
 Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
 
-> Decision (A5 design): `RoomSync<S>` ships ops on its **own raw gossip topic**
+> Decision (A5 design): `PendingOps<S>` ships ops on its **own raw gossip topic**
 > `<game>/room/<room>/sync` (app's `T` stays free on the room topic); snapshots go over a
 > **new request/response behaviour** (`/<game>/room-sync/1`) with distinct request/response
-> frames. The member set comes from `discovery::Snapshot`, not from the swarm loop.
+> frames. The member set comes from `discovery::Status`, not from the swarm loop.
 
 - [x] `RoomState` trait (`Op`/`Snapshot`, `apply`/`snapshot`/`merge`) and a
-      `RoomSyncPlugin<S>` owning `Resource<S>` and a `LamportClock` resource (`tick`,
+      `SyncPlugin<S>` owning `Resource<S>` and a `LamportClock` resource (`tick`,
       `observe`).
 - [x] On `Joined`: `Fetch{part: 0}` to the **lowest connected member** (self excluded), retry
       the next on `SnapshotMissing`/`Tick`. Snapshots split into `PART_BYTES` (48 KiB) parts,
       one response per part; ops received before the snapshot are buffered and applied after
       `merge`.
-- [x] App ops go through the `RoomSync<S>` writer; the plugin wraps them with lamport +
+- [x] App ops go through the `PendingOps<S>` writer; the plugin wraps them with lamport +
       author and publishes them on the room's sync topic.
 - [x] Unit tests: Lamport laws; buffering-before-snapshot reducer; part split/join round-trip;
       frame codec; sync topic; peer author.
@@ -426,10 +426,10 @@ Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
 
 ### What was done (Step A5)
 
-**p2p surface (new):** `RoomSyncFrame` (`Fetch`/`Part`/`Missing`, in
-`src/p2p/__basic__/enums.rs`), `p2p::sync_protocol(&GameId)` (`/<game>/room-sync/1`), a third
-`request_response` behaviour `room_sync`, `RoomLoop` (bundles `queries`/`topics`/`pending`/
-`next_request`/`config`), `handle_room_sync`, and the `NetCommand::{Unsubscribe,
+**p2p surface (new):** `SnapshotRequest`/`SnapshotResponse` (`Fetch`; `Part`/`Missing`, in
+`src/p2p/__basic__/enums.rs`), `p2p::sync_protocol(&GameId)` (`/<game>/room-sync/2`), a third
+`request_response` behaviour `room_sync`, `RoomSubscriptions` + `PendingReplies`,
+`handle_room_sync`, and the `NetCommand::{Unsubscribe,
 FetchSnapshot, RespondSnapshot}` / `NetEvent::{SnapshotRequest, SnapshotPart, SnapshotMissing}`
 variants. The responder cannot compute `S::Snapshot` in the swarm loop, so the loop holds the
 `ResponseChannel` under a `u64` id and the plugin answers later via `RespondSnapshot`.
@@ -438,14 +438,14 @@ variants. The responder cannot compute `S::Snapshot` in the swarm loop, so the l
 `discovery/run.rs` follow.
 
 **`room_sync` domain (new):** `RoomState`, `OpMeta`, `LamportClock`, `peer_author`,
-`SyncFrame`, `sync_topic`, `split_parts`/`join_parts`, `RoomSync<S>` writer,
-`RoomSyncPlugin<S>` (+ `methods/sync_plugin/build_plugin.rs`), and a pure `state_machine`
+`SyncFrame`, `sync_topic`, `split_parts`/`join_parts`, `PendingOps<S>` writer,
+`SyncPlugin<S>` (+ `methods/sync_plugin/build_plugin.rs`), and a pure `state_machine`
 (`State`, `Input`, `Output`, `Phase`, `update`, `fetch_next`, `handle_*`, `tick`) with Bevy
 systems `drive` (inbound) and `write_ops` (outbound).
 
 **Public API added:** `room_sync::{RoomState, OpMeta, LamportClock, peer_author, SyncFrame,
-sync_topic, split_parts, join_parts, RoomSync, RoomSyncPlugin, SyncState, NetEvents}`;
-`p2p::{RoomSyncFrame, sync_protocol}`; `NetCommand::{Unsubscribe, FetchSnapshot,
+sync_topic, split_parts, join_parts, PendingOps, SyncPlugin, SyncState, NetEvents}`;
+`p2p::{SnapshotRequest, SnapshotResponse, sync_protocol}`; `NetCommand::{Unsubscribe, FetchSnapshot,
 RespondSnapshot}`; `NetEvent::{SnapshotRequest, SnapshotPart, SnapshotMissing,
 SnapshotFailed}`.
 
@@ -461,7 +461,7 @@ then gives up (draining buffered ops). Unit test:
 
 **Deviations / decisions:**
 - **Removed the swarm-loop member map.** `NetCommand::SetRoomMembers`, `RoomMembers` and
-  `sync_room_members` were dropped: the reducer reads members from `discovery::Snapshot`, so
+  `sync_room_members` were dropped: the reducer reads members from `discovery::Status`, so
   the loop-side map was write-only state. The plugin is discovery-*optional*
   (`Option<Res<Snapshot>>`, `Option<MessageReader<Event>>`).
 - **Snapshot parts recompute per `Fetch{part}`**, split by the `PART_BYTES` constant (48 KiB)
@@ -533,7 +533,7 @@ default UI shows a black "Joining room <name>" screen and blocks all input until
 - [x] `RoomPhase { Joining, Ready }`; `JoinedRoom.phase`; `State.joining_since`.
 - [x] `wait_for_contract_self_heal` transition: ready when the lobby record's
       `created_at` equals the room's; `JOIN_HEAL_TIMEOUT = 30s` fallback (warn + proceed).
-      Called from `handle_lobby` (after `sync_room_created_at`) and `tick`.
+      Called from `handle_lobby` (after `align_room_created_at`) and `tick`.
 - [x] `Event::RoomReady(room)`.
 - [x] `Screen::JoiningRoom` + `spawn_joining_room` (black screen + "Joining room <name>");
       `pick_screen` maps `Joining → JoiningRoom`, `Ready → InRoom`.
@@ -558,7 +558,7 @@ default UI shows a black "Joining room <name>" screen and blocks all input until
 sites (`phase: Ready` where a test expects `InRoom`).
 
 **Behaviour.** Readiness = `state.lobby[room].created_at == state.room.created_at`
-(post-`sync_room_created_at`); the list-join path is already observed, so it heals on the
+(post-`align_room_created_at`); the list-join path is already observed, so it heals on the
 first check, while the **create** path shows the black screen until the deploy + read-back
 populates the lobby (≤ `JOIN_HEAL_TIMEOUT`). `Event::Joined` still fires at join time, so
 the `lobby joined room=<r>` e2e oracle and all join/converge checks are unchanged; the
@@ -667,7 +667,7 @@ _(agent fills)_
 
 - [ ] Reuse the plugin default lobby UI to create/join rooms (copy wiring from
       `examples/lobby_room`). On `Joined`, switch to the board state.
-- [ ] Register `RoomSyncPlugin<Canvas>`; local ops go through it; remote ops applied
+- [ ] Register `SyncPlugin<Canvas>`; local ops go through it; remote ops applied
       and dirty tiles re-uploaded.
 - [ ] Presence: cursor message `{ pos, size_idx }` at ~30 Hz lossy on the gossipsub topic;
       render other peers' cursors as their shape+color outline; side panel with members
@@ -713,7 +713,7 @@ _(agent fills)_
 ## Step B8 — Polish & docs
 
 - [ ] `examples/starboard/README.md`: how to run, controls, architecture diagram
-      (lobby → room → gossipsub → RoomSync → Canvas).
+      (lobby → room → gossipsub → room_sync → Canvas).
 - [ ] Root `README.md`: mention starboard and room API defaults.
 - [ ] Revisit open issues collected in previous "What was done" sections; list
       remaining ones here.

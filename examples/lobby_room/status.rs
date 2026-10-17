@@ -6,11 +6,11 @@ use freenet_libp2p_bevy_plugin::{discovery, identity};
 pub struct LocalUser(pub identity::Username);
 
 /// Event-driven `lobby mesh` marker: logs the live link count the moment it changes.
-pub fn log_mesh(snapshot: Res<discovery::Snapshot>, mut last: Local<Option<(String, usize)>>) {
-    if !snapshot.is_changed() {
+pub fn log_mesh(status: Res<discovery::Status>, mut last: Local<Option<(String, usize)>>) {
+    if !status.is_changed() {
         return;
     }
-    let Some(room) = snapshot.room.as_ref() else {
+    let Some(room) = status.room.as_ref() else {
         return;
     };
     let connected = room
@@ -29,30 +29,30 @@ pub fn log_mesh(snapshot: Res<discovery::Snapshot>, mut last: Local<Option<(Stri
     *last = Some(now);
 }
 
-pub fn log_tick(time: Res<Time>, snapshot: Res<discovery::Snapshot>, mut accumulator: Local<f32>) {
+pub fn log_tick(time: Res<Time>, status: Res<discovery::Status>, mut accumulator: Local<f32>) {
     *accumulator += time.delta_secs();
     if *accumulator < 1.0 {
         return;
     }
     *accumulator = 0.0;
-    let rooms: Vec<&str> = snapshot.lobby.keys().map(|name| name.as_str()).collect();
+    let rooms: Vec<&str> = status.lobby.keys().map(|name| name.as_str()).collect();
     let rooms = if rooms.is_empty() {
         "none".to_string()
     } else {
         rooms.join(",")
     };
-    let room = snapshot
+    let room = status
         .room
         .as_ref()
         .map_or_else(|| "none".to_string(), |room| room.name.as_str().to_string());
-    let members = snapshot.room.as_ref().map_or(0, |room| room.members.len());
-    let connected = snapshot.room.as_ref().map_or(0, |room| {
+    let members = status.room.as_ref().map_or(0, |room| room.members.len());
+    let connected = status.room.as_ref().map_or(0, |room| {
         room.members
             .values()
             .filter(|member| member.status == discovery::LinkStatus::Connected)
             .count()
     });
-    let freenet_peers = snapshot.freenet_peers.len();
+    let freenet_peers = status.freenet_peers.len();
     tracing::info!(
         "lobby tick rooms={rooms} room={room} members={members} connected={connected} freenet_peers={freenet_peers}"
     );

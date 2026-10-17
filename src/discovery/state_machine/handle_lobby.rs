@@ -12,7 +12,7 @@ pub fn handle_lobby(
     }
     state.lobby = lobby;
     discovery::state_machine::seed_candidates(state);
-    discovery::state_machine::sync_room_created_at(state);
+    discovery::state_machine::align_room_created_at(state);
     let mut outputs = discovery::state_machine::wait_for_contract_self_heal(state, now);
     outputs.push(Output::Notify(discovery::Event::LobbyChanged));
     outputs

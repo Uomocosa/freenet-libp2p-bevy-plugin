@@ -3,7 +3,7 @@ use libp2p::request_response;
 use crate::identity;
 use crate::p2p;
 
-pub fn handle_exchange<T: p2p::Message>(
+pub fn handle_peer_exchange<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
     peer: &libp2p::PeerId,
@@ -14,14 +14,14 @@ pub fn handle_exchange<T: p2p::Message>(
     } = message
     {
         event_tx
-            .send(p2p::Event::Net(p2p::NetEvent::Exchange {
+            .send(p2p::Event::Net(p2p::NetEvent::PeerExchange {
                 from: identity::PeerId(peer.to_string()),
                 data: request,
             }))
             .ok();
         let _ = swarm
             .behaviour_mut()
-            .exchange
+            .peer_exchange
             .send_response(channel, Vec::new());
     }
 }

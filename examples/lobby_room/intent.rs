@@ -66,7 +66,7 @@ const MAX_CLICKS: u32 = 60;
 
 pub fn script_input<F, C, J>(
     mut intent: ResMut<Intent>,
-    snapshot: Res<discovery::Snapshot>,
+    status: Res<discovery::Status>,
     mut windows: Query<(Entity, &mut Window), With<PrimaryWindow>>,
     fields: Query<Entity, With<F>>,
     create: Query<&UiGlobalTransform, (With<C>, With<Interaction>)>,
@@ -160,7 +160,7 @@ pub fn script_input<F, C, J>(
             let target = match &action {
                 args::Action::Create(room) | args::Action::Join(room) => room,
             };
-            let joined = snapshot
+            let joined = status
                 .room
                 .as_ref()
                 .is_some_and(|room| room.name == *target);

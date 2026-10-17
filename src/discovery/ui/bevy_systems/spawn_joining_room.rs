@@ -3,9 +3,9 @@ use bevy::prelude::*;
 use crate::discovery;
 use discovery::ui::{JoiningRoomRoot, Screen};
 
-pub fn spawn_joining_room(mut commands: Commands, snapshot: Res<discovery::Snapshot>) {
-    let snapshot = snapshot.into_inner();
-    let label = snapshot.room.as_ref().map_or_else(
+pub fn spawn_joining_room(mut commands: Commands, status: Res<discovery::Status>) {
+    let status = status.into_inner();
+    let label = status.room.as_ref().map_or_else(
         || String::from("Joining room..."),
         |room| format!("Joining room {}...", room.name.as_str()),
     );
@@ -33,8 +33,8 @@ mod tests {
     use crate::discovery;
     use crate::identity;
 
-    fn snapshot_in(room: &str) -> discovery::Snapshot {
-        discovery::Snapshot {
+    fn snapshot_in(room: &str) -> discovery::Status {
+        discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
                 created_at: discovery::UnixTime::from_secs(0),

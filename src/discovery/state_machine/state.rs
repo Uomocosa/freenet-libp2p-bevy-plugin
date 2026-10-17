@@ -13,7 +13,7 @@ pub struct State {
     pub last_handshake: Option<discovery::UnixTime>,
     pub joining_since: Option<discovery::UnixTime>,
     pub freenet_peers: Vec<identity::FreenetPeer>,
-    pub lobby_attached: bool,
+    pub is_lobby_attached: bool,
     pub display_name: identity::Username,
 }
 
@@ -30,7 +30,7 @@ impl State {
             last_handshake: None,
             joining_since: None,
             freenet_peers: Vec::new(),
-            lobby_attached: false,
+            is_lobby_attached: false,
             display_name: identity::Username(String::new()),
         }
     }

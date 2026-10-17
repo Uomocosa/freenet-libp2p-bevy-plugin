@@ -1,5 +1,5 @@
 //! Status overlay: a top bar with the current room and its peers once joined.
-//! Reads `discovery::Snapshot` only; the connecting spinner is the plugin's own screen.
+//! Reads `discovery::Status` only; the connecting spinner is the plugin's own screen.
 #![allow(clippy::needless_pass_by_value)]
 use bevy::prelude::*;
 use freenet_libp2p_bevy_plugin::{discovery, identity};
@@ -94,16 +94,13 @@ fn spawn(mut commands: Commands) {
     ));
 }
 
-fn sync_visibility(
-    snapshot: Res<discovery::Snapshot>,
-    mut views: Query<&mut Node, With<RoomView>>,
-) {
-    if !snapshot.is_changed() {
+fn sync_visibility(status: Res<discovery::Status>, mut views: Query<&mut Node, With<RoomView>>) {
+    if !status.is_changed() {
         return;
     }
     for mut view in &mut views {
         view.display = display_for(
-            snapshot
+            status
                 .room
                 .as_ref()
                 .is_some_and(|room| room.phase == discovery::RoomPhase::Ready),
@@ -113,16 +110,16 @@ fn sync_visibility(
 
 fn sync_room_bar(
     mut commands: Commands,
-    snapshot: Res<discovery::Snapshot>,
+    status: Res<discovery::Status>,
     local_user: Res<status::LocalUser>,
     mut title: Single<&mut Text, (With<RoomTitle>, Without<PeerCount>)>,
     mut count: Single<&mut Text, (With<PeerCount>, Without<RoomTitle>)>,
     list: Single<Entity, With<PeerList>>,
 ) {
-    if !snapshot.is_changed() {
+    if !status.is_changed() {
         return;
     }
-    let Some(room) = snapshot.room.as_ref() else {
+    let Some(room) = status.room.as_ref() else {
         return;
     };
     let connected = room
@@ -218,14 +215,14 @@ mod tests {
     use super::{Overlay, PeerCard, PeerCount, PeerList, RoomBar, RoomTitle, RoomView, short_peer};
 
     fn preview_build(app: &mut App) {
-        app.insert_resource(discovery::Snapshot::default());
+        app.insert_resource(discovery::Status::default());
         app.insert_resource(crate::status::LocalUser(identity::Username::from("alice")));
         app.add_plugins(Overlay);
         join_first_room(app.world_mut());
     }
 
     fn join_first_room(world: &mut World) {
-        world.resource_mut::<discovery::Snapshot>().room = Some(discovery::JoinedRoom {
+        world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("alpha"),
             created_at: discovery::UnixTime::from_secs(0),
             phase: discovery::RoomPhase::Ready,
@@ -236,8 +233,8 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn join_room(world: &mut World) {
-        let mut snapshot = world.resource_mut::<discovery::Snapshot>();
-        snapshot.freenet_peers = vec![identity::FreenetPeer {
+        let mut status = world.resource_mut::<discovery::Status>();
+        status.freenet_peers = vec![identity::FreenetPeer {
             id: identity::FreenetPeerId::from("gateway"),
             addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
         }];
@@ -267,7 +264,7 @@ mod tests {
                 },
             );
         }
-        snapshot.room = Some(discovery::JoinedRoom {
+        status.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("gamma"),
             created_at: discovery::UnixTime::from_secs(0),
             phase: discovery::RoomPhase::Ready,

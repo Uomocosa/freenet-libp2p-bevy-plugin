@@ -27,7 +27,7 @@ peers download it on join; it is continuously updated.
   (2) if none answers within timeout, `get_record` manifest → chunks → verify hash →
   `RoomState::merge`. Merging is a CRDT, so stale/partial history is harmless.
 - Generic: implemented in the plugin as an optional `RoomHistory` feature of
-  `RoomSyncPlugin<S>` (config `history: Option<HistoryConfig>`, default off until H4).
+  `SyncPlugin<S>` (config `history: Option<HistoryConfig>`, default off until H4).
 
 ## Step H1 — Record keys, chunking codec
 
@@ -52,7 +52,7 @@ _(agent fills)_
 ### What was done (Step H2)
 _(agent fills)_
 
-## Step H3 — History writer/reader in RoomSyncPlugin
+## Step H3 — History writer/reader in SyncPlugin
 
 - [ ] Writer timer + manifest compare; reader fallback on join (state machine, pure
       reducer + thin system).

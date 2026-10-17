@@ -47,6 +47,9 @@ pub use refresh::refresh;
 mod poll;
 pub use poll::poll;
 
+mod timeout;
+pub use timeout::timeout;
+
 mod publish_heartbeat;
 pub use publish_heartbeat::publish_heartbeat;
 

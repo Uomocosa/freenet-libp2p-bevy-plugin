@@ -3,7 +3,7 @@ use libp2p::request_response;
 use crate::identity;
 use crate::p2p;
 
-pub fn handle_request_response<T: p2p::Message>(
+pub fn handle_message<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
     peer: &libp2p::PeerId,

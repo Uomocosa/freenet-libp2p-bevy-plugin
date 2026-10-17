@@ -86,9 +86,9 @@ mod tests {
         assert!(matches!(
             outputs.as_slice(),
             [
-                Output::NetCommand(p2p::NetCommand::Exchange { .. }),
+                Output::NetCommand(p2p::NetCommand::PeerExchange { .. }),
                 Output::Notify(discovery::Event::Joined(_)),
-                Output::NetCommand(p2p::NetCommand::Exchange { .. }),
+                Output::NetCommand(p2p::NetCommand::PeerExchange { .. }),
                 Output::Notify(discovery::Event::Left(_)),
             ]
         ));

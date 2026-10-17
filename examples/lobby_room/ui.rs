@@ -1,7 +1,7 @@
 //! Replacement lobby UI used by the discovery e2e test (`--ui custom`).
 //!
 //! It shows that the plugin's default UI can be swapped out entirely: this
-//! plugin only reads `discovery::Snapshot` and writes `discovery::Command`.
+//! plugin only reads `discovery::Status` and writes `discovery::Command`.
 #![allow(clippy::needless_pass_by_value)]
 use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
@@ -95,18 +95,18 @@ fn spawn(mut commands: Commands) {
 
 fn rebuild_list(
     mut commands: Commands,
-    snapshot: Res<discovery::Snapshot>,
+    status: Res<discovery::Status>,
     column: Single<Entity, With<RoomColumn>>,
 ) {
-    if !snapshot.is_changed() {
+    if !status.is_changed() {
         return;
     }
-    tracing::info!("lobby ui rooms={}", snapshot.lobby.len());
+    tracing::info!("lobby ui rooms={}", status.lobby.len());
     commands
         .entity(*column)
         .despawn_related::<Children>()
         .with_children(|parent| {
-            for (name, record) in snapshot.lobby.iter() {
+            for (name, record) in status.lobby.iter() {
                 parent.spawn((
                     JoinButton(name.clone()),
                     Button,
@@ -217,9 +217,9 @@ mod tests {
         app.add_plugins(LobbyUi);
     }
 
-    fn preview_snapshot() -> discovery::Snapshot {
-        let mut snapshot = discovery::Snapshot::default();
-        snapshot.lobby.insert(
+    fn preview_snapshot() -> discovery::Status {
+        let mut status = discovery::Status::default();
+        status.lobby.insert(
             identity::RoomName::from("alpha"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
@@ -227,14 +227,14 @@ mod tests {
                 members: std::collections::BTreeMap::new(),
             },
         );
-        snapshot
+        status
     }
 
     const fn preview_noop(_world: &mut World) {}
 
     fn add_room(world: &mut World) {
-        let mut snapshot = world.resource_mut::<discovery::Snapshot>();
-        snapshot.lobby.insert(
+        let mut status = world.resource_mut::<discovery::Status>();
+        status.lobby.insert(
             identity::RoomName::from("gamma"),
             discovery::Room {
                 room_size: discovery::RoomSize::try_from(4).expect("fixture room size is non-zero"),

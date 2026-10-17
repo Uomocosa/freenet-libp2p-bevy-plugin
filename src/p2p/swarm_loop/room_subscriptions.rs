@@ -4,47 +4,47 @@ use libp2p::gossipsub;
 
 use crate::identity;
 
-pub struct RoomTopics {
+pub struct RoomSubscriptions {
     pub game: identity::GameId,
-    pub by_hash: HashMap<gossipsub::TopicHash, identity::RoomName>,
+    pub by_topic: HashMap<gossipsub::TopicHash, identity::RoomName>,
     pub joined: Option<identity::RoomName>,
 }
 
-impl RoomTopics {
+impl RoomSubscriptions {
     pub fn new(game: identity::GameId) -> Self {
         Self {
             game,
-            by_hash: HashMap::new(),
+            by_topic: HashMap::new(),
             joined: None,
         }
     }
 }
 
 #[rustfmt::skip]
-impl RoomTopics {
+impl RoomSubscriptions {
     pub fn register(&mut self, topic: &gossipsub::IdentTopic, room: identity::RoomName) {
-        self.by_hash.insert(topic.hash(), room.clone());
+        self.by_topic.insert(topic.hash(), room.clone());
         self.joined = Some(room);
     }
     pub fn unregister(&mut self, topic: &gossipsub::IdentTopic) {
-        let removed = self.by_hash.remove(&topic.hash());
+        let removed = self.by_topic.remove(&topic.hash());
         if removed.as_ref() == self.joined.as_ref() { self.joined = None; }
     }
-    pub fn room(&self, topic: &gossipsub::TopicHash) -> Option<&identity::RoomName> { self.by_hash.get(topic) }
+    pub fn room(&self, topic: &gossipsub::TopicHash) -> Option<&identity::RoomName> { self.by_topic.get(topic) }
 }
 
 #[cfg(test)]
 mod tests {
     use libp2p::gossipsub;
 
-    use super::RoomTopics;
+    use super::RoomSubscriptions;
     use crate::identity;
     use crate::p2p;
 
     #[test]
     fn test_usage() {
         let room = identity::RoomName::from("room-a");
-        let mut rooms = RoomTopics::new(identity::GameId::from("game"));
+        let mut rooms = RoomSubscriptions::new(identity::GameId::from("game"));
         let topic = gossipsub::IdentTopic::new(p2p::room_topic(&rooms.game, &room).as_str());
         assert_eq!(rooms.room(&topic.hash()), None);
         assert_eq!(rooms.joined, None);

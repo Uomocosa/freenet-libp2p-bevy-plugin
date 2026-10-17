@@ -59,10 +59,7 @@ mod tests {
     fn test_usage_skips_malformed_keys() {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<p2p::Event<u32>>();
         handle_found_record(&tx, peer_record(kad::RecordKey::new(&"lobby/history/r/xx")));
-        handle_found_record(
-            &tx,
-            peer_record(p2p::provider_key(&identity::RoomName::from("room-a"))),
-        );
+        handle_found_record(&tx, peer_record(kad::RecordKey::new(&"lobby/room/room-a")));
         assert!(rx.try_recv().is_err());
     }
 }

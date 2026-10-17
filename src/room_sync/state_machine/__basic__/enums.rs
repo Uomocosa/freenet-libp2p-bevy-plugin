@@ -1,4 +1,5 @@
 use crate::identity;
+use crate::p2p;
 use crate::room_sync;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -30,7 +31,7 @@ pub enum Input<O> {
         data: Vec<u8>,
     },
     Fetch {
-        id: u64,
+        id: p2p::ReplyId,
         room: identity::RoomName,
         part: u32,
     },
@@ -46,7 +47,7 @@ pub enum Output<O> {
         part: u32,
     },
     Snapshot {
-        id: u64,
+        id: p2p::ReplyId,
         room: identity::RoomName,
         part: u32,
     },

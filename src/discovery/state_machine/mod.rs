@@ -47,14 +47,14 @@ pub use send_handshake::send_handshake;
 mod broadcast_handshake;
 pub use broadcast_handshake::broadcast_handshake;
 
-mod snapshot;
-pub use snapshot::snapshot;
+mod status;
+pub use status::status;
 
 mod heartbeat_target;
 pub use heartbeat_target::heartbeat_target;
 
-mod sync_room_created_at;
-pub use sync_room_created_at::sync_room_created_at;
+mod align_room_created_at;
+pub use align_room_created_at::align_room_created_at;
 
 mod wait_for_contract_self_heal;
 pub use wait_for_contract_self_heal::wait_for_contract_self_heal;

@@ -10,9 +10,6 @@ pub use behaviour::Behaviour;
 pub mod record_key;
 pub use record_key::record_key;
 
-pub mod provider_key;
-pub use provider_key::provider_key;
-
 pub mod parse_record_key;
 pub use parse_record_key::parse_record_key;
 
@@ -23,9 +20,10 @@ pub use matches_transport::matches_transport;
 pub mod basic;
 
 pub use basic::enums::{
-    Command, Event, MdnsMode, NetCommand, NetEvent, RoomSyncFrame, TransportMode,
+    Command, Event, MdnsMode, NetCommand, NetEvent, SnapshotRequest, SnapshotResponse,
+    TransportMode,
 };
-pub use basic::newtypes::ChunkIndex;
+pub use basic::newtypes::{ChunkIndex, ReplyId};
 pub use basic::resources::{CommandSender, EventReceiver, NetCommandSender};
 pub use basic::structs::{HistoryChunkId, RunnerConfig};
 

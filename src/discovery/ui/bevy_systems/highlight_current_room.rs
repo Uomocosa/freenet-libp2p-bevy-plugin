@@ -6,7 +6,7 @@ use discovery::ui::{IsCurrentRoom, RoomButton};
 
 pub fn highlight_current_room(
     mut commands: Commands,
-    snapshot: Res<discovery::Snapshot>,
+    status: Res<discovery::Status>,
     mut rows: Query<(
         Entity,
         &RoomButton,
@@ -14,8 +14,8 @@ pub fn highlight_current_room(
         Option<&IsCurrentRoom>,
     )>,
 ) {
-    let snapshot = snapshot.into_inner();
-    let current = snapshot.room.as_ref().map(|room| &room.name);
+    let status = status.into_inner();
+    let current = status.room.as_ref().map(|room| &room.name);
     for (entity, button, mut background, marker) in &mut rows {
         let is_current = current.is_some_and(|room| *room == **button);
         let color = if is_current {
@@ -52,7 +52,7 @@ mod tests {
     fn test_usage() {
         let mut app = App::new();
         let room = identity::RoomName::from("alpha");
-        let snapshot = discovery::Snapshot {
+        let status = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
                 created_at: discovery::UnixTime::from_secs(0),
@@ -61,7 +61,7 @@ mod tests {
             }),
             ..Default::default()
         };
-        app.insert_resource(snapshot);
+        app.insert_resource(status);
         let entity = app
             .world_mut()
             .spawn((
@@ -78,8 +78,8 @@ mod tests {
         );
     }
 
-    fn preview_snapshot(room: &str) -> discovery::Snapshot {
-        discovery::Snapshot {
+    fn preview_snapshot(room: &str) -> discovery::Status {
+        discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
                 created_at: discovery::UnixTime::from_secs(0),
@@ -119,7 +119,7 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn pick_beta(world: &mut World) {
-        world.resource_mut::<discovery::Snapshot>().room = Some(discovery::JoinedRoom {
+        world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("beta"),
             created_at: discovery::UnixTime::from_secs(0),
             phase: discovery::RoomPhase::Ready,

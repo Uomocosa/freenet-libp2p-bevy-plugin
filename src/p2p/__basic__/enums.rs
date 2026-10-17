@@ -29,10 +29,6 @@ pub enum NetEvent {
     RelayReserved {
         relay_peer_id: identity::PeerId,
     },
-    RoomProviders {
-        room: identity::RoomName,
-        peers: Vec<identity::PeerId>,
-    },
     HistoryChunk {
         id: p2p::HistoryChunkId,
         data: Vec<u8>,
@@ -42,12 +38,12 @@ pub enum NetEvent {
         from: identity::PeerId,
         data: Vec<u8>,
     },
-    Exchange {
+    PeerExchange {
         from: identity::PeerId,
         data: Vec<u8>,
     },
     SnapshotRequest {
-        id: u64,
+        id: p2p::ReplyId,
         from: identity::PeerId,
         room: identity::RoomName,
         part: u32,
@@ -69,11 +65,12 @@ pub enum NetEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RoomSyncFrame {
-    Fetch {
-        room: identity::RoomName,
-        part: u32,
-    },
+pub enum SnapshotRequest {
+    Fetch { room: identity::RoomName, part: u32 },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SnapshotResponse {
     Part {
         room: identity::RoomName,
         part: u32,
@@ -95,12 +92,6 @@ pub enum NetCommand {
         mode: MdnsMode,
     },
     AddKadPeer(identity::Peer),
-    ProvideRoom {
-        room: identity::RoomName,
-    },
-    FindRoom {
-        room: identity::RoomName,
-    },
     PutHistory {
         id: p2p::HistoryChunkId,
         data: Vec<u8>,
@@ -126,14 +117,14 @@ pub enum NetCommand {
         part: u32,
     },
     RespondSnapshot {
-        id: u64,
-        frame: p2p::RoomSyncFrame,
+        id: p2p::ReplyId,
+        frame: p2p::SnapshotResponse,
     },
     Publish {
         topic: identity::Topic,
         data: Vec<u8>,
     },
-    Exchange {
+    PeerExchange {
         peer_id: identity::PeerId,
         data: Vec<u8>,
     },
