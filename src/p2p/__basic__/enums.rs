@@ -137,10 +137,10 @@ pub enum Command<T> {
         peer_id: identity::PeerId,
         payload: T,
     },
-    Publish {
+    PublishInJoinedRoom {
         payload: T,
     },
-    PublishTo {
+    PublishToSpecificRoom {
         room: identity::RoomName,
         payload: T,
     },

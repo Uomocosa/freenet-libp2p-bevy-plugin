@@ -5,11 +5,11 @@ use discovery::state_machine::{Output, State};
 pub fn tick(state: &mut State, now: discovery::UnixTime) -> Vec<Output> {
     let mut outputs = discovery::state_machine::dial_candidates(state, now);
     let handshake_due = state
-        .last_handshake
-        .is_none_or(|last| now.since(last) >= discovery::state_machine::HANDSHAKE_EVERY);
+        .last_handshake_at
+        .is_none_or(|last| now.elapsed_since(last) >= discovery::state_machine::HANDSHAKE_EVERY);
     if handshake_due && state.room.is_some() {
         outputs.extend(discovery::state_machine::broadcast_handshake(state));
-        state.last_handshake = Some(now);
+        state.last_handshake_at = Some(now);
     }
     outputs.extend(discovery::state_machine::prune_members(state, now));
     outputs.extend(discovery::state_machine::wait_for_contract_self_heal(
@@ -41,7 +41,7 @@ mod tests {
         let mut outputs = tick(&mut state, discovery::UnixTime::from_secs(100));
         outputs.extend(tick(&mut state, discovery::UnixTime::from_secs(101)));
         assert_eq!(
-            state.last_handshake,
+            state.last_handshake_at,
             Some(discovery::UnixTime::from_secs(100))
         );
         assert_eq!(outputs.len(), 1);

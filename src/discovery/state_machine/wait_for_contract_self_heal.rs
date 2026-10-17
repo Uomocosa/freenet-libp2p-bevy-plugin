@@ -13,7 +13,7 @@ pub fn wait_for_contract_self_heal(state: &mut State, now: discovery::UnixTime) 
         .lobby
         .get(&name)
         .is_some_and(|record| record.created_at == room.created_at);
-    let timed_out = now.since(since) >= discovery::state_machine::JOIN_HEAL_TIMEOUT;
+    let timed_out = now.elapsed_since(since) >= discovery::state_machine::JOIN_HEAL_TIMEOUT;
     if !healed && !timed_out {
         return Vec::new();
     }

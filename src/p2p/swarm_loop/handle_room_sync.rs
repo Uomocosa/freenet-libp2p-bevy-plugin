@@ -5,7 +5,7 @@ use crate::p2p;
 
 pub fn handle_room_sync<T: p2p::Message>(
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
-    replies: &mut p2p::swarm_loop::PendingReplies,
+    snapshot_replies: &mut p2p::swarm_loop::PendingSnapshotReplies,
     peer: &libp2p::PeerId,
     message: request_response::Message<p2p::SnapshotRequest, p2p::SnapshotResponse>,
 ) {
@@ -13,7 +13,7 @@ pub fn handle_room_sync<T: p2p::Message>(
         request_response::Message::Request {
             request, channel, ..
         } => {
-            let id = replies.insert(channel);
+            let id = snapshot_replies.insert(channel);
             let from = identity::PeerId(peer.to_string());
             match request {
                 p2p::SnapshotRequest::Fetch { room, part } => {

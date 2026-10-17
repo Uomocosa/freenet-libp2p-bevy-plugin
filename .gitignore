@@ -10,3 +10,4 @@
 .local-run/
 ui_preview/
 *.sync-conflict-*
+.review-history

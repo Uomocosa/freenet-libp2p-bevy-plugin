@@ -14,12 +14,11 @@ pub async fn run<T: p2p::Message>(
     config: p2p::RunnerConfig,
 ) {
     let mode = config.mode;
-    let room = config.room;
     let mut swarm = match p2p::build_swarm::build_swarm::<T>(
         keypair,
         config.mdns,
         &config.game,
-        &room.gossipsub,
+        &config.gossipsub,
     ) {
         Ok(s) => s,
         Err(e) => {
@@ -44,7 +43,7 @@ pub async fn run<T: p2p::Message>(
     let mut ready_deadline: Option<tokio::time::Instant> = None;
     let mut mesh_deadline = tokio::time::Instant::now().checked_add(Duration::from_secs(30));
     let mut subscriptions = p2p::swarm_loop::RoomSubscriptions::new(config.game);
-    let mut replies = p2p::swarm_loop::PendingReplies::default();
+    let mut snapshot_replies = p2p::swarm_loop::PendingSnapshotReplies::default();
 
     loop {
         let now = tokio::time::Instant::now();
@@ -69,8 +68,8 @@ pub async fn run<T: p2p::Message>(
                     &mut swarm,
                     &event_tx,
                     &mut subscriptions,
-                    &mut replies,
-                    &room,
+                    &mut snapshot_replies,
+                    &config.gossipsub,
                     cmd,
                 ) {
                     break;
@@ -78,7 +77,7 @@ pub async fn run<T: p2p::Message>(
             }
             net_cmd = net_rx.recv() => {
                 if let Some(net) = net_cmd {
-                    p2p::swarm_loop::dispatch_net_command(&mut swarm, &event_tx, &mut subscriptions, &mut replies, net);
+                    p2p::swarm_loop::dispatch_net_command(&mut swarm, &event_tx, &mut subscriptions, &mut snapshot_replies, net);
                 } else {
                     break;
                 }
@@ -88,7 +87,7 @@ pub async fn run<T: p2p::Message>(
                     &mut swarm,
                     &event_tx,
                     &subscriptions,
-                    &mut replies,
+                    &mut snapshot_replies,
                     &mut listen_addrs,
                     &mut ready_deadline,
                     mode,
@@ -135,7 +134,7 @@ mod tests {
                 mode: p2p::TransportMode::Tcp,
                 mdns: p2p::MdnsMode::Disabled,
                 game: game.clone(),
-                room: p2p::RoomConfig::default(),
+                gossipsub: p2p::GossipsubConfig::default(),
             },
         );
         Node {
@@ -270,7 +269,7 @@ mod tests {
         tokio::time::sleep(SUBSCRIPTION_SETTLE).await;
 
         hub.commands
-            .send(p2p::Command::Publish {
+            .send(p2p::Command::PublishInJoinedRoom {
                 payload: Payload(42),
             })
             .unwrap();

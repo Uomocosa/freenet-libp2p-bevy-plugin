@@ -36,12 +36,6 @@ pub use build_swarm::build_swarm;
 pub mod gossipsub_config;
 pub use gossipsub_config::GossipsubConfig;
 
-pub mod anti_entropy_config;
-pub use anti_entropy_config::AntiEntropyConfig;
-
-pub mod room_config;
-pub use room_config::RoomConfig;
-
 pub mod room_topic;
 pub use room_topic::room_topic;
 

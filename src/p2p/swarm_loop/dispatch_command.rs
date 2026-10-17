@@ -5,26 +5,32 @@ pub fn dispatch_command<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
     subscriptions: &mut p2p::swarm_loop::RoomSubscriptions,
-    replies: &mut p2p::swarm_loop::PendingReplies,
-    config: &p2p::RoomConfig,
+    snapshot_replies: &mut p2p::swarm_loop::PendingSnapshotReplies,
+    config: &p2p::GossipsubConfig,
     cmd: Option<p2p::Command<T>>,
 ) -> bool {
     match cmd {
         Some(p2p::Command::Net(net)) => {
-            p2p::swarm_loop::dispatch_net_command(swarm, event_tx, subscriptions, replies, net);
+            p2p::swarm_loop::dispatch_net_command(
+                swarm,
+                event_tx,
+                subscriptions,
+                snapshot_replies,
+                net,
+            );
         }
         Some(p2p::Command::Send { peer_id, payload }) => {
-            if let Ok(pid) = peer_id.parse::<libp2p::PeerId>() {
+            if let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() {
                 swarm
                     .behaviour_mut()
                     .request_response
-                    .send_request(&pid, payload);
+                    .send_request(&libp2p_id, payload);
             }
         }
-        Some(p2p::Command::Publish { payload }) => {
+        Some(p2p::Command::PublishInJoinedRoom { payload }) => {
             publish_joined(swarm, event_tx, subscriptions, config, &payload);
         }
-        Some(p2p::Command::PublishTo { room, payload }) => {
+        Some(p2p::Command::PublishToSpecificRoom { room, payload }) => {
             publish_room(swarm, event_tx, subscriptions, config, &room, &payload);
         }
         None => return false,
@@ -37,7 +43,7 @@ fn publish_joined<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
     subscriptions: &p2p::swarm_loop::RoomSubscriptions,
-    config: &p2p::RoomConfig,
+    config: &p2p::GossipsubConfig,
     payload: &T,
 ) {
     let Some(room) = subscriptions.joined.as_ref() else {
@@ -56,7 +62,7 @@ fn publish_room<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
     subscriptions: &p2p::swarm_loop::RoomSubscriptions,
-    config: &p2p::RoomConfig,
+    config: &p2p::GossipsubConfig,
     room: &identity::RoomName,
     payload: &T,
 ) {
@@ -69,13 +75,13 @@ fn publish_room<T: p2p::Message>(
             .ok();
         return;
     };
-    if data.len() > config.gossipsub.max_transmit_size {
+    if data.len() > config.max_transmit_size {
         event_tx
             .send(p2p::Event::Error(format!(
                 "room publish {}: payload {} bytes exceeds limit {}",
                 room.as_str(),
                 data.len(),
-                config.gossipsub.max_transmit_size
+                config.max_transmit_size
             )))
             .ok();
         return;
@@ -114,12 +120,12 @@ mod tests {
         p2p::swarm_loop::RoomSubscriptions::new(identity::GameId::from("game"))
     }
 
-    fn replies() -> p2p::swarm_loop::PendingReplies {
-        p2p::swarm_loop::PendingReplies::default()
+    fn snapshot_replies() -> p2p::swarm_loop::PendingSnapshotReplies {
+        p2p::swarm_loop::PendingSnapshotReplies::default()
     }
 
-    fn config() -> p2p::RoomConfig {
-        p2p::RoomConfig::default()
+    fn config() -> p2p::GossipsubConfig {
+        p2p::GossipsubConfig::default()
     }
 
     #[tokio::test]
@@ -134,7 +140,7 @@ mod tests {
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             &config(),
             Some(subscribe)
         ));
@@ -143,7 +149,7 @@ mod tests {
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             &config(),
             None
         ));
@@ -160,7 +166,7 @@ mod tests {
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             &config(),
             Some(command)
         ));
@@ -176,14 +182,14 @@ mod tests {
         let mut swarm = swarm();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let mut subscriptions = subscriptions();
-        let command = p2p::Command::Publish {
+        let command = p2p::Command::PublishInJoinedRoom {
             payload: Vec::new(),
         };
         assert!(dispatch_command(
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             &config(),
             Some(command)
         ));
@@ -198,7 +204,7 @@ mod tests {
         let mut swarm = swarm();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let mut subscriptions = subscriptions();
-        let command = p2p::Command::PublishTo {
+        let command = p2p::Command::PublishToSpecificRoom {
             room: identity::RoomName::from("room-a"),
             payload: vec![0; 70_000],
         };
@@ -206,7 +212,7 @@ mod tests {
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             &config(),
             Some(command)
         ));

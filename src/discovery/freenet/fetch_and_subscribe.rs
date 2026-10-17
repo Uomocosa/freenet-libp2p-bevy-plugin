@@ -3,7 +3,7 @@ use freenet_stdlib::prelude::ContractInstanceId;
 
 use crate::discovery;
 
-pub async fn fetch(
+pub async fn fetch_and_subscribe(
     client: &mut discovery::freenet::Client,
     instance_id: ContractInstanceId,
 ) -> Result<discovery::Lobby, discovery::Error> {
@@ -37,7 +37,7 @@ mod tests {
         ContractCode, ContractKey, Parameters, WrappedContract, WrappedState,
     };
 
-    use super::fetch;
+    use super::fetch_and_subscribe;
     use crate::discovery;
 
     fn contract_key() -> ContractKey {
@@ -66,7 +66,10 @@ mod tests {
             )))
             .ok();
         let mut client = discovery::freenet::Client { write, read };
-        assert_eq!(fetch(&mut client, *key.id()).await.ok(), Some(lobby));
+        assert_eq!(
+            fetch_and_subscribe(&mut client, *key.id()).await.ok(),
+            Some(lobby)
+        );
 
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
@@ -79,7 +82,7 @@ mod tests {
             .ok();
         let mut missing = discovery::freenet::Client { write, read };
         assert!(matches!(
-            fetch(&mut missing, *key.id()).await,
+            fetch_and_subscribe(&mut missing, *key.id()).await,
             Err(discovery::Error::ContractNotFound)
         ));
     }

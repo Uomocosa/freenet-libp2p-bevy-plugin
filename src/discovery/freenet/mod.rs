@@ -38,8 +38,8 @@ pub use is_ring_ready::is_ring_ready;
 mod wait_until_ring_ready;
 pub use wait_until_ring_ready::wait_until_ring_ready;
 
-mod fetch;
-pub use fetch::fetch;
+mod fetch_and_subscribe;
+pub use fetch_and_subscribe::fetch_and_subscribe;
 
 mod refresh;
 pub use refresh::refresh;

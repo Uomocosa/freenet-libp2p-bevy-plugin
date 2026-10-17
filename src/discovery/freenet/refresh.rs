@@ -4,7 +4,8 @@ pub async fn refresh(
     subscription: &mut discovery::freenet::LobbyContractSubscription,
 ) -> Result<discovery::Lobby, discovery::Error> {
     let instance_id = *subscription.key.id();
-    let fresh = discovery::freenet::fetch(&mut subscription.client, instance_id).await?;
+    let fresh =
+        discovery::freenet::fetch_and_subscribe(&mut subscription.client, instance_id).await?;
     subscription.lobby.merge(fresh);
     Ok(subscription.lobby.clone())
 }

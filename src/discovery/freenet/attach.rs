@@ -26,7 +26,7 @@ pub async fn attach(
     let first = discovery::freenet::timeout(
         FETCH_TIMEOUT,
         discovery::Step::Fetch,
-        discovery::freenet::fetch(client, instance_id),
+        discovery::freenet::fetch_and_subscribe(client, instance_id),
     )
     .await;
     let elapsed_ms = started.elapsed().as_millis();
@@ -55,7 +55,7 @@ pub async fn attach(
             discovery::freenet::timeout(
                 FETCH_TIMEOUT,
                 discovery::Step::Fetch,
-                discovery::freenet::fetch(client, instance_id),
+                discovery::freenet::fetch_and_subscribe(client, instance_id),
             )
             .await?
         }

@@ -8,13 +8,14 @@ pub fn seed_kad_peer<T: p2p::Message>(
     peer_id: &identity::PeerId,
     addrs: &[identity::PeerAddr],
 ) {
-    let Ok(pid) = peer_id.parse::<libp2p::PeerId>() else {
+    let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() else {
         return;
     };
     let mut added = false;
     for addr in addrs {
         if let Ok(ma) = addr.parse::<libp2p::Multiaddr>()
-            && swarm.behaviour_mut().kademlia.add_address(&pid, ma) == kad::RoutingUpdate::Success
+            && swarm.behaviour_mut().kademlia.add_address(&libp2p_id, ma)
+                == kad::RoutingUpdate::Success
         {
             added = true;
         }

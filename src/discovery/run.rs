@@ -43,7 +43,7 @@ pub async fn run(
         let client = discovery::freenet::connect_retry(&freenet_config, &target_rx).await;
         discovery::freenet::run_lobby(&freenet_config, client, target_rx, lobby_tx).await;
     });
-    let mut tick = tokio::time::interval(discovery::TICK);
+    let mut interval = tokio::time::interval(discovery::TICK);
     loop {
         let input = tokio::select! {
             Some(command) = commands.recv() => Input::Command(command),
@@ -56,7 +56,7 @@ pub async fn run(
                 };
                 Input::OwnAddrsChanged(discovery::libp2p::dialable(addrs))
             }
-            _ = tick.tick() => Input::Tick,
+            _ = interval.tick() => Input::Tick,
         };
         let outputs =
             discovery::state_machine::update(&mut state, input, discovery::UnixTime::now());

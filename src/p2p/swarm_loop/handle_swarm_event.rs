@@ -14,7 +14,7 @@ pub fn handle_swarm_event<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
     subscriptions: &p2p::swarm_loop::RoomSubscriptions,
-    replies: &mut p2p::swarm_loop::PendingReplies,
+    snapshot_replies: &mut p2p::swarm_loop::PendingSnapshotReplies,
     listen_addrs: &mut Vec<identity::PeerAddr>,
     ready_deadline: &mut Option<tokio::time::Instant>,
     mode: p2p::TransportMode,
@@ -41,7 +41,7 @@ pub fn handle_swarm_event<T: p2p::Message>(
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RoomSync(
             request_response::Event::Message { peer, message, .. },
         )) => {
-            p2p::swarm_loop::handle_room_sync(event_tx, replies, &peer, message);
+            p2p::swarm_loop::handle_room_sync(event_tx, snapshot_replies, &peer, message);
         }
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RoomSync(
             request_response::Event::OutboundFailure { peer, .. },

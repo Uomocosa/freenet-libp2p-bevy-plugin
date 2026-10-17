@@ -8,16 +8,16 @@ pub fn dial_candidates(state: &mut State, now: discovery::UnixTime) -> Vec<Outpu
     if state.room.is_none() {
         return Vec::new();
     }
-    let redial = discovery::state_machine::REDIAL;
+    let redial_interval = discovery::state_machine::REDIAL_INTERVAL;
     let due: Vec<identity::Peer> = state
         .candidates
         .iter()
         .filter(|(peer, _)| !state.connected.contains(*peer))
         .filter(|(peer, _)| {
             state
-                .last_dial
+                .last_dialed_at
                 .get(*peer)
-                .is_none_or(|last| now.since(*last) >= redial)
+                .is_none_or(|last| now.elapsed_since(*last) >= redial_interval)
         })
         .map(|(peer, candidate)| identity::Peer {
             id: peer.clone(),
@@ -27,7 +27,7 @@ pub fn dial_candidates(state: &mut State, now: discovery::UnixTime) -> Vec<Outpu
     let mut outputs = Vec::new();
     for peer in due {
         tracing::debug!(target: "discovery", peer = %peer.id.as_str(), "discovery dial candidate");
-        state.last_dial.insert(peer.id.clone(), now);
+        state.last_dialed_at.insert(peer.id.clone(), now);
         outputs.push(Output::NetCommand(p2p::NetCommand::Dial(peer)));
     }
     outputs

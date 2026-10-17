@@ -49,7 +49,7 @@ fn leave(state: &mut State) -> Vec<Output> {
     };
     state.joining_since = None;
     state.candidates.clear();
-    state.last_dial.clear();
+    state.last_dialed_at.clear();
     let mut outputs = discovery::state_machine::broadcast_handshake(state);
     outputs.push(Output::Notify(discovery::Event::Left(room.name)));
     outputs

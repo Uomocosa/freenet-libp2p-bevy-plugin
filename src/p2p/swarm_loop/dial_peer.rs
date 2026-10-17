@@ -10,14 +10,14 @@ pub fn dial_peer<T: p2p::Message>(
     addrs: &[identity::PeerAddr],
     condition: PeerCondition,
 ) {
-    let parsed: Vec<libp2p::Multiaddr> = addrs.iter().filter_map(|a| a.parse().ok()).collect();
-    if parsed.is_empty() {
+    let multiaddrs: Vec<libp2p::Multiaddr> = addrs.iter().filter_map(|a| a.parse().ok()).collect();
+    if multiaddrs.is_empty() {
         return;
     }
-    if let Ok(pid) = peer_id.parse::<libp2p::PeerId>() {
-        let opts = DialOpts::peer_id(pid)
+    if let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() {
+        let opts = DialOpts::peer_id(libp2p_id)
             .condition(condition)
-            .addresses(parsed)
+            .addresses(multiaddrs)
             .build();
         if let Err(e) = swarm.dial(opts) {
             event_tx
@@ -29,7 +29,7 @@ pub fn dial_peer<T: p2p::Message>(
         }
         return;
     }
-    for addr in parsed {
+    for addr in multiaddrs {
         let _ = swarm.dial(addr);
     }
 }

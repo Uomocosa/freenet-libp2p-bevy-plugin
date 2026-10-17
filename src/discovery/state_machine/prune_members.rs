@@ -7,14 +7,14 @@ pub fn prune_members(state: &mut State, now: discovery::UnixTime) -> Vec<Output>
     let grace = discovery::state_machine::MEMBER_GRACE;
     state
         .candidates
-        .retain(|_, candidate| now.since(candidate.seen_at) <= ttl);
+        .retain(|_, candidate| now.elapsed_since(candidate.seen_at) <= ttl);
     let connected = &state.connected;
     let Some(room) = state.room.as_mut() else {
         return Vec::new();
     };
     let before = room.members.len();
     room.members.retain(|peer, member| {
-        connected.contains(peer) || now.since(member.heartbeat.updated_at) <= grace
+        connected.contains(peer) || now.elapsed_since(member.heartbeat.updated_at) <= grace
     });
     if room.members.len() == before {
         Vec::new()

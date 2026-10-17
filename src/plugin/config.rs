@@ -7,7 +7,7 @@ pub struct Config<T: p2p::Message> {
     pub mode: p2p::TransportMode,
     pub mdns: p2p::MdnsMode,
     pub game: identity::GameId,
-    pub room: p2p::RoomConfig,
+    pub gossipsub: p2p::GossipsubConfig,
     pub marker: PhantomData<T>,
 }
 
@@ -18,7 +18,7 @@ impl<T: p2p::Message> Config<T> {
             mode,
             mdns,
             game: identity::GameId::from("test"),
-            room: p2p::RoomConfig::default(),
+            gossipsub: p2p::GossipsubConfig::default(),
             marker: PhantomData,
         }
     }
@@ -30,8 +30,8 @@ impl<T: p2p::Message> Config<T> {
     }
 
     #[must_use]
-    pub const fn with_room(mut self, room: p2p::RoomConfig) -> Self {
-        self.room = room;
+    pub const fn with_gossipsub(mut self, gossipsub: p2p::GossipsubConfig) -> Self {
+        self.gossipsub = gossipsub;
         self
     }
 }

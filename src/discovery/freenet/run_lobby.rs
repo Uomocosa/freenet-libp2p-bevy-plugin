@@ -10,16 +10,16 @@ pub async fn run_lobby(
     freenet_config: &discovery::freenet::Config,
     mut subscription: discovery::freenet::LobbyContractSubscription,
     mut target: Receiver<Option<discovery::state_machine::HeartbeatTarget>>,
-    lobbies: UnboundedSender<discovery::Lobby>,
+    lobbies_tx: UnboundedSender<discovery::Lobby>,
 ) {
-    let mut tick = tokio::time::interval(discovery::TICK);
+    let mut interval = tokio::time::interval(discovery::TICK);
     let mut last_sent: Option<discovery::Lobby> = None;
     let mut last_refresh: Option<Instant> = None;
     let mut last_bridge: Option<Instant> = None;
     let mut last_publish: Option<Instant> = None;
     loop {
         tokio::select! {
-            _ = tick.tick() => {}
+            _ = interval.tick() => {}
             changed = target.changed() => {
                 if changed.is_err() {
                     return;
@@ -46,7 +46,7 @@ pub async fn run_lobby(
         {
             tracing::info!(target: "discovery", rooms = lobby.len(), "lobby changed");
             last_sent = Some(lobby.clone());
-            if lobbies.send(lobby).is_err() {
+            if lobbies_tx.send(lobby).is_err() {
                 return;
             }
         }

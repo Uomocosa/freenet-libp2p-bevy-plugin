@@ -14,5 +14,5 @@ pub struct RunnerConfig {
     pub mode: p2p::TransportMode,
     pub mdns: p2p::MdnsMode,
     pub game: identity::GameId,
-    pub room: p2p::RoomConfig,
+    pub gossipsub: p2p::GossipsubConfig,
 }

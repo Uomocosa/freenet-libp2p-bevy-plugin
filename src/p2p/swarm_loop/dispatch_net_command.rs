@@ -7,7 +7,7 @@ pub fn dispatch_net_command<T: p2p::Message>(
     swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
     subscriptions: &mut p2p::swarm_loop::RoomSubscriptions,
-    replies: &mut p2p::swarm_loop::PendingReplies,
+    snapshot_replies: &mut p2p::swarm_loop::PendingSnapshotReplies,
     command: p2p::NetCommand,
 ) {
     match command {
@@ -60,15 +60,15 @@ pub fn dispatch_net_command<T: p2p::Message>(
             room,
             part,
         } => {
-            if let Ok(pid) = peer_id.parse::<libp2p::PeerId>() {
+            if let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() {
                 swarm
                     .behaviour_mut()
                     .room_sync
-                    .send_request(&pid, p2p::SnapshotRequest::Fetch { room, part });
+                    .send_request(&libp2p_id, p2p::SnapshotRequest::Fetch { room, part });
             }
         }
         p2p::NetCommand::RespondSnapshot { id, frame } => {
-            if let Some(channel) = replies.remove(id) {
+            if let Some(channel) = snapshot_replies.remove(id) {
                 let _ = swarm
                     .behaviour_mut()
                     .room_sync
@@ -84,8 +84,11 @@ pub fn dispatch_net_command<T: p2p::Message>(
             }
         }
         p2p::NetCommand::PeerExchange { peer_id, data } => {
-            if let Ok(pid) = peer_id.parse::<libp2p::PeerId>() {
-                swarm.behaviour_mut().peer_exchange.send_request(&pid, data);
+            if let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() {
+                swarm
+                    .behaviour_mut()
+                    .peer_exchange
+                    .send_request(&libp2p_id, data);
             }
         }
     }
@@ -115,8 +118,8 @@ mod tests {
         p2p::swarm_loop::RoomSubscriptions::new(identity::GameId::from("game"))
     }
 
-    fn replies() -> p2p::swarm_loop::PendingReplies {
-        p2p::swarm_loop::PendingReplies::default()
+    fn snapshot_replies() -> p2p::swarm_loop::PendingSnapshotReplies {
+        p2p::swarm_loop::PendingSnapshotReplies::default()
     }
 
     #[tokio::test]
@@ -129,7 +132,7 @@ mod tests {
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             p2p::NetCommand::Subscribe {
                 topic: topic.clone(),
             },
@@ -150,7 +153,7 @@ mod tests {
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             p2p::NetCommand::SubscribeRoom { room: room.clone() },
         );
         assert_eq!(subscriptions.room(&hash), Some(&room));
@@ -159,7 +162,7 @@ mod tests {
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             p2p::NetCommand::UnsubscribeRoom { room },
         );
         assert!(subscriptions.room(&hash).is_none());
@@ -177,7 +180,7 @@ mod tests {
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             p2p::NetCommand::Subscribe {
                 topic: topic.clone(),
             },
@@ -187,7 +190,7 @@ mod tests {
             &mut swarm,
             &tx,
             &mut subscriptions,
-            &mut replies(),
+            &mut snapshot_replies(),
             p2p::NetCommand::Unsubscribe { topic },
         );
         assert!(!swarm.behaviour().gossipsub.topics().any(|t| *t == hash));

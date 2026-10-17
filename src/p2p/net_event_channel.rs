@@ -18,13 +18,6 @@ impl NetEventChannel {
     pub fn send(&self, event: p2p::NetEvent) { self.tx.send(event).ok(); }
 }
 
-impl NetEventChannel {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 impl Default for NetEventChannel {
     fn default() -> Self {
         let (tx, _) = broadcast::channel(NET_EVENT_CAPACITY);

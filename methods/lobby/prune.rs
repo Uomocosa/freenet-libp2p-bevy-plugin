@@ -6,7 +6,7 @@ pub fn prune(lobby: &mut discovery::Lobby, now: discovery::UnixTime, ttl: Durati
     for record in lobby.values_mut() {
         record
             .members
-            .retain(|_, heartbeat| now.since(heartbeat.updated_at) <= ttl);
+            .retain(|_, heartbeat| now.elapsed_since(heartbeat.updated_at) <= ttl);
     }
     lobby.retain(|_, record| !record.members.is_empty());
 }

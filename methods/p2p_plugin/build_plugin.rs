@@ -19,7 +19,7 @@ pub fn build_plugin<T: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<T>, app: &mu
             mode: p2p_plugin.mode,
             mdns: p2p_plugin.mdns,
             game: p2p_plugin.game.clone(),
-            room: p2p_plugin.room,
+            gossipsub: p2p_plugin.gossipsub,
         },
     );
     app.insert_resource(p2p::Events::<T>::default());

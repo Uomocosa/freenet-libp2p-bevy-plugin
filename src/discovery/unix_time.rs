@@ -36,7 +36,7 @@ impl UnixTime {
     pub fn as_secs(self) -> u64 { *self }
 
     #[must_use]
-    pub fn since(self, earlier: Self) -> Duration {
+    pub fn elapsed_since(self, earlier: Self) -> Duration {
         let secs = self.as_secs().saturating_sub(earlier.as_secs());
         Duration::from_secs(secs)
     }
@@ -53,7 +53,7 @@ mod tests {
         assert_eq!(UnixTime::from_mins(1), UnixTime::from_secs(60));
         assert_eq!(UnixTime::from_secs(60).as_secs(), 60);
         assert_eq!(
-            UnixTime::from_secs(25).since(UnixTime::from_secs(10)),
+            UnixTime::from_secs(25).elapsed_since(UnixTime::from_secs(10)),
             Duration::from_secs(15)
         );
         assert!(UnixTime::now() > UnixTime::from_secs(1_700_000_000));
