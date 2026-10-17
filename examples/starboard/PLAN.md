@@ -772,17 +772,44 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 
 ## Step B1 — Daily identity (shape + color)
 
-- [ ] `Shape` enum (D7), `PaletteColor(u8)` newtype + 12-color palette constant.
-- [ ] `fn daily_identity(peer_id, created_at, now) -> (Shape, PaletteColor)` per D6
+- [x] `Shape` enum (D7), `PaletteColor(u8)` newtype + 12-color palette constant.
+- [x] `fn daily_brush(peer_id, created_at, now) -> DailyBrush` per D6
       (pure). `fn day_index(created_at, now) -> u64`.
-- [ ] `fn room_identities(members, created_at, now) -> BTreeMap<PeerId, (Shape, PaletteColor)>`
+- [x] `fn room_brushes(members, created_at, now) -> BTreeMap<PeerId, DailyBrush>`
       applying D6 collision resolution (pure).
-- [ ] Tests: deterministic for same inputs; changes when day rolls over (`created_at +
+- [x] Tests: deterministic for same inputs; changes when day rolls over (`created_at +
       86400`); distribution sanity over 10 000 fake ids (every shape and color used);
       8 members whose raw seeds collide still get 8 distinct identities.
 
 ### What was done (Step B1)
-_(agent fills)_
+
+**Files added:**
+- `examples/starboard_gossip/main.rs` — thin binary mounting `#[path = "../starboard/mod.rs"] mod starboard;` and registered in `Cargo.toml` as `[[example]] name = "starboard_gossip"` (`required-features = ["e2e"]`) so `just build`, `just clippy`, and `just test` compile and run the `starboard` unit tests in every gate.
+- `examples/starboard/mod.rs` — `pub mod identity;`.
+- `examples/starboard/identity/mod.rs` — exposes `basic` (`__basic__/mod.rs`), `Shape`, `PaletteColor`, `DailyBrush`, `SECONDS_PER_DAY`, `SHAPES`, `PALETTE`, `COMBINATION_COUNT`, `brush_at`, `day_index`, `daily_brush`, and `room_brushes`.
+- `examples/starboard/identity/__basic__/{mod,constants,enums,newtypes,structs}.rs`:
+  - `Shape { Circle, Star, Square, Triangle, Diamond, Hexagon }`
+  - `PaletteColor(pub u8)` (`#[derive(Deref)]`)
+  - `DailyBrush { pub shape: Shape, pub color: PaletteColor }` (named struct replacing the `(Shape, PaletteColor)` 2-tuple per `SMELLS.md` §S4 / `LELE017`)
+  - `SECONDS_PER_DAY: u64 = 60 * 60 * 24`
+  - `SHAPES: [Shape; 6]` and `PALETTE: [[u8; 3]; 12]`
+  - `COMBINATION_COUNT: usize = SHAPES.len() * PALETTE.len()` (`72`)
+- `examples/starboard/identity/day_index.rs` — `day_index(created_at, now) -> u64` (`elapsed_since` divided by `SECONDS_PER_DAY`).
+- `examples/starboard/identity/brush_at.rs` — `brush_at(slot: usize) -> DailyBrush` (bijective `0..COMBINATION_COUNT` → `(Shape, PaletteColor)` mapping).
+- `examples/starboard/identity/daily_brush.rs` — `daily_brush(peer_id, created_at, now) -> DailyBrush` (`blake3(peer_id ‖ created_at ‖ day)` mod `COMBINATION_COUNT`).
+- `examples/starboard/identity/room_brushes.rs` — `room_brushes(members, created_at, now) -> BTreeMap<PeerId, DailyBrush>` (sorts members by `PeerId` and steps colliding members to the next free combination of 72).
+
+**Tests added (`cargo nextest run --example starboard_gossip --all-features`):**
+- `day_index::tests::test_usage` — boundary checks (`now < created_at`, `0`, `86_399`, `86_400`, `172_800`).
+- `brush_at::tests::test_usage` — all 72 slots yield 72 distinct `DailyBrush` values and wrap at `COMBINATION_COUNT`.
+- `daily_brush::tests::{test_usage, changes_across_rollover_and_covers_all_shapes_and_colors}` — deterministic within the same day; changes across `created_at + SECONDS_PER_DAY` (>9 000 / 10 000 fake peers change); all 6 shapes and all 12 palette colors hit across 10 000 fake peers.
+- `room_brushes::tests::test_usage` — finds 8 distinct `PeerId`s whose raw `daily_brush` collides on the same `DailyBrush` and verifies `room_brushes` assigns 8 distinct brushes.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test` (**170 passed**, 4 skipped), `just lint`, `just bevy-lint`.
+
+**Deviations / decisions:**
+- Named the `(Shape, PaletteColor)` pair `DailyBrush { pub shape, pub color }` and renamed `daily_identity` → `daily_brush`, `room_identities` → `room_brushes`, plus `brush_at(slot: usize)` (user decision; avoids positional tuple access).
+- Registered `[[example]] name = "starboard_gossip"` now so `starboard` modules are compiled and tested by `just test` / `just clippy` from Step B1 onward.
 
 ---
 

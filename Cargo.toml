@@ -14,6 +14,11 @@ name = "lobby_room"
 path = "examples/lobby_room/main.rs"
 required-features = ["e2e"]
 
+[[example]]
+name = "starboard_gossip"
+path = "examples/starboard_gossip/main.rs"
+required-features = ["e2e"]
+
 [[test]]
 name = "lobby_room_discovery"
 path = "tests/lobby_room_discovery.rs"
