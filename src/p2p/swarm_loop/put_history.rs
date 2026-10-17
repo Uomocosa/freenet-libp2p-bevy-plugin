@@ -2,8 +2,8 @@ use libp2p::kad;
 
 use crate::p2p;
 
-pub fn put_history<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
+pub fn put_history<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
     id: &p2p::HistoryChunkId,
     data: Vec<u8>,
 ) {

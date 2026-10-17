@@ -8,10 +8,12 @@ use crate::p2p;
 use crate::p2p::basic::enums::{Command, Event, NetCommand};
 
 #[derive(Resource, Deref)]
-pub struct CommandSender<T: p2p::Message>(pub UnboundedSender<Command<T>>);
+pub struct CommandSender<Payload: p2p::Message>(pub UnboundedSender<Command<Payload>>);
 
 #[derive(Resource, Deref)]
-pub struct EventReceiver<T: p2p::Message>(pub Mutex<Option<UnboundedReceiver<Event<T>>>>);
+pub struct EventReceiver<Payload: p2p::Message>(
+    pub Mutex<Option<UnboundedReceiver<Event<Payload>>>>,
+);
 
 #[derive(Resource, Deref)]
 pub struct NetCommandSender(pub UnboundedSender<NetCommand>);

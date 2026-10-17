@@ -4,8 +4,8 @@ use crate::discovery;
 use crate::p2p;
 use crate::room_sync;
 
-pub fn write_ops<S: room_sync::RoomState>(
-    mut writer: ResMut<room_sync::PendingOps<S>>,
+pub fn write_ops<Replica: room_sync::RoomState>(
+    mut writer: ResMut<room_sync::PendingOps<Replica>>,
     mut clock: ResMut<room_sync::LamportClock>,
     ready: Res<p2p::ReadyChannel>,
     status: Option<Res<discovery::Status>>,
@@ -31,12 +31,12 @@ pub fn write_ops<S: room_sync::RoomState>(
             lamport: clock.tick(),
             author,
         };
-        let frame = room_sync::SyncFrame {
+        let message = room_sync::ReplicaSyncTopicMessage::ApplyThisOp {
             room: joined.name.clone(),
             meta,
             op,
         };
-        let Ok(data) = bincode::serialize(&frame) else {
+        let Ok(data) = bincode::serialize(&message) else {
             continue;
         };
         pending.push(p2p::NetCommand::Publish {

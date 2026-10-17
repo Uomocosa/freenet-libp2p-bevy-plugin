@@ -1,10 +1,10 @@
 use crate::identity;
 use crate::room_sync;
 
-pub struct State<O> {
+pub struct State<Op> {
     pub room: Option<identity::RoomName>,
     pub phase: room_sync::state_machine::Phase,
-    pub buffered: Vec<(room_sync::OpMeta, O)>,
+    pub buffered: Vec<(room_sync::OpMeta, Op)>,
     pub total: u32,
     pub parts: Vec<Option<Vec<u8>>>,
     pub members: Vec<identity::PeerId>,
@@ -12,7 +12,7 @@ pub struct State<O> {
     pub source: Option<identity::PeerId>,
 }
 
-impl<O> Default for State<O> {
+impl<Op> Default for State<Op> {
     fn default() -> Self {
         Self {
             room: None,

@@ -1,11 +1,11 @@
 use crate::identity;
 use crate::room_sync;
 
-pub fn handle_joined<O>(
-    state: &mut room_sync::state_machine::State<O>,
+pub fn handle_joined<Op>(
+    state: &mut room_sync::state_machine::State<Op>,
     room: identity::RoomName,
     members: Vec<identity::PeerId>,
-) -> Vec<room_sync::state_machine::Output<O>> {
+) -> Vec<room_sync::state_machine::Output<Op>> {
     state.room = Some(room);
     state.phase = room_sync::state_machine::Phase::Fetching;
     state.buffered.clear();

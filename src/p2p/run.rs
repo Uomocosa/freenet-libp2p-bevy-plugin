@@ -6,15 +6,15 @@ use libp2p::identity::Keypair;
 use crate::identity;
 use crate::p2p;
 
-pub async fn run<T: p2p::Message>(
-    mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<T>>,
+pub async fn run<Payload: p2p::Message>(
+    mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<Payload>>,
     mut net_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::NetCommand>,
-    event_tx: tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+    event_tx: tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     keypair: Keypair,
     config: p2p::RunnerConfig,
 ) {
     let mode = config.mode;
-    let mut swarm = match p2p::build_swarm::build_swarm::<T>(
+    let mut swarm = match p2p::build_swarm::build_swarm::<Payload>(
         keypair,
         config.mdns,
         &config.game,
@@ -112,12 +112,12 @@ mod tests {
     const SUBSCRIPTION_SETTLE: Duration = Duration::from_millis(500);
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Deref)]
-    struct Payload(u32);
+    struct TestPayload(u32);
 
     struct Node {
-        commands: tokio::sync::mpsc::UnboundedSender<p2p::Command<Payload>>,
+        commands: tokio::sync::mpsc::UnboundedSender<p2p::Command<TestPayload>>,
         net_commands: tokio::sync::mpsc::UnboundedSender<p2p::NetCommand>,
-        events: tokio::sync::mpsc::UnboundedReceiver<p2p::Event<Payload>>,
+        events: tokio::sync::mpsc::UnboundedReceiver<p2p::Event<TestPayload>>,
         handle: tokio::task::JoinHandle<()>,
     }
 
@@ -125,7 +125,7 @@ mod tests {
         let (commands, command_rx) = tokio::sync::mpsc::unbounded_channel();
         let (net_commands, net_rx) = tokio::sync::mpsc::unbounded_channel();
         let (event_tx, events) = tokio::sync::mpsc::unbounded_channel();
-        let handle = p2p::spawn_runner::<Payload>(
+        let handle = p2p::spawn_runner::<TestPayload>(
             command_rx,
             net_rx,
             event_tx,
@@ -192,7 +192,10 @@ mod tests {
         assert_eq!(connected, Ok(true));
     }
 
-    async fn wait_room_message(node: &mut Node, room: &identity::RoomName) -> p2p::Event<Payload> {
+    async fn wait_room_message(
+        node: &mut Node,
+        room: &identity::RoomName,
+    ) -> p2p::Event<TestPayload> {
         let message = tokio::time::timeout(Duration::from_secs(5), async {
             while let Some(event) = node.events.recv().await {
                 if matches!(&event, p2p::Event::RoomMessage { room: seen, .. } if seen == room) {
@@ -233,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let _ = stringify!(run::<Payload>);
+        let _ = stringify!(run::<TestPayload>);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -270,7 +273,7 @@ mod tests {
 
         hub.commands
             .send(p2p::Command::PublishInJoinedRoom {
-                payload: Payload(42),
+                payload: TestPayload(42),
             })
             .unwrap();
 
@@ -286,7 +289,7 @@ mod tests {
             };
             assert_eq!(seen, room);
             assert_eq!(from, hub_peer.id);
-            assert_eq!(payload, Payload(42));
+            assert_eq!(payload, TestPayload(42));
             assert_eq!(
                 count_room_messages(node, &room, Duration::from_millis(500)).await,
                 0

@@ -2,8 +2,9 @@
 pub mod basic;
 
 pub use basic::constants::PART_BYTES;
+pub use basic::enums::ReplicaSyncTopicMessage;
 pub use basic::resources::SyncGame;
-pub use basic::structs::{OpMeta, SyncFrame};
+pub use basic::structs::OpMeta;
 
 mod join_parts;
 pub use join_parts::join_parts;

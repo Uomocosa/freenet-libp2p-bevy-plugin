@@ -1,9 +1,9 @@
 use crate::room_sync;
 
-pub fn update<O>(
-    state: &mut room_sync::state_machine::State<O>,
-    input: room_sync::state_machine::Input<O>,
-) -> Vec<room_sync::state_machine::Output<O>> {
+pub fn update<Op>(
+    state: &mut room_sync::state_machine::State<Op>,
+    input: room_sync::state_machine::Input<Op>,
+) -> Vec<room_sync::state_machine::Output<Op>> {
     match input {
         room_sync::state_machine::Input::Joined { room, members } => {
             room_sync::state_machine::handle_joined(state, room, members)

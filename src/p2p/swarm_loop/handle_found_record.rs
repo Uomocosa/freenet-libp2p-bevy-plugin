@@ -2,8 +2,8 @@ use libp2p::kad;
 
 use crate::p2p;
 
-pub fn handle_found_record<T: p2p::Message>(
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn handle_found_record<Payload: p2p::Message>(
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     peer_record: kad::PeerRecord,
 ) {
     let record = peer_record.record;

@@ -4,9 +4,9 @@ use derive_more::{Deref, DerefMut};
 use crate::room_sync;
 
 #[derive(Resource, Deref, DerefMut)]
-pub struct SyncState<O>(pub room_sync::state_machine::State<O>);
+pub struct SyncState<Op>(pub room_sync::state_machine::State<Op>);
 
-impl<O> Default for SyncState<O> {
+impl<Op> Default for SyncState<Op> {
     fn default() -> Self {
         Self(room_sync::state_machine::State::default())
     }

@@ -1,12 +1,12 @@
 use crate::identity;
 use crate::room_sync;
 
-pub fn handle_remote<O>(
-    state: &mut room_sync::state_machine::State<O>,
+pub fn handle_remote<Op>(
+    state: &mut room_sync::state_machine::State<Op>,
     room: &identity::RoomName,
     meta: room_sync::OpMeta,
-    op: O,
-) -> Vec<room_sync::state_machine::Output<O>> {
+    op: Op,
+) -> Vec<room_sync::state_machine::Output<Op>> {
     if state.room.as_ref() != Some(room) {
         return Vec::new();
     }

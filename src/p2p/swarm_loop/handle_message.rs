@@ -3,11 +3,11 @@ use libp2p::request_response;
 use crate::identity;
 use crate::p2p;
 
-pub fn handle_message<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn handle_message<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     peer: &libp2p::PeerId,
-    message: request_response::Message<T, T>,
+    message: request_response::Message<Payload, Payload>,
 ) {
     match message {
         request_response::Message::Request {

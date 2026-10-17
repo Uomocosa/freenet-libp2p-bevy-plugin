@@ -3,8 +3,8 @@ use libp2p::gossipsub;
 use crate::identity;
 use crate::p2p;
 
-pub fn unsubscribe_room<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
+pub fn unsubscribe_room<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
     subscriptions: &mut p2p::swarm_loop::RoomSubscriptions,
     room: &identity::RoomName,
 ) {

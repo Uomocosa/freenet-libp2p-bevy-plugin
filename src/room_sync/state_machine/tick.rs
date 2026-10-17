@@ -1,8 +1,8 @@
 use crate::room_sync;
 
-pub fn tick<O>(
-    state: &mut room_sync::state_machine::State<O>,
-) -> Vec<room_sync::state_machine::Output<O>> {
+pub fn tick<Op>(
+    state: &mut room_sync::state_machine::State<Op>,
+) -> Vec<room_sync::state_machine::Output<Op>> {
     if state.phase != room_sync::state_machine::Phase::Fetching {
         return Vec::new();
     }

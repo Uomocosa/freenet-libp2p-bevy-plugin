@@ -10,15 +10,15 @@ use libp2p::swarm::SwarmEvent;
 use crate::identity;
 use crate::p2p;
 
-pub fn handle_swarm_event<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn handle_swarm_event<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     subscriptions: &p2p::swarm_loop::RoomSubscriptions,
     snapshot_replies: &mut p2p::swarm_loop::PendingSnapshotReplies,
     listen_addrs: &mut Vec<identity::PeerAddr>,
     ready_deadline: &mut Option<tokio::time::Instant>,
     mode: p2p::TransportMode,
-    event: SwarmEvent<p2p::behaviour::BehaviourEvent<T>>,
+    event: SwarmEvent<p2p::behaviour::BehaviourEvent<Payload>>,
 ) {
     match event {
         SwarmEvent::NewListenAddr { address, .. } => {

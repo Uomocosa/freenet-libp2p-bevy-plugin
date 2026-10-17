@@ -6,15 +6,15 @@ use crate::p2p;
 use crate::plugin;
 
 #[derive(Deref)]
-pub struct P2PPlugin<T: p2p::Message>(pub plugin::Config<T>);
+pub struct P2PPlugin<Payload: p2p::Message>(pub plugin::Config<Payload>);
 
 #[atomic_delegates]
-impl<T: p2p::Message> P2PPlugin<T> {
+impl<Payload: p2p::Message> P2PPlugin<Payload> {
     pub fn build_plugin(&self, app: &mut App) {}
 }
 
 #[rustfmt::skip]
-impl<T: p2p::Message> bevy::prelude::Plugin for P2PPlugin<T> {
+impl<Payload: p2p::Message> bevy::prelude::Plugin for P2PPlugin<Payload> {
     fn build(&self, app: &mut App) {
         self.build_plugin(app);
     }

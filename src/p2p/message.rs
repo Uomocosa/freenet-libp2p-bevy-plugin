@@ -2,7 +2,10 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 pub trait Message: Serialize + DeserializeOwned + Clone + Send + Sync + 'static {}
-impl<T> Message for T where T: Serialize + DeserializeOwned + Clone + Send + Sync + 'static {}
+impl<Payload> Message for Payload where
+    Payload: Serialize + DeserializeOwned + Clone + Send + Sync + 'static
+{
+}
 
 #[cfg(test)]
 mod tests {
@@ -16,7 +19,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        fn assert_message<T: Message>() {}
+        fn assert_message<Payload: Message>() {}
         assert_message::<Dummy>();
     }
 }

@@ -2,12 +2,12 @@ use bevy::prelude::*;
 
 use crate::p2p;
 
-pub fn poll_p2p_events<T: p2p::Message>(
-    mut events: ResMut<p2p::Events<T>>,
-    mut commands: ResMut<p2p::Commands<T>>,
+pub fn poll_p2p_events<Payload: p2p::Message>(
+    mut events: ResMut<p2p::Events<Payload>>,
+    mut commands: ResMut<p2p::Commands<Payload>>,
     mut pending: ResMut<p2p::PendingNetCommands>,
-    command_channel: Res<p2p::CommandSender<T>>,
-    event_channel: Res<p2p::EventReceiver<T>>,
+    command_channel: Res<p2p::CommandSender<Payload>>,
+    event_channel: Res<p2p::EventReceiver<Payload>>,
     net_commands: Option<Res<p2p::NetCommandSender>>,
     ready: Option<Res<p2p::ReadyChannel>>,
     net_events: Option<Res<p2p::NetEventChannel>>,
@@ -61,7 +61,7 @@ pub fn poll_p2p_events<T: p2p::Message>(
 }
 
 // needed helper: updates the latest-value ready/observed watch channels
-fn publish_ready<T: p2p::Message>(ready: &p2p::ReadyChannel, event: &p2p::Event<T>) {
+fn publish_ready<Payload: p2p::Message>(ready: &p2p::ReadyChannel, event: &p2p::Event<Payload>) {
     match event {
         p2p::Event::Net(p2p::NetEvent::Ready(me)) => {
             ready.ready_tx.send_replace(Some(me.clone()));
@@ -74,7 +74,7 @@ fn publish_ready<T: p2p::Message>(ready: &p2p::ReadyChannel, event: &p2p::Event<
 }
 
 // needed helper: maps the non-generic subset of events onto the net event channel
-fn net_event_of<T: p2p::Message>(event: &p2p::Event<T>) -> Option<p2p::NetEvent> {
+fn net_event_of<Payload: p2p::Message>(event: &p2p::Event<Payload>) -> Option<p2p::NetEvent> {
     match event {
         p2p::Event::Net(net_event) => Some(net_event.clone()),
         _ => None,

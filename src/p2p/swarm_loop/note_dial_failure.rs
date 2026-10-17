@@ -1,8 +1,8 @@
 use crate::identity;
 use crate::p2p;
 
-pub fn note_dial_failure<T: p2p::Message>(
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn note_dial_failure<Payload: p2p::Message>(
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     peer_id: Option<libp2p::PeerId>,
     error: &libp2p::swarm::DialError,
 ) {

@@ -6,7 +6,10 @@ use crate::discovery;
 use crate::p2p;
 use crate::room_sync;
 
-pub fn build_plugin<S: room_sync::RoomState>(plugin: &room_sync::SyncPlugin<S>, app: &mut App) {
+pub fn build_plugin<Replica: room_sync::RoomState>(
+    plugin: &room_sync::SyncPlugin<Replica>,
+    app: &mut App,
+) {
     let Some(net_events) = app
         .world()
         .get_resource::<p2p::NetEventChannel>()
@@ -15,10 +18,10 @@ pub fn build_plugin<S: room_sync::RoomState>(plugin: &room_sync::SyncPlugin<S>, 
         tracing::error!(target: "room_sync", "room_sync: p2p NetEventChannel missing");
         return;
     };
-    app.init_resource::<S>();
+    app.init_resource::<Replica>();
     app.init_resource::<room_sync::LamportClock>();
-    app.init_resource::<room_sync::PendingOps<S>>();
-    app.init_resource::<room_sync::bevy_systems::SyncState<S::Op>>();
+    app.init_resource::<room_sync::PendingOps<Replica>>();
+    app.init_resource::<room_sync::bevy_systems::SyncState<Replica::Op>>();
     app.insert_resource(room_sync::SyncGame(plugin.game.clone()));
     app.insert_resource(room_sync::bevy_systems::NetEvents {
         receiver: Mutex::new(net_events),
@@ -26,10 +29,10 @@ pub fn build_plugin<S: room_sync::RoomState>(plugin: &room_sync::SyncPlugin<S>, 
     app.add_systems(
         Update,
         (
-            room_sync::bevy_systems::drive::<S>
+            room_sync::bevy_systems::drive::<Replica>
                 .after(discovery::bevy_systems::drain_events)
                 .after(discovery::bevy_systems::drain_status),
-            room_sync::bevy_systems::write_ops::<S>,
+            room_sync::bevy_systems::write_ops::<Replica>,
         ),
     );
 }

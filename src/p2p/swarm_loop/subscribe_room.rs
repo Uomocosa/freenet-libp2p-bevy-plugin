@@ -3,9 +3,9 @@ use libp2p::gossipsub;
 use crate::identity;
 use crate::p2p;
 
-pub fn subscribe_room<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn subscribe_room<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     subscriptions: &mut p2p::swarm_loop::RoomSubscriptions,
     room: identity::RoomName,
 ) {

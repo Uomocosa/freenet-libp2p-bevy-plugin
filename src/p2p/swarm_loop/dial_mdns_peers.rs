@@ -2,8 +2,8 @@ use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 
 use crate::p2p;
 
-pub fn dial_mdns_peers<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
+pub fn dial_mdns_peers<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
     mode: p2p::TransportMode,
     peers: Vec<(libp2p::PeerId, libp2p::Multiaddr)>,
 ) {

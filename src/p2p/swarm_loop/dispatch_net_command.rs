@@ -3,9 +3,9 @@ use libp2p::swarm::dial_opts::PeerCondition;
 
 use crate::p2p;
 
-pub fn dispatch_net_command<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn dispatch_net_command<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     subscriptions: &mut p2p::swarm_loop::RoomSubscriptions,
     snapshot_replies: &mut p2p::swarm_loop::PendingSnapshotReplies,
     command: p2p::NetCommand,

@@ -3,9 +3,9 @@ use libp2p::gossipsub;
 use crate::identity;
 use crate::p2p;
 
-pub fn handle_gossipsub<T: p2p::Message>(
-    swarm: &libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn handle_gossipsub<Payload: p2p::Message>(
+    swarm: &libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     subscriptions: &p2p::swarm_loop::RoomSubscriptions,
     gossip_event: gossipsub::Event,
 ) {
@@ -34,8 +34,8 @@ pub fn handle_gossipsub<T: p2p::Message>(
 }
 
 // needed helper: samples gossip mesh depth for one inbound message
-fn log_gossip_in<T: p2p::Message>(
-    swarm: &libp2p::Swarm<p2p::Behaviour<T>>,
+fn log_gossip_in<Payload: p2p::Message>(
+    swarm: &libp2p::Swarm<p2p::Behaviour<Payload>>,
     propagation_source: &libp2p::PeerId,
     message_id: &libp2p::gossipsub::MessageId,
     message: &gossipsub::Message,
@@ -56,8 +56,8 @@ fn log_gossip_in<T: p2p::Message>(
 }
 
 // needed helper: converts a gossipsub wire message into a Bevy event
-fn forward_gossip<T: p2p::Message>(
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+fn forward_gossip<Payload: p2p::Message>(
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     subscriptions: &p2p::swarm_loop::RoomSubscriptions,
     propagation_source: libp2p::PeerId,
     message: gossipsub::Message,
@@ -73,7 +73,7 @@ fn forward_gossip<T: p2p::Message>(
             .ok();
         return;
     };
-    match bincode::deserialize::<T>(&message.data) {
+    match bincode::deserialize::<Payload>(&message.data) {
         Ok(payload) => {
             event_tx
                 .send(p2p::Event::RoomMessage {

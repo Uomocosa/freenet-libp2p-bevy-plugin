@@ -131,32 +131,32 @@ pub enum NetCommand {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Command<T> {
+pub enum Command<Payload> {
     Net(NetCommand),
     Send {
         peer_id: identity::PeerId,
-        payload: T,
+        payload: Payload,
     },
     PublishInJoinedRoom {
-        payload: T,
+        payload: Payload,
     },
     PublishToSpecificRoom {
         room: identity::RoomName,
-        payload: T,
+        payload: Payload,
     },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Event<T> {
+pub enum Event<Payload> {
     Net(NetEvent),
     Message {
         from: identity::PeerId,
-        payload: T,
+        payload: Payload,
     },
     RoomMessage {
         room: identity::RoomName,
         from: identity::PeerId,
-        payload: T,
+        payload: Payload,
     },
     Error(String),
 }

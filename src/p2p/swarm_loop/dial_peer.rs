@@ -3,9 +3,9 @@ use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use crate::identity;
 use crate::p2p;
 
-pub fn dial_peer<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn dial_peer<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     peer_id: &identity::PeerId,
     addrs: &[identity::PeerAddr],
     condition: PeerCondition,

@@ -3,8 +3,8 @@ use libp2p::request_response;
 use crate::identity;
 use crate::p2p;
 
-pub fn handle_room_sync<T: p2p::Message>(
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn handle_room_sync<Payload: p2p::Message>(
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     snapshot_replies: &mut p2p::swarm_loop::PendingSnapshotReplies,
     peer: &libp2p::PeerId,
     message: request_response::Message<p2p::SnapshotRequest, p2p::SnapshotResponse>,

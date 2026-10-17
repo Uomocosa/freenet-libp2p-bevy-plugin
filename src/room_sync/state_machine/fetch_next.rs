@@ -1,8 +1,8 @@
 use crate::room_sync;
 
-pub fn fetch_next<O>(
-    state: &mut room_sync::state_machine::State<O>,
-) -> Vec<room_sync::state_machine::Output<O>> {
+pub fn fetch_next<Op>(
+    state: &mut room_sync::state_machine::State<Op>,
+) -> Vec<room_sync::state_machine::Output<Op>> {
     let Some(room) = state.room.clone() else {
         return Vec::new();
     };

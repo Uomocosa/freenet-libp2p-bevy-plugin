@@ -8,12 +8,12 @@ use libp2p::{
 use crate::identity;
 use crate::p2p;
 
-pub fn build_swarm<T: p2p::Message>(
+pub fn build_swarm<Payload: p2p::Message>(
     keypair: Keypair,
     mdns: p2p::MdnsMode,
     game: &identity::GameId,
     gossipsub_config: &p2p::GossipsubConfig,
-) -> Result<libp2p::Swarm<p2p::Behaviour<T>>, String> {
+) -> Result<libp2p::Swarm<p2p::Behaviour<Payload>>, String> {
     let peer_id = keypair.public().to_peer_id();
     let swarm = libp2p::SwarmBuilder::with_existing_identity(keypair)
         .with_tokio()
@@ -31,7 +31,7 @@ pub fn build_swarm<T: p2p::Message>(
         .with_behaviour(
             |kp,
              relay_client|
-             -> Result<p2p::Behaviour<T>, Box<dyn std::error::Error + Send + Sync>> {
+             -> Result<p2p::Behaviour<Payload>, Box<dyn std::error::Error + Send + Sync>> {
                 let mut kad_cfg = kad::Config::default();
                 let Some(replication) = std::num::NonZeroUsize::new(8) else {
                     return Err("invalid replication factor".into());
@@ -41,7 +41,7 @@ pub fn build_swarm<T: p2p::Message>(
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_cfg);
                 kademlia.set_mode(Some(kad::Mode::Server));
                 let rr = request_response::Behaviour::with_codec(
-                    p2p::MessageCodec::<T>::default(),
+                    p2p::MessageCodec::<Payload>::default(),
                     [(
                         StreamProtocol::new("/lobby/1.0.0"),
                         request_response::ProtocolSupport::Full,

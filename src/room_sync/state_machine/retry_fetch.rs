@@ -1,9 +1,9 @@
 use crate::room_sync;
 
 // needed helper: no member left to answer; accept what we already have
-fn give_up<O>(
-    state: &mut room_sync::state_machine::State<O>,
-) -> Vec<room_sync::state_machine::Output<O>> {
+fn give_up<Op>(
+    state: &mut room_sync::state_machine::State<Op>,
+) -> Vec<room_sync::state_machine::Output<Op>> {
     state.phase = room_sync::state_machine::Phase::Ready;
     let mut outputs = Vec::new();
     for (meta, op) in state.buffered.drain(..) {
@@ -12,9 +12,9 @@ fn give_up<O>(
     outputs
 }
 
-pub fn retry_fetch<O>(
-    state: &mut room_sync::state_machine::State<O>,
-) -> Vec<room_sync::state_machine::Output<O>> {
+pub fn retry_fetch<Op>(
+    state: &mut room_sync::state_machine::State<Op>,
+) -> Vec<room_sync::state_machine::Output<Op>> {
     if state.phase != room_sync::state_machine::Phase::Fetching {
         return Vec::new();
     }

@@ -3,10 +3,10 @@ use libp2p::swarm::SwarmEvent;
 use crate::identity;
 use crate::p2p;
 
-pub fn note_connection<T: p2p::Message>(
-    swarm: &libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
-    event: SwarmEvent<p2p::behaviour::BehaviourEvent<T>>,
+pub fn note_connection<Payload: p2p::Message>(
+    swarm: &libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
+    event: SwarmEvent<p2p::behaviour::BehaviourEvent<Payload>>,
 ) {
     match event {
         SwarmEvent::ConnectionEstablished {
@@ -70,8 +70,8 @@ fn log_established(
 }
 
 // needed helper: records one closed connection and whether the peer stays up
-fn log_closed<T: p2p::Message>(
-    swarm: &libp2p::Swarm<p2p::Behaviour<T>>,
+fn log_closed<Payload: p2p::Message>(
+    swarm: &libp2p::Swarm<p2p::Behaviour<Payload>>,
     peer_id: &libp2p::PeerId,
     connection_id: libp2p::swarm::ConnectionId,
     endpoint: &libp2p::core::ConnectedPoint,

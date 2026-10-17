@@ -6,12 +6,12 @@ use bevy::prelude::*;
 use crate::identity;
 use crate::room_sync;
 
-pub struct SyncPlugin<S: room_sync::RoomState> {
+pub struct SyncPlugin<Replica: room_sync::RoomState> {
     pub game: identity::GameId,
-    pub marker: PhantomData<S>,
+    pub marker: PhantomData<Replica>,
 }
 
-impl<S: room_sync::RoomState> SyncPlugin<S> {
+impl<Replica: room_sync::RoomState> SyncPlugin<Replica> {
     #[must_use]
     pub const fn new(game: identity::GameId) -> Self {
         Self {
@@ -22,12 +22,12 @@ impl<S: room_sync::RoomState> SyncPlugin<S> {
 }
 
 #[atomic_delegates]
-impl<S: room_sync::RoomState> SyncPlugin<S> {
+impl<Replica: room_sync::RoomState> SyncPlugin<Replica> {
     pub fn build_plugin(&self, app: &mut App) {}
 }
 
 #[rustfmt::skip]
-impl<S: room_sync::RoomState> bevy::prelude::Plugin for SyncPlugin<S> {
+impl<Replica: room_sync::RoomState> bevy::prelude::Plugin for SyncPlugin<Replica> {
     fn build(&self, app: &mut App) {
         self.build_plugin(app);
     }

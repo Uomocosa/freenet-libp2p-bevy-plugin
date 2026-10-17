@@ -1,13 +1,13 @@
 use crate::identity;
 use crate::p2p;
 
-pub fn dispatch_command<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+pub fn dispatch_command<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     subscriptions: &mut p2p::swarm_loop::RoomSubscriptions,
     snapshot_replies: &mut p2p::swarm_loop::PendingSnapshotReplies,
     config: &p2p::GossipsubConfig,
-    cmd: Option<p2p::Command<T>>,
+    cmd: Option<p2p::Command<Payload>>,
 ) -> bool {
     match cmd {
         Some(p2p::Command::Net(net)) => {
@@ -39,12 +39,12 @@ pub fn dispatch_command<T: p2p::Message>(
 }
 
 // needed helper: publishes to the joined room, or reports that there is none
-fn publish_joined<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+fn publish_joined<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     subscriptions: &p2p::swarm_loop::RoomSubscriptions,
     config: &p2p::GossipsubConfig,
-    payload: &T,
+    payload: &Payload,
 ) {
     let Some(room) = subscriptions.joined.as_ref() else {
         event_tx
@@ -58,13 +58,13 @@ fn publish_joined<T: p2p::Message>(
 }
 
 // needed helper: serializes one room publish and reports every rejection
-fn publish_room<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
-    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<T>>,
+fn publish_room<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
+    event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     subscriptions: &p2p::swarm_loop::RoomSubscriptions,
     config: &p2p::GossipsubConfig,
     room: &identity::RoomName,
-    payload: &T,
+    payload: &Payload,
 ) {
     let Ok(data) = bincode::serialize(payload) else {
         event_tx

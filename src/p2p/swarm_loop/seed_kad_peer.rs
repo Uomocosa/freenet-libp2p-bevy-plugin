@@ -3,8 +3,8 @@ use libp2p::kad;
 use crate::identity;
 use crate::p2p;
 
-pub fn seed_kad_peer<T: p2p::Message>(
-    swarm: &mut libp2p::Swarm<p2p::Behaviour<T>>,
+pub fn seed_kad_peer<Payload: p2p::Message>(
+    swarm: &mut libp2p::Swarm<p2p::Behaviour<Payload>>,
     peer_id: &identity::PeerId,
     addrs: &[identity::PeerAddr],
 ) {

@@ -11,7 +11,7 @@ pub enum Phase {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Input<O> {
+pub enum Input<Op> {
     Joined {
         room: identity::RoomName,
         members: Vec<identity::PeerId>,
@@ -22,7 +22,7 @@ pub enum Input<O> {
     Remote {
         room: identity::RoomName,
         meta: room_sync::OpMeta,
-        op: O,
+        op: Op,
     },
     Snapshot {
         room: identity::RoomName,
@@ -40,7 +40,7 @@ pub enum Input<O> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Output<O> {
+pub enum Output<Op> {
     Fetch {
         peer: identity::PeerId,
         room: identity::RoomName,
@@ -56,6 +56,6 @@ pub enum Output<O> {
     },
     Apply {
         meta: room_sync::OpMeta,
-        op: O,
+        op: Op,
     },
 }

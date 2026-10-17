@@ -8,8 +8,8 @@ use libp2p::{dcutr, gossipsub, identify, kad, mdns, ping, relay, request_respons
 use crate::p2p;
 
 #[derive(NetworkBehaviour)]
-pub struct Behaviour<T: p2p::Message> {
-    pub request_response: request_response::Behaviour<p2p::MessageCodec<T>>,
+pub struct Behaviour<Payload: p2p::Message> {
+    pub request_response: request_response::Behaviour<p2p::MessageCodec<Payload>>,
     pub peer_exchange: request_response::Behaviour<p2p::MessageCodec<Vec<u8>>>,
     pub room_sync:
         request_response::Behaviour<p2p::MessageCodec<p2p::SnapshotRequest, p2p::SnapshotResponse>>,

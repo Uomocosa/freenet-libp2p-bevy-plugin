@@ -5,17 +5,17 @@ use serde::Serialize;
 use crate::p2p;
 
 #[derive(Resource, Deref, DerefMut, Serialize)]
-pub struct Commands<T: p2p::Message>(pub Vec<p2p::Command<T>>);
+pub struct Commands<Payload: p2p::Message>(pub Vec<p2p::Command<Payload>>);
 
-impl<T: p2p::Message> Default for Commands<T> {
+impl<Payload: p2p::Message> Default for Commands<Payload> {
     fn default() -> Self {
         Self(Vec::new())
     }
 }
 
 #[rustfmt::skip]
-impl<T: p2p::Message> Commands<T> {
-    pub fn take_all(&mut self) -> Vec<p2p::Command<T>> {
+impl<Payload: p2p::Message> Commands<Payload> {
+    pub fn take_all(&mut self) -> Vec<p2p::Command<Payload>> {
         self.split_off(0)
     }
 }

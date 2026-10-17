@@ -1,13 +1,13 @@
 use crate::identity;
 use crate::room_sync;
 
-pub fn handle_snapshot<O>(
-    state: &mut room_sync::state_machine::State<O>,
+pub fn handle_snapshot<Op>(
+    state: &mut room_sync::state_machine::State<Op>,
     room: identity::RoomName,
     part: u32,
     total: u32,
     data: Vec<u8>,
-) -> Vec<room_sync::state_machine::Output<O>> {
+) -> Vec<room_sync::state_machine::Output<Op>> {
     if state.phase != room_sync::state_machine::Phase::Fetching
         || state.room.as_ref() != Some(&room)
     {

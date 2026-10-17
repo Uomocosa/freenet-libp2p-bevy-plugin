@@ -78,7 +78,7 @@ first**. Loading a skill is cheap; skipping one is a correctness bug.
 | D2 | Transport choice | Moot — there is no second transport. `just bench-starboard` still measures the gossipsub path (op latency, bytes/s, drop %, convergence; 2 vs 8 peers) but no longer picks a default; the plugin keeps the A2 gossipsub tuning for small rooms. |
 | D3 | Generic vs app code | Generic room-sync machinery (room publish, Lamport clock, snapshot-on-join request/response, tile anti-entropy) lives in the **plugin**. Pixels, shapes, input, rendering live in `examples/starboard/`. |
 | D4 | Consistency model | Canvas = **dense, fixed, tiled LWW grid**: 1024×1024 cells, 32×32-cell tiles (32×32 tiles). Cell = `{ lamport: u32, author: u16 (stable 16-bit hash of peer id), color: Option<u8 palette idx> }` (`None` = erased). Merge per cell = keep max `(lamport, author, color)` with `None < Some(_)` — the color tie-break makes a full `(lamport, author)` hash collision harmless (deterministic on every peer). This is a CRDT (commutative, associative, idempotent) under loss/dup/reorder. **No tombstone GC / no `forget()`**: max raw size is bounded (~8 MB). Untouched tiles are never sent. Revisit sparse+GC only if measurement says so. |
-| D5 | Lossy repair | Draw ops travel on the gossipsub topic (possibly lossy). **Anti-entropy**: every ~2 s each peer publishes per-tile digests (blake3 of the tile's cells, truncated); a peer that sees a differing digest requests that tile (reliable request-response) and merges it. Cursors are lossy, latest-wins, never repaired. |
+| D5 | Lossy repair | Draw ops travel on the gossipsub topic (possibly lossy). **Anti-entropy**: every ~2 s each peer publishes per-tile content hashes (`ReplicaSliceContentHashes`, blake3 of the tile's cells, truncated); a peer that sees a differing hash requests that tile (reliable request-response) and merges it. Cursors are lossy, latest-wins, never repaired. |
 | D6 | Daily identity | Lobby `Room` gains `created_at: UnixTime` (contract change). `day = (now - created_at) / 86400`. Seed = `blake3(peer_id ‖ created_at ‖ day)`. Shape and color change live on rollover; existing pixels keep their colors. Players cannot change shape/color. **Collision resolution:** sort members by peer id; a later member whose `(shape, color)` is already taken steps to the next free combination (of 72) for that day. **Known limitation (accepted):** rooms are never deleted from the lobby and `created_at` merges by min, so a reused room name keeps its old `created_at` (day counter, seed, history key carry over) and anyone can push `created_at` back to 0. |
 | D7 | Shapes / colors | Shapes: `Circle, Star, Square, Triangle, Diamond, Hexagon`. Colors: fixed palette of 12 high-contrast hues (palette index stored in cells). |
 | D8 | Canvas geometry | Logical grid 1024×1024, scaled to fit window (letterboxed). Base shape radius = 16 cells. |
@@ -478,30 +478,92 @@ then gives up (draining buffered ops). Unit test:
   still **A7** (`tests/room_messaging.rs`, `just e2e-room`) — the HARD RULE requires lobby
   discovery in examples, so it is a separate, X11/Freenet step.
 
-### What was done (Step A5) — continued
-
-_(nothing further)_
-
-### What was done (Step A5)
-_(agent fills)_
-
 ---
 
 ## Step A6 — Tiled anti-entropy
 
 Goal: heal divergence caused by lossy delivery.
 
-- [ ] Extend `RoomState` with optional partition API:
-      `type PartId; fn digests(&self) -> Vec<(PartId, u64)>; fn part(&self, id) ->
-      Self::Snapshot;`. (Provide a default "single part" impl if simpler.)
-- [ ] Every `AntiEntropyConfig.interval` (default 2 s) each peer publishes its digest list
-      on the room topic. Receiver compares; for each mismatching part sends a
-      reliable request for that part to the sender; merges reply. Rate-limit
-      requests (max K parts in flight per peer, default 8).
-- [ ] Unit tests: digest diff reducer.
-- [ ] Headless test: toy state, inject 30 % op drop on the room topic (test-only fault
-      hook), assert all peers converge within 3 intervals after traffic stops.
-- [ ] Gate green.
+> **A6 vocabulary (agreed with the user — do not re-litigate).** Inner-workings types get
+> descriptive multi-word names that say what they hold; one-word names are reserved for
+> user-facing concepts (Room, Lobby). Banned words: "shard", "region", "partition",
+> "digest", "fingerprint".
+>
+> - **Replica slice** = one independent piece of the replicated room state that is
+>   compared and repaired on its own (starboard: one 32×32-cell tile of the canvas).
+> - **`ReplicaSliceIndex(u32)`** — *which* slice: its position in the replica's fixed list
+>   of slices (starboard: tile `y * 32 + x`, 0..1024). Never changes. One concrete type:
+>   no associated key type and no bytes twin.
+> - **`ReplicaSliceContentHash(u64)`** — *what is in* a slice right now: blake3 of the
+>   slice's content, truncated to 64 bits. Changes on every edit. Same hash on two peers ⇒
+>   same content ⇒ nothing to send.
+> - **`ReplicaSliceContentHashes(Vec<(ReplicaSliceIndex, ReplicaSliceContentHash)>)`** —
+>   one peer's hash for every non-empty slice, sorted by index; what it announces each
+>   interval. Replaces the raw `Vec<(Vec<u8>, u64)>`.
+> - **`ReplicaSyncTopicMessage<Op>`** (renames `SyncFrame`) — one message published to all
+>   room members on the `/sync` gossip topic. Each variant tells the receiver its job:
+>   `ApplyThisOp{room,meta,op}` (an op the sender just applied) and
+>   `CompareSliceContentHashes{room,hashes: ReplicaSliceContentHashes}` (the sender's
+>   current per-slice hashes; fetch any slice that differs).
+> - **`SnapshotRequest::FetchReplicaSlice{room,index,part}`** — reliable request to *one*
+>   peer for the current content of *one* slice, sent after a hash mismatch. Reuses the
+>   `SnapshotResponse::Part` frames (`part` stays the 48 KiB byte-chunk index).
+> - **`State.slice_fetches_awaiting_reply`** — slices already requested from each peer
+>   whose reply has not arrived; caps duplicate/concurrent requests.
+> - **Generics renamed first** (separate `refactor!:` commit): `S` → `Replica`,
+>   `O` → `Op`, `T` (p2p `Command`/`Event`) → `Payload`.
+> - Slice hashes travel on the **`/sync` topic, not the app room topic** (A5 keeps the
+>   app's `Payload` alone on the room topic).
+
+**Commit 1 — `refactor!:` vocabulary (no behaviour change)**
+
+- [x] Rename generics: `S` → `Replica` (`SyncPlugin`, `PendingOps`, `write_ops`, …),
+      `O` → `Op` (`state_machine::{State, Input, Output}`, `handle_*`), `T` → `Payload`
+      (`p2p::{Command, Event, Commands, Events}` and their users).
+- [x] `SyncFrame` → `ReplicaSyncTopicMessage` enum with only `ApplyThisOp{room,meta,op}`.
+- [x] ~~`AntiEntropyConfig.max_parts_in_flight` → `max_slice_fetches_per_peer`.~~ Moot:
+      `d669d7d` deleted `AntiEntropyConfig`/`RoomConfig` as unused; commit 2 reintroduces it.
+- [x] Gate green; commit.
+
+**Commit 2 — `feat(room_sync):` anti-entropy over replica slices**
+
+- [ ] Types in `src/room_sync/` (one file each): `ReplicaSliceIndex(u32)`,
+      `ReplicaSliceContentHash(u64)`, `ReplicaSliceContentHashes(Vec<(ReplicaSliceIndex,
+      ReplicaSliceContentHash)>)` with
+      `slices_differing_from(&self, remote: &Self) -> Vec<ReplicaSliceIndex>` — indices whose
+      hash in `remote` differs from, or is missing in, `self`.
+- [ ] Extend `RoomState`:
+      `fn slice_content_hashes(&self) -> ReplicaSliceContentHashes;`
+      `fn slice_snapshot(&self, index: ReplicaSliceIndex) -> Self::Snapshot;`
+      (single-slice test states return only `ReplicaSliceIndex(0)`).
+- [ ] Wire:
+      - `ReplicaSyncTopicMessage::CompareSliceContentHashes{room, hashes}` on `/sync`.
+      - `SnapshotRequest::FetchReplicaSlice{room, index, part}`; the swarm loop parks the
+        `ResponseChannel` and the plugin answers via `RespondSnapshot`, exactly as A5's
+        `Fetch`. Replies reuse `SnapshotResponse::Part`.
+- [ ] Reducer (`state_machine/`, transitions return outputs):
+      - `Input::AntiEntropyTimerFired{local}` → `Output::PublishSliceContentHashes{room, hashes}`.
+      - `Input::RemoteSliceContentHashes{from, local, remote}` →
+        `Output::FetchReplicaSlice{peer, room, index}` for each
+        `local.slices_differing_from(&remote)` not already awaited.
+      - `Input::ReplicaSliceMerged{from, index}` and `Input::Failed` clear the entry.
+      - `State.slice_fetches_awaiting_reply: BTreeMap<PeerId, BTreeSet<ReplicaSliceIndex>>`,
+        at most `AntiEntropyConfig.max_slice_fetches_per_peer` (default 8) per peer.
+      - Acts only in `Phase::Ready`; ignored otherwise.
+- [ ] Bevy:
+      - `publish_slice_content_hashes<Replica>`: `Timer(AntiEntropyConfig.interval)`
+        (default 2 s); registered only when `RoomConfig.anti_entropy` is `Some`.
+      - `drive`: decodes `CompareSliceContentHashes`, reads `Res<Replica>` and feeds the
+        local `ReplicaSliceContentHashes` alongside, so the reducer stays Bevy-free;
+        answers `FetchReplicaSlice` with `slice_snapshot(index)`.
+- [ ] Unit tests: `slices_differing_from` (equal / missing / extra / differing); per-peer cap;
+      no duplicate fetch while awaited; failure clears the entry; not-`Ready` ignored;
+      `ReplicaSyncTopicMessage` bincode round-trip.
+- [ ] Headless test `transport_only_three_apps_converge_after_dropping_30_percent_of_ops`:
+      3 Apps (direct dial, §0.8), a toy state split into slices, a seeded 30 % drop of
+      inbound `ApplyThisOp` (test-only seam at the plugin boundary, no cargo feature);
+      after traffic stops, all peers' `slice_content_hashes()` are equal within 3 intervals.
+- [ ] Gate green; commit with the PLAN.md update.
 
 ### What was done (Step A6)
 _(agent fills)_
@@ -614,7 +676,7 @@ _(agent fills)_
       `Option<Box<Tile>>`, `None` = never touched), `CellPos`, `TileId`.
 - [ ] `Canvas::write(pos, cell)` LWW by `(lamport, author)`; `Canvas::merge_tile`.
 - [ ] Implement plugin `RoomState` for `Canvas` (Op = `DrawOp`, Snapshot = list of
-      `(TileId, Tile)`, digests per tile with blake3).
+      `(TileId, Tile)`, one `ReplicaSliceIndex` + `ReplicaSliceContentHash` (blake3) per tile).
 - [ ] `author: u16` = stable 16-bit hash of peer id (from `OpMeta`). Per-cell merge key
       is `(lamport, author, color)` (D4) — do NOT rely on the full peer id, cells only
       store the `u16`. Test: two ops with equal `(lamport, author)` but different colors

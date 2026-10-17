@@ -5,12 +5,12 @@ use bevy::prelude::*;
 use crate::p2p;
 use crate::plugin;
 
-pub fn build_plugin<T: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<T>, app: &mut App) {
+pub fn build_plugin<Payload: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<Payload>, app: &mut App) {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
     let (net_tx, net_rx) = tokio::sync::mpsc::unbounded_channel();
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
     let keypair = libp2p::identity::Keypair::generate_ed25519();
-    let _runner = p2p::spawn_runner::<T>(
+    let _runner = p2p::spawn_runner::<Payload>(
         cmd_rx,
         net_rx,
         event_tx,
@@ -22,15 +22,15 @@ pub fn build_plugin<T: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<T>, app: &mu
             gossipsub: p2p_plugin.gossipsub,
         },
     );
-    app.insert_resource(p2p::Events::<T>::default());
-    app.insert_resource(p2p::Commands::<T>::default());
+    app.insert_resource(p2p::Events::<Payload>::default());
+    app.insert_resource(p2p::Commands::<Payload>::default());
     app.insert_resource(p2p::PendingNetCommands::default());
     app.insert_resource(p2p::ReadyChannel::default());
     app.insert_resource(p2p::NetEventChannel::default());
     app.insert_resource(p2p::CommandSender(cmd_tx));
     app.insert_resource(p2p::EventReceiver(Mutex::new(Some(event_rx))));
     app.insert_resource(p2p::NetCommandSender(net_tx));
-    app.add_systems(Update, p2p::bevy_systems::poll_p2p_events::<T>);
+    app.add_systems(Update, p2p::bevy_systems::poll_p2p_events::<Payload>);
 }
 
 #[cfg(test)]

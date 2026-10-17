@@ -5,15 +5,15 @@ use crate::identity;
 use crate::p2p;
 use crate::room_sync;
 
-pub fn drive<S: room_sync::RoomState>(
+pub fn drive<Replica: room_sync::RoomState>(
     room_events: Option<MessageReader<discovery::Event>>,
     status: Option<Res<discovery::Status>>,
     net_events: Res<room_sync::bevy_systems::NetEvents>,
     game: Res<room_sync::SyncGame>,
     ready: Res<p2p::ReadyChannel>,
     mut clock: ResMut<room_sync::LamportClock>,
-    mut state: ResMut<room_sync::bevy_systems::SyncState<S::Op>>,
-    mut room: ResMut<S>,
+    mut state: ResMut<room_sync::bevy_systems::SyncState<Replica::Op>>,
+    mut room: ResMut<Replica>,
     mut pending: ResMut<p2p::PendingNetCommands>,
 ) {
     let status = status.map(Res::into_inner);
@@ -34,7 +34,7 @@ pub fn drive<S: room_sync::RoomState>(
                 .map(|(peer, _)| peer.clone())
                 .collect()
         });
-    let mut inputs: Vec<room_sync::state_machine::Input<S::Op>> = Vec::new();
+    let mut inputs: Vec<room_sync::state_machine::Input<Replica::Op>> = Vec::new();
     if let Some(mut room_events) = room_events {
         for event in room_events.read() {
             match event {
@@ -62,7 +62,7 @@ pub fn drive<S: room_sync::RoomState>(
         }
     }
     for event in net_events.drain() {
-        if let Some(input) = net_event_to_input::<S>(&event, &state, &mut clock, game) {
+        if let Some(input) = net_event_to_input::<Replica>(&event, &state, &mut clock, game) {
             inputs.push(input);
         }
     }
@@ -74,12 +74,12 @@ pub fn drive<S: room_sync::RoomState>(
 }
 
 // needed helper: one net event as a reducer input, if it concerns this room
-fn net_event_to_input<S: room_sync::RoomState>(
+fn net_event_to_input<Replica: room_sync::RoomState>(
     event: &p2p::NetEvent,
-    state: &room_sync::bevy_systems::SyncState<S::Op>,
+    state: &room_sync::bevy_systems::SyncState<Replica::Op>,
     clock: &mut room_sync::LamportClock,
     game: &identity::GameId,
-) -> Option<room_sync::state_machine::Input<S::Op>> {
+) -> Option<room_sync::state_machine::Input<Replica::Op>> {
     match event {
         p2p::NetEvent::Gossip { topic, data, .. } => {
             let expected = state
@@ -89,13 +89,15 @@ fn net_event_to_input<S: room_sync::RoomState>(
             if expected.as_ref() != Some(topic) {
                 return None;
             }
-            let frame = bincode::deserialize::<room_sync::SyncFrame<S::Op>>(data).ok()?;
-            clock.observe(frame.meta.lamport);
-            Some(room_sync::state_machine::Input::Remote {
-                room: frame.room,
-                meta: frame.meta,
-                op: frame.op,
-            })
+            let message =
+                bincode::deserialize::<room_sync::ReplicaSyncTopicMessage<Replica::Op>>(data)
+                    .ok()?;
+            match message {
+                room_sync::ReplicaSyncTopicMessage::ApplyThisOp { room, meta, op } => {
+                    clock.observe(meta.lamport);
+                    Some(room_sync::state_machine::Input::Remote { room, meta, op })
+                }
+            }
         }
         p2p::NetEvent::SnapshotPart {
             room,
@@ -123,9 +125,9 @@ fn net_event_to_input<S: room_sync::RoomState>(
 }
 
 // needed helper: executes one reducer output
-fn perform<S: room_sync::RoomState>(
-    output: room_sync::state_machine::Output<S::Op>,
-    room: &mut S,
+fn perform<Replica: room_sync::RoomState>(
+    output: room_sync::state_machine::Output<Replica::Op>,
+    room: &mut Replica,
     pending: &mut p2p::PendingNetCommands,
 ) {
     match output {
@@ -151,7 +153,7 @@ fn perform<S: room_sync::RoomState>(
             });
         }
         room_sync::state_machine::Output::Merge { bytes } => {
-            if let Ok(snapshot) = bincode::deserialize::<S::Snapshot>(&bytes) {
+            if let Ok(snapshot) = bincode::deserialize::<Replica::Snapshot>(&bytes) {
                 room.merge(snapshot);
             }
         }
@@ -160,8 +162,8 @@ fn perform<S: room_sync::RoomState>(
 }
 
 // needed helper: one snapshot part, or Missing when the index is out of range
-fn snapshot_frame<S: room_sync::RoomState>(
-    room: &S,
+fn snapshot_frame<Replica: room_sync::RoomState>(
+    room: &Replica,
     room_name: identity::RoomName,
     part: u32,
 ) -> p2p::SnapshotResponse {
