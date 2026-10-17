@@ -653,16 +653,51 @@ repair path, not from gossip alone.
 
 ## Step A7 — Plugin e2e: room messaging over real discovery
 
-- [ ] New `tests/room_messaging.rs` (`#[ignore]`, feature `e2e`, registered in
+- [x] New `tests/room_messaging.rs` (`#[ignore]`, feature `e2e`, registered in
       `Cargo.toml` like the existing ones) reusing `tests/common/`: 3 `lobby_room`-style
       processes meet via Freenet lobby (HARD RULE), join one room, each sends a room
       message, all receive. Add `just e2e-room` recipe.
-- [ ] Extend `examples/lobby_room` minimally if needed (e.g. a `--room-ping` flag that
+- [x] Extend `examples/lobby_room` minimally if needed (e.g. a `--room-ping` flag that
       logs received room messages for `tests/common/log_parse.rs`).
-- [ ] Run it once; record result.
+- [x] Run it once; record result.
 
 ### What was done (Step A7)
-_(agent fills)_
+
+**Files added:**
+- `examples/lobby_room/ping.rs` — `PingPayload(pub identity::Username)`,
+  `IsRoomPingEnabled(pub bool)`, `publish_room_ping` (publishes `PingPayload` once per
+  second via `p2p::Command::PublishInJoinedRoom` while in a room with at least one
+  connected member), `log_room_messages` (drains `p2p::Events<PingPayload>` and logs
+  `lobby room_message room=<r> from=<peer_id> user=<username>`), plus `tests::test_usage`.
+  Replaces the placeholder `examples/lobby_room/dummy.rs`.
+- `tests/room_messaging.rs` — `#[ignore]` e2e test calling
+  `common::run_scenario(common::Scenario::room_messaging(3)).await.assert_all()`.
+
+**Files changed:**
+- `examples/lobby_room/args.rs` — `--room-ping` (`is_room_ping_enabled: bool`).
+- `examples/lobby_room/main.rs` — replaces `dummy` with `ping`, inserts
+  `IsRoomPingEnabled`, wires `publish_room_ping` and `log_room_messages`.
+- `tests/common/log_parse.rs`, `tests/common/mod.rs` — `senders_seen_in_room(path, room)`
+  returns the `BTreeSet<String>` of distinct `from=` peer ids logged for that room.
+- `tests/common/scenario.rs` — `Scenario.is_room_ping_enabled`,
+  `Scenario::room_messaging(peers)`, `ROOM_MESSAGE_BUDGET_SECS = 30`, and
+  `evaluate_room_messages` (asserts each of the N peers logs `lobby room_message` from
+  at least `N - 1` distinct peers).
+- `Cargo.toml`, `justfile`, `tests/README.md` — `[[test]] name = "room_messaging"` and
+  `just e2e-room`.
+
+**Measured (`just e2e-room`, `.local-run/room_messaging-1792259083/`):**
+3 real `lobby_room` windows over Freenet mainnet (`mdns=off`, `transport=both`):
+- `spawn`: 3/3 instances
+- `lobby`: `created=true published=true`
+- `ring`: 3/3 peers read the lobby
+- `discovery`: `5000ms` (budget 120 s)
+- `join`: `3802ms` full mesh (budget 180 s)
+- `converge`: `107ms` last press → full mesh (budget 500 ms)
+- `room_message`: `6ms` after join check `[p1:2/2 p2:2/2 p3:2/2]` (budget 30 s)
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**165 passed**, 4 skipped), `just lint`, `just bevy-lint`, `just e2e-room`.
 
 ---
 

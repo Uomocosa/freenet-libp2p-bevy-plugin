@@ -25,6 +25,11 @@ path = "tests/lobby_room_join.rs"
 required-features = ["e2e"]
 
 [[test]]
+name = "room_messaging"
+path = "tests/room_messaging.rs"
+required-features = ["e2e"]
+
+[[test]]
 name = "contract_wire"
 path = "tests/contract_wire.rs"
 

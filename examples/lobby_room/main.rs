@@ -1,9 +1,9 @@
 mod args;
-mod dummy;
 mod intent;
 mod journey;
 mod node;
 mod overlay;
+mod ping;
 mod status;
 mod ui;
 
@@ -32,13 +32,14 @@ async fn main() {
     app.insert_resource(discovery::FreenetPort(ws_port));
     let username = identity::Username::from(args.username.clone());
     app.insert_resource(status::LocalUser(username.clone()));
+    app.insert_resource(ping::IsRoomPingEnabled(args.is_room_ping_enabled));
     app.insert_resource(intent::Intent::new(args.action.clone()));
     let game = args.token.clone().map_or_else(
         || freenet_libp2p_bevy_plugin::game_id!(),
         identity::GameId::from,
     );
     app.add_plugins(plugin::P2PPlugin(
-        plugin::Config::<dummy::Dummy>::new(transport, p2p::MdnsMode::Disabled)
+        plugin::Config::<ping::PingPayload>::new(transport, p2p::MdnsMode::Disabled)
             .with_game(game.clone()),
     ));
     let discovery_plugins = discovery::Plugins(discovery::Config {
@@ -75,7 +76,13 @@ async fn main() {
     app.add_plugins(overlay::Overlay);
     app.add_systems(
         Update,
-        (intent::log_joined, status::log_tick, status::log_mesh),
+        (
+            intent::log_joined,
+            status::log_tick,
+            status::log_mesh,
+            ping::publish_room_ping,
+            ping::log_room_messages,
+        ),
     );
     app.run();
 }

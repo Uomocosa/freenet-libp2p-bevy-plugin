@@ -32,6 +32,9 @@ e2e-discovery:
 e2e-join:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test lobby_room_join --all-features --run-ignored all -- --nocapture
 
+e2e-room:
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test room_messaging --all-features --run-ignored all -- --nocapture
+
 # Run the lobby_room example detached (no terminal tie-up; only the app window).
 # Extra args toggle ui/action/transport, e.g. `just run --ui custom --action create:room-1`.
 run *ARGS:

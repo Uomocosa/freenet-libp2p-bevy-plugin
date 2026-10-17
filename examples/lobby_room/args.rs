@@ -59,6 +59,8 @@ pub struct Args {
     pub transport: TransportArg,
     #[arg(long, value_enum, default_value = "default")]
     pub ui: UiArg,
+    #[arg(long = "room-ping")]
+    pub is_room_ping_enabled: bool,
 }
 
 #[must_use]

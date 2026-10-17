@@ -6,11 +6,13 @@ use telegram_bot_helper::send_video_best_effort;
 
 use super::{
     TerminalGuard, build_game, cleanup_stale, finish_record, last_tick, log_contains, marker_times,
-    poke, read_head, require_x11, rings_ready, speed_clip, start_record, tile, wakeup_screen,
+    poke, read_head, require_x11, rings_ready, senders_seen_in_room, speed_clip, start_record,
+    tile, wakeup_screen,
 };
 
 pub const DISCOVERY_BUDGET_SECS: u64 = 120;
 pub const JOIN_BUDGET_SECS: u64 = 180;
+pub const ROOM_MESSAGE_BUDGET_SECS: u64 = 30;
 /// libp2p-only join target: last joiner's press -> every peer fully meshed.
 pub const CONVERGE_BUDGET_MS: u64 = 500;
 
@@ -24,6 +26,7 @@ pub struct Scenario {
     pub name: String,
     pub peers: usize,
     pub join: bool,
+    pub is_room_ping_enabled: bool,
     pub ui: String,
     pub discovery_budget_secs: u64,
     pub join_budget_secs: u64,
@@ -36,6 +39,7 @@ impl Scenario {
             name: "lobby_room_discovery".to_string(),
             peers,
             join: false,
+            is_room_ping_enabled: false,
             ui: "custom".to_string(),
             discovery_budget_secs: DISCOVERY_BUDGET_SECS,
             join_budget_secs: JOIN_BUDGET_SECS,
@@ -48,6 +52,20 @@ impl Scenario {
             name: "lobby_room_join".to_string(),
             peers,
             join: true,
+            is_room_ping_enabled: false,
+            ui: "default".to_string(),
+            discovery_budget_secs: DISCOVERY_BUDGET_SECS,
+            join_budget_secs: JOIN_BUDGET_SECS,
+        }
+    }
+
+    #[must_use]
+    pub fn room_messaging(peers: usize) -> Self {
+        Self {
+            name: "room_messaging".to_string(),
+            peers,
+            join: true,
+            is_room_ping_enabled: true,
             ui: "default".to_string(),
             discovery_budget_secs: DISCOVERY_BUDGET_SECS,
             join_budget_secs: JOIN_BUDGET_SECS,
@@ -215,6 +233,7 @@ fn push_peer(
         &env.token,
         &env.transport,
         &scenario.ui,
+        scenario.is_room_ping_enabled,
         windows,
     )?;
     logs.push(log);
@@ -284,7 +303,49 @@ async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
     if scenario.join {
         checks.push(converge_check(&peers.logs, scenario.peers));
     }
+    if scenario.is_room_ping_enabled {
+        checks.push(evaluate_room_messages(scenario, peers, join_ok).await);
+    }
     checks
+}
+
+// needed helper: verifies every peer received a room message from every other peer
+async fn evaluate_room_messages(scenario: &Scenario, peers: &Peers, join_ok: bool) -> Check {
+    if !join_ok {
+        return Check {
+            name: "room_message".to_string(),
+            ok: false,
+            detail: "skipped: join did not reach full mesh".to_string(),
+        };
+    }
+    let start = Instant::now();
+    let want = scenario.peers.saturating_sub(1);
+    let delivered =
+        did_predicate_hold_within(Duration::from_secs(ROOM_MESSAGE_BUDGET_SECS), || {
+            peers
+                .logs
+                .iter()
+                .all(|log| senders_seen_in_room(log, &peers.room).len() >= want)
+        })
+        .await;
+    let counts: Vec<String> = peers
+        .logs
+        .iter()
+        .enumerate()
+        .map(|(index, log)| {
+            let got = senders_seen_in_room(log, &peers.room).len();
+            format!("p{}:{got}/{want}", index.saturating_add(1))
+        })
+        .collect();
+    Check {
+        name: "room_message".to_string(),
+        ok: delivered,
+        detail: format!(
+            "{}ms budget={ROOM_MESSAGE_BUDGET_SECS}s [{}]",
+            start.elapsed().as_millis(),
+            counts.join(" ")
+        ),
+    }
 }
 
 async fn evaluate_join(scenario: &Scenario, peers: &Peers, ring_ok: bool) -> (bool, u128, String) {
@@ -418,6 +479,7 @@ fn spawn_peer(
     token: &str,
     transport: &str,
     ui: &str,
+    is_room_ping_enabled: bool,
     windows: &mut Vec<TerminalGuard>,
 ) -> Result<PathBuf, String> {
     let log = dir.join(format!("instance-{username}.log"));
@@ -434,6 +496,9 @@ fn spawn_peer(
     if let Some(action) = action {
         args.push("--action".to_string());
         args.push(action.to_string());
+    }
+    if is_room_ping_enabled {
+        args.push("--room-ping".to_string());
     }
     let guard = super::spawn_app::spawn_app(bin, &args, username, &log)?;
     windows.push(guard);

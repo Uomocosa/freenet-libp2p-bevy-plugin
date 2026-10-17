@@ -9,6 +9,7 @@ screen, and send the clip to Telegram.
 ```
 just e2e-discovery   # 3 peers: all discover the created room
 just e2e-join        # 5 peers: discover, join, full mesh
+just e2e-room        # 3 peers: discover, join, full mesh, all-to-all room gossipsub
 ```
 
 Direct equivalent:
@@ -16,6 +17,7 @@ Direct equivalent:
 ```
 cargo nextest run --test lobby_room_discovery --all-features --run-ignored all -- --nocapture
 cargo nextest run --test lobby_room_join      --all-features --run-ignored all -- --nocapture
+cargo nextest run --test room_messaging       --all-features --run-ignored all -- --nocapture
 ```
 
 Prerequisites: an X session, `xterm`, `xdotool`, `wmctrl`, `ffmpeg` (with `x11grab`),

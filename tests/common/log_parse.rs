@@ -51,6 +51,23 @@ pub fn marker_times(path: &Path, needle: &str) -> Vec<(u64, String)> {
         .collect()
 }
 
+#[must_use]
+pub fn senders_seen_in_room(path: &Path, room: &str) -> std::collections::BTreeSet<String> {
+    let want_room = format!("room={room}");
+    strip_ansi(&std::fs::read_to_string(path).unwrap_or_default())
+        .lines()
+        .filter(|line| {
+            line.contains("lobby room_message ")
+                && line.split_whitespace().any(|token| token == want_room)
+        })
+        .filter_map(|line| {
+            line.split_whitespace()
+                .find_map(|token| token.strip_prefix("from="))
+                .map(str::to_string)
+        })
+        .collect()
+}
+
 // needed helper: `2026-10-01T17:04:19.867931Z ...` -> milliseconds since midnight
 fn line_millis(line: &str) -> Option<u64> {
     let time = line.split_whitespace().next()?.split('T').nth(1)?;
