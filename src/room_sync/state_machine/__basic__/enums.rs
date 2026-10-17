@@ -35,6 +35,7 @@ pub enum Input<O> {
         part: u32,
     },
     Tick,
+    Failed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

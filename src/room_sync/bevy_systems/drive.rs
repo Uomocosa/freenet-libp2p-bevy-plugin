@@ -110,6 +110,7 @@ fn net_event_to_input<S: room_sync::RoomState>(
             data: data.clone(),
         }),
         p2p::NetEvent::SnapshotMissing { .. } => Some(room_sync::state_machine::Input::Tick),
+        p2p::NetEvent::SnapshotFailed { .. } => Some(room_sync::state_machine::Input::Failed),
         p2p::NetEvent::SnapshotRequest { id, room, part, .. } => {
             Some(room_sync::state_machine::Input::Fetch {
                 id: *id,

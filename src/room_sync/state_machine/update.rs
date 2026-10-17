@@ -24,6 +24,7 @@ pub fn update<O>(
             room_sync::state_machine::handle_fetch(state, id, room, part)
         }
         room_sync::state_machine::Input::Tick => room_sync::state_machine::tick(state),
+        room_sync::state_machine::Input::Failed => room_sync::state_machine::retry_fetch(state),
     }
 }
 
@@ -81,6 +82,38 @@ mod tests {
             vec![Output::Apply {
                 meta: meta(1),
                 op: 9u8,
+            }]
+        );
+    }
+
+    #[test]
+    fn retries_the_same_source_for_the_missing_part() {
+        let mut state = State::<u8>::default();
+        let room = identity::RoomName::from("r");
+        let peer = identity::PeerId::from("a");
+        update(
+            &mut state,
+            Input::Joined {
+                room: room.clone(),
+                members: vec![peer.clone()],
+            },
+        );
+        update(
+            &mut state,
+            Input::Snapshot {
+                room: room.clone(),
+                part: 0,
+                total: 2,
+                data: vec![1],
+            },
+        );
+        let outputs = update(&mut state, Input::Failed);
+        assert_eq!(
+            outputs,
+            vec![Output::Fetch {
+                peer,
+                room,
+                part: 1,
             }]
         );
     }

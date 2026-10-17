@@ -42,6 +42,15 @@ pub fn handle_swarm_event<T: p2p::Message>(
         )) => {
             p2p::swarm_loop::handle_room_sync(event_tx, rooms, &peer, message);
         }
+        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RoomSync(
+            request_response::Event::OutboundFailure { peer, .. },
+        )) => {
+            event_tx
+                .send(p2p::Event::Net(p2p::NetEvent::SnapshotFailed {
+                    from: identity::PeerId(peer.to_string()),
+                }))
+                .ok();
+        }
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Kademlia(
             kad::Event::OutboundQueryProgressed {
                 result: kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))),

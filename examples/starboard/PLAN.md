@@ -446,7 +446,15 @@ systems `drive` (inbound) and `write_ops` (outbound).
 **Public API added:** `room_sync::{RoomState, OpMeta, LamportClock, peer_author, SyncFrame,
 sync_topic, split_parts, join_parts, RoomSync, RoomSyncPlugin, SyncState, NetEvents}`;
 `p2p::{RoomSyncFrame, sync_protocol}`; `NetCommand::{Unsubscribe, FetchSnapshot,
-RespondSnapshot}`; `NetEvent::{SnapshotRequest, SnapshotPart, SnapshotMissing}`.
+RespondSnapshot}`; `NetEvent::{SnapshotRequest, SnapshotPart, SnapshotMissing,
+SnapshotFailed}`.
+
+**Fetch failure is retried.** A `Fetch` that races the dial produced `OutboundFailure`, which
+was ignored, leaving the joiner stuck. `handle_swarm_event` now maps `RoomSync(OutboundFailure)`
+to `NetEvent::SnapshotFailed`, `drive` feeds it as `Input::Failed`, and `retry_fetch` re-asks
+the **same** source for the first missing part, falls back to the next un-asked member, and only
+then gives up (draining buffered ops). Unit test:
+`room_sync::state_machine::update::tests::retries_the_same_source_for_the_missing_part`.
 
 **Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
 (**155 passed**, 3 skipped), `just lint`, `just bevy-lint`.
@@ -466,11 +474,6 @@ RespondSnapshot}`; `NetEvent::{SnapshotRequest, SnapshotPart, SnapshotMissing}`.
   method file.
 
 **Open issues (for later steps):**
-- **Outbound-failure retry is missing.** If a `FetchSnapshot` is emitted before the connection
-  is up, `request_response` reports `OutboundFailure`, which `handle_room_sync` ignores, so the
-  reducer never ticks to the next member. The headless test sidesteps it (the joiner joins
-  only after `PeerConnected`), but a real app can hit it; map `OutboundFailure` to
-  `NetEvent::SnapshotMissing` so `tick` retries.
 - A real-lobby convergence e2e (two examples meeting via Freenet, asserting equal hashes) is
   still **A7** (`tests/room_messaging.rs`, `just e2e-room`) — the HARD RULE requires lobby
   discovery in examples, so it is a separate, X11/Freenet step.

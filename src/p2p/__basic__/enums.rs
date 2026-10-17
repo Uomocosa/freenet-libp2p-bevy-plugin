@@ -63,6 +63,9 @@ pub enum NetEvent {
         from: identity::PeerId,
         room: identity::RoomName,
     },
+    SnapshotFailed {
+        from: identity::PeerId,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

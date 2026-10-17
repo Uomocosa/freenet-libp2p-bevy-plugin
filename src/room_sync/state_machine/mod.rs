@@ -27,5 +27,8 @@ pub use handle_snapshot::handle_snapshot;
 mod tick;
 pub use tick::tick;
 
+mod retry_fetch;
+pub use retry_fetch::retry_fetch;
+
 mod update;
 pub use update::update;
