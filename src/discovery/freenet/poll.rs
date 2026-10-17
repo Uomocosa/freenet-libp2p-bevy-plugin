@@ -60,6 +60,7 @@ mod tests {
             identity::RoomName::from("room-a"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
+                created_at: discovery::UnixTime::from_secs(0),
                 members: BTreeMap::new(),
             },
         )])

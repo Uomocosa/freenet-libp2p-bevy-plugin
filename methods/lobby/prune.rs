@@ -34,6 +34,7 @@ mod tests {
             identity::RoomName::from("live"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
+                created_at: discovery::UnixTime::from_secs(0),
                 members: BTreeMap::from([
                     (
                         identity::PeerId::from("fresh"),
@@ -50,6 +51,7 @@ mod tests {
             identity::RoomName::from("dead"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
+                created_at: discovery::UnixTime::from_secs(0),
                 members: BTreeMap::from([(
                     identity::PeerId::from("gone"),
                     heartbeat(discovery::UnixTime::from_secs(1)),

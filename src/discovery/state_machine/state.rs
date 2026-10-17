@@ -11,6 +11,7 @@ pub struct State {
     pub candidates: BTreeMap<identity::PeerId, discovery::state_machine::Candidate>,
     pub last_dial: BTreeMap<identity::PeerId, discovery::UnixTime>,
     pub last_handshake: Option<discovery::UnixTime>,
+    pub joining_since: Option<discovery::UnixTime>,
     pub freenet_peers: Vec<identity::FreenetPeer>,
     pub display_name: identity::Username,
 }
@@ -26,6 +27,7 @@ impl State {
             candidates: BTreeMap::new(),
             last_dial: BTreeMap::new(),
             last_handshake: None,
+            joining_since: None,
             freenet_peers: Vec::new(),
             display_name: identity::Username(String::new()),
         }

@@ -23,10 +23,17 @@ pub fn handle_command(
 // needed helper: enters a room, says handshake to every live link and dials the lobby seeds
 fn join(state: &mut State, room: identity::RoomName, now: discovery::UnixTime) -> Vec<Output> {
     let mut outputs = leave(state);
+    let created_at = state
+        .lobby
+        .get(&room)
+        .map_or(now, |record| record.created_at);
     state.room = Some(discovery::JoinedRoom {
         name: room.clone(),
+        created_at,
+        phase: discovery::RoomPhase::Joining,
         members: discovery::Members::new(),
     });
+    state.joining_since = Some(now);
     discovery::state_machine::seed_candidates(state);
     outputs.extend(discovery::state_machine::broadcast_handshake(state));
     outputs.extend(discovery::state_machine::dial_candidates(state, now));
@@ -40,6 +47,7 @@ fn leave(state: &mut State) -> Vec<Output> {
     let Some(room) = state.room.take() else {
         return Vec::new();
     };
+    state.joining_since = None;
     state.candidates.clear();
     state.last_dial.clear();
     let mut outputs = discovery::state_machine::broadcast_handshake(state);

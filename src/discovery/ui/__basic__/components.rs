@@ -56,3 +56,6 @@ pub struct ConnectingRoot;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct SpinnerRing;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct JoiningRoomRoot;

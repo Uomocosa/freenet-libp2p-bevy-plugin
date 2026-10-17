@@ -14,6 +14,7 @@ pub struct Handshake {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeartbeatTarget {
     pub room: identity::RoomName,
+    pub created_at: discovery::UnixTime,
     pub addrs: Vec<identity::PeerAddr>,
     pub display_name: identity::Username,
 }

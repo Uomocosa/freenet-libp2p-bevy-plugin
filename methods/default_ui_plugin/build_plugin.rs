@@ -8,6 +8,7 @@ pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
 
     app.add_systems(OnEnter(Screen::Connecting), ui::spawn_connecting);
     app.add_systems(OnEnter(Screen::Lobby), ui::spawn_root);
+    app.add_systems(OnEnter(Screen::JoiningRoom), ui::spawn_joining_room);
     app.add_systems(OnEnter(Screen::InRoom), ui::spawn_leave_door);
     app.add_systems(OnEnter(LeaveDialog::Open), ui::spawn_leave_prompt);
     app.add_systems(

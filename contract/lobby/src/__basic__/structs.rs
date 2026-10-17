@@ -15,5 +15,6 @@ pub struct Heartbeat {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Room {
     pub room_size: u16,
+    pub created_at: UnixTime,
     pub members: BTreeMap<PeerId, Heartbeat>,
 }

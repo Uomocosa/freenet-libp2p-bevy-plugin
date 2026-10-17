@@ -47,6 +47,7 @@ fn merge_room(current: Option<Room>, incoming: Room) -> Room {
                 existing.members.insert(peer, merged);
             }
             existing.room_size = existing.room_size.max(incoming.room_size);
+            existing.created_at = existing.created_at.min(incoming.created_at);
             existing
         }
         None => incoming,
@@ -171,7 +172,7 @@ mod tests {
             .map_or_else(Vec::new, |state| state.as_ref().to_vec())
     }
 
-    fn room(peer: &str, updated_at: UnixTime) -> Room {
+    fn room(peer: &str, updated_at: UnixTime, created_at: UnixTime) -> Room {
         let mut members = BTreeMap::new();
         members.insert(
             PeerId(peer.to_string()),
@@ -183,6 +184,7 @@ mod tests {
         );
         Room {
             room_size: 8,
+            created_at,
             members,
         }
     }
@@ -200,7 +202,7 @@ mod tests {
         let mut base = Lobby::new();
         base.insert(
             RoomName("room-a".to_string()),
-            room("peer", UnixTime::from_secs(5)),
+            room("peer", UnixTime::from_secs(5), UnixTime::from_secs(10)),
         );
         let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&base).unwrap()));
         let merged =
@@ -215,7 +217,7 @@ mod tests {
                 let mut old = Lobby::new();
                 old.insert(
                     RoomName("room-a".to_string()),
-                    room("peer", UnixTime::from_secs(1)),
+                    room("peer", UnixTime::from_secs(1), UnixTime::from_secs(10)),
                 );
                 old
             })
@@ -229,5 +231,33 @@ mod tests {
                 .updated_at,
             UnixTime::from_secs(5)
         );
+    }
+
+    #[test]
+    fn merge_keeps_min_created_at_both_orders() {
+        let params = Parameters::from(Vec::new());
+        let room_name = RoomName("room-a".to_string());
+        let low = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(100));
+        let high = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(500));
+
+        for (first, second) in [(low.clone(), high.clone()), (high, low)] {
+            let mut base = Lobby::new();
+            base.insert(room_name.clone(), first);
+            let incoming = {
+                let mut other = Lobby::new();
+                other.insert(room_name.clone(), second);
+                other
+            };
+            let update =
+                UpdateData::Delta(StateDelta::from(bincode::serialize(&incoming).unwrap()));
+            let merged =
+                LobbyContract::update_state(params.clone(), state_of(&base), vec![update]).unwrap();
+            let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
+            assert_eq!(
+                decoded[&room_name].created_at,
+                UnixTime::from_secs(100),
+                "min created_at must survive either merge order"
+            );
+        }
     }
 }

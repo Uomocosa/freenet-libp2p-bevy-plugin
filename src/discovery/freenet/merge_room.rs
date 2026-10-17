@@ -10,6 +10,7 @@ pub fn merge_room(current: Option<Room>, incoming: Room) -> Room {
                 existing.members.insert(peer, merged);
             }
             existing.room_size = existing.room_size.max(incoming.room_size);
+            existing.created_at = existing.created_at.min(incoming.created_at);
             existing
         }
         None => incoming,
@@ -45,6 +46,7 @@ mod tests {
         );
         let current = discovery::Room {
             room_size: discovery::RoomSize::DEFAULT,
+            created_at: discovery::UnixTime::from_secs(200),
             members,
         };
         let mut newer = BTreeMap::new();
@@ -58,9 +60,11 @@ mod tests {
         );
         let incoming = discovery::Room {
             room_size: discovery::RoomSize::DEFAULT,
+            created_at: discovery::UnixTime::from_secs(100),
             members: newer,
         };
         let merged = merge_room(Some(current), incoming);
+        assert_eq!(merged.created_at, discovery::UnixTime::from_secs(100));
         let row = merged.members.get(&identity::PeerId::from("peer"));
         assert_eq!(
             row.map(|heartbeat| heartbeat.updated_at),

@@ -55,6 +55,8 @@ mod tests {
         let snapshot = discovery::Snapshot {
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
+                created_at: discovery::UnixTime::from_secs(0),
+                phase: discovery::RoomPhase::Ready,
                 members: discovery::Members::new(),
             }),
             ..Default::default()
@@ -80,6 +82,8 @@ mod tests {
         discovery::Snapshot {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
+                created_at: discovery::UnixTime::from_secs(0),
+                phase: discovery::RoomPhase::Ready,
                 members: discovery::Members::new(),
             }),
             ..Default::default()
@@ -117,6 +121,8 @@ mod tests {
     fn pick_beta(world: &mut World) {
         world.resource_mut::<discovery::Snapshot>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("beta"),
+            created_at: discovery::UnixTime::from_secs(0),
+            phase: discovery::RoomPhase::Ready,
             members: discovery::Members::new(),
         });
     }

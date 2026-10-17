@@ -12,10 +12,12 @@ pub fn pick_screen(
     let snapshot = snapshot.into_inner();
     let current = *screen.into_inner().get();
     let ring_ready = discovery::freenet::is_ring_ready(&snapshot.freenet_peers, MIN_RING_PEERS);
-    let wanted = match (snapshot.room.is_some(), current) {
-        (true, _) => Screen::InRoom,
-        (false, Screen::Connecting) if !ring_ready => Screen::Connecting,
-        (false, _) => Screen::Lobby,
+    let phase = snapshot.room.as_ref().map(|room| room.phase);
+    let wanted = match (phase, current) {
+        (Some(discovery::RoomPhase::Ready), _) => Screen::InRoom,
+        (Some(discovery::RoomPhase::Joining), _) => Screen::JoiningRoom,
+        (None, Screen::Connecting) if !ring_ready => Screen::Connecting,
+        (None, _) => Screen::Lobby,
     };
     if wanted != current {
         tracing::info!(target: "discovery", "ui screen {current:?} -> {wanted:?}");
@@ -62,9 +64,21 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(screen_after(ready.clone()), discovery::ui::Screen::Lobby);
+        let joining = discovery::Snapshot {
+            room: Some(discovery::JoinedRoom {
+                name: identity::RoomName::from("alpha"),
+                created_at: discovery::UnixTime::from_secs(0),
+                phase: discovery::RoomPhase::Joining,
+                members: discovery::Members::new(),
+            }),
+            ..ready.clone()
+        };
+        assert_eq!(screen_after(joining), discovery::ui::Screen::JoiningRoom);
         let joined = discovery::Snapshot {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
+                created_at: discovery::UnixTime::from_secs(0),
+                phase: discovery::RoomPhase::Ready,
                 members: discovery::Members::new(),
             }),
             ..ready

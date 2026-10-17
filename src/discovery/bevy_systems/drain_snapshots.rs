@@ -44,6 +44,8 @@ mod tests {
             lobby: discovery::Lobby::default(),
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("r"),
+                created_at: discovery::UnixTime::from_secs(0),
+                phase: discovery::RoomPhase::Ready,
                 members: discovery::Members::new(),
             }),
             freenet_peers: Vec::new(),

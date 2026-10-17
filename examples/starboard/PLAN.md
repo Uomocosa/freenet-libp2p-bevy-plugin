@@ -11,14 +11,12 @@
 
 1. **One step per session.** Find the first step whose checkbox list is not fully `[x]`.
    Do only that step. When it is done, stop and report.
-2. **Before writing any Rust**, load the `lele-rs` skill (it loads `lele-syntax-rs`;
-   read its `references/RATIONALE.md` and `references/SMELLS.md` in full). Also load
-   `libp2p` for network steps, `bevy-rs` for Bevy steps, `freenet` for contract steps,
-   `definition-state-machine` for any reducer/state-machine code, `definition-tdd` for
-   the test loop. Follow the crate's existing conventions: atomic files (one pub item
-   per file), `__basic__/` for plain types, `bevy_systems/` for systems, `test_usage`
-   tests in every file, `thiserror` errors, no `unwrap/expect/panic/as`, strict clippy
-   (see `Cargo.toml` `[lints.clippy]`).
+2. **Before writing any Rust**, load the skills in **§0.1 Required skills** — in full,
+   including the two files it names (`lele-syntax-rs/references/RATIONALE.md` and
+   `references/SMELLS.md`); the `skill` tool does NOT inline them. Follow the crate's
+   existing conventions: atomic files (one pub item per file), `__basic__/` for plain
+   types, `bevy_systems/` for systems, `test_usage` tests in every file, `thiserror`
+   errors, no `unwrap/expect/panic/as`, strict clippy (see `Cargo.toml` `[lints.clippy]`).
 3. **Tooling:** `just`, `lele-lint`, `cargo-nextest` live in `~/.cargo/bin`, which may
    not be on `PATH`. Prefix every command:
    `export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH" && just <recipe> 2>&1`.
@@ -46,6 +44,29 @@
 11. **e2e honesty:** if an e2e/X11/Freenet step cannot run in your environment, leave its
     box `[ ]`, write `NOT RUN: <reason>` in "What was done", and stop. A step with an
     unticked e2e box is NOT complete.
+
+### 0.1 Required skills (ALWAYS load — no exceptions)
+
+Load every skill whose row matches the step **before** naming, designing, reviewing, or
+editing anything. `lele-rs` is mandatory for *any* Rust; the others are mandatory for the
+step types listed. The `skill` tool advertises skills by description but does **not**
+inline their reference files — `read` the ones named.
+
+| Skill | Load when | Notes |
+|---|---|---|
+| `lele-rs` | **always** (any Rust) | entrypoint; load first |
+| `lele-syntax-rs` | **always** (any Rust) | then `read` `references/RATIONALE.md` **and** `references/SMELLS.md` in full — the gate, not the skill file |
+| `bevy-rs` | any Bevy work: systems, UI, plugin wiring (A8, B4, B5, all UI) | Bevy 0.19 uses `Message`/`MessageWriter`; plugin struct + delegate split |
+| `definition-state-machine` | reducers / `state_machine/` transitions (A1, A5, A6, A8) | one `update`; transitions **return** their outputs |
+| `definition-tdd` | every step's test loop | fast red → full fast suite → slow gate |
+| `freenet` | contract work (A1, PLAN_HISTORY) | `freenet-contract-harness`, CRDT merge rules, key == `blake3(wasm)` |
+| `libp2p` | network transport work (A2, A3, B5) | `SwarmBuilder`, stream protocols, gossipsub |
+| `serde-rs` | wire types / snapshots (A1, A2, A5) | bincode is **positional** — field order must match the contract |
+| `criterion-rs` | benchmarks (B6, `just compare-starboard`) | groups, `black_box` |
+| `opencode-git-workflow` | commits (§0.6) | conventional commits; **only ever on an explicit user command** |
+
+Rule: if a step touches a row's topic and that skill is not loaded, **STOP and load it
+first**. Loading a skill is cheap; skipping one is a correctness bug.
 
 ---
 
@@ -103,19 +124,76 @@ sections of completed steps — they override this orientation where they differ
 
 Goal: rooms carry the unix time they were created; it is immutable once set.
 
-- [ ] Add `created_at: UnixTime` to `Room` in the contract (`contract/lobby/src/...`) and
+- [x] Add `created_at: UnixTime` to `Room` in the contract (`contract/lobby/src/...`) and
       in the plugin mirror `src/discovery/__basic__/structs.rs`.
-- [ ] Contract merge rule: `created_at` = **min** of both sides (deterministic,
+- [x] Contract merge rule: `created_at` = **min** of both sides (deterministic,
       commutative, idempotent). Set on `Create` from the creator's `UnixTime::now()`.
-- [ ] Extend the CRDT-law harness (`tests/freenet_harness.rs`, `just freenet-harness`)
+- [x] Extend the CRDT-law harness (`tests/freenet_harness.rs`, `just freenet-harness`)
       so the laws cover the new field; extend `tests/contract_wire.rs`.
-- [ ] Expose it to apps: `JoinedRoom` (or an accessor) exposes `created_at`.
-- [ ] Unit test: merge of two rooms with different `created_at` keeps the min, both orders.
-- [ ] Rebuild wasm (`just contract`); the contract key changes — that is fine.
-- [ ] Full gate green (incl. contract recipes); `just e2e-join` still passes (run once).
+- [x] Expose it to apps: `JoinedRoom` (or an accessor) exposes `created_at`.
+- [x] Unit test: merge of two rooms with different `created_at` keeps the min, both orders.
+- [x] Rebuild wasm (`just contract`); the contract key changes — that is fine.
+- [x] Full gate green (incl. contract recipes); `just e2e-join` still passes (run once).
 
 ### What was done (Step A1)
-_(agent fills: files changed, API, tests + commands, deviations, open issues)_
+
+**Files changed (product):**
+- `contract/lobby/src/__basic__/structs.rs` — `Room` gains `created_at: UnixTime`
+  (after `room_size`, so the bincode field order matches the plugin mirror exactly).
+- `contract/lobby/src/lib.rs` — `merge_room` now takes
+  `existing.created_at = existing.created_at.min(incoming.created_at)`; test helper
+  `room(peer, updated_at, created_at)` and a new
+  `merge_keeps_min_created_at_both_orders` test.
+- `src/discovery/__basic__/structs.rs` — `Room` and `JoinedRoom` each gain
+  `created_at: discovery::UnixTime` (same position: after `room_size` / after `name`).
+- `src/discovery/freenet/merge_room.rs` — plugin-side `min` (mirrors the contract);
+  usage test now asserts `merged.created_at == min(200, 100)`.
+- `src/discovery/state_machine/handle_command.rs` — `join()` derives
+  `created_at = state.lobby.get(&room).map_or(now, |record| record.created_at)`.
+- `src/discovery/state_machine/sync_room_created_at.rs` (**new**) — a transition that
+  pulls the authoritative (min) `created_at` from `state.lobby` into `state.room`, so
+  `JoinedRoom` self-heals once the contract's value is read back.
+- `src/discovery/state_machine/__basic__/structs.rs` — `HeartbeatTarget` carries
+  `created_at`; `heartbeat_target()` fills it from the joined room.
+- `src/discovery/freenet/publish_heartbeat.rs` — `created_at` parameter, written into the
+  `Room` delta; `run_lobby.rs` and `connect_retry.rs` pass/carry it.
+- All ~22 `Room { … }` and ~17 `JoinedRoom { … }` construction sites (fixtures in
+  `src/discovery/**`, `methods/lobby/**`, `tests/`, `examples/lobby_room/**`) updated.
+
+**Wire compatibility:** bincode is positional, so the field sits at the same index in the
+contract and plugin `Room`. `tests/contract_wire.rs` now builds the plugin room with
+`created_at = 7` and still round-trips through `lobby_contract::Lobby` unchanged.
+
+**Tests added / extended:**
+- Contract unit: `merge_keeps_min_created_at_both_orders` (contract/lobby/src/lib.rs).
+- Plugin unit: `sync_room_created_at::tests::{test_usage,
+  leaves_room_untouched_without_a_record}`; min assertion in `merge_room::tests`.
+- Harness: `tests/freenet_harness.rs` `one_room(updated_at, created_at)` — `gen_state`
+  uses `created_at=100`, `gen_update` `created_at=200`, so the CRDT suite exercises the
+  new field (`just freenet-harness`).
+
+**Commands run (all green):**
+`just build`, `just clippy`, `just fmt`, `just test` (121 passed, 3 skipped),
+`just lint`, `just bevy-lint`, `just contract`, `just contract-fmt`, `just contract-clippy`,
+`just contract-lint`, `just freenet-harness`, `just e2e-join` (5 peers; ring 5/5,
+full mesh, converge 112 ms).
+
+**Deviations / decisions:**
+- **`created_at` derivation.** The plan said "set on `Create` from `UnixTime::now()`", but
+  `handle_command` collapses `Create | Join` into one `join()`. Used one rule instead: the
+  room's value if `state.lobby` already knows it, else `now()`. This also gives D6's accepted
+  "reused name keeps the old `created_at`" for free, and a joiner (which cannot see a room
+  without having fetched the lobby) inherits the real value.
+- **No blocking wait on the min-merge.** There is no consumable "your Update was merged"
+  ack (`publish_heartbeat` is fire-and-forget; `poll` only reads `GetResponse`). Convergence
+  is bounded by one `LOBBY_REFRESH` (5 s): a returned lobby carrying a lower `created_at`
+  is proof the min landed, and `handle_lobby` → `sync_room_created_at` folds it into
+  `JoinedRoom`. No new timer, no join-path fetch.
+
+**Open issues (for later steps):**
+- A room fresher than the peer's `attach` fetch can have a briefly-too-new `created_at`
+  (corrected within ≤5 s). Harmless for B1 (a 86400 s day boundary), noted for awareness.
+- `Created_at` can still be pushed back by a hostile client (D6, accepted).
 
 ---
 
@@ -264,6 +342,59 @@ _(agent fills)_
 
 ### What was done (Step A7)
 _(agent fills)_
+
+---
+
+## Step A8 — Join self-heal gate + `JoiningRoom` screen
+
+Depends only on A1. A join becomes a three-phase lifecycle instead of a boolean: the room
+enters `RoomPhase::Joining`, the plugin waits until the contract's `created_at` has been
+observed for the room (the A1 min-merge landing), then flips to `RoomPhase::Ready`. The
+default UI shows a black "Joining room <name>" screen and blocks all input until ready.
+
+- [x] `RoomPhase { Joining, Ready }`; `JoinedRoom.phase`; `State.joining_since`.
+- [x] `wait_for_contract_self_heal` transition: ready when the lobby record's
+      `created_at` equals the room's; `JOIN_HEAL_TIMEOUT = 30s` fallback (warn + proceed).
+      Called from `handle_lobby` (after `sync_room_created_at`) and `tick`.
+- [x] `Event::RoomReady(room)`.
+- [x] `Screen::JoiningRoom` + `spawn_joining_room` (black screen + "Joining room <name>");
+      `pick_screen` maps `Joining → JoiningRoom`, `Ready → InRoom`.
+- [x] Input blocked structurally (no interactive entities; all input systems stay gated to
+      `Lobby`/`InRoom`).
+- [x] Tests: `wait_for_contract_self_heal` (wait / heal / timeout / idle), `pick_screen`
+      (Joining vs Ready), `spawn_joining_room` + PNG preview; `just e2e-join` re-run green.
+
+### What was done (Step A8)
+
+**Files (new):** `src/discovery/state_machine/wait_for_contract_self_heal.rs`,
+`src/discovery/ui/bevy_systems/spawn_joining_room.rs`.
+**Files (changed):** `src/discovery/__basic__/enums.rs` (`RoomPhase`),
+`src/discovery/__basic__/messages.rs` (`Event::RoomReady`), `src/discovery/__basic__/structs.rs`
+(`JoinedRoom.phase`), `src/discovery/state_machine/state.rs` (`joining_since`),
+`handle_command.rs`, `handle_lobby.rs`, `tick.rs`, `state_machine/mod.rs`,
+`state_machine/__basic__/constants.rs` (`JOIN_HEAL_TIMEOUT`), `ui/__basic__/states.rs`
+(`Screen::JoiningRoom`), `ui/__basic__/components.rs` (`JoiningRoomRoot`),
+`ui/bevy_systems/pick_screen.rs` + `mod.rs`, `ui/mod.rs`,
+`methods/default_ui_plugin/build_plugin.rs`, `examples/lobby_room/overlay.rs`
+(`sync_visibility` gates on `phase == Ready`), plus all 22 `JoinedRoom { .. }` fixture
+sites (`phase: Ready` where a test expects `InRoom`).
+
+**Behaviour.** Readiness = `state.lobby[room].created_at == state.room.created_at`
+(post-`sync_room_created_at`); the list-join path is already observed, so it heals on the
+first check, while the **create** path shows the black screen until the deploy + read-back
+populates the lobby (≤ `JOIN_HEAL_TIMEOUT`). `Event::Joined` still fires at join time, so
+the `lobby joined room=<r>` e2e oracle and all join/converge checks are unchanged; the
+libp2p mesh is **not** gated on readiness — only the UI is.
+
+**Commands run (all green):** `just build`, `clippy`, `fmt`, `test` (**126 passed**, 3
+skipped), `lint`, `bevy-lint`, `contract` recipes (contract untouched), `just e2e-join`
+(5/5 ring, full mesh, converge 99 ms).
+
+**Open issues:** the create path's `JoiningRoom` is not covered by an automated e2e (the
+discovery e2e uses `--ui custom`, the join e2e joins from the list); a first `e2e-join`
+attempt failed on a pre-existing freenet ring flake (a peer stuck at 2 ring peers <
+`MIN_RING_PEERS`), unrelated to this step — the re-run was green. Revisit in A7/B7 when
+the room-messaging/starboard e2e lands.
 
 ---
 

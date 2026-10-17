@@ -5,6 +5,7 @@ use discovery::state_machine::{HeartbeatTarget, State};
 pub fn heartbeat_target(state: &State) -> Option<HeartbeatTarget> {
     state.room.as_ref().map(|room| HeartbeatTarget {
         room: room.name.clone(),
+        created_at: room.created_at,
         addrs: state.me.addrs.clone(),
         display_name: state.display_name.clone(),
     })
@@ -26,6 +27,8 @@ mod tests {
         assert!(heartbeat_target(&state).is_none());
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
+            created_at: discovery::UnixTime::from_secs(0),
+            phase: discovery::RoomPhase::Ready,
             members: discovery::Members::new(),
         });
         let target = heartbeat_target(&state);

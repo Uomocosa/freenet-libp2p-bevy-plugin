@@ -17,6 +17,7 @@ pub struct Heartbeat {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Room {
     pub room_size: discovery::RoomSize,
+    pub created_at: discovery::UnixTime,
     pub members: BTreeMap<identity::PeerId, Heartbeat>,
 }
 
@@ -29,6 +30,8 @@ pub struct Member {
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct JoinedRoom {
     pub name: identity::RoomName,
+    pub created_at: discovery::UnixTime,
+    pub phase: discovery::RoomPhase,
     pub members: discovery::Members,
 }
 

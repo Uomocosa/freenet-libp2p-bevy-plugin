@@ -49,6 +49,8 @@ mod tests {
         let room = identity::RoomName::from("r");
         state.room = Some(discovery::JoinedRoom {
             name: room.clone(),
+            created_at: discovery::UnixTime::from_secs(0),
+            phase: discovery::RoomPhase::Ready,
             members: discovery::Members::new(),
         });
         let heartbeat = discovery::Heartbeat {
@@ -64,6 +66,7 @@ mod tests {
             room,
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
+                created_at: discovery::UnixTime::from_secs(0),
                 members,
             },
         );

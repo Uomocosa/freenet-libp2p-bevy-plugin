@@ -67,7 +67,14 @@ fn initial_lobby(
         display_name: Some(target.display_name.clone()),
     };
     let members = std::collections::BTreeMap::from([(me.clone(), heartbeat)]);
-    discovery::Lobby::from([(target.room.clone(), discovery::Room { room_size, members })])
+    discovery::Lobby::from([(
+        target.room.clone(),
+        discovery::Room {
+            room_size,
+            created_at: target.created_at,
+            members,
+        },
+    )])
 }
 
 // no test_usage necessary

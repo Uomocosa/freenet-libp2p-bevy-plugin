@@ -13,6 +13,7 @@ pub enum Command {
 pub enum Event {
     LobbyChanged,
     Joined(identity::RoomName),
+    RoomReady(identity::RoomName),
     Left(identity::RoomName),
     MembersChanged,
 }

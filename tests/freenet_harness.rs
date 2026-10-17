@@ -8,8 +8,8 @@ fn encode(lobby: &Lobby) -> State<'static> {
     State::from(bincode::serialize(lobby).unwrap_or_default())
 }
 
-// needed helper: a lobby with one room holding one member at the given time
-fn one_room(updated_at: u64) -> Lobby {
+// needed helper: a lobby with one room holding one member at the given times
+fn one_room(updated_at: u64, created_at: u64) -> Lobby {
     let mut members = BTreeMap::new();
     members.insert(
         PeerId("peer".to_string()),
@@ -24,6 +24,7 @@ fn one_room(updated_at: u64) -> Lobby {
         RoomName("room-a".to_string()),
         Room {
             room_size: 8,
+            created_at: UnixTime(created_at),
             members,
         },
     );
@@ -31,11 +32,11 @@ fn one_room(updated_at: u64) -> Lobby {
 }
 
 fn gen_state() -> State<'static> {
-    encode(&one_room(1))
+    encode(&one_room(1, 100))
 }
 
 fn gen_update(_base: &State<'static>) -> UpdateData<'static> {
-    let delta = bincode::serialize(&one_room(2)).unwrap_or_default();
+    let delta = bincode::serialize(&one_room(2, 200)).unwrap_or_default();
     UpdateData::Delta(StateDelta::from(delta))
 }
 

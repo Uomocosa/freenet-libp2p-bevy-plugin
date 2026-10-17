@@ -49,6 +49,8 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
+            created_at: discovery::UnixTime::from_secs(0),
+            phase: discovery::RoomPhase::Ready,
             members: discovery::Members::new(),
         });
         let peers = vec![

@@ -7,6 +7,13 @@ pub enum LinkStatus {
     Lost,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Default)]
+pub enum RoomPhase {
+    #[default]
+    Joining,
+    Ready,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 pub enum Step {
     #[display("fetch")]

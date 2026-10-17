@@ -12,7 +12,10 @@ pub fn handle_lobby(
     }
     state.lobby = lobby;
     discovery::state_machine::seed_candidates(state);
-    vec![Output::Notify(discovery::Event::LobbyChanged)]
+    discovery::state_machine::sync_room_created_at(state);
+    let mut outputs = discovery::state_machine::wait_for_contract_self_heal(state, now);
+    outputs.push(Output::Notify(discovery::Event::LobbyChanged));
+    outputs
 }
 
 #[cfg(test)]
@@ -32,6 +35,8 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
+            created_at: discovery::UnixTime::from_secs(0),
+            phase: discovery::RoomPhase::Ready,
             members: discovery::Members::new(),
         });
         let mut members = BTreeMap::new();
@@ -50,6 +55,7 @@ mod tests {
             identity::RoomName::from("r"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
+                created_at: discovery::UnixTime::from_secs(0),
                 members,
             },
         );

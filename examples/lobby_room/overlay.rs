@@ -102,7 +102,12 @@ fn sync_visibility(
         return;
     }
     for mut view in &mut views {
-        view.display = display_for(snapshot.room.is_some());
+        view.display = display_for(
+            snapshot
+                .room
+                .as_ref()
+                .is_some_and(|room| room.phase == discovery::RoomPhase::Ready),
+        );
     }
 }
 
@@ -222,6 +227,8 @@ mod tests {
     fn join_first_room(world: &mut World) {
         world.resource_mut::<discovery::Snapshot>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("alpha"),
+            created_at: discovery::UnixTime::from_secs(0),
+            phase: discovery::RoomPhase::Ready,
             members: discovery::Members::new(),
         });
     }
@@ -262,6 +269,8 @@ mod tests {
         }
         snapshot.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("gamma"),
+            created_at: discovery::UnixTime::from_secs(0),
+            phase: discovery::RoomPhase::Ready,
             members,
         });
     }

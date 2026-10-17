@@ -19,6 +19,7 @@ fn plugin_lobby() -> discovery::Lobby {
         identity::RoomName::from("room-a"),
         discovery::Room {
             room_size: discovery::RoomSize::DEFAULT,
+            created_at: discovery::UnixTime::from_secs(7),
             members,
         },
     )])

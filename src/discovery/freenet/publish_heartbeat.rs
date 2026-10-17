@@ -12,9 +12,17 @@ pub fn publish_heartbeat(
     me: &identity::PeerId,
     heartbeat: discovery::Heartbeat,
     room_size: discovery::RoomSize,
+    created_at: discovery::UnixTime,
 ) -> Result<(), discovery::Error> {
     let members = BTreeMap::from([(me.clone(), heartbeat)]);
-    let update = discovery::Lobby::from([(room.clone(), discovery::Room { room_size, members })]);
+    let update = discovery::Lobby::from([(
+        room.clone(),
+        discovery::Room {
+            room_size,
+            created_at,
+            members,
+        },
+    )]);
     let request = ContractRequest::Update {
         key: subscription.key,
         data: UpdateData::Delta(StateDelta::from(bincode::serialize(&update)?)),
@@ -65,6 +73,7 @@ mod tests {
                 &identity::PeerId::from("me"),
                 heartbeat,
                 discovery::RoomSize::DEFAULT,
+                discovery::UnixTime::from_secs(0),
             )
             .is_ok()
         );

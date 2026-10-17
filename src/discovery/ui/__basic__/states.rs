@@ -5,6 +5,7 @@ pub enum Screen {
     #[default]
     Connecting,
     Lobby,
+    JoiningRoom,
     InRoom,
 }
 

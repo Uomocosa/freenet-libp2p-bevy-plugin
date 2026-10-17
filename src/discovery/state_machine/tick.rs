@@ -12,6 +12,9 @@ pub fn tick(state: &mut State, now: discovery::UnixTime) -> Vec<Output> {
         state.last_handshake = Some(now);
     }
     outputs.extend(discovery::state_machine::prune_members(state, now));
+    outputs.extend(discovery::state_machine::wait_for_contract_self_heal(
+        state, now,
+    ));
     outputs
 }
 
@@ -31,6 +34,8 @@ mod tests {
         state.connected.insert(identity::PeerId::from("a"));
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
+            created_at: discovery::UnixTime::from_secs(0),
+            phase: discovery::RoomPhase::Ready,
             members: discovery::Members::new(),
         });
         let mut outputs = tick(&mut state, discovery::UnixTime::from_secs(100));
