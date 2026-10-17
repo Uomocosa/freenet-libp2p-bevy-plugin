@@ -67,6 +67,18 @@ pub fn dispatch_net_command<Payload: p2p::Message>(
                     .send_request(&libp2p_id, p2p::SnapshotRequest::Fetch { room, part });
             }
         }
+        p2p::NetCommand::FetchReplicaSlice {
+            peer_id,
+            room,
+            index,
+        } => {
+            if let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() {
+                swarm.behaviour_mut().room_sync.send_request(
+                    &libp2p_id,
+                    p2p::SnapshotRequest::FetchReplicaSlice { room, index },
+                );
+            }
+        }
         p2p::NetCommand::RespondSnapshot { id, frame } => {
             if let Some(channel) = snapshot_replies.remove(id) {
                 let _ = swarm

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::identity;
 use crate::p2p;
+use crate::room_sync;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransportMode {
@@ -62,11 +63,30 @@ pub enum NetEvent {
     SnapshotFailed {
         from: identity::PeerId,
     },
+    ReplicaSliceRequest {
+        id: p2p::ReplyId,
+        from: identity::PeerId,
+        room: identity::RoomName,
+        index: room_sync::ReplicaSliceIndex,
+    },
+    ReplicaSlice {
+        from: identity::PeerId,
+        room: identity::RoomName,
+        index: room_sync::ReplicaSliceIndex,
+        data: Vec<u8>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SnapshotRequest {
-    Fetch { room: identity::RoomName, part: u32 },
+    Fetch {
+        room: identity::RoomName,
+        part: u32,
+    },
+    FetchReplicaSlice {
+        room: identity::RoomName,
+        index: room_sync::ReplicaSliceIndex,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -79,6 +99,11 @@ pub enum SnapshotResponse {
     },
     Missing {
         room: identity::RoomName,
+    },
+    ReplicaSlice {
+        room: identity::RoomName,
+        index: room_sync::ReplicaSliceIndex,
+        data: Vec<u8>,
     },
 }
 
@@ -115,6 +140,11 @@ pub enum NetCommand {
         peer_id: identity::PeerId,
         room: identity::RoomName,
         part: u32,
+    },
+    FetchReplicaSlice {
+        peer_id: identity::PeerId,
+        room: identity::RoomName,
+        index: room_sync::ReplicaSliceIndex,
     },
     RespondSnapshot {
         id: p2p::ReplyId,

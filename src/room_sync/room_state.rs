@@ -10,6 +10,8 @@ pub trait RoomState:
     fn apply(&mut self, meta: room_sync::OpMeta, op: &Self::Op);
     fn snapshot(&self) -> Self::Snapshot;
     fn merge(&mut self, snapshot: Self::Snapshot);
+    fn slice_content_hashes(&self) -> room_sync::ReplicaSliceContentHashes;
+    fn slice_snapshot(&self, index: room_sync::ReplicaSliceIndex) -> Self::Snapshot;
 }
 
 // no test_usage necessary

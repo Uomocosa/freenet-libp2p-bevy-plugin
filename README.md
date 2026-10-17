@@ -29,10 +29,13 @@ One room channel: gossipsub, one topic per room. Joining a room (through
 - `p2p::Command::PublishInJoinedRoom { payload }` publishes to the room you have joined.
 - `p2p::Command::PublishToSpecificRoom { room, payload }` publishes to a named room.
 - Inbound payloads arrive as `p2p::Event::RoomMessage { room, from, payload }`.
-- A payload larger than `p2p::RoomConfig::gossipsub.max_transmit_size` (64 KiB)
+- A payload larger than `p2p::GossipsubConfig::max_transmit_size` (64 KiB)
   is rejected with `p2p::Event::Error`, not silently dropped.
-- `p2p::RoomConfig` also carries `anti_entropy` (default on, 2 s interval) and
-  is reached from `plugin::Config` and its `with_room` builder.
+- `room_sync::SyncPlugin<Replica>` replicates a `RoomState` per room. Its
+  `anti_entropy: Option<room_sync::AntiEntropyConfig>` (default on: 2 s interval, at
+  most 8 slice fetches per peer; `with_anti_entropy(None)` turns it off) repairs ops
+  lost on gossip: peers announce one content hash per replica slice and fetch the
+  slices whose hash differs.
 
 Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
 2, `flood_publish` enabled.

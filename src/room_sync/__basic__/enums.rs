@@ -10,4 +10,8 @@ pub enum ReplicaSyncTopicMessage<Op> {
         meta: room_sync::OpMeta,
         op: Op,
     },
+    CompareSliceContentHashes {
+        room: identity::RoomName,
+        hashes: room_sync::ReplicaSliceContentHashes,
+    },
 }

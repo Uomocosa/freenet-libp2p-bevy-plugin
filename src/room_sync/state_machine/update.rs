@@ -24,7 +24,30 @@ pub fn update<Op>(
             room_sync::state_machine::handle_fetch(state, id, room, part)
         }
         room_sync::state_machine::Input::Tick => room_sync::state_machine::tick(state),
-        room_sync::state_machine::Input::Failed => room_sync::state_machine::retry_fetch(state),
+        room_sync::state_machine::Input::Failed { from } => {
+            room_sync::state_machine::handle_failed(state, &from)
+        }
+        room_sync::state_machine::Input::AntiEntropyTimerFired { local } => {
+            room_sync::state_machine::publish_slice_content_hashes(state, local)
+        }
+        room_sync::state_machine::Input::RemoteSliceContentHashes {
+            from,
+            local,
+            remote,
+        } => room_sync::state_machine::handle_remote_slice_content_hashes(
+            state, &from, &local, &remote,
+        ),
+        room_sync::state_machine::Input::ReplicaSliceRequested { id, room, index } => {
+            room_sync::state_machine::handle_replica_slice_requested(state, id, room, index)
+        }
+        room_sync::state_machine::Input::ReplicaSliceReceived {
+            from,
+            room,
+            index,
+            data,
+        } => room_sync::state_machine::handle_replica_slice_received(
+            state, &from, &room, index, data,
+        ),
     }
 }
 
@@ -107,7 +130,12 @@ mod tests {
                 data: vec![1],
             },
         );
-        let outputs = update(&mut state, Input::Failed);
+        let outputs = update(
+            &mut state,
+            Input::Failed {
+                from: identity::PeerId::from("a"),
+            },
+        );
         assert_eq!(
             outputs,
             vec![Output::Fetch {
@@ -205,5 +233,180 @@ mod tests {
             [Output::Merge { .. }, Output::Apply { op: 5u8, .. }]
         ));
         assert_eq!(state.buffered, Vec::new());
+    }
+
+    fn ready_state(room: &identity::RoomName) -> State<u8> {
+        let mut state = State::<u8>::default();
+        update(
+            &mut state,
+            Input::Joined {
+                room: room.clone(),
+                members: Vec::new(),
+            },
+        );
+        update(&mut state, Input::Tick);
+        assert_eq!(state.phase, Phase::Ready);
+        state
+    }
+
+    fn hashes(entries: &[(u32, u64)]) -> room_sync::ReplicaSliceContentHashes {
+        entries
+            .iter()
+            .map(|(index, hash)| {
+                (
+                    room_sync::ReplicaSliceIndex(*index),
+                    room_sync::ReplicaSliceContentHash(*hash),
+                )
+            })
+            .collect()
+    }
+
+    fn fetched_indices(outputs: &[Output<u8>]) -> Vec<u32> {
+        outputs
+            .iter()
+            .filter_map(|output| match output {
+                Output::FetchReplicaSlice { index, .. } => Some(**index),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn timer_publishes_slice_hashes_only_when_ready() {
+        let room = identity::RoomName::from("r");
+        let mut idle = State::<u8>::default();
+        let local = hashes(&[(0, 1)]);
+        let outputs = update(
+            &mut idle,
+            Input::AntiEntropyTimerFired {
+                local: local.clone(),
+            },
+        );
+        assert_eq!(outputs, Vec::new());
+        let mut ready = ready_state(&room);
+        let outputs = update(
+            &mut ready,
+            Input::AntiEntropyTimerFired {
+                local: local.clone(),
+            },
+        );
+        assert_eq!(
+            outputs,
+            vec![Output::PublishSliceContentHashes {
+                room,
+                hashes: local,
+            }]
+        );
+    }
+
+    #[test]
+    fn mismatching_slices_are_fetched_once_and_capped_per_peer() {
+        let room = identity::RoomName::from("r");
+        let peer = identity::PeerId::from("a");
+        let mut state = ready_state(&room);
+        state.max_slice_fetches_per_peer = 2;
+        let remote = hashes(&[(0, 1), (1, 1), (2, 1)]);
+        let first = update(
+            &mut state,
+            Input::RemoteSliceContentHashes {
+                from: peer.clone(),
+                local: Vec::new(),
+                remote: remote.clone(),
+            },
+        );
+        assert_eq!(fetched_indices(&first), vec![0, 1]);
+        let again = update(
+            &mut state,
+            Input::RemoteSliceContentHashes {
+                from: peer,
+                local: Vec::new(),
+                remote,
+            },
+        );
+        assert_eq!(fetched_indices(&again), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn received_slice_is_merged_and_frees_its_fetch() {
+        let room = identity::RoomName::from("r");
+        let peer = identity::PeerId::from("a");
+        let mut state = ready_state(&room);
+        let remote = hashes(&[(3, 1)]);
+        update(
+            &mut state,
+            Input::RemoteSliceContentHashes {
+                from: peer.clone(),
+                local: Vec::new(),
+                remote: remote.clone(),
+            },
+        );
+        let outputs = update(
+            &mut state,
+            Input::ReplicaSliceReceived {
+                from: peer.clone(),
+                room,
+                index: room_sync::ReplicaSliceIndex(3),
+                data: vec![7],
+            },
+        );
+        assert_eq!(outputs, vec![Output::Merge { bytes: vec![7] }]);
+        let refetch = update(
+            &mut state,
+            Input::RemoteSliceContentHashes {
+                from: peer,
+                local: Vec::new(),
+                remote,
+            },
+        );
+        assert_eq!(fetched_indices(&refetch), vec![3]);
+    }
+
+    #[test]
+    fn failure_frees_every_fetch_to_that_peer() {
+        let room = identity::RoomName::from("r");
+        let peer = identity::PeerId::from("a");
+        let mut state = ready_state(&room);
+        let remote = hashes(&[(0, 1)]);
+        update(
+            &mut state,
+            Input::RemoteSliceContentHashes {
+                from: peer.clone(),
+                local: Vec::new(),
+                remote: remote.clone(),
+            },
+        );
+        update(&mut state, Input::Failed { from: peer.clone() });
+        let refetch = update(
+            &mut state,
+            Input::RemoteSliceContentHashes {
+                from: peer,
+                local: Vec::new(),
+                remote,
+            },
+        );
+        assert_eq!(fetched_indices(&refetch), vec![0]);
+    }
+
+    #[test]
+    fn slice_hashes_are_ignored_while_fetching_the_join_snapshot() {
+        let room = identity::RoomName::from("r");
+        let peer = identity::PeerId::from("a");
+        let mut state = State::<u8>::default();
+        update(
+            &mut state,
+            Input::Joined {
+                room,
+                members: vec![peer.clone()],
+            },
+        );
+        let outputs = update(
+            &mut state,
+            Input::RemoteSliceContentHashes {
+                from: peer,
+                local: Vec::new(),
+                remote: hashes(&[(0, 1)]),
+            },
+        );
+        assert_eq!(outputs, Vec::new());
     }
 }

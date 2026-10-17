@@ -13,6 +13,7 @@ pub fn handle_joined<Op>(
     state.parts.clear();
     state.asked.clear();
     state.source = None;
+    state.slice_fetches_awaiting_reply.clear();
     let mut members = members;
     members.sort();
     state.members = members;

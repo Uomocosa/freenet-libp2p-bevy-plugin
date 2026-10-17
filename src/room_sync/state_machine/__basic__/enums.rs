@@ -36,7 +36,28 @@ pub enum Input<Op> {
         part: u32,
     },
     Tick,
-    Failed,
+    Failed {
+        from: identity::PeerId,
+    },
+    AntiEntropyTimerFired {
+        local: room_sync::ReplicaSliceContentHashes,
+    },
+    RemoteSliceContentHashes {
+        from: identity::PeerId,
+        local: room_sync::ReplicaSliceContentHashes,
+        remote: room_sync::ReplicaSliceContentHashes,
+    },
+    ReplicaSliceRequested {
+        id: p2p::ReplyId,
+        room: identity::RoomName,
+        index: room_sync::ReplicaSliceIndex,
+    },
+    ReplicaSliceReceived {
+        from: identity::PeerId,
+        room: identity::RoomName,
+        index: room_sync::ReplicaSliceIndex,
+        data: Vec<u8>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,5 +78,19 @@ pub enum Output<Op> {
     Apply {
         meta: room_sync::OpMeta,
         op: Op,
+    },
+    PublishSliceContentHashes {
+        room: identity::RoomName,
+        hashes: room_sync::ReplicaSliceContentHashes,
+    },
+    FetchReplicaSlice {
+        peer: identity::PeerId,
+        room: identity::RoomName,
+        index: room_sync::ReplicaSliceIndex,
+    },
+    SendReplicaSlice {
+        id: p2p::ReplyId,
+        room: identity::RoomName,
+        index: room_sync::ReplicaSliceIndex,
     },
 }

@@ -62,13 +62,13 @@ pub fn drive<Replica: room_sync::RoomState>(
         }
     }
     for event in net_events.drain() {
-        if let Some(input) = net_event_to_input::<Replica>(&event, &state, &mut clock, game) {
+        if let Some(input) = net_event_to_input(&event, &state, &mut clock, game, &*room) {
             inputs.push(input);
         }
     }
     for input in inputs {
         for output in room_sync::state_machine::update(&mut state, input) {
-            perform(output, &mut *room, &mut pending);
+            perform(output, &mut *room, &mut pending, game);
         }
     }
 }
@@ -79,9 +79,10 @@ fn net_event_to_input<Replica: room_sync::RoomState>(
     state: &room_sync::bevy_systems::SyncState<Replica::Op>,
     clock: &mut room_sync::LamportClock,
     game: &identity::GameId,
+    replica: &Replica,
 ) -> Option<room_sync::state_machine::Input<Replica::Op>> {
     match event {
-        p2p::NetEvent::Gossip { topic, data, .. } => {
+        p2p::NetEvent::Gossip { topic, from, data } => {
             let expected = state
                 .room
                 .as_ref()
@@ -97,6 +98,13 @@ fn net_event_to_input<Replica: room_sync::RoomState>(
                     clock.observe(meta.lamport);
                     Some(room_sync::state_machine::Input::Remote { room, meta, op })
                 }
+                room_sync::ReplicaSyncTopicMessage::CompareSliceContentHashes {
+                    hashes, ..
+                } => Some(room_sync::state_machine::Input::RemoteSliceContentHashes {
+                    from: from.clone(),
+                    local: replica.slice_content_hashes(),
+                    remote: hashes,
+                }),
             }
         }
         p2p::NetEvent::SnapshotPart {
@@ -112,7 +120,27 @@ fn net_event_to_input<Replica: room_sync::RoomState>(
             data: data.clone(),
         }),
         p2p::NetEvent::SnapshotMissing { .. } => Some(room_sync::state_machine::Input::Tick),
-        p2p::NetEvent::SnapshotFailed { .. } => Some(room_sync::state_machine::Input::Failed),
+        p2p::NetEvent::SnapshotFailed { from } => {
+            Some(room_sync::state_machine::Input::Failed { from: from.clone() })
+        }
+        p2p::NetEvent::ReplicaSliceRequest {
+            id, room, index, ..
+        } => Some(room_sync::state_machine::Input::ReplicaSliceRequested {
+            id: *id,
+            room: room.clone(),
+            index: *index,
+        }),
+        p2p::NetEvent::ReplicaSlice {
+            from,
+            room,
+            index,
+            data,
+        } => Some(room_sync::state_machine::Input::ReplicaSliceReceived {
+            from: from.clone(),
+            room: room.clone(),
+            index: *index,
+            data: data.clone(),
+        }),
         p2p::NetEvent::SnapshotRequest { id, room, part, .. } => {
             Some(room_sync::state_machine::Input::Fetch {
                 id: *id,
@@ -129,6 +157,7 @@ fn perform<Replica: room_sync::RoomState>(
     output: room_sync::state_machine::Output<Replica::Op>,
     room: &mut Replica,
     pending: &mut p2p::PendingNetCommands,
+    game: &identity::GameId,
 ) {
     match output {
         room_sync::state_machine::Output::Fetch {
@@ -158,6 +187,48 @@ fn perform<Replica: room_sync::RoomState>(
             }
         }
         room_sync::state_machine::Output::Apply { meta, op } => room.apply(meta, &op),
+        room_sync::state_machine::Output::PublishSliceContentHashes {
+            room: room_name,
+            hashes,
+        } => {
+            let message =
+                room_sync::ReplicaSyncTopicMessage::<Replica::Op>::CompareSliceContentHashes {
+                    room: room_name.clone(),
+                    hashes,
+                };
+            if let Ok(data) = bincode::serialize(&message) {
+                pending.push(p2p::NetCommand::Publish {
+                    topic: room_sync::sync_topic(game, &room_name),
+                    data,
+                });
+            }
+        }
+        room_sync::state_machine::Output::FetchReplicaSlice {
+            peer,
+            room: room_name,
+            index,
+        } => {
+            pending.push(p2p::NetCommand::FetchReplicaSlice {
+                peer_id: peer,
+                room: room_name,
+                index,
+            });
+        }
+        room_sync::state_machine::Output::SendReplicaSlice {
+            id,
+            room: room_name,
+            index,
+        } => {
+            let frame = match bincode::serialize(&room.slice_snapshot(index)) {
+                Ok(data) => p2p::SnapshotResponse::ReplicaSlice {
+                    room: room_name,
+                    index,
+                    data,
+                },
+                Err(_) => p2p::SnapshotResponse::Missing { room: room_name },
+            };
+            pending.push(p2p::NetCommand::RespondSnapshot { id, frame });
+        }
     }
 }
 
@@ -235,16 +306,58 @@ mod tests {
                 self.entries.insert(key, value);
             }
         }
+
+        fn slice_content_hashes(&self) -> room_sync::ReplicaSliceContentHashes {
+            let mut by_slice: BTreeMap<room_sync::ReplicaSliceIndex, Vec<(u8, u32)>> =
+                BTreeMap::new();
+            for (key, value) in &self.entries {
+                by_slice
+                    .entry(slice_of(*key))
+                    .or_default()
+                    .push((*key, *value));
+            }
+            by_slice
+                .into_iter()
+                .map(|(index, entries)| {
+                    let bytes = bincode::serialize(&entries).unwrap_or_default();
+                    (
+                        index,
+                        room_sync::ReplicaSliceContentHash::from_bytes(&bytes),
+                    )
+                })
+                .collect()
+        }
+
+        fn slice_snapshot(&self, index: room_sync::ReplicaSliceIndex) -> Self::Snapshot {
+            self.entries
+                .iter()
+                .filter(|(key, _)| slice_of(**key) == index)
+                .map(|(key, value)| (*key, *value))
+                .collect()
+        }
+    }
+
+    fn slice_of(key: u8) -> room_sync::ReplicaSliceIndex {
+        room_sync::ReplicaSliceIndex(u32::from(key / 16))
     }
 
     fn node(game: &identity::GameId) -> App {
+        node_with(game, Some(room_sync::AntiEntropyConfig::default()))
+    }
+
+    fn node_with(
+        game: &identity::GameId,
+        anti_entropy: Option<room_sync::AntiEntropyConfig>,
+    ) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_plugins(plugin::P2PPlugin(
             plugin::Config::<u8>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
                 .with_game(game.clone()),
         ));
-        app.add_plugins(room_sync::SyncPlugin::<Map>::new(game.clone()));
+        app.add_plugins(
+            room_sync::SyncPlugin::<Map>::new(game.clone()).with_anti_entropy(anti_entropy),
+        );
         app.add_message::<discovery::Event>();
         app.init_resource::<discovery::Status>();
         app.update();
@@ -398,5 +511,99 @@ mod tests {
             "joiner did not converge: {:?}",
             joiner.world().resource::<Map>()
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn transport_only_three_apps_converge_after_dropping_30_percent_of_ops() {
+        let interval = Duration::from_millis(500);
+        let game = identity::GameId::from("game");
+        let room = identity::RoomName::from("room-ae");
+        let config = Some(room_sync::AntiEntropyConfig {
+            interval,
+            max_slice_fetches_per_peer: 8,
+        });
+        let mut apps = vec![
+            node_with(&game, config),
+            node_with(&game, config),
+            node_with(&game, config),
+        ];
+        let peers: Vec<identity::Peer> = apps.iter_mut().map(wait_ready).collect();
+        for (dialer, target) in [(1usize, 0usize), (2, 0), (2, 1)] {
+            let mut events = apps[dialer]
+                .world()
+                .resource::<p2p::NetEventChannel>()
+                .subscribe();
+            apps[dialer]
+                .world()
+                .resource::<p2p::NetCommandSender>()
+                .send(p2p::NetCommand::Dial(dialable(&peers[target])))
+                .expect("dial");
+            wait_connected(&mut apps[dialer], &mut events, &peers[target].id);
+        }
+        for (index, app) in apps.iter_mut().enumerate() {
+            let others = peers
+                .iter()
+                .enumerate()
+                .filter(|(other, _)| *other != index)
+                .map(|(_, peer)| peer.id.clone())
+                .collect();
+            join(app, &room, others);
+        }
+        for _ in 0..50 {
+            for app in &mut apps {
+                app.update();
+            }
+            tokio::time::sleep(SETTLE).await;
+        }
+
+        for key in 0u8..120 {
+            let author = usize::from(key) % apps.len();
+            let op = Op {
+                key,
+                value: u32::from(key) * 10,
+            };
+            if key % 10 < 3 {
+                apps[author]
+                    .world_mut()
+                    .resource_mut::<Map>()
+                    .entries
+                    .insert(op.key, op.value);
+            } else {
+                apps[author]
+                    .world_mut()
+                    .resource_mut::<room_sync::PendingOps<Map>>()
+                    .ops
+                    .push(op);
+            }
+            apps[author].update();
+        }
+
+        let traffic_stopped = std::time::Instant::now();
+        let deadline = interval * 3;
+        loop {
+            for app in &mut apps {
+                app.update();
+            }
+            let hashes: Vec<room_sync::ReplicaSliceContentHashes> = apps
+                .iter()
+                .map(|app| {
+                    room_sync::RoomState::slice_content_hashes(app.world().resource::<Map>())
+                })
+                .collect();
+            let full = apps
+                .iter()
+                .all(|app| app.world().resource::<Map>().entries.len() == 120);
+            if full && hashes.windows(2).all(|pair| pair.first() == pair.last()) {
+                return;
+            }
+            assert!(
+                traffic_stopped.elapsed() <= deadline,
+                "not converged within 3 intervals: sizes {:?}",
+                apps.iter()
+                    .map(|app| app.world().resource::<Map>().entries.len())
+                    .collect::<Vec<_>>()
+            );
+            tokio::time::sleep(SETTLE).await;
+        }
     }
 }

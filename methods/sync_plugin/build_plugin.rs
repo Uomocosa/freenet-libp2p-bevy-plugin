@@ -22,6 +22,19 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
     app.init_resource::<room_sync::LamportClock>();
     app.init_resource::<room_sync::PendingOps<Replica>>();
     app.init_resource::<room_sync::bevy_systems::SyncState<Replica::Op>>();
+    if let Some(anti_entropy) = plugin.anti_entropy {
+        app.insert_resource(room_sync::AntiEntropyTimer(Timer::new(
+            anti_entropy.interval,
+            TimerMode::Repeating,
+        )));
+        app.world_mut()
+            .resource_mut::<room_sync::bevy_systems::SyncState<Replica::Op>>()
+            .max_slice_fetches_per_peer = anti_entropy.max_slice_fetches_per_peer;
+        app.add_systems(
+            Update,
+            room_sync::bevy_systems::publish_slice_content_hashes::<Replica>,
+        );
+    }
     app.insert_resource(room_sync::SyncGame(plugin.game.clone()));
     app.insert_resource(room_sync::bevy_systems::NetEvents {
         receiver: Mutex::new(net_events),
@@ -80,6 +93,17 @@ mod tests {
             for (key, value) in snapshot {
                 self.entries.insert(key, value);
             }
+        }
+
+        fn slice_content_hashes(&self) -> room_sync::ReplicaSliceContentHashes {
+            vec![(
+                room_sync::ReplicaSliceIndex(0),
+                room_sync::ReplicaSliceContentHash(u64::try_from(self.entries.len()).unwrap_or(0)),
+            )]
+        }
+
+        fn slice_snapshot(&self, _index: room_sync::ReplicaSliceIndex) -> Self::Snapshot {
+            self.snapshot()
         }
     }
 

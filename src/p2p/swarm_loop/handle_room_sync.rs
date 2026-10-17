@@ -26,6 +26,16 @@ pub fn handle_room_sync<Payload: p2p::Message>(
                         }))
                         .ok();
                 }
+                p2p::SnapshotRequest::FetchReplicaSlice { room, index } => {
+                    event_tx
+                        .send(p2p::Event::Net(p2p::NetEvent::ReplicaSliceRequest {
+                            id,
+                            from,
+                            room,
+                            index,
+                        }))
+                        .ok();
+                }
             }
         }
         request_response::Message::Response { response, .. } => {
@@ -45,6 +55,14 @@ pub fn handle_room_sync<Payload: p2p::Message>(
                 },
                 p2p::SnapshotResponse::Missing { room } => {
                     p2p::NetEvent::SnapshotMissing { from, room }
+                }
+                p2p::SnapshotResponse::ReplicaSlice { room, index, data } => {
+                    p2p::NetEvent::ReplicaSlice {
+                        from,
+                        room,
+                        index,
+                        data,
+                    }
                 }
             };
             event_tx.send(p2p::Event::Net(event)).ok();

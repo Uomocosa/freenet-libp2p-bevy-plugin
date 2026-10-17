@@ -497,9 +497,23 @@ Goal: heal divergence caused by lossy delivery.
 > - **`ReplicaSliceContentHash(u64)`** — *what is in* a slice right now: blake3 of the
 >   slice's content, truncated to 64 bits. Changes on every edit. Same hash on two peers ⇒
 >   same content ⇒ nothing to send.
-> - **`ReplicaSliceContentHashes(Vec<(ReplicaSliceIndex, ReplicaSliceContentHash)>)`** —
->   one peer's hash for every non-empty slice, sorted by index; what it announces each
->   interval. Replaces the raw `Vec<(Vec<u8>, u64)>`.
+> - **`ReplicaSliceContentHashes`** = type alias for
+>   `Vec<(ReplicaSliceIndex, ReplicaSliceContentHash)>` — one peer's hash for every
+>   non-empty slice, sorted by index; what it announces each interval. An alias, not a
+>   newtype: `no_collection_newtype` forbids wrapping a collection.
+> - **`ReplicaSliceIndex::from_hash_mismatches(local, remote) -> Vec<ReplicaSliceIndex>`**
+>   — associated constructor on the index type: the slices whose hash in `remote` differs
+>   from `local`, or that `local` lacks (a hash vs. no hash is a mismatch too). These are
+>   the slices to fetch.
+> - **Slices repair, they do not rebuild.** `slice_snapshot(index)` returns an ordinary
+>   `Replica::Snapshot` holding only that slice; the receiver feeds it to the existing
+>   `RoomState::merge`, which (CRDT) fixes that slice and leaves the rest untouched. No
+>   `from_replica_slices` constructor: a fresh state is `Replica::default()` + the A5
+>   join snapshot.
+> - **`room_sync::AntiEntropyConfig { interval: Duration, max_slice_fetches_per_peer: usize }`**
+>   (default 2 s / 8), held by `SyncPlugin<Replica>` as `anti_entropy:
+>   Option<AntiEntropyConfig>` (default `Some`; `None` disables repair). Reintroduced here
+>   in `room_sync` because `d669d7d` deleted the unused `p2p` one.
 > - **`ReplicaSyncTopicMessage<Op>`** (renames `SyncFrame`) — one message published to all
 >   room members on the `/sync` gossip topic. Each variant tells the receiver its job:
 >   `ApplyThisOp{room,meta,op}` (an op the sender just applied) and
@@ -527,46 +541,113 @@ Goal: heal divergence caused by lossy delivery.
 
 **Commit 2 — `feat(room_sync):` anti-entropy over replica slices**
 
-- [ ] Types in `src/room_sync/` (one file each): `ReplicaSliceIndex(u32)`,
-      `ReplicaSliceContentHash(u64)`, `ReplicaSliceContentHashes(Vec<(ReplicaSliceIndex,
-      ReplicaSliceContentHash)>)` with
-      `slices_differing_from(&self, remote: &Self) -> Vec<ReplicaSliceIndex>` — indices whose
-      hash in `remote` differs from, or is missing in, `self`.
-- [ ] Extend `RoomState`:
+- [x] Types in `src/room_sync/`: `ReplicaSliceIndex(u32)` (own file, with
+      `from_hash_mismatches(local, remote) -> Vec<ReplicaSliceIndex>`),
+      `ReplicaSliceContentHash(u64)` and the `ReplicaSliceContentHashes` alias (`__basic__/`),
+      `AntiEntropyConfig` (own file, `Default`); `SyncPlugin` gains `anti_entropy` +
+      a builder method.
+- [x] Extend `RoomState`:
       `fn slice_content_hashes(&self) -> ReplicaSliceContentHashes;`
       `fn slice_snapshot(&self, index: ReplicaSliceIndex) -> Self::Snapshot;`
       (single-slice test states return only `ReplicaSliceIndex(0)`).
-- [ ] Wire:
+- [x] Wire:
       - `ReplicaSyncTopicMessage::CompareSliceContentHashes{room, hashes}` on `/sync`.
       - `SnapshotRequest::FetchReplicaSlice{room, index, part}`; the swarm loop parks the
         `ResponseChannel` and the plugin answers via `RespondSnapshot`, exactly as A5's
         `Fetch`. Replies reuse `SnapshotResponse::Part`.
-- [ ] Reducer (`state_machine/`, transitions return outputs):
+- [x] Reducer (`state_machine/`, transitions return outputs):
       - `Input::AntiEntropyTimerFired{local}` → `Output::PublishSliceContentHashes{room, hashes}`.
       - `Input::RemoteSliceContentHashes{from, local, remote}` →
         `Output::FetchReplicaSlice{peer, room, index}` for each
-        `local.slices_differing_from(&remote)` not already awaited.
+        `ReplicaSliceIndex::from_hash_mismatches(&local, &remote)` not already awaited.
       - `Input::ReplicaSliceMerged{from, index}` and `Input::Failed` clear the entry.
       - `State.slice_fetches_awaiting_reply: BTreeMap<PeerId, BTreeSet<ReplicaSliceIndex>>`,
         at most `AntiEntropyConfig.max_slice_fetches_per_peer` (default 8) per peer.
       - Acts only in `Phase::Ready`; ignored otherwise.
-- [ ] Bevy:
+- [x] Bevy:
       - `publish_slice_content_hashes<Replica>`: `Timer(AntiEntropyConfig.interval)`
-        (default 2 s); registered only when `RoomConfig.anti_entropy` is `Some`.
+        (default 2 s); registered only when `SyncPlugin.anti_entropy` is `Some`.
       - `drive`: decodes `CompareSliceContentHashes`, reads `Res<Replica>` and feeds the
         local `ReplicaSliceContentHashes` alongside, so the reducer stays Bevy-free;
         answers `FetchReplicaSlice` with `slice_snapshot(index)`.
-- [ ] Unit tests: `slices_differing_from` (equal / missing / extra / differing); per-peer cap;
+- [x] Unit tests: `from_hash_mismatches` (equal / missing / extra / differing); per-peer cap;
       no duplicate fetch while awaited; failure clears the entry; not-`Ready` ignored;
       `ReplicaSyncTopicMessage` bincode round-trip.
-- [ ] Headless test `transport_only_three_apps_converge_after_dropping_30_percent_of_ops`:
+- [x] Headless test `transport_only_three_apps_converge_after_dropping_30_percent_of_ops`:
       3 Apps (direct dial, §0.8), a toy state split into slices, a seeded 30 % drop of
       inbound `ApplyThisOp` (test-only seam at the plugin boundary, no cargo feature);
       after traffic stops, all peers' `slice_content_hashes()` are equal within 3 intervals.
-- [ ] Gate green; commit with the PLAN.md update.
+- [x] Gate green; commit with the PLAN.md update.
 
 ### What was done (Step A6)
-_(agent fills)_
+
+**Commits:** `584fcec refactor!:` (generic renames, `SyncFrame` → `ReplicaSyncTopicMessage`)
+and the `feat(room_sync):` commit carrying this section.
+
+**Files added (product):**
+- `src/room_sync/replica_slice_index.rs` + `methods/replica_slice_index/from_hash_mismatches.rs`
+- `src/room_sync/replica_slice_content_hash.rs` + `methods/replica_slice_content_hash/from_bytes.rs`
+  (blake3, first 8 bytes big-endian — a helper so every `RoomState` hashes slices the same way)
+- `src/room_sync/__basic__/aliases.rs` (`ReplicaSliceContentHashes`), `__basic__/enums.rs`
+  (`ReplicaSyncTopicMessage`), `AntiEntropyTimer` in `__basic__/resources.rs`
+- `src/room_sync/anti_entropy_config.rs`
+- `src/room_sync/state_machine/{publish_slice_content_hashes, handle_remote_slice_content_hashes,
+  handle_replica_slice_requested, handle_replica_slice_received, handle_failed}.rs`
+- `src/room_sync/bevy_systems/publish_slice_content_hashes.rs` (timer system)
+
+**Files changed (product):** `room_state.rs` (two trait methods), `sync_plugin.rs`
+(`anti_entropy` + `with_anti_entropy`; `new` is no longer `const`), `methods/sync_plugin/build_plugin.rs`,
+`state_machine/{state, update, handle_joined, __basic__/enums}.rs`, `bevy_systems/{drive, mod}.rs`,
+`p2p/__basic__/enums.rs`, `p2p/swarm_loop/{handle_room_sync, dispatch_net_command}.rs`, `README.md`.
+
+**Public API added:** `room_sync::{ReplicaSliceIndex, ReplicaSliceContentHash,
+ReplicaSliceContentHashes, AntiEntropyConfig, AntiEntropyTimer}`,
+`ReplicaSyncTopicMessage::CompareSliceContentHashes`, `RoomState::{slice_content_hashes,
+slice_snapshot}` (required — breaking for implementors), `SyncPlugin::with_anti_entropy`,
+`p2p::SnapshotRequest::FetchReplicaSlice`, `p2p::SnapshotResponse::ReplicaSlice`,
+`p2p::NetCommand::FetchReplicaSlice`, `p2p::NetEvent::{ReplicaSliceRequest, ReplicaSlice}`.
+
+**Tests added:** `from_hash_mismatches::tests::{test_usage, equal_hashes_have_no_mismatch,
+a_slice_only_we_hold_is_not_fetched}`, `from_bytes::tests::test_usage`,
+`anti_entropy_config::tests::test_usage`, `state_machine::update::tests::{
+timer_publishes_slice_hashes_only_when_ready, mismatching_slices_are_fetched_once_and_capped_per_peer,
+received_slice_is_merged_and_frees_its_fetch, failure_frees_every_fetch_to_that_peer,
+slice_hashes_are_ignored_while_fetching_the_join_snapshot}`, and
+`drive::tests::transport_only_three_apps_converge_after_dropping_30_percent_of_ops`.
+
+**Measured:** the 3-app test converges in ~1.7 s total run time, inside the 3 × 500 ms deadline
+after traffic stops; 5/5 repeat runs green. **Negative control:** with `anti_entropy = None`
+the same test fails, all three apps stuck at 68/120 entries — so convergence comes from the
+repair path, not from gossip alone.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**164 passed**, 3 skipped), `just lint`, `just bevy-lint`. No contract changes.
+
+**Deviations / decisions (beyond the agreed vocabulary block):**
+- **Slice replies are one response, no `part`.** `FetchReplicaSlice{room,index}` /
+  `SnapshotResponse::ReplicaSlice{room,index,data}`: a slice (a 32×32 tile) is far below the
+  request-response limit, so the 48 KiB part machinery would only add state. The response
+  needs its own variant anyway — the receiver must know which slice it is merging.
+- **`ReplicaSliceMerged{from,index}` became `ReplicaSliceReceived{from,room,index,data}`**,
+  and **two names were added**: `Input::ReplicaSliceRequested{id,room,index}` /
+  `Output::SendReplicaSlice{id,room,index}`. The reducer, not the shell, decides to merge,
+  so the input is the arrival, not the merge.
+- **`Input::Failed` gained `from`** so a failed request frees that peer's awaited slices
+  (we cannot tell which slice failed; all of that peer's are re-askable next round).
+- **Repair fetches from the gossip `propagation_source`**, a directly connected peer. In a
+  ≤8-peer full mesh that is the announcer; via a forwarder the merge is still harmless (CRDT)
+  and the next round re-compares.
+- **No product fault hook.** The test simulates the 30 % loss by writing every key with
+  `key % 10 < 3` straight into the author's `Map` (never published); the rest go through
+  `PendingOps`. Deterministic, and no test-only code in `src/`.
+- **Slice hashes are compared only in `Phase::Ready`**; a peer still fetching its join
+  snapshot ignores them.
+
+**Open issues (for later steps):**
+- B2's `Canvas` must implement `slice_content_hashes` (one entry per touched tile) and
+  `slice_snapshot` (that tile only), using `ReplicaSliceContentHash::from_bytes`.
+- Announcements are `ReplicaSliceContentHashes` of up to 1024 × 12 bytes ≈ 12 KiB per peer
+  per 2 s for a fully touched canvas; B6 will measure it.
 
 ---
 
