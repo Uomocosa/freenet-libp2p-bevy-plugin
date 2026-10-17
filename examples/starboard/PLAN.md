@@ -60,9 +60,9 @@ inline their reference files — `read` the ones named.
 | `definition-state-machine` | reducers / `state_machine/` transitions (A1, A5, A6, A8) | one `update`; transitions **return** their outputs |
 | `definition-tdd` | every step's test loop | fast red → full fast suite → slow gate |
 | `freenet` | contract work (A1, PLAN_HISTORY) | `freenet-contract-harness`, CRDT merge rules, key == `blake3(wasm)` |
-| `libp2p` | network transport work (A2, A3, B5) | `SwarmBuilder`, stream protocols, gossipsub |
+| `libp2p` | network room messaging (A2, B5) | `SwarmBuilder`, gossipsub |
 | `serde-rs` | wire types / snapshots (A1, A2, A5) | bincode is **positional** — field order must match the contract |
-| `criterion-rs` | benchmarks (B6, `just compare-starboard`) | groups, `black_box` |
+| `criterion-rs` | benchmarks (B6, `just bench-starboard`) | groups, `black_box` |
 | `opencode-git-workflow` | commits (§0.6) | conventional commits; **only ever on an explicit user command** |
 
 Rule: if a step touches a row's topic and that skill is not loaded, **STOP and load it
@@ -74,11 +74,11 @@ first**. Loading a skill is cheap; skipping one is a correctness bug.
 
 | # | Topic | Decision |
 |---|---|---|
-| D1 | Room transports | Plugin offers **both**: (a) gossipsub `Publish{topic,payload}` / `Subscribe{topic}` / `Unsubscribe`, one topic per room; (b) `Broadcast{payload}` over a **new libp2p stream protocol**: unreliable, fire-and-forget, low-latency, one stream per room member. Selected via `RoomTransport::{Gossipsub, Stream}` in config. |
-| D2 | Choosing default | Build both, benchmark (`just compare-starboard`), set plugin default to the winner. Plugin philosophy: many options, **sensible defaults**, "hook it up and it just works". Initial default: `Gossipsub`. |
-| D3 | Generic vs app code | Generic room-sync machinery (room broadcast, Lamport clock, snapshot-on-join request/response, tile anti-entropy) lives in the **plugin**. Pixels, shapes, input, rendering live in `examples/starboard/`. |
+| D1 | Room transport | **Gossipsub only**, one topic per room: `Publish{topic,payload}` / `Subscribe{topic}` / `Unsubscribe`. The stream-protocol `Broadcast` variant is dropped: `libp2p-stream` publishes only `-alpha` releases (no stable) and a hand-rolled `ConnectionHandler` is not worth it for a ≤8-peer room. |
+| D2 | Transport choice | Moot — there is no second transport. `just bench-starboard` still measures the gossipsub path (op latency, bytes/s, drop %, convergence; 2 vs 8 peers) but no longer picks a default; the plugin keeps the A2 gossipsub tuning for small rooms. |
+| D3 | Generic vs app code | Generic room-sync machinery (room publish, Lamport clock, snapshot-on-join request/response, tile anti-entropy) lives in the **plugin**. Pixels, shapes, input, rendering live in `examples/starboard/`. |
 | D4 | Consistency model | Canvas = **dense, fixed, tiled LWW grid**: 1024×1024 cells, 32×32-cell tiles (32×32 tiles). Cell = `{ lamport: u32, author: u16 (stable 16-bit hash of peer id), color: Option<u8 palette idx> }` (`None` = erased). Merge per cell = keep max `(lamport, author, color)` with `None < Some(_)` — the color tie-break makes a full `(lamport, author)` hash collision harmless (deterministic on every peer). This is a CRDT (commutative, associative, idempotent) under loss/dup/reorder. **No tombstone GC / no `forget()`**: max raw size is bounded (~8 MB). Untouched tiles are never sent. Revisit sparse+GC only if measurement says so. |
-| D5 | Lossy repair | Draw ops travel on the fast (possibly lossy) path. **Anti-entropy**: every ~2 s each peer broadcasts per-tile digests (blake3 of the tile's cells, truncated); a peer that sees a differing digest requests that tile (reliable request-response) and merges it. Cursors are lossy, latest-wins, never repaired. |
+| D5 | Lossy repair | Draw ops travel on the gossipsub topic (possibly lossy). **Anti-entropy**: every ~2 s each peer publishes per-tile digests (blake3 of the tile's cells, truncated); a peer that sees a differing digest requests that tile (reliable request-response) and merges it. Cursors are lossy, latest-wins, never repaired. |
 | D6 | Daily identity | Lobby `Room` gains `created_at: UnixTime` (contract change). `day = (now - created_at) / 86400`. Seed = `blake3(peer_id ‖ created_at ‖ day)`. Shape and color change live on rollover; existing pixels keep their colors. Players cannot change shape/color. **Collision resolution:** sort members by peer id; a later member whose `(shape, color)` is already taken steps to the next free combination (of 72) for that day. **Known limitation (accepted):** rooms are never deleted from the lobby and `created_at` merges by min, so a reused room name keeps its old `created_at` (day counter, seed, history key carry over) and anyone can push `created_at` back to 0. |
 | D7 | Shapes / colors | Shapes: `Circle, Star, Square, Triangle, Diamond, Hexagon`. Colors: fixed palette of 12 high-contrast hues (palette index stored in cells). |
 | D8 | Canvas geometry | Logical grid 1024×1024, scaled to fit window (letterboxed). Base shape radius = 16 cells. |
@@ -88,7 +88,7 @@ first**. Loading a skill is cheap; skipping one is a correctness bug.
 | D12 | Persistence | Phase 1: in-memory only + snapshot from a live member on join. Phase 2 (separate plan `PLAN_HISTORY.md`): Kademlia distributed history so late joiners get the board even if no member answers. |
 | D13 | Room size target | 8 peers per room. Benchmarks at 2 and 8 in-process peers, report p50/p99. |
 | D14 | Testing bar | Every plugin addition: (1) pure unit tests for reducers/merge, (2) headless in-process two(+)-`App`/two-swarm test, (3) one e2e test in the style of `tests/lobby_room_*.rs`. Starboard final acceptance: e2e where peer A paints, peer B's canvas hash converges to A's. |
-| D15 | Example layout | `examples/starboard/` = shared code (as a module tree, included via `#[path]`), plus thin bins `examples/starboard_gossip/main.rs` and `examples/starboard_stream/main.rs` that differ only in `RoomTransport`. `just compare-starboard` benchmarks both, writes `examples/starboard/COMPARE.md`. |
+| D15 | Example layout | `examples/starboard/` = shared code (as a module tree, included via `#[path]`), plus one thin bin `examples/starboard_gossip/main.rs`. `just bench-starboard` benchmarks it, writes `examples/starboard/BENCH.md`. |
 
 ---
 
@@ -205,7 +205,7 @@ Goal: app can publish a payload to all peers of a room via gossipsub.
       `Command::<T>::Publish{ room, payload: T }` (or a dedicated generic room message
       type — decide and document). Topic name = `"<game_id>/room/<room_name>"`.
 - [x] Event: `Event::<T>::RoomMessage { room, from, payload, via: Via::Gossipsub }`
-      (introduce `Via` enum now; Stream comes in A3).
+      (introduce `Via` enum now; its planned `Stream` variant was dropped — A4 removes `Via`).
 - [x] Wire `handle_gossipsub.rs` + `dispatch_command.rs`. Tune gossipsub for low
       latency in small rooms (heartbeat ~100 ms, `mesh_n_low` suitable for ≤8 peers,
       `flood_publish = true`), all values in a `GossipsubConfig` struct with defaults.
@@ -335,45 +335,34 @@ the 5 instances logged `p2p room subscribed room=room-1792234085` 33–45 ms aft
 
 ---
 
-## Step A3 — Stream protocol `Broadcast` (unreliable, fire-and-forget)
+## Step A4 — Room API over gossipsub + member tracking
 
-Goal: lowest-latency room fan-out over a dedicated libp2p stream protocol.
+Goal: apps call one room API on the only transport; the swarm loop knows each room's
+members so later steps can address peers individually.
 
-- [ ] Use `libp2p-stream` (add the `stream` feature / crate at a version matching
-      libp2p 0.56) or a custom `ConnectionHandler`; protocol id
-      `/<game_id>/room-stream/1`. Load the `libp2p` skill first.
-- [ ] One long-lived outbound stream per connected room member; length-prefixed
-      bincode frames; **never block**: bounded per-peer queue, drop oldest when full
-      (count drops in a metric).
-- [ ] `Command::<T>::Broadcast{ room, payload }` → send to every *current room member*
-      (from discovery `Members`, status `Connected`). Incoming → `Event::RoomMessage{..,
-      via: Via::Stream}`.
-- [ ] Reopen streams on reconnect; close on `Left`/`PeerDisconnected`.
-- [ ] Max frame size constant (document it); oversize frames rejected with an error.
-- [ ] Unit tests: frame codec round-trip, queue drop policy, oversize frame rejected.
-- [ ] Headless test: 3 swarms, broadcast 1000 small msgs, receivers get ≥ 99 % on
-      localhost and none duplicated.
-- [ ] Gate green.
+> Decision D1 revised: the room transport is **gossipsub only**. The `Broadcast` /
+> `RoomTransport::Stream` design is dropped (no stable `libp2p-stream`; see §1 D1). Step
+> A3 was deleted; the membership plumbing every later step needs now lands here.
 
-### What was done (Step A3)
-_(agent fills)_
-
----
-
-## Step A4 — `RoomTransport` config + unified room API
-
-Goal: apps call one API; config chooses the transport.
-
-- [ ] `plugin::Config` gains `room: RoomConfig { transport: RoomTransport, anti_entropy:
-      Option<AntiEntropyConfig>, gossipsub: GossipsubConfig, stream: StreamConfig }`
-      with `Default` (transport = `Gossipsub`, anti-entropy on). Keep `Config::new`
+- [ ] `plugin::Config` gains `room: RoomConfig { anti_entropy: Option<AntiEntropyConfig>,
+      gossipsub: GossipsubConfig }` with `Default` (anti-entropy on). Keep `Config::new`
       working (builder methods for new fields).
-- [ ] `Command::<T>::Room{ payload }` (sends to the currently joined room with the
-      configured transport). `Publish`/`Broadcast` remain available for explicit use.
-- [ ] Two reliability classes for apps: `Room { payload, reliability: Lossy }` uses the
-      configured fast transport; `Reliable` uses request-response to each member.
-- [ ] Unit tests for config defaults/builders; headless test runs the same scenario
-      with each transport.
+- [ ] `Command::<T>::Room{ payload }` (publishes to the currently joined room's topic).
+      `Publish` remains available for explicit-topic use. No reliability split on the app
+      API: reliable transfers (snapshots, tile parts) stay internal to A5/A6
+      (request-response).
+- [ ] `NetCommand::SetRoomMembers { room, peers: Vec<identity::PeerId> }`; the swarm loop
+      keeps each room's member set and clears it on `Left`. New bevy system
+      `discovery::bevy_systems::sync_room_members` pushes the `status == Connected`
+      members from `discovery::Snapshot.room` on `Event::{Joined, MembersChanged}` (and an
+      empty list on `Left`), registered after `drain_events`/`drain_snapshots` and gated
+      on `AutoSubscribe::Enabled`.
+- [ ] Remove the now-single-variant `Via` enum and the `via` field on
+      `Event::RoomMessage` (only `Gossipsub` would remain); update `handle_gossipsub` and
+      the A2 tests.
+- [ ] Unit tests for config defaults/builders, `SetRoomMembers` store/clear, and
+      `sync_room_members` on Joined / MembersChanged / Left; headless test: 2 Apps,
+      `SetRoomMembers` → `Command::Send` to that member arrives.
 - [ ] Update `README.md` "Using the plugin" with the room API + defaults.
 - [ ] Gate green.
 
@@ -406,7 +395,7 @@ Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
       and document it. Add a size test with a fully painted canvas (all tiles touched). Ops
       received before the snapshot arrives are buffered and applied after merge.
 - [ ] App sends ops via a `RoomSync<S>` writer; plugin wraps them with lamport + author
-      and sends via the configured room transport.
+      and publishes them on the room's gossipsub topic.
 - [ ] Unit tests: Lamport clock laws; buffering-before-snapshot reducer (pure state
       machine, see `definition-state-machine`).
 - [ ] Headless test with a toy `RoomState` (e.g. LWW map `u8 → u32`): A applies ops,
@@ -420,17 +409,17 @@ _(agent fills)_
 
 ## Step A6 — Tiled anti-entropy
 
-Goal: heal divergence caused by lossy transports.
+Goal: heal divergence caused by lossy delivery.
 
 - [ ] Extend `RoomState` with optional partition API:
       `type PartId; fn digests(&self) -> Vec<(PartId, u64)>; fn part(&self, id) ->
       Self::Snapshot;`. (Provide a default "single part" impl if simpler.)
-- [ ] Every `AntiEntropyConfig.interval` (default 2 s) each peer sends its digest list
-      (lossy room transport). Receiver compares; for each mismatching part sends a
+- [ ] Every `AntiEntropyConfig.interval` (default 2 s) each peer publishes its digest list
+      on the room topic. Receiver compares; for each mismatching part sends a
       reliable request for that part to the sender; merges reply. Rate-limit
       requests (max K parts in flight per peer, default 8).
 - [ ] Unit tests: digest diff reducer.
-- [ ] Headless test: toy state, inject 30 % op drop on the transport (test-only fault
+- [ ] Headless test: toy state, inject 30 % op drop on the room topic (test-only fault
       hook), assert all peers converge within 3 intervals after traffic stops.
 - [ ] Gate green.
 
@@ -444,7 +433,7 @@ _(agent fills)_
 - [ ] New `tests/room_messaging.rs` (`#[ignore]`, feature `e2e`, registered in
       `Cargo.toml` like the existing ones) reusing `tests/common/`: 3 `lobby_room`-style
       processes meet via Freenet lobby (HARD RULE), join one room, each sends a room
-      message on each transport, all receive. Add `just e2e-room` recipe.
+      message, all receive. Add `just e2e-room` recipe.
 - [ ] Extend `examples/lobby_room` minimally if needed (e.g. a `--room-ping` flag that
       logs received room messages for `tests/common/log_parse.rs`).
 - [ ] Run it once; record result.
@@ -514,13 +503,12 @@ Layout (D15):
 ```
 examples/starboard/            # shared module tree, NOT itself an [[example]]
   mod.rs                       # pub mod canvas; identity; input; render; sync; ui; app;
-  PLAN.md  PLAN_HISTORY.md  COMPARE.md
+  PLAN.md  PLAN_HISTORY.md  BENCH.md
   canvas/  identity/  input/  render/  sync/  ui/  app/
-examples/starboard_gossip/main.rs   # #[path = "../starboard/mod.rs"] mod starboard; transport = Gossipsub
-examples/starboard_stream/main.rs   # same, transport = Stream
+examples/starboard_gossip/main.rs   # #[path = "../starboard/mod.rs"] mod starboard;
 ```
 
-Register both in `Cargo.toml` as `[[example]]` with `required-features = ["e2e"]`.
+Register it in `Cargo.toml` as an `[[example]]` with `required-features = ["e2e"]`.
 Keep game logic pure and Bevy-free where possible (canvas, shapes, rasterizer, identity)
 so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 
@@ -601,11 +589,11 @@ _(agent fills)_
       `examples/lobby_room`). On `Joined`, switch to the board state.
 - [ ] Register `RoomSyncPlugin<Canvas>`; local ops go through it; remote ops applied
       and dirty tiles re-uploaded.
-- [ ] Presence: cursor message `{ pos, size_idx }` at ~30 Hz lossy via room transport;
+- [ ] Presence: cursor message `{ pos, size_idx }` at ~30 Hz lossy on the gossipsub topic;
       render other peers' cursors as their shape+color outline; side panel with members
       (shape icon + color + display name). Remove cursors of peers that left.
 - [ ] Daily rollover recomputed every second from `created_at`.
-- [ ] Bins `starboard_gossip` / `starboard_stream` + `just run-starboard <variant>`.
+- [ ] Bin `starboard_gossip` + `just run-starboard`.
 - [ ] Headless in-process test: 2 Apps, A paints scripted strokes, B canvas hash equals A's.
 
 ### What was done (Step B5)
@@ -613,26 +601,24 @@ _(agent fills)_
 
 ---
 
-## Step B6 — `just compare-starboard`
+## Step B6 — `just bench-starboard`
 
 - [ ] Headless benchmark binary/test (no window): N ∈ {2, 8} in-process peers, scripted
-      strokes at 60 ops/s per peer for 20 s, for each `RoomTransport`.
+      strokes at 60 ops/s per peer for 20 s.
 - [ ] Measure: op latency p50/p99 (send→apply), bytes/s per peer, % ops dropped before
       anti-entropy, time to canvas-hash convergence after stop.
-- [ ] Write a table to `examples/starboard/COMPARE.md` (overwrite each run, include date,
+- [ ] Write a table to `examples/starboard/BENCH.md` (overwrite each run, include date,
       machine info).
-- [ ] Based on results, set the plugin default `RoomTransport` (D2) and justify in
-      "What was done".
 
 ### What was done (Step B6)
-_(agent fills, include table summary + chosen default)_
+_(agent fills, include table summary)_
 
 ---
 
 ## Step B7 — Starboard e2e acceptance
 
 - [ ] `tests/starboard_e2e.rs` (`#[ignore]`, `e2e`), reusing `tests/common/`: 3 real
-      `starboard_<default>` windows meet via Freenet lobby only (HARD RULE), join one
+      `starboard_gossip` windows meet via Freenet lobby only (HARD RULE), join one
       room; peer A paints scripted strokes (via a test-only `--script` arg), peer B
       erases some; all peers log canvas hash; assert all hashes equal within timeout.
       Record + send the clip like the other e2e tests. `just e2e-starboard`.
@@ -647,7 +633,7 @@ _(agent fills)_
 ## Step B8 — Polish & docs
 
 - [ ] `examples/starboard/README.md`: how to run, controls, architecture diagram
-      (lobby → room → transports → RoomSync → Canvas).
+      (lobby → room → gossipsub → RoomSync → Canvas).
 - [ ] Root `README.md`: mention starboard and room API defaults.
 - [ ] Revisit open issues collected in previous "What was done" sections; list
       remaining ones here.
