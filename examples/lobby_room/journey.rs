@@ -144,12 +144,13 @@ mod tests {
 
     fn ring_ready(world: &mut World) {
         let mut snapshot = world.resource_mut::<discovery::Snapshot>();
-        snapshot.freenet_peers = (0..discovery::freenet::MIN_RING_PEERS)
+        snapshot.freenet_peers = (0..1)
             .map(|index| identity::FreenetPeer {
                 id: identity::FreenetPeerId::from(format!("gateway-{index}").as_str()),
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
             })
             .collect();
+        snapshot.lobby_attached = true;
     }
 
     fn list_lobby(world: &mut World) {

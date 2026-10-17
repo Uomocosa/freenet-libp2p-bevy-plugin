@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use crate::discovery;
-use discovery::freenet::basic::constants::MIN_RING_PEERS;
 
 pub async fn wait_until_ring_ready(
     client: &mut discovery::freenet::Client,
@@ -12,7 +11,7 @@ pub async fn wait_until_ring_ready(
     loop {
         let peers = discovery::freenet::connected_peers(client).await?;
         let addrs: Vec<String> = peers.iter().map(|p| p.addr.to_string()).collect();
-        if discovery::freenet::is_ring_ready(&peers, MIN_RING_PEERS) {
+        if discovery::freenet::is_ring_ready(&peers) {
             tracing::info!(target: "discovery", ?addrs, "lobby freenet ring-ready gate peer addrs");
             tracing::info!(
                 target: "discovery",

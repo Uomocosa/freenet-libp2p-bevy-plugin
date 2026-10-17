@@ -49,6 +49,7 @@ mod tests {
                 members: discovery::Members::new(),
             }),
             freenet_peers: Vec::new(),
+            lobby_attached: true,
         };
         tx.send(snapshot.clone()).ok();
         app.update();

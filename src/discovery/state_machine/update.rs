@@ -5,7 +5,10 @@ pub fn update(state: &mut State, input: Input, now: discovery::UnixTime) -> Vec<
     match input {
         Input::Command(command) => discovery::state_machine::handle_command(state, command, now),
         Input::NetEvent(event) => discovery::state_machine::handle_net_event(state, event, now),
-        Input::LobbyUpdated(lobby) => discovery::state_machine::handle_lobby(state, lobby, now),
+        Input::LobbyUpdated(lobby) => {
+            state.lobby_attached = true;
+            discovery::state_machine::handle_lobby(state, lobby, now)
+        }
         Input::FreenetPeers(peers) => {
             state.freenet_peers = peers;
             Vec::new()

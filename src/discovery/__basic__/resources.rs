@@ -13,6 +13,7 @@ pub struct Snapshot {
     pub lobby: discovery::Lobby,
     pub room: Option<discovery::JoinedRoom>,
     pub freenet_peers: Vec<identity::FreenetPeer>,
+    pub lobby_attached: bool,
 }
 
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Deref)]

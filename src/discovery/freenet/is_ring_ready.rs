@@ -1,8 +1,8 @@
 use crate::identity;
 
 #[must_use]
-pub const fn is_ring_ready(peers: &[identity::FreenetPeer], min: usize) -> bool {
-    peers.len() >= min
+pub const fn is_ring_ready(peers: &[identity::FreenetPeer]) -> bool {
+    !peers.is_empty()
 }
 
 #[cfg(test)]
@@ -19,8 +19,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let gateways_only = vec![peer(1), peer(2)];
-        assert!(!is_ring_ready(&gateways_only, 3));
-        assert!(is_ring_ready(&[peer(1), peer(2), peer(3)], 3));
+        assert!(!is_ring_ready(&[]));
+        assert!(is_ring_ready(&[peer(1)]));
     }
 }

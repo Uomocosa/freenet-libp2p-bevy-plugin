@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use discovery::freenet::basic::constants::MIN_RING_PEERS;
 use discovery::ui::Screen;
 
 pub fn pick_screen(
@@ -11,12 +10,11 @@ pub fn pick_screen(
 ) {
     let snapshot = snapshot.into_inner();
     let current = *screen.into_inner().get();
-    let ring_ready = discovery::freenet::is_ring_ready(&snapshot.freenet_peers, MIN_RING_PEERS);
     let phase = snapshot.room.as_ref().map(|room| room.phase);
     let wanted = match (phase, current) {
         (Some(discovery::RoomPhase::Ready), _) => Screen::InRoom,
         (Some(discovery::RoomPhase::Joining), _) => Screen::JoiningRoom,
-        (None, Screen::Connecting) if !ring_ready => Screen::Connecting,
+        (None, Screen::Connecting) if !snapshot.lobby_attached => Screen::Connecting,
         (None, _) => Screen::Lobby,
     };
     if wanted != current {
@@ -61,6 +59,7 @@ mod tests {
         );
         let ready = discovery::Snapshot {
             freenet_peers: ready_peers(),
+            lobby_attached: true,
             ..Default::default()
         };
         assert_eq!(screen_after(ready.clone()), discovery::ui::Screen::Lobby);
