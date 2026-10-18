@@ -1160,15 +1160,119 @@ has no e2e box); the 2-app test wires peers by direct dial, which §0.8 allows.
 
 ## Step B6 — `just bench-starboard`
 
-- [ ] Headless benchmark binary/test (no window): N ∈ {2, 8} in-process peers, scripted
+- [x] Headless benchmark binary/test (no window): N ∈ {2, 8} in-process peers, scripted
       strokes at 60 ops/s per peer for 20 s.
-- [ ] Measure: op latency p50/p99 (send→apply), bytes/s per peer, % ops dropped before
+- [x] Measure: op latency p50/p99 (send→apply), bytes/s per peer, % ops dropped before
       anti-entropy, time to canvas-hash convergence after stop.
-- [ ] Write a table to `examples/starboard/BENCH.md` (overwrite each run, include date,
+- [x] Write a table to `examples/starboard/BENCH.md` (overwrite each run, include date,
       machine info).
 
 ### What was done (Step B6)
-_(agent fills, include table summary)_
+
+**Files added:**
+- `examples/starboard/bench/mod.rs`, `bench/__basic__/{mod,constants,structs}.rs` —
+  `BENCH_PEER_COUNTS = [2, 8]`, `BENCH_OPS_PER_SECOND = 60`, `BENCH_SECONDS = 20`,
+  `BENCH_WARMUP_SECONDS = 2`, `BENCH_FRAME`, `BENCH_CONVERGENCE_BUDGET`, `BENCH_GAME`,
+  `BENCH_ROOM`, `BENCH_SIZE_INDEX`, `BENCH_TICKS`, `STROKE_*`, `REPAINT_*`;
+  `ScenarioConfig`, `LatencyPercentiles`, `PeerTraffic`, `BenchReport`, `RepaintCost`,
+  `MachineInfo`.
+- `examples/starboard/bench/scripted_stroke.rs` — one peer's stroke on one tick (pure);
+  `test_usage` proves every `(from, to)` is distinct across a whole 2- and 8-peer run and
+  stays inside the canvas.
+- `examples/starboard/bench/percentiles.rs` — nearest-rank `p50`/`p99` over `Duration`s
+  (pure, no `as`, no indexing).
+- `examples/starboard/bench/machine_info.rs` (`uname -srmo`, `/proc/cpuinfo` model line,
+  `available_parallelism`), `bench/bench_date.rs` (`date -u`), `bench/bench_markdown.rs`
+  (pure report), `bench/repaint_cost.rs` (one `repaint_dirty_tiles` pass for K dirty tiles),
+  `bench/run_scenario.rs` (the driver), `bench/bench_starboard.rs` (the `#[ignore]` entry).
+- `examples/starboard/app/test_harness.rs` (`#[cfg(test)]`) — `node_with`, `room_status`,
+  `join`, `dialable`, `ready`, `wait_ready`, `dial`, `SETTLE`, `MAX_ROUNDS`, moved out of
+  `app/starboard_plugin.rs`; B5's two-app test now drives through it.
+
+**Files changed:** `examples/starboard/app/{mod,starboard_plugin}.rs` (fixture extraction),
+`examples/starboard/mod.rs` (`#[cfg(test)] pub mod bench;`), `justfile`
+(`bench-starboard`), and the new `examples/starboard/BENCH.md`.
+
+**Public API added:** `bench::{ScenarioConfig, LatencyPercentiles, PeerTraffic, BenchReport,
+RepaintCost, MachineInfo, scripted_stroke, percentiles, machine_info, bench_date,
+bench_markdown, repaint_cost, run_scenario, BENCH_* , STROKE_*, REPAINT_*}`;
+`app::test_harness::{node_with, room_status, join, dialable, ready, wait_ready, dial,
+SETTLE, MAX_ROUNDS}`. All of it is example-side and `#[cfg(test)]`-only except the fixture
+module; the plugin crate is untouched.
+
+**How it runs:** `just bench-starboard` = `cargo nextest run --example starboard_gossip
+--all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture`. The scenario
+dials every pair (full mesh, so the gossipsub sender is the author), joins all peers to one
+room with the full member set, paints 2 s of warm-up (excluded), then 20 s at one stroke per
+frame per peer, and finally updates until every peer's `hash_canvas` agrees. It takes ~63 s
+and overwrites `examples/starboard/BENCH.md`.
+
+**Measured (`examples/starboard/BENCH.md`, dev profile, AMD Ryzen 5 7600X, 12 threads):**
+
+| Peers | Achieved ops/s per peer | Op latency p50 | p99 | Received bytes/s per peer | Dropped before repair | Convergence | Anti-entropy announcement |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 60.0 | 51.6 ms | 54.8 ms | 7.3 KiB | 0.0 % | 41.2 ms | 2.0 KiB |
+| 8 | 42.9 | 48.8 ms | 429.4 ms | 292.2 KiB | 0.0 % | 358.3 ms | 8.0 KiB |
+
+CPU tile repaint (one pass over a fully painted 4 MiB canvas): 1 tile `<1 ms`, 32 tiles
+`0.5 ms`, 1024 tiles `19.3 ms`. Repeat runs agree within ~5 %.
+
+**Findings (this is the step's real result):**
+1. **The op path crosses several unordered `Update` hops, so p50 is a frame floor.** The
+   input message → `write_ops` → `poll_p2p_events` on the sender and
+   `poll_p2p_events` → `drive` on the receiver are `Update` systems inserted by three
+   different plugins with no ordering between them, so each hop can cost a frame: at 60 Hz
+   the floor is ~3 frames ≈ 50 ms, which is what both rows measure. The transport itself is
+   not the problem (0 % gossip loss, 41 ms convergence at 2 peers).
+   **Proposed follow-up (not done in B6 — it changes plugin behaviour):** order `write_ops`
+   and `send_local_draws` against `p2p::bevy_systems::poll_p2p_events` (or flush pending net
+   commands in `PostUpdate`) to remove two of those frames.
+2. **8 peers in one dev-profile process cannot hold 60 ops/s per peer** (42.9 achieved) and
+   its p99 (429 ms) is queueing, not transport: gossipsub signs and verifies every message
+   over both TCP and QUIC, and the whole room shares one 6-core machine. A throughput claim
+   needs a release build, which the repo's profile comments rule out on a 14 GB machine.
+3. **Repair, not ops, dominates inbound bytes**: 7.3 KiB/s at 2 peers vs 292.2 KiB/s at 8
+   (the anti-entropy interval is 2 s, so a 20 s run paints for 10 rounds and repairs the
+   rest). The announcement itself is 12 bytes per *touched* tile — 2.0 KiB here at 2 peers
+   and 8.0 KiB at 8; a fully painted canvas (1024 tiles) would be ~12 KiB, confirming A6's
+   estimate.
+4. **Zero gossip loss** at both sizes: every (op, receiver) pair arrived as an
+   `ApplyThisOp`, so the drop rate is a real 0.0 %, not an artefact of repair.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**237 passed**, 5 skipped — the 5th skip is the ignored benchmark), `just lint`,
+`just bevy-lint`, `just bench-starboard` (twice, ~63 s each). No contract changes.
+
+**Deviations / decisions:**
+- **No criterion** (user call): a 20 s multi-peer scenario is not a microbenchmark and
+  criterion would repeat it ~100×. Plain `Instant` + nearest-rank percentiles instead.
+- **The bench is an `#[ignore]` test inside the starboard tree** (user call), not a separate
+  binary: it shares `app::test_harness` with B5's test, `just test` skips it, and every gate
+  compiles it so it cannot rot.
+- **Dev profile, reported** (user call): deps at `opt-level = 1`, our crate at `0`.
+- **`bench::RepaintCost` added** (user call) for the CPU repaint rows.
+- **Latency is measured at the receiver's inbound event, not at `apply`.** The tap can only
+  see an event after the receiver's `poll_p2p_events` has forwarded it into
+  `NetEventChannel`; `drive` applies it in that same or the next `Update`. The metric is
+  therefore "send → the receiver's inbound event", and BENCH.md says so. Measuring
+  "applied" would need per-cell polling at frame resolution, which is coarser than the tap
+  and no more honest.
+- **Bench strokes use size index 0 (radius 1).** At radius 16 one op paints ~2 200 cells, so
+  8 peers × 1 320 ops × 8 applying apps would be ~200 M cell writes — unaffordable in the
+  dev profile. The smallest brush keeps the op count, the wire messages and the repair
+  pattern realistic while keeping the rasterizer out of the measurement; BENCH.md states it.
+- **`TapTally` is a private helper struct** in `run_scenario.rs` (not public API) that keeps
+  the send timestamps, latency samples, per-peer bytes and arrival set together, so the
+  drain helper takes four arguments instead of seven.
+- **BENCH.md is committed** (user call): it is the step's evidence and D15 lists it.
+
+**Open issues (for later steps):**
+- The GPU-side 4 MiB texture re-upload while painting (B4's open issue) still needs a render
+  world; the windowed e2e (B7) can log frame time but the upload itself stays unmeasured
+  here.
+- The `Update`-ordering fix from finding 1 is proposed but not implemented (it changes
+  plugin behaviour and wants its own approval + tests).
+- The 8-peer row is CPU-bound; a release-profile number is still missing.
 
 ---
 
