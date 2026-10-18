@@ -19,4 +19,5 @@ fn main() {
     let _ = starboard::canvas::rasterize(&op)
         .count()
         .saturating_add(usize::from(starboard::canvas::SIZE_PERCENTS[0]));
+    let _ = starboard::app::StarboardPlugin;
 }
