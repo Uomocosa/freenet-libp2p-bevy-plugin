@@ -1,24 +1,18 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 
 use crate::starboard;
 
 pub fn track_pointer(
     buttons: Res<ButtonInput<MouseButton>>,
-    windows: Query<&Window, With<PrimaryWindow>>,
-    view: Res<starboard::render::CanvasView>,
+    cursor: Res<starboard::input::CursorCell>,
     brush: Res<starboard::input::OwnBrush>,
     mut latest_painted: ResMut<starboard::input::LatestPaintedCell>,
     mut draws: MessageWriter<starboard::input::PendingLocalDraw>,
 ) {
     let buttons = buttons.into_inner();
-    let view = view.into_inner();
+    let cursor = cursor.into_inner();
     let brush = brush.into_inner();
-    let current = windows
-        .single()
-        .ok()
-        .and_then(Window::cursor_position)
-        .and_then(|cursor| starboard::input::cell_under_cursor(cursor, view));
+    let current = **cursor;
     let is_erasing = is_held(buttons, MouseButton::Right);
     let is_painting = is_held(buttons, MouseButton::Left);
     if !is_erasing && !is_painting {
@@ -48,7 +42,6 @@ fn is_held(buttons: &ButtonInput<MouseButton>, button: MouseButton) -> bool {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
-    use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::room_sync;
 
     use super::track_pointer;
@@ -61,15 +54,9 @@ mod tests {
         app.insert_resource(starboard::render::CanvasView::fit(Vec2::splat(1024.0)));
         app.insert_resource(starboard::input::OwnBrush::default());
         app.init_resource::<starboard::input::LatestPaintedCell>();
+        app.init_resource::<starboard::input::CursorCell>();
         app.init_resource::<ButtonInput<MouseButton>>();
         app.add_message::<starboard::input::PendingLocalDraw>();
-        app.world_mut().spawn((
-            PrimaryWindow,
-            Window {
-                resolution: (1024, 1024).into(),
-                ..default()
-            },
-        ));
         app.add_systems(
             Update,
             (
@@ -81,14 +68,10 @@ mod tests {
         app
     }
 
-    fn set_cursor(app: &mut App, position: Vec2) {
-        let mut windows = app
+    fn set_cursor(app: &mut App, cell: Option<starboard::canvas::CellPos>) {
+        **app
             .world_mut()
-            .query_filtered::<&mut Window, With<PrimaryWindow>>();
-        let mut window = windows
-            .single_mut(app.world_mut())
-            .expect("one primary window");
-        window.set_cursor_position(Some(position));
+            .resource_mut::<starboard::input::CursorCell>() = cell;
     }
 
     fn sent(app: &App) -> Vec<starboard::canvas::DrawOp> {
@@ -104,7 +87,10 @@ mod tests {
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
             .press(MouseButton::Left);
-        set_cursor(&mut app, Vec2::new(100.0, 100.0));
+        set_cursor(
+            &mut app,
+            Some(starboard::canvas::CellPos { x: 100, y: 100 }),
+        );
         app.update();
 
         let ops = sent(&app);
@@ -123,9 +109,15 @@ mod tests {
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
             .press(MouseButton::Left);
-        set_cursor(&mut app, Vec2::new(100.0, 100.0));
+        set_cursor(
+            &mut app,
+            Some(starboard::canvas::CellPos { x: 100, y: 100 }),
+        );
         app.update();
-        set_cursor(&mut app, Vec2::new(200.0, 100.0));
+        set_cursor(
+            &mut app,
+            Some(starboard::canvas::CellPos { x: 200, y: 100 }),
+        );
         app.update();
 
         let ops = sent(&app);
@@ -154,7 +146,10 @@ mod tests {
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
             .press(MouseButton::Left);
-        set_cursor(&mut app, Vec2::new(100.0, 100.0));
+        set_cursor(
+            &mut app,
+            Some(starboard::canvas::CellPos { x: 100, y: 100 }),
+        );
         app.update();
 
         app.world_mut()
@@ -177,7 +172,10 @@ mod tests {
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
             .press(MouseButton::Left);
-        set_cursor(&mut app, Vec2::new(300.0, 300.0));
+        set_cursor(
+            &mut app,
+            Some(starboard::canvas::CellPos { x: 300, y: 300 }),
+        );
         app.update();
         app.update();
         assert_eq!(sent(&app).len(), 2);

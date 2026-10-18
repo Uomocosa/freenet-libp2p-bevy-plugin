@@ -8,13 +8,16 @@ pub struct StarboardPlugin;
 impl Plugin for StarboardPlugin {
     fn build(&self, app: &mut App) {
         use starboard::{input, render, room, ui};
+        let in_room = |status: Res<discovery::Status>| room::is_in_room(&status);
         app.init_resource::<starboard::canvas::Canvas>()
             .init_resource::<render::CanvasView>()
             .init_resource::<input::OwnBrush>()
             .init_resource::<input::LatestPaintedCell>()
+            .init_resource::<input::CursorCell>()
             .init_resource::<room_sync::LamportClock>()
             .init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
             .init_resource::<room::RoomBrushes>()
+            .init_resource::<room::RemoteCursors>()
             .insert_resource(room::BrushRefreshTimer(Timer::from_seconds(
                 room::BRUSH_REFRESH_SECONDS,
                 TimerMode::Repeating,
@@ -34,25 +37,17 @@ impl Plugin for StarboardPlugin {
                     room::bevy_systems::reset_canvas,
                     room::bevy_systems::refresh_room_brushes,
                     ui::bevy_systems::rebuild_member_list,
-                ),
-            )
-            .add_systems(
-                Update,
-                (
-                    input::bevy_systems::scroll_brush_size,
-                    input::bevy_systems::track_pointer,
-                    input::bevy_systems::send_local_draws,
-                )
-                    .chain()
-                    .run_if(|status: Res<discovery::Status>| room::is_in_room(&status)),
-            )
-            .add_systems(
-                Update,
-                (
+                    input::bevy_systems::track_cursor,
                     render::bevy_systems::sync_board_visibility,
                     render::bevy_systems::fit_board,
+                    input::bevy_systems::scroll_brush_size.run_if(in_room),
+                    input::bevy_systems::track_pointer.run_if(in_room),
+                    input::bevy_systems::send_local_draws.run_if(in_room),
+                    room::bevy_systems::publish_cursor.run_if(in_room),
+                    room::bevy_systems::collect_remote_cursors,
                     render::bevy_systems::upload_dirty_tiles,
                     render::bevy_systems::follow_brush,
+                    render::bevy_systems::draw_remote_cursors,
                 )
                     .chain(),
             );

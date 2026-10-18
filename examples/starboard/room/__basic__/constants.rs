@@ -1,1 +1,2 @@
 pub const BRUSH_REFRESH_SECONDS: f32 = 1.0;
+pub const CURSOR_UPDATE_SECONDS: f32 = 1.0 / 30.0;

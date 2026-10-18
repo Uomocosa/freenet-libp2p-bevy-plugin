@@ -8,6 +8,7 @@ use crate::starboard;
 pub fn follow_brush(
     windows: Query<&Window, With<PrimaryWindow>>,
     status: Res<discovery::Status>,
+    cursor: Res<starboard::input::CursorCell>,
     view: Res<starboard::render::CanvasView>,
     brush: Res<starboard::input::OwnBrush>,
     mut images: ResMut<Assets<Image>>,
@@ -19,6 +20,7 @@ pub fn follow_brush(
     let status = status.into_inner();
     let is_in_room = starboard::room::is_in_room(status);
     let is_brush_changed = brush.is_changed();
+    let cursor = cursor.into_inner();
     let view = view.into_inner();
     let brush = brush.into_inner();
     let (mut sprite, mut transform, mut visibility) = outline.into_inner();
@@ -44,34 +46,15 @@ pub fn follow_brush(
     let Ok(window) = windows.single() else {
         return;
     };
-    let Some(cursor) = window.cursor_position() else {
-        *visibility = Visibility::Hidden;
-        return;
-    };
-    let Some(cell) = starboard::input::cell_under_cursor(cursor, view) else {
+    let Some(cell) = **cursor else {
         *visibility = Visibility::Hidden;
         return;
     };
     let radius = starboard::canvas::brush_radius(brush.size_index);
     let side = f32::from(radius.saturating_mul(2).saturating_add(1));
     sprite.custom_size = Some(Vec2::splat(side * view.scale));
-    transform.translation = cell_center(cell, view, window.size());
+    transform.translation = starboard::render::cell_center(cell, view, window.size());
     *visibility = Visibility::Visible;
-}
-
-// needed helper: a cell's centre in world units (the camera origin is the window centre, y up)
-fn cell_center(
-    cell: starboard::canvas::CellPos,
-    view: &starboard::render::CanvasView,
-    window: Vec2,
-) -> Vec3 {
-    let x = (f32::from(cell.x) + 0.5).mul_add(view.scale, view.offset.x);
-    let y = (f32::from(cell.y) + 0.5).mul_add(view.scale, view.offset.y);
-    Vec3::new(
-        (-0.5_f32).mul_add(window.x, x),
-        0.5_f32.mul_add(window.y, -y),
-        1.0,
-    )
 }
 
 #[cfg(test)]
@@ -85,17 +68,6 @@ mod tests {
     use super::follow_brush;
     use crate::starboard;
 
-    fn preview_build(app: &mut App) {
-        app.insert_resource(ready_status());
-        app.init_resource::<starboard::render::CanvasView>()
-            .init_resource::<starboard::input::OwnBrush>()
-            .add_systems(Startup, starboard::render::bevy_systems::spawn_board)
-            .add_systems(
-                Update,
-                (starboard::render::bevy_systems::fit_board, follow_brush),
-            );
-    }
-
     fn ready_status() -> discovery::Status {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
@@ -108,14 +80,23 @@ mod tests {
         }
     }
 
+    fn preview_build(app: &mut App) {
+        app.insert_resource(ready_status());
+        app.init_resource::<starboard::render::CanvasView>()
+            .init_resource::<starboard::input::OwnBrush>()
+            .init_resource::<starboard::input::CursorCell>()
+            .add_systems(Startup, starboard::render::bevy_systems::spawn_board)
+            .add_systems(
+                Update,
+                (starboard::render::bevy_systems::fit_board, follow_brush),
+            );
+    }
+
     const fn preview_noop(_world: &mut World) {}
 
     fn preview_cursor(world: &mut World) {
-        let mut windows = world.query_filtered::<&mut Window, With<PrimaryWindow>>();
-        let Ok(mut window) = windows.single_mut(world) else {
-            return;
-        };
-        window.set_cursor_position(Some(Vec2::new(560.0, 300.0)));
+        **world.resource_mut::<starboard::input::CursorCell>() =
+            Some(starboard::canvas::CellPos { x: 300, y: 200 });
     }
 
     fn config() -> lele_bevy_preview::preview::Config {
@@ -193,24 +174,24 @@ mod tests {
             Transform::default(),
             Visibility::Hidden,
         ));
+        app.init_resource::<starboard::input::CursorCell>();
         app.add_systems(Update, follow_brush);
         app
     }
 
-    fn set_cursor(app: &mut App, position: Option<Vec2>) {
-        let mut windows = app
+    fn set_cursor(app: &mut App, cell: Option<starboard::canvas::CellPos>) {
+        **app
             .world_mut()
-            .query_filtered::<&mut Window, With<PrimaryWindow>>();
-        let mut window = windows
-            .single_mut(app.world_mut())
-            .expect("one primary window");
-        window.set_cursor_position(position);
+            .resource_mut::<starboard::input::CursorCell>() = cell;
     }
 
     #[test]
     fn test_usage() {
         let mut app = app_with_outline();
-        set_cursor(&mut app, Some(Vec2::new(300.5, 200.5)));
+        set_cursor(
+            &mut app,
+            Some(starboard::canvas::CellPos { x: 300, y: 200 }),
+        );
         app.update();
 
         let mut outlines = app.world_mut().query_filtered::<
@@ -224,7 +205,7 @@ mod tests {
         assert!((transform.translation.y - 311.5).abs() < 0.000_1);
         assert_eq!(sprite.custom_size, Some(Vec2::splat(33.0)));
 
-        set_cursor(&mut app, Some(Vec2::new(1100.0, 10.0)));
+        set_cursor(&mut app, None);
         app.update();
         let mut outlines = app
             .world_mut()
