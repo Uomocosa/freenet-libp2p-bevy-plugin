@@ -1,3 +1,3 @@
-mod starboard_plugin;
+pub mod starboard_plugin;
 
 pub use starboard_plugin::StarboardPlugin;

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::room_sync;
+use freenet_libp2p_bevy_plugin::{discovery, room_sync};
 
 use crate::starboard;
 
@@ -7,21 +7,31 @@ pub struct StarboardPlugin;
 
 impl Plugin for StarboardPlugin {
     fn build(&self, app: &mut App) {
-        use starboard::{input, render};
+        use starboard::{input, render, room};
         app.init_resource::<starboard::canvas::Canvas>()
             .init_resource::<render::CanvasView>()
             .init_resource::<input::OwnBrush>()
             .init_resource::<input::LatestPaintedCell>()
             .init_resource::<room_sync::LamportClock>()
             .add_message::<input::PendingLocalDraw>()
+            .add_message::<discovery::Event>()
             .add_systems(Startup, render::bevy_systems::spawn_board)
+            .add_systems(Update, room::bevy_systems::reset_canvas)
             .add_systems(
                 Update,
                 (
                     input::bevy_systems::scroll_brush_size,
-                    render::bevy_systems::fit_board,
                     input::bevy_systems::track_pointer,
                     input::bevy_systems::apply_local_draws,
+                )
+                    .chain()
+                    .run_if(room::bevy_systems::is_in_room),
+            )
+            .add_systems(
+                Update,
+                (
+                    render::bevy_systems::sync_board_visibility,
+                    render::bevy_systems::fit_board,
                     render::bevy_systems::upload_dirty_tiles,
                     render::bevy_systems::follow_brush,
                 )
@@ -35,11 +45,25 @@ mod tests {
     use bevy::prelude::*;
     use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, RoomState};
+    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::StarboardPlugin;
     use crate::starboard;
 
+    fn ready_status() -> discovery::Status {
+        discovery::Status {
+            room: Some(discovery::JoinedRoom {
+                name: identity::RoomName::from("alpha"),
+                created_at: discovery::UnixTime::from_secs(0),
+                phase: discovery::RoomPhase::Ready,
+                members: discovery::Members::new(),
+            }),
+            ..discovery::Status::default()
+        }
+    }
+
     fn preview_build(app: &mut App) {
+        app.insert_resource(ready_status());
         app.add_plugins(StarboardPlugin);
     }
 

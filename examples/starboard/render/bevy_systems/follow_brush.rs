@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 use bevy::render::render_resource::Extent3d;
 use bevy::window::PrimaryWindow;
+use freenet_libp2p_bevy_plugin::discovery;
 
 use crate::starboard;
 
 pub fn follow_brush(
     windows: Query<&Window, With<PrimaryWindow>>,
+    status: Res<discovery::Status>,
     view: Res<starboard::render::CanvasView>,
     brush: Res<starboard::input::OwnBrush>,
     mut images: ResMut<Assets<Image>>,
@@ -14,10 +16,15 @@ pub fn follow_brush(
         With<starboard::render::BrushOutlineSprite>,
     >,
 ) {
+    let is_in_room = starboard::room::bevy_systems::is_in_room(status);
     let is_brush_changed = brush.is_changed();
     let view = view.into_inner();
     let brush = brush.into_inner();
     let (mut sprite, mut transform, mut visibility) = outline.into_inner();
+    if !is_in_room {
+        *visibility = Visibility::Hidden;
+        return;
+    }
     if is_brush_changed {
         let next = starboard::render::brush_outline(
             brush.shape,
@@ -72,11 +79,13 @@ mod tests {
     use bevy::prelude::*;
     use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
     use bevy::window::PrimaryWindow;
+    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::follow_brush;
     use crate::starboard;
 
     fn preview_build(app: &mut App) {
+        app.insert_resource(ready_status());
         app.init_resource::<starboard::render::CanvasView>()
             .init_resource::<starboard::input::OwnBrush>()
             .add_systems(Startup, starboard::render::bevy_systems::spawn_board)
@@ -84,6 +93,18 @@ mod tests {
                 Update,
                 (starboard::render::bevy_systems::fit_board, follow_brush),
             );
+    }
+
+    fn ready_status() -> discovery::Status {
+        discovery::Status {
+            room: Some(discovery::JoinedRoom {
+                name: identity::RoomName::from("alpha"),
+                created_at: discovery::UnixTime::from_secs(0),
+                phase: discovery::RoomPhase::Ready,
+                members: discovery::Members::new(),
+            }),
+            ..discovery::Status::default()
+        }
     }
 
     const fn preview_noop(_world: &mut World) {}
@@ -136,6 +157,7 @@ mod tests {
             ImagePlugin::default_nearest(),
         ));
         app.insert_resource(starboard::render::CanvasView::fit(Vec2::splat(1024.0)));
+        app.insert_resource(ready_status());
         let brush = starboard::input::OwnBrush::default();
         app.insert_resource(brush);
         let starboard::render::BrushOutline { side, pixels } = starboard::render::brush_outline(
