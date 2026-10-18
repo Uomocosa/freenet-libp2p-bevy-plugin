@@ -815,22 +815,53 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 
 ## Step B2 — Canvas CRDT (dense tiled LWW grid)
 
-- [ ] Types per D4: `Cell`, `Tile` (`[Cell; 32*32]` boxed), `Canvas` (32×32
+- [x] Types per D4: `Cell`, `Tile` (`[Cell; 32*32]` boxed), `Canvas` (32×32
       `Option<Box<Tile>>`, `None` = never touched), `CellPos`, `TileId`.
-- [ ] `Canvas::write(pos, cell)` LWW by `(lamport, author)`; `Canvas::merge_tile`.
-- [ ] Implement plugin `RoomState` for `Canvas` (Op = `DrawOp`, Snapshot = list of
-      `(TileId, Tile)`, one `ReplicaSliceIndex` + `ReplicaSliceContentHash` (blake3) per tile).
-- [ ] `author: u16` = stable 16-bit hash of peer id (from `OpMeta`). Per-cell merge key
+- [x] `write_cell(&mut Canvas, pos, cell)` LWW by `(lamport, author, color)`; `merge_tile`.
+- [x] Implement plugin `RoomState` for `Canvas` (Op = `DrawOp`, Snapshot = `CanvasSnapshot`
+      of `Vec<TouchedTile>`, one `ReplicaSliceIndex` + `ReplicaSliceContentHash` (blake3) per tile).
+- [x] `author: u16` = stable 16-bit hash of peer id (from `OpMeta`). Per-cell merge key
       is `(lamport, author, color)` (D4) — do NOT rely on the full peer id, cells only
       store the `u16`. Test: two ops with equal `(lamport, author)` but different colors
       merge to the same result in both orders.
-- [ ] Tests (proptest recommended): merge commutative / associative / idempotent; apply
+- [x] Tests: merge commutative / associative / idempotent; apply
       ops in random permutations → identical canvas hash.
-- [ ] **Size test**: N = 1k/10k random strokes → report touched tiles, raw bytes,
+- [x] **Size test**: N = 1k/10k random strokes → report touched tiles, raw bytes,
       bincode+compressed bytes (pick `zstd` or `lz4_flex`; add dep) in "What was done".
 
 ### What was done (Step B2)
-_(agent fills, include size measurements)_
+
+**Files added:**
+- `examples/starboard/canvas/mod.rs` — exposes `basic` (`__basic__/mod.rs`), `CANVAS_SIDE`, `CELLS_PER_TILE`, `TILE_COUNT`, `TILE_SIDE`, `TILES_PER_SIDE`, `DrawAction`, `CanvasSnapshot`, `TileId`, `Cell`, `CellPos`, `DrawOp`, `TouchedTile`, `Canvas`, `Tile`, `write_cell`, `read_cell`, `merge_tile`, `hash_tile`, `hash_canvas`, `encode_snapshot`, `decode_snapshot`.
+- `examples/starboard/canvas/__basic__/{mod,constants,enums,newtypes,structs}.rs`:
+  - Constants: `TILE_SIDE = 32`, `TILES_PER_SIDE = 32`, `CANVAS_SIDE = TILE_SIDE * TILES_PER_SIDE` (`1024`), `CELLS_PER_TILE = TILE_SIDE * TILE_SIDE` (`1024`), `TILE_COUNT = TILES_PER_SIDE * TILES_PER_SIDE` (`1024`).
+  - `DrawAction { Paint(PaletteColor), Erase }`.
+  - `TileId(pub u16)` (`#[derive(Deref)]`) and `CanvasSnapshot(pub Vec<u8>)` (`#[derive(Deref)]`).
+  - `Cell { pub lamport: u32, pub author: u16, pub color: Option<PaletteColor> }` (derived `Ord` matches the exact D4 `(lamport, author, color)` merge key with `None < Some(_)`).
+  - `CellPos { pub x: u16, pub y: u16 }`.
+  - `TouchedTile { pub id: TileId, pub cells: Vec<Cell> }` (replaces `(TileId, Tile)` tuple per `SMELLS.md` §S4 and avoids `serde`'s 32-element array derive limit).
+  - `DrawOp { pub action: DrawAction, pub shape: Shape, pub size_index: u8, pub from: CellPos, pub to: CellPos }`.
+- `examples/starboard/canvas/tile.rs` — `Tile(pub [Cell; CELLS_PER_TILE])` (`#[derive(Deref, DerefMut)]`) + `Default`.
+- `examples/starboard/canvas/canvas.rs` — `Canvas { pub tiles: [Option<Box<Tile>>; TILE_COUNT], pub dirty_tiles: BTreeSet<TileId> }` + `Default` + `impl room_sync::RoomState for Canvas` (`apply`, `snapshot`, `merge`, `slice_content_hashes`, `slice_snapshot`).
+- `examples/starboard/canvas/{write_cell,read_cell,merge_tile,hash_tile,hash_canvas,encode_snapshot,decode_snapshot}.rs`.
+
+**Files changed:**
+- `Cargo.toml` — added `zstd = "=0.13.3"` (already present in `Cargo.lock`).
+- `examples/starboard/mod.rs` — added `pub mod canvas;`.
+- `examples/starboard_gossip/main.rs` — exercises `starboard::canvas` exports so binary builds have zero dead-code warnings before Step B5.
+
+**Measured snapshot sizes (`canvas::tests::snapshot_sizes_for_1k_and_10k_random_strokes`, `zstd` level 3):**
+
+| Strokes (`N`) | Touched tiles (of 1024) | Raw `Cell` bytes | Uncompressed `bincode` bytes | `bincode` + `zstd` bytes | Compression vs `bincode` |
+|---:|---:|---:|---:|---:|---:|
+| `1,000` | `881` | `7,217,152` (6.88 MiB) | `6,431,564` (6.13 MiB) | `89,685` (87.6 KiB) | `71.7×` |
+| `10,000` | `1,024` | `8,388,608` (8.00 MiB) | `8,026,544` (7.65 MiB) | `450,236` (439.7 KiB) | `17.8×` |
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test` (**182 passed**, 4 skipped), `just lint`, `just bevy-lint`.
+
+**Deviations / decisions:**
+- `Canvas` tracks `dirty_tiles: BTreeSet<TileId>` alongside `tiles` so `RoomState::apply` and `RoomState::merge` record which tiles changed for B4/B5 incremental GPU texture uploads.
+- `Canvas::apply` currently walks the integer segment `from -> to` with a 5×5 brush footprint; Step B3 replaces `apply_segment` with `rasterize(op)` over all 6 precomputed shape masks and `SIZES`.
 
 ---
 
