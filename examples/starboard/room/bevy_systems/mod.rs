@@ -1,5 +1,5 @@
-mod is_in_room;
+mod refresh_room_brushes;
 mod reset_canvas;
 
-pub use is_in_room::is_in_room;
+pub use refresh_room_brushes::refresh_room_brushes;
 pub use reset_canvas::reset_canvas;

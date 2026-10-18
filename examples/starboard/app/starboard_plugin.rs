@@ -7,17 +7,35 @@ pub struct StarboardPlugin;
 
 impl Plugin for StarboardPlugin {
     fn build(&self, app: &mut App) {
-        use starboard::{input, render, room};
+        use starboard::{input, render, room, ui};
         app.init_resource::<starboard::canvas::Canvas>()
             .init_resource::<render::CanvasView>()
             .init_resource::<input::OwnBrush>()
             .init_resource::<input::LatestPaintedCell>()
             .init_resource::<room_sync::LamportClock>()
             .init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
+            .init_resource::<room::RoomBrushes>()
+            .insert_resource(room::BrushRefreshTimer(Timer::from_seconds(
+                room::BRUSH_REFRESH_SECONDS,
+                TimerMode::Repeating,
+            )))
             .add_message::<input::PendingLocalDraw>()
             .add_message::<discovery::Event>()
-            .add_systems(Startup, render::bevy_systems::spawn_board)
-            .add_systems(Update, room::bevy_systems::reset_canvas)
+            .add_systems(
+                Startup,
+                (
+                    render::bevy_systems::spawn_board,
+                    ui::bevy_systems::spawn_member_panel,
+                ),
+            )
+            .add_systems(
+                Update,
+                (
+                    room::bevy_systems::reset_canvas,
+                    room::bevy_systems::refresh_room_brushes,
+                    ui::bevy_systems::rebuild_member_list,
+                ),
+            )
             .add_systems(
                 Update,
                 (
@@ -26,7 +44,7 @@ impl Plugin for StarboardPlugin {
                     input::bevy_systems::send_local_draws,
                 )
                     .chain()
-                    .run_if(room::bevy_systems::is_in_room),
+                    .run_if(|status: Res<discovery::Status>| room::is_in_room(&status)),
             )
             .add_systems(
                 Update,

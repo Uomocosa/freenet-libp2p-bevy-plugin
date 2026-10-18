@@ -4,3 +4,4 @@ pub mod identity;
 pub mod input;
 pub mod render;
 pub mod room;
+pub mod ui;

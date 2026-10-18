@@ -1,0 +1,1 @@
+pub const BRUSH_REFRESH_SECONDS: f32 = 1.0;

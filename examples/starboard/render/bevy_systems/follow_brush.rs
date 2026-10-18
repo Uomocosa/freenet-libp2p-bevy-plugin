@@ -16,7 +16,8 @@ pub fn follow_brush(
         With<starboard::render::BrushOutlineSprite>,
     >,
 ) {
-    let is_in_room = starboard::room::bevy_systems::is_in_room(status);
+    let status = status.into_inner();
+    let is_in_room = starboard::room::is_in_room(status);
     let is_brush_changed = brush.is_changed();
     let view = view.into_inner();
     let brush = brush.into_inner();

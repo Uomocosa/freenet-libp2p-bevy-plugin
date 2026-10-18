@@ -7,7 +7,8 @@ pub fn sync_board_visibility(
     status: Res<discovery::Status>,
     mut boards: Query<&mut Visibility, With<starboard::render::BoardSprite>>,
 ) {
-    let wanted = if starboard::room::bevy_systems::is_in_room(status) {
+    let status = status.into_inner();
+    let wanted = if starboard::room::is_in_room(status) {
         Visibility::Visible
     } else {
         Visibility::Hidden
