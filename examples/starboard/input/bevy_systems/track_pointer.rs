@@ -57,11 +57,10 @@ mod tests {
     fn app_with_pointer() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<starboard::canvas::Canvas>();
+        app.init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>();
         app.insert_resource(starboard::render::CanvasView::fit(Vec2::splat(1024.0)));
         app.insert_resource(starboard::input::OwnBrush::default());
         app.init_resource::<starboard::input::LatestPaintedCell>();
-        app.init_resource::<room_sync::LamportClock>();
         app.init_resource::<ButtonInput<MouseButton>>();
         app.add_message::<starboard::input::PendingLocalDraw>();
         app.world_mut().spawn((
@@ -75,7 +74,7 @@ mod tests {
             Update,
             (
                 track_pointer,
-                starboard::input::bevy_systems::apply_local_draws,
+                starboard::input::bevy_systems::send_local_draws,
             )
                 .chain(),
         );
@@ -92,27 +91,34 @@ mod tests {
         window.set_cursor_position(Some(position));
     }
 
-    fn is_painted(app: &App, x: u16, y: u16) -> bool {
-        let canvas = app.world().resource::<starboard::canvas::Canvas>();
-        starboard::canvas::read_cell(canvas, starboard::canvas::CellPos { x, y })
-            .color
-            .is_some()
+    fn sent(app: &App) -> Vec<starboard::canvas::DrawOp> {
+        app.world()
+            .resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
+            .ops
+            .clone()
     }
 
     #[test]
-    fn mouse_press_paints_cells() {
+    fn mouse_press_sends_one_stamp() {
         let mut app = app_with_pointer();
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
             .press(MouseButton::Left);
         set_cursor(&mut app, Vec2::new(100.0, 100.0));
         app.update();
-        assert!(is_painted(&app, 100, 100));
-        assert!(is_painted(&app, 90, 100));
+
+        let ops = sent(&app);
+        assert_eq!(ops.len(), 1);
+        let stamp = starboard::canvas::CellPos { x: 100, y: 100 };
+        assert_eq!(ops.first().map(|op| (op.from, op.to)), Some((stamp, stamp)));
+        assert!(matches!(
+            ops.first().map(|op| op.action),
+            Some(starboard::canvas::DrawAction::Paint(_))
+        ));
     }
 
     #[test]
-    fn dragging_paints_the_segment_and_release_clears_the_tail() {
+    fn dragging_sends_the_segment_and_release_clears_the_tail() {
         let mut app = app_with_pointer();
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
@@ -121,7 +127,16 @@ mod tests {
         app.update();
         set_cursor(&mut app, Vec2::new(200.0, 100.0));
         app.update();
-        assert!(is_painted(&app, 150, 100));
+
+        let ops = sent(&app);
+        assert_eq!(ops.len(), 2);
+        assert_eq!(
+            ops.get(1).map(|op| (op.from, op.to)),
+            Some((
+                starboard::canvas::CellPos { x: 100, y: 100 },
+                starboard::canvas::CellPos { x: 200, y: 100 }
+            ))
+        );
 
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
@@ -141,7 +156,6 @@ mod tests {
             .press(MouseButton::Left);
         set_cursor(&mut app, Vec2::new(100.0, 100.0));
         app.update();
-        assert!(is_painted(&app, 100, 100));
 
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
@@ -150,11 +164,15 @@ mod tests {
             .resource_mut::<ButtonInput<MouseButton>>()
             .press(MouseButton::Right);
         app.update();
-        assert!(!is_painted(&app, 100, 100));
+
+        assert_eq!(
+            sent(&app).get(1).map(|op| op.action),
+            Some(starboard::canvas::DrawAction::Erase)
+        );
     }
 
     #[test]
-    fn a_still_cursor_records_one_stamp_per_frame() {
+    fn a_still_cursor_sends_one_stamp_per_frame() {
         let mut app = app_with_pointer();
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
@@ -162,9 +180,6 @@ mod tests {
         set_cursor(&mut app, Vec2::new(300.0, 300.0));
         app.update();
         app.update();
-        let canvas = app.world().resource::<starboard::canvas::Canvas>();
-        let cell =
-            starboard::canvas::read_cell(canvas, starboard::canvas::CellPos { x: 300, y: 300 });
-        assert!(cell.color.is_some());
+        assert_eq!(sent(&app).len(), 2);
     }
 }

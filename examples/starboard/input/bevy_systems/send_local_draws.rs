@@ -1,19 +1,14 @@
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::room_sync::{self, RoomState};
+use freenet_libp2p_bevy_plugin::room_sync;
 
 use crate::starboard;
 
-pub fn apply_local_draws(
+pub fn send_local_draws(
     mut draws: MessageReader<starboard::input::PendingLocalDraw>,
-    mut canvas: ResMut<starboard::canvas::Canvas>,
-    mut clock: ResMut<room_sync::LamportClock>,
+    mut pending: ResMut<room_sync::PendingOps<starboard::canvas::Canvas>>,
 ) {
     for draw in draws.read() {
-        let meta = room_sync::OpMeta {
-            lamport: clock.tick(),
-            author: 0,
-        };
-        canvas.apply(meta, &**draw);
+        pending.send(**draw);
     }
 }
 
@@ -22,17 +17,16 @@ mod tests {
     use bevy::prelude::*;
     use freenet_libp2p_bevy_plugin::room_sync;
 
-    use super::apply_local_draws;
+    use super::send_local_draws;
     use crate::starboard;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<starboard::canvas::Canvas>();
-        app.init_resource::<room_sync::LamportClock>();
+        app.init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>();
         app.add_message::<starboard::input::PendingLocalDraw>();
-        app.add_systems(Update, apply_local_draws);
+        app.add_systems(Update, send_local_draws);
 
         let op = starboard::canvas::DrawOp {
             action: starboard::canvas::DrawAction::Paint(starboard::identity::PaletteColor(5)),
@@ -45,11 +39,13 @@ mod tests {
             .write_message(starboard::input::PendingLocalDraw(op));
         app.update();
 
-        let canvas = app.world().resource::<starboard::canvas::Canvas>();
-        let cell =
-            starboard::canvas::read_cell(canvas, starboard::canvas::CellPos { x: 50, y: 50 });
-        assert_eq!(cell.color, Some(starboard::identity::PaletteColor(5)));
-        assert_eq!(cell.lamport, 1);
-        assert_eq!(cell.author, 0);
+        let pending = app
+            .world()
+            .resource::<room_sync::PendingOps<starboard::canvas::Canvas>>();
+        assert_eq!(pending.ops.len(), 1);
+        assert_eq!(
+            pending.ops.first().map(|op| op.from),
+            Some(starboard::canvas::CellPos { x: 50, y: 50 })
+        );
     }
 }

@@ -13,6 +13,7 @@ impl Plugin for StarboardPlugin {
             .init_resource::<input::OwnBrush>()
             .init_resource::<input::LatestPaintedCell>()
             .init_resource::<room_sync::LamportClock>()
+            .init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
             .add_message::<input::PendingLocalDraw>()
             .add_message::<discovery::Event>()
             .add_systems(Startup, render::bevy_systems::spawn_board)
@@ -22,7 +23,7 @@ impl Plugin for StarboardPlugin {
                 (
                     input::bevy_systems::scroll_brush_size,
                     input::bevy_systems::track_pointer,
-                    input::bevy_systems::apply_local_draws,
+                    input::bevy_systems::send_local_draws,
                 )
                     .chain()
                     .run_if(room::bevy_systems::is_in_room),
