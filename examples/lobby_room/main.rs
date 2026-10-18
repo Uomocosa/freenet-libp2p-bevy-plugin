@@ -1,7 +1,9 @@
+#[path = "../shared/mod.rs"]
+mod shared;
+
 mod args;
 mod intent;
 mod journey;
-mod node;
 mod overlay;
 mod ping;
 mod status;
@@ -15,7 +17,7 @@ use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin};
 async fn main() {
     let args = args::Args::parse();
     init_tracing();
-    let Ok((_node_guard, ws_port)) = node::bootstrap_node().await else {
+    let Ok((_node_guard, ws_port)) = shared::node::bootstrap_node().await else {
         eprintln!("failed to start embedded freenet node");
         return;
     };

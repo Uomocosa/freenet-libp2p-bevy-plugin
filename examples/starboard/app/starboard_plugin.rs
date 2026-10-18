@@ -56,10 +56,11 @@ impl Plugin for StarboardPlugin {
 
 #[cfg(test)]
 mod tests {
+    use bevy::input::mouse::AccumulatedMouseScroll;
     use bevy::prelude::*;
     use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, RoomState};
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, room_sync};
 
     use super::StarboardPlugin;
     use crate::starboard;
@@ -155,5 +156,194 @@ mod tests {
     #[test]
     fn board_ui_scene_preview() {
         lele_bevy_preview::run(&scene(), &config(), env!("CARGO_PKG_NAME")).expect("preview");
+    }
+
+    const SETTLE: std::time::Duration = std::time::Duration::from_millis(20);
+    const MAX_ROUNDS: usize = 400;
+    const CONVERGE_BUDGET: std::time::Duration = std::time::Duration::from_secs(10);
+
+    fn node_with(game: &identity::GameId) -> App {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            ImagePlugin::default_nearest(),
+        ));
+        app.add_plugins(plugin::P2PPlugin(
+            plugin::Config::<starboard::room::CursorUpdate>::new(
+                p2p::TransportMode::Both,
+                p2p::MdnsMode::Disabled,
+            )
+            .with_game(game.clone()),
+        ));
+        app.add_plugins(room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(
+            game.clone(),
+        ));
+        app.insert_resource(ready_status());
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.init_resource::<AccumulatedMouseScroll>();
+        app.add_message::<discovery::Event>();
+        app.add_plugins(StarboardPlugin);
+        app.update();
+        app
+    }
+
+    fn dialable(peer: &identity::Peer) -> identity::Peer {
+        identity::Peer {
+            id: peer.id.clone(),
+            addrs: peer
+                .addrs
+                .iter()
+                .map(|addr| identity::PeerAddr(addr.replace("/ip4/0.0.0.0/", "/ip4/127.0.0.1/")))
+                .collect(),
+        }
+    }
+
+    fn ready(app: &App) -> Option<identity::Peer> {
+        app.world()
+            .resource::<p2p::ReadyChannel>()
+            .ready_rx
+            .borrow()
+            .clone()
+    }
+
+    fn wait_ready(app: &mut App) -> identity::Peer {
+        for _ in 0..MAX_ROUNDS {
+            app.update();
+            if let Some(peer) = ready(app) {
+                return peer;
+            }
+            std::thread::sleep(SETTLE);
+        }
+        panic!("node never became ready");
+    }
+
+    fn wait_connected(
+        app: &mut App,
+        events: &mut tokio::sync::broadcast::Receiver<p2p::NetEvent>,
+        peer: &identity::PeerId,
+    ) {
+        for _ in 0..MAX_ROUNDS {
+            app.update();
+            while let Ok(event) = events.try_recv() {
+                if let p2p::NetEvent::PeerConnected(id) = event
+                    && &id == peer
+                {
+                    return;
+                }
+            }
+            std::thread::sleep(SETTLE);
+        }
+        panic!("peer never connected");
+    }
+
+    fn join(app: &mut App, room: &identity::RoomName, members: Vec<identity::PeerId>) {
+        let mut room_members = discovery::Members::new();
+        for peer in members {
+            room_members.insert(
+                peer,
+                discovery::Member {
+                    heartbeat: discovery::Heartbeat {
+                        addrs: Vec::new(),
+                        updated_at: discovery::UnixTime::from_secs(0),
+                        display_name: None,
+                    },
+                    status: discovery::LinkStatus::Connected,
+                },
+            );
+        }
+        app.insert_resource(discovery::Status {
+            room: Some(discovery::JoinedRoom {
+                name: room.clone(),
+                created_at: discovery::UnixTime::from_secs(1),
+                phase: discovery::RoomPhase::Ready,
+                members: room_members,
+            }),
+            ..discovery::Status::default()
+        });
+        app.world_mut()
+            .resource_mut::<Messages<discovery::Event>>()
+            .write(discovery::Event::Joined(room.clone()));
+    }
+
+    fn scripted_ops() -> Vec<starboard::canvas::DrawOp> {
+        let brush = starboard::input::OwnBrush::default();
+        (0_u16..6)
+            .map(|index| {
+                let x = 200_u16.saturating_add(index.saturating_mul(60));
+                let y = 300_u16.saturating_add(index.saturating_mul(30));
+                starboard::input::draw_op(
+                    brush,
+                    starboard::canvas::DrawAction::Paint(brush.color),
+                    starboard::canvas::CellPos { x, y },
+                    starboard::canvas::CellPos {
+                        x: x.saturating_add(80),
+                        y: y.saturating_add(40),
+                    },
+                )
+            })
+            .collect()
+    }
+
+    fn canvas_hash(app: &App) -> u64 {
+        starboard::canvas::hash_canvas(app.world().resource::<starboard::canvas::Canvas>())
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn two_apps_converge_on_the_painted_canvas() {
+        let game = identity::GameId::from("game");
+        let room = identity::RoomName::from("room-ae");
+        let mut apps = vec![node_with(&game), node_with(&game)];
+        let peers: Vec<identity::Peer> = apps.iter_mut().map(wait_ready).collect();
+
+        let mut events = apps[1]
+            .world()
+            .resource::<p2p::NetEventChannel>()
+            .subscribe();
+        apps[1]
+            .world()
+            .resource::<p2p::NetCommandSender>()
+            .send(p2p::NetCommand::Dial(dialable(&peers[0])))
+            .expect("dial");
+        wait_connected(&mut apps[1], &mut events, &peers[0].id);
+
+        for (index, app) in apps.iter_mut().enumerate() {
+            let others = peers
+                .iter()
+                .enumerate()
+                .filter(|(other, _)| *other != index)
+                .map(|(_, peer)| peer.id.clone())
+                .collect();
+            join(app, &room, others);
+        }
+        for _ in 0..50 {
+            for app in &mut apps {
+                app.update();
+            }
+            tokio::time::sleep(SETTLE).await;
+        }
+
+        for op in scripted_ops() {
+            apps[0]
+                .world_mut()
+                .write_message(starboard::input::PendingLocalDraw(op));
+            apps[0].update();
+        }
+
+        let started = std::time::Instant::now();
+        loop {
+            for app in &mut apps {
+                app.update();
+            }
+            let hashes: Vec<u64> = apps.iter().map(canvas_hash).collect();
+            if hashes.first() == hashes.last() && hashes.first().is_some_and(|hash| *hash != 0) {
+                return;
+            }
+            assert!(
+                started.elapsed() <= CONVERGE_BUDGET,
+                "canvases did not converge: {hashes:?}"
+            );
+            tokio::time::sleep(SETTLE).await;
+        }
     }
 }

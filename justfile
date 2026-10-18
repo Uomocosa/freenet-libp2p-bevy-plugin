@@ -35,6 +35,17 @@ e2e-join:
 e2e-room:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test room_messaging --all-features --run-ignored all -- --nocapture
 
+# Run the starboard example detached (no terminal tie-up; only the app window).
+# Extra args: --username, --token, --transport.
+run-starboard *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --features e2e --example starboard_gossip
+    mkdir -p .local-run
+    log=.local-run/starboard.log
+    setsid "$CARGO_TARGET_DIR/debug/examples/starboard_gossip" {{ ARGS }} >"$log" 2>&1 &
+    echo "starboard running detached — log: $log"
+
 # Run the lobby_room example detached (no terminal tie-up; only the app window).
 # Extra args toggle ui/action/transport, e.g. `just run --ui custom --action create:room-1`.
 run *ARGS:
