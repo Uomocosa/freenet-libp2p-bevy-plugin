@@ -46,6 +46,11 @@ run-starboard *ARGS:
     setsid "$CARGO_TARGET_DIR/debug/examples/starboard_gossip" {{ ARGS }} >"$log" 2>&1 &
     echo "starboard running detached — log: $log"
 
+# Headless starboard benchmark (no window): 2 and 8 in-process peers, 60 strokes/s each,
+# 20 s measured per scenario; overwrites examples/starboard/BENCH.md.
+bench-starboard:
+    cargo nextest run --example starboard_gossip --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture
+
 # Run the lobby_room example detached (no terminal tie-up; only the app window).
 # Extra args toggle ui/action/transport, e.g. `just run --ui custom --action create:room-1`.
 run *ARGS:
