@@ -34,7 +34,9 @@ impl room_sync::RoomState for Canvas {
             author: meta.author,
             color,
         };
-        apply_segment(self, op.from, op.to, cell);
+        for pos in starboard::canvas::rasterize(op) {
+            let _ = starboard::canvas::write_cell(self, pos, cell);
+        }
     }
 
     fn snapshot(&self) -> Self::Snapshot {
@@ -93,41 +95,6 @@ fn tile_from_cells(cells: &[starboard::canvas::Cell]) -> Option<starboard::canva
         *dst = *src;
     }
     Some(tile)
-}
-
-// needed helper: integer segment walk with a small brush footprint until Step B3's shape rasterizer lands
-fn apply_segment(
-    canvas: &mut Canvas,
-    from: starboard::canvas::CellPos,
-    to: starboard::canvas::CellPos,
-    cell: starboard::canvas::Cell,
-) {
-    let steps = from.x.abs_diff(to.x).max(from.y.abs_diff(to.y)).max(1);
-    let from_x = i32::from(from.x);
-    let from_y = i32::from(from.y);
-    let dx = i32::from(to.x).saturating_sub(from_x);
-    let dy = i32::from(to.y).saturating_sub(from_y);
-    let denom = i32::from(steps);
-
-    for step in 0..=steps {
-        let t = i32::from(step);
-        let cx = from_x.saturating_add(dx.saturating_mul(t).checked_div(denom).unwrap_or(0));
-        let cy = from_y.saturating_add(dy.saturating_mul(t).checked_div(denom).unwrap_or(0));
-        for oy in -2_i32..=2 {
-            for ox in -2_i32..=2 {
-                if let (Ok(x), Ok(y)) = (
-                    u16::try_from(cx.saturating_add(ox)),
-                    u16::try_from(cy.saturating_add(oy)),
-                ) {
-                    let _ = starboard::canvas::write_cell(
-                        canvas,
-                        starboard::canvas::CellPos { x, y },
-                        cell,
-                    );
-                }
-            }
-        }
-    }
 }
 
 #[cfg(test)]

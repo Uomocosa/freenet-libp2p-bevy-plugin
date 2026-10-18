@@ -3,3 +3,7 @@ pub const TILES_PER_SIDE: usize = 32;
 pub const CANVAS_SIDE: usize = TILE_SIDE * TILES_PER_SIDE;
 pub const CELLS_PER_TILE: usize = TILE_SIDE * TILE_SIDE;
 pub const TILE_COUNT: usize = TILES_PER_SIDE * TILES_PER_SIDE;
+pub const BASE_BRUSH_RADIUS: u16 = 16;
+pub const DEFAULT_SIZE_INDEX: u8 = 5;
+pub const SIZE_PERCENTS: [u16; 9] = [10, 20, 35, 50, 75, 100, 125, 150, 200];
+pub const BRUSH_RADII: [u16; 9] = [1, 3, 5, 8, 12, 16, 20, 24, 32];

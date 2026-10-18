@@ -867,20 +867,44 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 
 ## Step B3 — Rasterizer: shapes, stamps, strokes
 
-- [ ] `DrawOp { kind: Paint(PaletteColor) | Erase, shape, size_idx, from: (f32,f32),
+- [x] `DrawOp { kind: Paint(PaletteColor) | Erase, shape, size_idx, from: (f32,f32),
       to: (i16,i16) }` (a click = `from == to`). Coordinates are **integer cells**,
       quantized on the sender before the op is created — no floats on the wire.
-- [ ] `fn rasterize(op) -> impl Iterator<Item = CellPos>`: stamps along the segment every
+- [x] `fn rasterize(op) -> impl Iterator<Item = CellPos>`: stamps along the segment every
       `radius/2` (radius = `16 * SIZES[size_idx]`, min 1 cell); per-shape coverage
       tests (circle, star 5-point, square, triangle, diamond, hexagon). Pure integer
       math — must be identical on every peer. **No `sin/cos/sqrt` or other float math
       at runtime**: build shapes from precomputed integer vertex tables / masks;
       interpolate stamps with integer (Bresenham-style) stepping.
-- [ ] Tests: snapshot-style tests of small rasters per shape; segment with no gaps;
+- [x] Tests: snapshot-style tests of small rasters per shape; segment with no gaps;
       size 0.1 still covers ≥ 1 cell; clipping at canvas borders.
 
 ### What was done (Step B3)
-_(agent fills)_
+
+**Files added:**
+- `examples/starboard/canvas/brush_radius.rs` — `brush_radius(size_index: u8) -> u16` (clamps `size_index` into `BRUSH_RADII = [1, 3, 5, 8, 12, 16, 20, 24, 32]`, matching `BASE_BRUSH_RADIUS = 16` scaled by `SIZE_PERCENTS = [10, 20, 35, 50, 75, 100, 125, 150, 200]`, min `1` cell).
+- `examples/starboard/canvas/is_inside_shape.rs` — `is_inside_shape(shape, radius, dx, dy) -> bool` using pure integer arithmetic (`Circle`, `Square`, `Diamond` directly; `Triangle`, `Hexagon`, and 5-point `Star` via precomputed integer vertex tables in `VERTEX_SCALE = 1000` and origin-centered sector triangle half-plane cross products).
+- `examples/starboard/canvas/rasterize.rs` — `rasterize(op: &DrawOp) -> impl Iterator<Item = CellPos>` stepping from `op.from` to `op.to` with integer Bresenham line stepping, stamping every `(radius / 2).max(1)` steps (plus the final endpoint `op.to`), and clipping to `0..CANVAS_SIDE`.
+
+**Files changed:**
+- `examples/starboard/canvas/__basic__/constants.rs` — added `BASE_BRUSH_RADIUS`, `DEFAULT_SIZE_INDEX`, `SIZE_PERCENTS`, `BRUSH_RADII`.
+- `examples/starboard/canvas/canvas.rs` — replaced `apply_segment` in `Canvas::apply` with `starboard::canvas::rasterize(op)`.
+- `examples/starboard/canvas/mod.rs` — re-exported `BASE_BRUSH_RADIUS`, `BRUSH_RADII`, `DEFAULT_SIZE_INDEX`, `SIZE_PERCENTS`, `brush_radius`, `is_inside_shape`, `rasterize`.
+- `examples/starboard_gossip/main.rs` — referenced `rasterize`, `DEFAULT_SIZE_INDEX`, `SIZE_PERCENTS`.
+
+**Updated snapshot sizes with full shape rasterizer (`canvas::tests::snapshot_sizes_for_1k_and_10k_random_strokes`, `size_index = 5` (`radius = 16`), `zstd` level 3):**
+
+| Strokes (`N`) | Touched tiles (of 1024) | Raw `Cell` bytes | Uncompressed `bincode` bytes | `bincode` + `zstd` bytes | Compression vs `bincode` |
+|---:|---:|---:|---:|---:|---:|
+| `1,000` | `1,013` | `8,298,496` (7.91 MiB) | `7,883,120` (7.52 MiB) | `193,011` (188.5 KiB) | `40.8×` |
+| `10,000` | `1,024` | `8,388,608` (8.00 MiB) | `8,317,692` (7.93 MiB) | `233,050` (227.6 KiB) | `35.7×` |
+
+**Tests added (`cargo nextest run --example starboard_gossip --all-features`):**
+- `brush_radius::tests::test_usage` — checks `size_index = 0` (`1`), `DEFAULT_SIZE_INDEX = 5` (`16`), `size_index = 8` (`32`), out-of-range clamping, and agreement with `(BASE_BRUSH_RADIUS * SIZE_PERCENTS[i] / 100).max(1)`.
+- `is_inside_shape::tests::{test_usage, small_rasters_match_expected_silhouettes}` — center/bounds invariants across all 6 shapes and exact ASCII raster snapshots for `Square`, `Diamond`, `Circle`, `Triangle`, `Hexagon`, and 5-point `Star`.
+- `rasterize::tests::{test_usage, segment_has_no_gaps_and_clips_at_canvas_borders}` — `size_index = 0` (`0.1`) covers `>= 1` cell for all 6 shapes; horizontal segment `[20, 20] -> [120, 20]` has zero gaps along its centerline; strokes at `(0, 0) -> (1023, 0)` with max brush radius clip cleanly inside `0..CANVAS_SIDE`.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`, `just lint`, `just bevy-lint`.
 
 ---
 

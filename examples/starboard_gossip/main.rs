@@ -9,4 +9,14 @@ fn main() {
     let _ = starboard::canvas::read_cell(&canvas, pos);
     let _ = starboard::canvas::write_cell(&mut canvas, pos, starboard::canvas::Cell::default());
     let _ = starboard::canvas::hash_canvas(&canvas);
+    let op = starboard::canvas::DrawOp {
+        action: starboard::canvas::DrawAction::Erase,
+        shape: starboard::identity::Shape::Circle,
+        size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+        from: pos,
+        to: pos,
+    };
+    let _ = starboard::canvas::rasterize(&op)
+        .count()
+        .saturating_add(usize::from(starboard::canvas::SIZE_PERCENTS[0]));
 }
