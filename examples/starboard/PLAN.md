@@ -910,16 +910,135 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 
 ## Step B4 — Bevy app: rendering + input (single player, offline)
 
-- [ ] Canvas rendered as one `Image` texture (1024×1024) updated incrementally from
+- [x] Canvas rendered as one `Image` texture (1024×1024) updated incrementally from
       dirty tiles; letterbox-scaled to window (D8).
-- [ ] Input: left press/hold paint, right press/hold erase (D10), scroll notches (D9),
+- [x] Input: left press/hold paint, right press/hold erase (D10), scroll notches (D9),
       cursor preview of own shape outline at current size.
-- [ ] Mouse → logical coords mapping tested as a pure function.
-- [ ] App-based Bevy test (see `bevy-rs`): simulate mouse input → canvas cells changed.
-- [ ] Preview test (`_preview` suffix, `lele-bevy-preview` as in existing tests).
+- [x] Mouse → logical coords mapping tested as a pure function.
+- [x] App-based Bevy test (see `bevy-rs`): simulate mouse input → canvas cells changed.
+- [x] Preview test (`_preview` suffix, `lele-bevy-preview` as in existing tests).
 
 ### What was done (Step B4)
-_(agent fills)_
+
+**Files added (render):**
+- `examples/starboard/render/mod.rs` — exports `basic`, `bevy_systems`, `BoardSprite`,
+  `BrushOutlineSprite`, `CANVAS_BACKGROUND`, `BrushOutline`, `brush_outline`, `CanvasView`,
+  `palette_rgba`, `paint_tile`, `repaint_dirty_tiles`.
+- `examples/starboard/render/__basic__/{mod,components,constants,structs}.rs` —
+  `BoardSprite`, `BrushOutlineSprite` (marker components), `CANVAS_BACKGROUND: [u8; 4]`,
+  `BrushOutline { side: u32, pixels: Vec<u8> }`.
+- `examples/starboard/render/canvas_view.rs` — `CanvasView { scale: f32, offset: Vec2 }`
+  + `CanvasView::fit(window: Vec2)` (letterbox: scale = `min(w, h) / 1024`, offset centres
+  the board; component `f32` math only).
+- `examples/starboard/render/palette_rgba.rs` — `palette_rgba(PaletteColor) -> [u8; 4]`,
+  falling back to `CANVAS_BACKGROUND` for an index outside the palette.
+- `examples/starboard/render/paint_tile.rs` — `paint_tile(canvas, id, pixels) -> bool`:
+  writes one tile's 32×32 cells into the whole-canvas RGBA buffer (erased and untouched
+  cells both resolve to the background), `false` for a missing tile or a short buffer.
+- `examples/starboard/render/repaint_dirty_tiles.rs` — drains `Canvas::dirty_tiles` and
+  repaints each, returning the count.
+- `examples/starboard/render/brush_outline.rs` — `brush_outline(shape, radius, color) ->
+  BrushOutline`: the own-cursor ring, an inside cell with a neighbour outside.
+- `examples/starboard/render/bevy_systems/{mod,spawn_board,fit_board,upload_dirty_tiles,
+  follow_brush}.rs` — Startup spawns the board `Image` (1024×1024, `Rgba8UnormSrgb`) plus
+  the outline sprite; `fit_board` recomputes `CanvasView` and the board sprite's
+  `custom_size`; `upload_dirty_tiles` repaints only when `dirty_tiles` is non-empty, so an
+  idle frame never marks the asset dirty; `follow_brush` regenerates the outline texture
+  when `OwnBrush` changes and places/hides it at the cursor.
+
+**Files added (input):**
+- `examples/starboard/input/mod.rs` — exports `basic`, `bevy_systems`, `LatestPaintedCell`,
+  `PendingLocalDraw`, `cell_under_cursor`, `draw_op`, `next_size_index`, `OwnBrush`.
+- `examples/starboard/input/__basic__/{mod,messages,resources}.rs` —
+  `PendingLocalDraw(pub DrawOp)` (a locally produced op, not yet stamped with the local
+  clock/author) and `LatestPaintedCell(pub Option<CellPos>)` (the stroke tail; `None` when
+  no button is held).
+- `examples/starboard/input/own_brush.rs` — `OwnBrush { shape, color, size_index }`
+  + `Default` (`Circle`, palette 0, `DEFAULT_SIZE_INDEX`).
+- `examples/starboard/input/cell_under_cursor.rs` — `cell_under_cursor(cursor, view) ->
+  Option<CellPos>` via `Vec2::as_uvec2` (no `as` casts).
+- `examples/starboard/input/next_size_index.rs` — `next_size_index(size_index, notches) ->
+  u8`, clamped into `BRUSH_RADII`.
+- `examples/starboard/input/draw_op.rs` — `const fn draw_op(brush, action, from, to) ->
+  DrawOp`.
+- `examples/starboard/input/bevy_systems/{mod,scroll_brush_size,track_pointer,
+  apply_local_draws}.rs` — `scroll_brush_size` reads `AccumulatedMouseScroll`;
+  `track_pointer` emits one `PendingLocalDraw` per frame (a click is `from == to`, a drag
+  is the segment from `LatestPaintedCell`), right button erases, release clears the tail;
+  `apply_local_draws` ticks `LamportClock` and applies to `Canvas` (this is B5's seam).
+
+**Files added (app):** `examples/starboard/app/{mod,starboard_plugin}.rs` —
+`StarboardPlugin`: registers `Canvas`, `CanvasView`, `OwnBrush`, `LatestPaintedCell`,
+`LamportClock`, the `PendingLocalDraw` message, `spawn_board` (Startup) and the chained
+Update systems. It spawns **no** camera: the bin and the preview harness own it.
+
+**Files changed:** `examples/starboard/mod.rs` (adds `app`, `input`, `render`);
+`examples/starboard_gossip/main.rs` (the dead-code stub also names
+`starboard::app::StarboardPlugin`, as with the other modules, until B5 wires it).
+
+**Public API added:** `render::{CanvasView, BoardSprite, BrushOutlineSprite,
+CANVAS_BACKGROUND, BrushOutline, brush_outline, palette_rgba, paint_tile,
+repaint_dirty_tiles}`; `input::{OwnBrush, LatestPaintedCell, PendingLocalDraw,
+cell_under_cursor, next_size_index, draw_op}`; `app::StarboardPlugin`. No breaking changes
+to the plugin crate.
+
+**Tests added (`cargo nextest run --example starboard_gossip --all-features`, 48 tests; the
+full `just test` run is 213 passed, 4 skipped):** `canvas_view` (wide/tall/zero windows),
+`palette_rgba`, `paint_tile` (buffer bounds, background), `repaint_dirty_tiles` (count,
+drains), `brush_outline` (ring at radius 1 for all 6 shapes, interior transparent),
+`cell_under_cursor` (centre, last cell, off-canvas, letterbox margin), `next_size_index`,
+`draw_op`, `OwnBrush`, `apply_local_draws` (lamport 1, author 0), `scroll_brush_size`
+(up/down/still), `track_pointer` (`mouse_press_paints_cells`,
+`dragging_paints_the_segment_and_release_clears_the_tail`, `right_button_erases`,
+`a_still_cursor_records_one_stamp_per_frame`), `spawn_board`, `fit_board`,
+`upload_dirty_tiles` (pixel lands in the asset), `follow_brush` (cell centre in world
+units, hidden off-canvas), and five previews: `board_ui_png_preview`,
+`board_ui_scene_preview` (empty / painted / brush over the board),
+`spawn_board_ui_png_preview`, `fit_board_ui_png_preview` (wide vs tall window),
+`follow_brush_ui_png_preview` (cursor outside vs on the board).
+
+**Preview artifacts (`ui_preview/`):** `starboard_board__{empty_board,painted_board,
+brush_over_the_board}.png`, `starboard_spawn_board__empty_board.png`,
+`starboard_fit_board__{wide_window,tall_window}.png`,
+`starboard_follow_brush__{cursor_outside,cursor_on_the_board}.png`.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**213 passed**, 4 skipped), `just lint`, `just bevy-lint`. No contract changes.
+
+**Deviations / decisions:**
+- **Names** (user call): `BoardSprite`, `OwnBrush`, `PendingLocalDraw`, `paint_tile`,
+  `palette_rgba`, `StarboardPlugin`; `LatestPaintedCell` is a public resource rather than a
+  system-local.
+- **Input reads the window cursor, not `CursorMoved` messages.** The first draft consumed
+  `CursorMoved`; a click or a hold with a still cursor then produced no message, so nothing
+  was painted or erased. `Window::cursor_position()` is authoritative every frame (and is
+  what `follow_brush` already used), so the message dependency is gone entirely.
+- **No new `#[allow]`.** `clippy::needless_pass_by_value` fires on read-only Bevy system
+  params in an example (a `pub fn` in a binary target is not an API); instead of the
+  suggested `&Res<T>` (not a valid `SystemParam`), every flagged param is consumed with
+  `into_inner()` — `follow_brush` reads `brush.is_changed()` before consuming. The
+  `arithmetic_side_effects` findings were also rewritten: the lint only flags `Vec2`
+  operators (floats are exempt), so `CanvasView::fit`, `cell_under_cursor` and `fit_board`
+  use component `f32` math.
+- **Incremental upload is CPU-side only.** Bevy re-uploads the whole `Image` when its data
+  changes; there is no asset-level partial texture upload. So the CPU repaints only the
+  dirty tiles and the asset is touched only when a tile changed (idle frames cost nothing);
+  while painting this is a full 4 MiB upload per changed frame — a B6 measurement item.
+- **One board texture plus a small outline texture** (`(2 · radius + 1)²`), rather than a
+  second full-canvas overlay.
+- **`apply_local_draws` stamps `author: 0`** and applies directly to `Canvas`; B5 replaces
+  the body with a push into `PendingOps<Canvas>` and `peer_author`.
+- **`OwnBrush` is the offline fixture** (Circle, palette 0, size index 5). B5 fills it from
+  `room_brushes(created_at, now)`.
+
+**Open issues (for later steps):**
+- B5: fill `OwnBrush` from `room_brushes`; route `PendingLocalDraw` through
+  `PendingOps<Canvas>` with `peer_author`; the bin + `just run-starboard` (and the camera)
+  land there.
+- B6: measure the full-texture re-upload while painting, plus the anti-entropy
+  announcement size (A6 open issue).
+- B7: the e2e needs a test-only `--script` argument on the bin; it does not exist yet.
+- Cursor size is per-session only (D12 phase 1 accepts this).
 
 ---
 
