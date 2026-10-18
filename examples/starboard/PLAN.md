@@ -1044,19 +1044,117 @@ brush_over_the_board}.png`, `starboard_spawn_board__empty_board.png`,
 
 ## Step B5 — Networking: lobby → room → synced canvas
 
-- [ ] Reuse the plugin default lobby UI to create/join rooms (copy wiring from
+- [x] Reuse the plugin default lobby UI to create/join rooms (copy wiring from
       `examples/lobby_room`). On `Joined`, switch to the board state.
-- [ ] Register `SyncPlugin<Canvas>`; local ops go through it; remote ops applied
+- [x] Register `SyncPlugin<Canvas>`; local ops go through it; remote ops applied
       and dirty tiles re-uploaded.
-- [ ] Presence: cursor message `{ pos, size_idx }` at ~30 Hz lossy on the gossipsub topic;
+- [x] Presence: cursor message `{ pos, size_idx }` at ~30 Hz lossy on the gossipsub topic;
       render other peers' cursors as their shape+color outline; side panel with members
       (shape icon + color + display name). Remove cursors of peers that left.
-- [ ] Daily rollover recomputed every second from `created_at`.
-- [ ] Bin `starboard_gossip` + `just run-starboard`.
-- [ ] Headless in-process test: 2 Apps, A paints scripted strokes, B canvas hash equals A's.
+- [x] Daily rollover recomputed every second from `created_at`.
+- [x] Bin `starboard_gossip` + `just run-starboard`.
+- [x] Headless in-process test: 2 Apps, A paints scripted strokes, B canvas hash equals A's.
 
 ### What was done (Step B5)
-_(agent fills)_
+
+**Commits:** `56fbb03` (gate the board on the room), `5de0247` (plugin: apply a published
+op locally), `c66efdb` (route local draws through the sync plugin), `69734f9` (room brushes
++ member panel), `cbc1068` (presence cursors), `c603857` (windowed app + 2-app test).
+
+**Files added (starboard `room/`):** `room/mod.rs`, `room/is_in_room.rs`
+(`is_in_room(&Status) -> bool` — one predicate shared by the run condition, the renderers
+and the panel), `room/__basic__/{mod,constants,resources,structs}.rs`
+(`BRUSH_REFRESH_SECONDS`, `CURSOR_UPDATE_SECONDS`, `RoomBrushes`, `RemoteCursors`,
+`BrushRefreshTimer`, `CursorUpdate { cell, size_index }`),
+`room/bevy_systems/{mod,reset_canvas,refresh_room_brushes,publish_cursor,
+collect_remote_cursors}.rs`.
+
+**Files added (starboard `ui/`):** `ui/mod.rs`, `ui/__basic__/{mod,components,constants}.rs`
+(`MemberPanel`, `MemberList`, `MemberRow`, `PANEL_COLOR`, `ROW_COLOR`, `ICON_RADIUS`,
+`ICON_SIDE`), `ui/bevy_systems/{mod,spawn_member_panel,rebuild_member_list}.rs` (one row
+per member: shape/colour icon from `brush_outline`, display name).
+
+**Files added (starboard `render/`, `input/`):** `render/cell_center.rs` (cell → world,
+extracted from `follow_brush` and shared with the remote cursors),
+`render/bevy_systems/{sync_board_visibility,draw_remote_cursors}.rs`,
+`input/bevy_systems/{track_cursor,track_pointer}.rs` (one `track_cursor` maps the window to
+`CursorCell`; the pointer, the own outline and presence all read it).
+
+**Files changed (plugin `src/`):** `src/room_sync/bevy_systems/write_ops.rs` — applies each
+op to the local replica as it publishes it, plus a unit test. Without it a peer alone in a
+room (gossipsub answers `NoPeersSubscribedToTopic`) never saw its own strokes; a self-echo
+carries the identical `(lamport, author, color)` and is a no-op under LWW.
+
+**Files changed (starboard):** `app/starboard_plugin.rs` (registers everything in one
+ordered chain, `run_if` per input system), `render/bevy_systems/{follow_brush,
+sync_board_visibility,spawn_board}.rs`, `render/__basic__/components.rs`
+(`RemoteCursorSprite`), `input/__basic__/resources.rs` (`CursorCell`),
+`render/mod.rs`, `input/mod.rs`, `starboard/mod.rs`.
+
+**Files added (bin):** `examples/starboard_gossip/{args.rs,status.rs}`;
+`examples/starboard_gossip/main.rs` is now the real app (window + camera + embedded Freenet
+node + `discovery::Plugins` + `P2PPlugin<CursorUpdate>` + `SyncPlugin<Canvas>` +
+`StarboardPlugin`, `--username`, `--token`, `--transport`). `status::log_canvas_hash` prints
+`starboard canvas room=… hash=… cursor=… color=… size=…%` once a second (B7's oracle).
+
+**Shared example module:** `examples/shared/{mod.rs,node.rs}` — the embedded-Freenet-node
+bootstrap moved out of `examples/lobby_room/node.rs`; both examples include it via
+`#[path = "../shared/mod.rs"] mod shared;`. `justfile` gains `just run-starboard`.
+
+**Public API added:** `room::{is_in_room, CursorUpdate, RoomBrushes, RemoteCursors,
+BrushRefreshTimer, BRUSH_REFRESH_SECONDS, CURSOR_UPDATE_SECONDS}`;
+`ui::{MemberPanel, MemberList, MemberRow, PANEL_COLOR, ROW_COLOR, ICON_RADIUS, ICON_SIDE}`;
+`render::{cell_center, RemoteCursorSprite, sync_board_visibility, draw_remote_cursors}`;
+`input::{CursorCell, track_cursor}`; `input::bevy_systems::send_local_draws` (renamed from
+`apply_local_draws`); plugin-side `room_sync` unchanged (one system body + one test).
+
+**Tests added:** `is_in_room` (none/joining/ready), `reset_canvas` (join clears),
+`refresh_room_brushes` (two members get distinct brushes, own brush follows),
+`publish_cursor` (one command per interval, none with no cursor),
+`collect_remote_cursors` (own cursor ignored, peers pruned on leave), `track_cursor`
+(window → cell, `None` with no cursor), `track_pointer` (rewritten to assert the sent op:
+stamp, drag segment, erase, one stamp per frame), `follow_brush` (cell centre, hidden
+without a cursor), `draw_remote_cursors` (spawn/despawn), `sync_board_visibility`
+(shown/hidden), the member panel (`spawn_member_panel`, `rebuild_member_list` rows) and
+previews: `sync_board_visibility_ui_png_preview` (board + leave door, then the lobby UI),
+`spawn_member_panel_ui_png_preview`, `rebuild_member_list_ui_png_preview` (two/four peers),
+`draw_remote_cursors_ui_png_preview` (one/two peers), plus the headless
+`two_apps_converge_on_the_painted_canvas` (A writes six scripted `PendingLocalDraw`s, B's
+`hash_canvas` converges to A's; ~1.5 s).
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**231 passed**, 4 skipped), `just lint`, `just bevy-lint`. No contract changes. No e2e (B5
+has no e2e box); the 2-app test wires peers by direct dial, which §0.8 allows.
+
+**Deviations / decisions:**
+- **Gating is `discovery::Status`, not `Screen`.** The approved option was
+  `in_state(Screen::InRoom)`, but the preview harness installs `DefaultPlugins` *after*
+  `Scene::build`, so `init_state`/`insert_state` cannot run where the previews need it, and
+  `lele-bevy-lint` requires each file's preview to name its own system (so the previews
+  cannot just add the plugin). `Screen` is itself derived from `Status` by `pick_screen`, so
+  the board now gates on the truth rather than on the derived screen: `room::is_in_room`.
+- **Commit order swapped:** brushes before presence (a remote cursor cannot be drawn without
+  the peer's shape and colour).
+- **`Option<Res<..>>` for the network-facing inputs** (`ReadyChannel`, `Commands`,
+  `Events`, `Status`): the board renders, paints and previews without the p2p plugin, and
+  presence simply does not publish.
+- **The board is not despawned on leaving a room** (only hidden, and the canvas is reset on
+  the next `Joined`): a stale canvas would otherwise keep its high lamports and win the LWW
+  merge against a fresh room's snapshot.
+- **`write_ops` (plugin) applies locally** — see above; A6's 30 %-drop test still converges.
+- **The member panel regenerates its icon textures per rebuild** (join/leave/rollover), not
+  per frame; `draw_remote_cursors` reuses each peer's image and only rewrites it when the
+  reported size changes.
+
+**Open issues (for later steps):**
+- B6: measure the full-texture re-upload while painting, the per-peer `CursorUpdate` rate
+  (30 Hz × peers) and the anti-entropy announcement size.
+- B7: the bin has no `--script` yet (B7's box) and no late-join assertion; the canvas hash
+  line it needs already exists.
+- B8: the room list / leave flow is the plugin's default UI, so the board and the lobby
+  screens have not been reviewed together as one design.
+- A stale `RemoteCursors` entry survives a peer that stops moving until it leaves the room
+  (the plan accepts lossy, latest-wins presence).
 
 ---
 
