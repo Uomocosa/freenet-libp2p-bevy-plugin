@@ -45,6 +45,7 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
                     addrs: Vec::new(),
                     updated_at: discovery::UnixTime::from_secs(0),
                     display_name: None,
+                    presence: discovery::Presence::InRoom,
                 },
                 status: discovery::LinkStatus::Connected,
             },

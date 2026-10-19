@@ -18,7 +18,7 @@ pub struct Lobby(pub BTreeMap<identity::RoomName, discovery::Room>);
 #[atomic_delegates]
 impl Lobby {
     pub fn merge(&mut self, incoming: Self) {}
-    pub fn prune(&mut self, now: discovery::UnixTime, ttl: Duration) {}
+    pub fn drop_dead(&mut self, now: discovery::UnixTime, ttl: Duration) {}
 }
 
 #[cfg(test)]
@@ -34,6 +34,7 @@ mod tests {
             addrs: Vec::new(),
             updated_at: discovery::UnixTime::from_secs(1),
             display_name: None,
+            presence: discovery::Presence::InRoom,
         };
         let incoming = discovery::Lobby::from([(
             identity::RoomName::from("room-a"),
@@ -46,9 +47,9 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.merge(incoming);
         assert_eq!(lobby.len(), 1);
-        lobby.prune(
+        lobby.drop_dead(
             discovery::UnixTime::from_secs(500),
-            discovery::state_machine::HEARTBEAT_TTL,
+            discovery::LeaseTimings::default().ttl,
         );
         assert!(lobby.is_empty());
     }

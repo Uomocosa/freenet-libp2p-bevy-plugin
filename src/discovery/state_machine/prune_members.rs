@@ -3,7 +3,7 @@ use discovery::state_machine::{Output, State};
 
 #[must_use]
 pub fn prune_members(state: &mut State, now: discovery::UnixTime) -> Vec<Output> {
-    let ttl = discovery::state_machine::HEARTBEAT_TTL;
+    let ttl = state.lease_ttl;
     let grace = discovery::state_machine::MEMBER_GRACE;
     state
         .candidates
@@ -45,6 +45,7 @@ mod tests {
                         addrs: Vec::new(),
                         updated_at: discovery::UnixTime::from_secs(0),
                         display_name: None,
+                        presence: discovery::Presence::InRoom,
                     },
                     status: discovery::LinkStatus::Lost,
                 },

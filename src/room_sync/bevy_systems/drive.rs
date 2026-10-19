@@ -400,6 +400,7 @@ mod tests {
                                     addrs: Vec::new(),
                                     updated_at: discovery::UnixTime::from_secs(1),
                                     display_name: None,
+                                    presence: discovery::Presence::InRoom,
                                 },
                                 status: discovery::LinkStatus::Connected,
                             },

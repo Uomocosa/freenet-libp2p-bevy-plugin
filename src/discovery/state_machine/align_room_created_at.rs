@@ -8,9 +8,9 @@ pub fn align_room_created_at(state: &mut State) {
     let Some(record) = state.lobby.get(&room.name) else {
         return;
     };
-    let merged = room.created_at.min(record.created_at);
+    let lobby_created_at = record.created_at;
     if let Some(room) = state.room.as_mut() {
-        room.created_at = merged;
+        room.created_at = lobby_created_at;
     }
 }
 

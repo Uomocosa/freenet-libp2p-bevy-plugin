@@ -17,12 +17,21 @@ pub fn handle_command(
             }
         }
         discovery::Command::Leave => leave(state),
+        discovery::Command::Quit => quit(state),
     }
+}
+
+// needed helper: leaves, then marks every held room so the next publish is a Quit tombstone
+fn quit(state: &mut State) -> Vec<Output> {
+    let outputs = leave(state);
+    state.is_quitting = true;
+    outputs
 }
 
 // needed helper: enters a room, says handshake to every live link and dials the lobby seeds
 fn join(state: &mut State, room: identity::RoomName, now: discovery::UnixTime) -> Vec<Output> {
     let mut outputs = leave(state);
+    state.held_rooms.remove(&room);
     let created_at = state
         .lobby
         .get(&room)
@@ -47,6 +56,7 @@ fn leave(state: &mut State) -> Vec<Output> {
     let Some(room) = state.room.take() else {
         return Vec::new();
     };
+    state.held_rooms.insert(room.name.clone(), room.created_at);
     state.joining_since = None;
     state.candidates.clear();
     state.last_dialed_at.clear();

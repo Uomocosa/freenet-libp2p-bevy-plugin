@@ -18,6 +18,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
             discovery::bevy_systems::forward_commands,
         ),
     );
+    app.add_systems(Last, discovery::bevy_systems::send_quit_on_exit);
 
     let (status_tx, status_rx) = tokio::sync::mpsc::unbounded_channel();
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();

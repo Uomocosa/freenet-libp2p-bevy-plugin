@@ -261,6 +261,7 @@ mod tests {
                         addrs: Vec::new(),
                         updated_at: discovery::UnixTime::from_secs(0),
                         display_name: name.map(identity::Username::from),
+                        presence: discovery::Presence::InRoom,
                     },
                     status,
                 },

@@ -17,6 +17,7 @@ pub struct HeartbeatTarget {
     pub created_at: discovery::UnixTime,
     pub addrs: Vec<identity::PeerAddr>,
     pub display_name: identity::Username,
+    pub presence: discovery::Presence,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

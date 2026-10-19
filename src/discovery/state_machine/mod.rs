@@ -50,8 +50,8 @@ pub use broadcast_handshake::broadcast_handshake;
 mod status;
 pub use status::status;
 
-mod heartbeat_target;
-pub use heartbeat_target::heartbeat_target;
+mod heartbeat_targets;
+pub use heartbeat_targets::heartbeat_targets;
 
 mod align_room_created_at;
 pub use align_room_created_at::align_room_created_at;

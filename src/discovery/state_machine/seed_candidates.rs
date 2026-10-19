@@ -11,7 +11,11 @@ pub fn seed_candidates(state: &mut State) {
     let seeds: Vec<_> = record
         .members
         .iter()
-        .filter(|(peer, heartbeat)| **peer != state.me.id && !heartbeat.addrs.is_empty())
+        .filter(|(peer, heartbeat)| {
+            **peer != state.me.id
+                && !heartbeat.addrs.is_empty()
+                && heartbeat.presence == discovery::Presence::InRoom
+        })
         .map(|(peer, heartbeat)| (peer.clone(), heartbeat.clone()))
         .collect();
     for (peer, heartbeat) in seeds {
@@ -57,6 +61,7 @@ mod tests {
             addrs: vec![identity::PeerAddr::from("/ip4/1")],
             updated_at: discovery::UnixTime::from_secs(5),
             display_name: None,
+            presence: discovery::Presence::InRoom,
         };
         let members = BTreeMap::from([
             (identity::PeerId::from("me"), heartbeat.clone()),

@@ -24,6 +24,7 @@ mod tests {
                 addrs: Vec::new(),
                 updated_at,
                 display_name: None,
+                presence: discovery::Presence::InRoom,
             },
         );
         discovery::Room {

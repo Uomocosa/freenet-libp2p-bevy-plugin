@@ -49,6 +49,7 @@ mod tests {
                         display_name: Some(identity::Username::from(
                             format!("user{index}").as_str(),
                         )),
+                        presence: discovery::Presence::InRoom,
                     },
                     status: discovery::LinkStatus::Connected,
                 },

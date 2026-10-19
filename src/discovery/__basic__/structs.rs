@@ -12,6 +12,7 @@ pub struct Heartbeat {
     pub addrs: Vec<identity::PeerAddr>,
     pub updated_at: discovery::UnixTime,
     pub display_name: Option<identity::Username>,
+    pub presence: discovery::Presence,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

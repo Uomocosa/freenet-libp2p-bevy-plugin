@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::UnixTime;
+use crate::basic::enums::Presence;
 use crate::basic::newtypes::PeerId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -10,6 +11,7 @@ pub struct Heartbeat {
     pub addrs: Vec<String>,
     pub updated_at: UnixTime,
     pub display_name: Option<String>,
+    pub presence: Presence,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

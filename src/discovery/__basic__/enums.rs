@@ -1,5 +1,6 @@
 use bevy::prelude::Reflect;
 use derive_more::Display;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum LinkStatus {
@@ -27,4 +28,11 @@ pub enum Step {
     Fetch,
     #[display("deploy")]
     Deploy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum Presence {
+    InRoom,
+    HoldingHistory,
+    Quit,
 }

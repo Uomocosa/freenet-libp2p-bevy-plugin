@@ -9,7 +9,7 @@ use discovery::freenet::basic::constants;
 pub async fn run_lobby(
     freenet_config: &discovery::freenet::Config,
     mut subscription: discovery::freenet::LobbyContractSubscription,
-    mut target: Receiver<Option<discovery::state_machine::HeartbeatTarget>>,
+    mut target: Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
     lobbies_tx: UnboundedSender<discovery::Lobby>,
 ) {
     let mut interval = tokio::time::interval(discovery::TICK);
@@ -51,28 +51,33 @@ pub async fn run_lobby(
             }
         }
         let current = target.borrow_and_update().clone();
-        if is_due(last_publish, now, constants::REPUBLISH)
-            && let Some(current) = current
-        {
-            let heartbeat = discovery::Heartbeat {
-                addrs: current.addrs,
-                updated_at: discovery::UnixTime::now(),
-                display_name: Some(current.display_name),
-            };
-            let room = current.room.clone();
-            match discovery::freenet::publish_heartbeat(
-                &mut subscription,
-                &current.room,
-                &freenet_config.me,
-                heartbeat,
-                freenet_config.discovery.room_size,
-                current.created_at,
-            ) {
-                Ok(()) => {
-                    tracing::info!(target: "discovery", ?room, "lobby heartbeat published");
-                }
-                Err(e) => {
-                    tracing::warn!(target: "discovery", ?room, error = %e, "lobby heartbeat publish failed");
+        if is_due(
+            last_publish,
+            now,
+            freenet_config.discovery.lease.renew_every,
+        ) {
+            for current in current {
+                let heartbeat = discovery::Heartbeat {
+                    addrs: current.addrs,
+                    updated_at: discovery::UnixTime::now(),
+                    display_name: Some(current.display_name),
+                    presence: current.presence,
+                };
+                let room = current.room.clone();
+                match discovery::freenet::publish_heartbeat(
+                    &mut subscription,
+                    &current.room,
+                    &freenet_config.me,
+                    heartbeat,
+                    freenet_config.discovery.room_size,
+                    current.created_at,
+                ) {
+                    Ok(()) => {
+                        tracing::info!(target: "discovery", ?room, "lobby heartbeat published");
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "discovery", ?room, error = %e, "lobby heartbeat publish failed");
+                    }
                 }
             }
             last_publish = Some(now);

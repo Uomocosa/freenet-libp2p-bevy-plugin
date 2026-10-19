@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::time::Duration;
 
 use crate::discovery;
 use crate::identity;
@@ -15,11 +16,14 @@ pub struct State {
     pub freenet_peers: Vec<identity::FreenetPeer>,
     pub is_lobby_attached: bool,
     pub display_name: identity::Username,
+    pub held_rooms: BTreeMap<identity::RoomName, discovery::UnixTime>,
+    pub lease_ttl: Duration,
+    pub is_quitting: bool,
 }
 
 impl State {
     #[must_use]
-    pub const fn new(me: identity::Peer) -> Self {
+    pub fn new(me: identity::Peer) -> Self {
         Self {
             me,
             lobby: discovery::Lobby(BTreeMap::new()),
@@ -32,6 +36,9 @@ impl State {
             freenet_peers: Vec::new(),
             is_lobby_attached: false,
             display_name: identity::Username(String::new()),
+            held_rooms: BTreeMap::new(),
+            lease_ttl: discovery::LeaseTimings::default().ttl,
+            is_quitting: false,
         }
     }
 }

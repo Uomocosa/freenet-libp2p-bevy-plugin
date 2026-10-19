@@ -12,6 +12,7 @@ fn plugin_lobby() -> discovery::Lobby {
                 addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/1")],
                 updated_at: discovery::UnixTime::from_secs(7),
                 display_name: name.map(identity::Username::from),
+                presence: discovery::Presence::InRoom,
             },
         );
     }

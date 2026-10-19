@@ -17,6 +17,7 @@ fn one_room(updated_at: u64, created_at: u64) -> Lobby {
             addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
             updated_at: UnixTime(updated_at),
             display_name: None,
+            presence: lobby_contract::Presence::InRoom,
         },
     );
     let mut lobby = Lobby::new();

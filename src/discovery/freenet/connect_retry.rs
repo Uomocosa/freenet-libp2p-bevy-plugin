@@ -7,7 +7,7 @@ use discovery::freenet::basic::constants;
 
 pub async fn connect_retry(
     freenet_config: &discovery::freenet::Config,
-    target: &Receiver<Option<discovery::state_machine::HeartbeatTarget>>,
+    target: &Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
 ) -> discovery::freenet::LobbyContractSubscription {
     let wasm = discovery::freenet::contract_wasm();
     let mut client =
@@ -19,7 +19,7 @@ pub async fn connect_retry(
         let seed = initial_lobby(
             &freenet_config.me,
             freenet_config.discovery.room_size,
-            current.as_ref(),
+            current.first(),
         );
         let result = discovery::freenet::attach(
             &mut client,
@@ -65,6 +65,7 @@ fn initial_lobby(
         addrs: target.addrs.clone(),
         updated_at: discovery::UnixTime::now(),
         display_name: Some(target.display_name.clone()),
+        presence: target.presence,
     };
     let members = std::collections::BTreeMap::from([(me.clone(), heartbeat)]);
     discovery::Lobby::from([(

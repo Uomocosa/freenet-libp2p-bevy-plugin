@@ -7,6 +7,7 @@ pub enum Command {
     Create(identity::RoomName),
     Join(identity::RoomName),
     Leave,
+    Quit,
 }
 
 #[derive(Message, Debug, Clone, PartialEq, Eq)]

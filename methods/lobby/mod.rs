@@ -1,4 +1,4 @@
+mod drop_dead;
 mod merge;
-mod prune;
+pub use drop_dead::drop_dead;
 pub use merge::merge;
-pub use prune::prune;

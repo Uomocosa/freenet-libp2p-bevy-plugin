@@ -6,7 +6,7 @@ pub fn handle_lobby(
     mut lobby: discovery::Lobby,
     now: discovery::UnixTime,
 ) -> Vec<Output> {
-    lobby.prune(now, discovery::state_machine::HEARTBEAT_TTL);
+    lobby.drop_dead(now, state.lease_ttl);
     if lobby == state.lobby {
         return Vec::new();
     }
@@ -47,6 +47,7 @@ mod tests {
                     addrs: vec![identity::PeerAddr::from("/ip4/1")],
                     updated_at: discovery::UnixTime::from_secs(3),
                     display_name: None,
+                    presence: discovery::Presence::InRoom,
                 },
             );
         }

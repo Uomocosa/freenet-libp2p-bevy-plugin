@@ -32,6 +32,7 @@ pub fn handle_handshake(
             addrs: handshake.addrs,
             updated_at: now,
             display_name: Some(handshake.display_name),
+            presence: discovery::Presence::InRoom,
         },
         status: discovery::LinkStatus::Connected,
     };

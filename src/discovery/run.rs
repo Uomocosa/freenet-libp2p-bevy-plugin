@@ -25,7 +25,8 @@ pub async fn run(
     };
     let mut state = State::new(me.clone());
     state.display_name = config.display_name.clone();
-    let (target_tx, target_rx) = tokio::sync::watch::channel(None);
+    state.lease_ttl = config.lease.ttl;
+    let (target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
     let (lobby_tx, mut lobbies) = tokio::sync::mpsc::unbounded_channel();
     let (peers_tx, mut peers) = tokio::sync::mpsc::unbounded_channel();
     let freenet_config = discovery::freenet::Config {
@@ -61,7 +62,7 @@ pub async fn run(
         let outputs =
             discovery::state_machine::update(&mut state, input, discovery::UnixTime::now());
         flush(outputs, &net.commands, &events);
-        let target = discovery::state_machine::heartbeat_target(&state);
+        let target = discovery::state_machine::heartbeat_targets(&state);
         target_tx.send_if_modified(|current| {
             let changed = *current != target;
             if changed {

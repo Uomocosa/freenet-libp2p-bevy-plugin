@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[path = "__basic__/mod.rs"]
 pub mod basic;
+pub use basic::enums::Presence;
 pub use basic::newtypes::{PeerId, RoomName};
 pub use basic::structs::{Heartbeat, Room};
 pub use basic::type_aliases::Lobby;
@@ -41,16 +42,16 @@ fn merge_heartbeat(current: Option<Heartbeat>, incoming: Heartbeat) -> Heartbeat
 
 fn merge_room(current: Option<Room>, incoming: Room) -> Room {
     match current {
-        Some(mut existing) => {
+        Some(mut existing) if existing.created_at == incoming.created_at => {
             for (peer, heartbeat) in incoming.members {
                 let merged = merge_heartbeat(existing.members.remove(&peer), heartbeat);
                 existing.members.insert(peer, merged);
             }
             existing.room_size = existing.room_size.max(incoming.room_size);
-            existing.created_at = existing.created_at.min(incoming.created_at);
             existing
         }
-        None => incoming,
+        Some(existing) if existing.created_at > incoming.created_at => existing,
+        _ => incoming,
     }
 }
 
@@ -180,6 +181,7 @@ mod tests {
                 addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
                 updated_at,
                 display_name: None,
+                presence: Presence::InRoom,
             },
         );
         Room {
@@ -234,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn merge_keeps_min_created_at_both_orders() {
+    fn recreated_room_replaces_old_generation_both_orders() {
         let params = Parameters::from(Vec::new());
         let room_name = RoomName("room-a".to_string());
         let low = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(100));
@@ -255,9 +257,29 @@ mod tests {
             let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
             assert_eq!(
                 decoded[&room_name].created_at,
-                UnixTime::from_secs(100),
-                "min created_at must survive either merge order"
+                UnixTime::from_secs(500),
+                "the newer generation must win in either merge order"
             );
         }
+    }
+
+    #[test]
+    fn quit_tombstone_wins_over_older_heartbeat() {
+        let params = Parameters::from(Vec::new());
+        let name = RoomName("room-a".to_string());
+        let live = room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1));
+        let mut quit = room("peer", UnixTime::from_secs(9), UnixTime::from_secs(1));
+        for heartbeat in quit.members.values_mut() {
+            heartbeat.presence = Presence::Quit;
+        }
+        let base = Lobby::from([(name.clone(), live)]);
+        let incoming = Lobby::from([(name.clone(), quit)]);
+        let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&incoming).unwrap()));
+        let merged = LobbyContract::update_state(params, state_of(&base), vec![update]).unwrap();
+        let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
+        assert_eq!(
+            decoded[&name].members[&PeerId("peer".to_string())].presence,
+            Presence::Quit
+        );
     }
 }
