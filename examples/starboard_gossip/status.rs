@@ -26,12 +26,13 @@ pub fn log_canvas_hash(
     };
     let cell = cursor.unwrap_or_default();
     let held = starboard::canvas::read_cell(canvas, cell);
+    let tiles = canvas.tiles.iter().filter(|tile| tile.is_some()).count();
     let percent = starboard::canvas::SIZE_PERCENTS
         .get(usize::from(brush.size_index))
         .copied()
         .unwrap_or(100);
     tracing::info!(
-        "starboard canvas room={} hash={} cursor={},{} color={:?} size={percent}%",
+        "starboard canvas room={} hash={} tiles={tiles} cursor={},{} color={:?} size={percent}%",
         room.name.as_str(),
         starboard::canvas::hash_canvas(canvas),
         cell.x,

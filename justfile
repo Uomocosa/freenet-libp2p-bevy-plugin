@@ -35,6 +35,10 @@ e2e-join:
 e2e-room:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test room_messaging --all-features --run-ignored all -- --nocapture
 
+# Real, visual e2e: needs X + the freenet network + 3 starboard_gossip windows.
+e2e-starboard:
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test starboard_e2e --all-features --run-ignored all -- --nocapture
+
 # Run the starboard example detached (no terminal tie-up; only the app window).
 # Extra args: --username, --token, --transport.
 run-starboard *ARGS:

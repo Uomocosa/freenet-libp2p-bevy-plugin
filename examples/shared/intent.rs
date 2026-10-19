@@ -11,7 +11,7 @@ use bevy::window::PrimaryWindow;
 use freenet_libp2p_bevy_plugin::discovery;
 use freenet_libp2p_bevy_plugin::identity;
 
-use crate::args;
+use crate::shared::action::Action;
 
 /// One scripted interaction, driven through **real** Bevy input.
 ///
@@ -24,7 +24,7 @@ use crate::args;
 /// second press on the joined room is a `Leave`.
 #[derive(Resource)]
 pub struct Intent {
-    action: Option<args::Action>,
+    action: Option<Action>,
     step: Step,
     retries: u32,
     clicks: u32,
@@ -33,7 +33,7 @@ pub struct Intent {
 
 impl Intent {
     #[must_use]
-    pub const fn new(action: Option<args::Action>) -> Self {
+    pub const fn new(action: Option<Action>) -> Self {
         Self {
             action,
             step: Step::Type,
@@ -87,7 +87,7 @@ pub fn script_input<F, C, J>(
     };
     match intent.step {
         Step::Type => {
-            let args::Action::Create(name) = &action else {
+            let Action::Create(name) = &action else {
                 intent.step = Step::Click;
                 return;
             };
@@ -110,7 +110,7 @@ pub fn script_input<F, C, J>(
             intent.step = Step::Enable;
         }
         Step::Enable => {
-            let args::Action::Create(_) = &action else {
+            let Action::Create(_) = &action else {
                 intent.step = Step::Click;
                 return;
             };
@@ -126,8 +126,8 @@ pub fn script_input<F, C, J>(
         }
         Step::Click => {
             let transform = match &action {
-                args::Action::Create(_) => create.iter().next(),
-                args::Action::Join(room) => join
+                Action::Create(_) => create.iter().next(),
+                Action::Join(room) => join
                     .iter()
                     .find(|(_, button)| ***button == *room)
                     .map(|(transform, _)| transform),
@@ -158,7 +158,7 @@ pub fn script_input<F, C, J>(
         }
         Step::Verify => {
             let target = match &action {
-                args::Action::Create(room) | args::Action::Join(room) => room,
+                Action::Create(room) | Action::Join(room) => room,
             };
             let joined = status
                 .room
@@ -182,10 +182,10 @@ pub fn log_joined(intent: Res<Intent>, mut events: MessageReader<discovery::Even
     for event in events.read() {
         if let discovery::Event::Joined(room) = event {
             match &intent.action {
-                Some(args::Action::Create(_)) => {
+                Some(Action::Create(_)) => {
                     tracing::info!("lobby created room={}", room.as_str());
                 }
-                Some(args::Action::Join(_)) => {
+                Some(Action::Join(_)) => {
                     tracing::info!("lobby joined room={}", room.as_str());
                 }
                 None => {}

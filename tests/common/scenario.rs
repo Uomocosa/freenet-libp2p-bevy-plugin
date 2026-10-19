@@ -5,9 +5,9 @@ use std::time::{Duration, Instant};
 use telegram_bot_helper::send_video_best_effort;
 
 use super::{
-    TerminalGuard, build_game, cleanup_stale, finish_record, last_tick, log_contains, marker_times,
-    poke, read_head, require_x11, rings_ready, senders_seen_in_room, speed_clip, start_record,
-    tile, wakeup_screen,
+    CanvasTick, TerminalGuard, build_game, canvas_ticks, cleanup_stale, finish_record, last_canvas,
+    last_tick, log_contains, marker_times, poke, read_head, require_x11, rings_ready,
+    senders_seen_in_room, speed_clip, start_record, tile, wakeup_screen,
 };
 
 pub const DISCOVERY_BUDGET_SECS: u64 = 120;
@@ -15,6 +15,8 @@ pub const JOIN_BUDGET_SECS: u64 = 180;
 pub const ROOM_MESSAGE_BUDGET_SECS: u64 = 30;
 /// libp2p-only join target: last joiner's press -> every peer fully meshed.
 pub const CONVERGE_BUDGET_MS: u64 = 500;
+/// Starboard only: last scripted stroke -> every peer reporting the same canvas.
+pub const CANVAS_BUDGET_SECS: u64 = 30;
 
 const SPAWN_TIMEOUT_SECS: u64 = 180;
 const RECORD_SECS: u64 = 600;
@@ -24,10 +26,14 @@ const CREATED_MARKER: &str = "lobby created room=";
 
 pub struct Scenario {
     pub name: String,
+    pub bin: &'static str,
+    pub window_prefix: &'static str,
     pub peers: usize,
     pub join: bool,
     pub is_room_ping_enabled: bool,
-    pub ui: String,
+    pub ui: Option<String>,
+    pub scripts: Vec<Option<String>>,
+    pub late_join: bool,
     pub discovery_budget_secs: u64,
     pub join_budget_secs: u64,
 }
@@ -37,10 +43,14 @@ impl Scenario {
     pub fn discover_only(peers: usize) -> Self {
         Self {
             name: "lobby_room_discovery".to_string(),
+            bin: "lobby_room",
+            window_prefix: "lobby",
             peers,
             join: false,
             is_room_ping_enabled: false,
-            ui: "custom".to_string(),
+            ui: Some("custom".to_string()),
+            scripts: Vec::new(),
+            late_join: false,
             discovery_budget_secs: DISCOVERY_BUDGET_SECS,
             join_budget_secs: JOIN_BUDGET_SECS,
         }
@@ -50,10 +60,14 @@ impl Scenario {
     pub fn join(peers: usize) -> Self {
         Self {
             name: "lobby_room_join".to_string(),
+            bin: "lobby_room",
+            window_prefix: "lobby",
             peers,
             join: true,
             is_room_ping_enabled: false,
-            ui: "default".to_string(),
+            ui: Some("default".to_string()),
+            scripts: Vec::new(),
+            late_join: false,
             discovery_budget_secs: DISCOVERY_BUDGET_SECS,
             join_budget_secs: JOIN_BUDGET_SECS,
         }
@@ -63,12 +77,43 @@ impl Scenario {
     pub fn room_messaging(peers: usize) -> Self {
         Self {
             name: "room_messaging".to_string(),
+            bin: "lobby_room",
+            window_prefix: "lobby",
             peers,
             join: true,
             is_room_ping_enabled: true,
-            ui: "default".to_string(),
+            ui: Some("default".to_string()),
+            scripts: Vec::new(),
+            late_join: false,
             discovery_budget_secs: DISCOVERY_BUDGET_SECS,
             join_budget_secs: JOIN_BUDGET_SECS,
+        }
+    }
+
+    /// Three starboard windows: p1 paints, p2 erases some of it, p3 only watches.
+    #[must_use]
+    pub fn starboard(peers: usize) -> Self {
+        Self {
+            name: "starboard_e2e".to_string(),
+            bin: "starboard_gossip",
+            window_prefix: "starboard",
+            peers,
+            join: true,
+            is_room_ping_enabled: false,
+            ui: None,
+            scripts: vec![Some("paint:6".to_string()), Some("erase:3".to_string())],
+            late_join: false,
+            discovery_budget_secs: DISCOVERY_BUDGET_SECS,
+            join_budget_secs: JOIN_BUDGET_SECS,
+        }
+    }
+
+    /// The same, plus one peer that joins only after the painting stopped.
+    #[must_use]
+    pub fn starboard_late_join(peers: usize) -> Self {
+        Self {
+            late_join: true,
+            ..Self::starboard(peers)
         }
     }
 }
@@ -127,7 +172,7 @@ pub async fn run_scenario(scenario: Scenario) -> Report {
         Err(detail) => return early_report(&scenario, detail),
     };
     let mut peers = spawn(&scenario, &env);
-    let checks = evaluate(&scenario, &peers).await;
+    let checks = evaluate(&scenario, &env, &mut peers).await;
     let clip = stop_recording(env.recording.take(), &env.raw, &env.clip);
     let windows = std::mem::take(&mut peers.windows);
     release(windows);
@@ -146,7 +191,7 @@ fn prepare(scenario: &Scenario) -> Result<Env, String> {
     require_x11()?;
     cleanup_stale();
     let build_start = Instant::now();
-    let bin = build_game()?;
+    let bin = build_game(scenario.bin)?;
     let build_secs = build_start.elapsed().as_secs_f64();
     let stamp = epoch_secs();
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -173,7 +218,15 @@ fn spawn(scenario: &Scenario, env: &Env) -> Peers {
     let mut windows = Vec::new();
     let mut logs = Vec::new();
     let create = format!("create:{}", env.room);
-    let first = push_peer(scenario, env, "p1", Some(&create), &mut windows, &mut logs);
+    let first = push_peer(
+        scenario,
+        env,
+        0,
+        "p1",
+        Some(&create),
+        &mut windows,
+        &mut logs,
+    );
     if let Err(e) = &first {
         eprintln!("{e}");
     }
@@ -186,12 +239,13 @@ fn spawn(scenario: &Scenario, env: &Env) -> Peers {
         .unwrap_or_default();
     let created = !room.is_empty();
     let t_create = Instant::now();
-    for index in 2..=scenario.peers {
-        let username = format!("p{index}");
+    for index in 1..first_batch_size(scenario) {
+        let username = format!("p{}", index.saturating_add(1));
         let action = scenario.join.then(|| format!("join:{room}"));
         if let Err(e) = push_peer(
             scenario,
             env,
+            index,
             &username,
             action.as_deref(),
             &mut windows,
@@ -217,30 +271,30 @@ fn spawn(scenario: &Scenario, env: &Env) -> Peers {
     }
 }
 
+// needed helper: peers spawned before the checks run (the late joiner comes later)
+const fn first_batch_size(scenario: &Scenario) -> usize {
+    if scenario.late_join {
+        scenario.peers.saturating_sub(1)
+    } else {
+        scenario.peers
+    }
+}
+
 fn push_peer(
     scenario: &Scenario,
     env: &Env,
+    index: usize,
     username: &str,
     action: Option<&str>,
     windows: &mut Vec<TerminalGuard>,
     logs: &mut Vec<PathBuf>,
 ) -> Result<(), String> {
-    let log = spawn_peer(
-        &env.bin,
-        &env.dir,
-        username,
-        action,
-        &env.token,
-        &env.transport,
-        &scenario.ui,
-        scenario.is_room_ping_enabled,
-        windows,
-    )?;
+    let log = spawn_peer(scenario, env, index, username, action, windows)?;
     logs.push(log);
     Ok(())
 }
 
-async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
+async fn evaluate(scenario: &Scenario, env: &Env, peers: &mut Peers) -> Vec<Check> {
     // Wait for the lobby row itself, not a transport-connection proxy. `ring ready`
     // is emitted once a node actually reads the lobby, which on mainnet can take
     // tens of seconds; the two checks then separate "a node never read the lobby"
@@ -259,10 +313,11 @@ async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
         && seen
         && peers.t_create.elapsed().as_secs() <= scenario.discovery_budget_secs;
     let (join_ok, join_ms, join_detail) = evaluate_join(scenario, peers, ring_ok).await;
+    let expected = first_batch_size(scenario);
     let spawn_check = Check {
         name: "spawn".to_string(),
-        ok: peers.spawn_ok && peers.logs.len() == scenario.peers,
-        detail: format!("{}/{} instances", peers.logs.len(), scenario.peers),
+        ok: peers.spawn_ok && peers.logs.len() == expected,
+        detail: format!("{}/{} instances", peers.logs.len(), expected),
     };
     let published = creator_published(&peers.logs);
     let lobby_check = Check {
@@ -301,16 +356,128 @@ async fn evaluate(scenario: &Scenario, peers: &Peers) -> Vec<Check> {
         join_check,
     ];
     if scenario.join {
-        checks.push(converge_check(&peers.logs, scenario.peers));
+        checks.push(converge_check(&peers.logs, peers.logs.len()));
     }
     if scenario.is_room_ping_enabled {
-        checks.push(evaluate_room_messages(scenario, peers, join_ok).await);
+        checks.push(evaluate_room_messages(peers, join_ok).await);
+    }
+    if scenario.late_join {
+        checks.push(late_join_check(scenario, env, peers).await);
+    }
+    if scenario.bin == "starboard_gossip" {
+        checks.push(canvas_check(peers).await);
     }
     checks
 }
 
+// needed helper: spawns the late joiner once the others are meshed and waits for the new mesh
+async fn late_join_check(scenario: &Scenario, env: &Env, peers: &mut Peers) -> Check {
+    let index = peers.logs.len();
+    let username = format!("p{}", index.saturating_add(1));
+    let action = scenario.join.then(|| format!("join:{}", peers.room));
+    let start = Instant::now();
+    let pushed = push_peer(
+        scenario,
+        env,
+        index,
+        &username,
+        action.as_deref(),
+        &mut peers.windows,
+        &mut peers.logs,
+    );
+    if let Err(e) = &pushed {
+        eprintln!("{e}");
+    }
+    let spawned = pushed.is_ok();
+    if let Err(e) = tile(&peers.windows) {
+        eprintln!("tile: {e}");
+    }
+    let total = peers.logs.len();
+    let meshed = did_predicate_hold_within(Duration::from_secs(scenario.join_budget_secs), || {
+        are_all_peers_in_room(&peers.logs, &peers.room, total)
+    })
+    .await;
+    let detail = if meshed {
+        "full mesh".to_string()
+    } else {
+        format!("mesh not reached: {}", mesh_snapshot(&peers.logs, total))
+    };
+    Check {
+        name: "late_join".to_string(),
+        ok: spawned && meshed,
+        detail: format!(
+            "{}ms budget={}s {total} instances {detail}",
+            start.elapsed().as_millis(),
+            scenario.join_budget_secs
+        ),
+    }
+}
+
+// needed helper: every peer's canvas hash agrees after the last scripted stroke
+async fn canvas_check(peers: &Peers) -> Check {
+    let start = Instant::now();
+    let agreed = did_predicate_hold_within(Duration::from_secs(CANVAS_BUDGET_SECS), || {
+        do_canvases_agree(&peers.logs)
+    })
+    .await;
+    let snapshot: Vec<String> = peers
+        .logs
+        .iter()
+        .enumerate()
+        .map(|(index, log)| {
+            let tick = last_canvas(log);
+            format!(
+                "p{}:hash={},tiles={}",
+                index.saturating_add(1),
+                tick.as_ref().map_or(0, |tick| tick.hash),
+                tick.as_ref().map_or(0, |tick| tick.tiles)
+            )
+        })
+        .collect();
+    Check {
+        name: "canvas".to_string(),
+        ok: agreed,
+        detail: format!(
+            "{}ms budget={CANVAS_BUDGET_SECS}s [{}]",
+            start.elapsed().as_millis(),
+            snapshot.join(" ")
+        ),
+    }
+}
+
+// needed helper: every peer reports the same non-empty canvas after the last stroke
+fn do_canvases_agree(logs: &[PathBuf]) -> bool {
+    let last_script = logs
+        .iter()
+        .filter_map(|log| {
+            marker_times(log, "starboard script done")
+                .last()
+                .map(|(ms, _)| *ms)
+        })
+        .max();
+    let Some(last_script) = last_script else {
+        return false;
+    };
+    let seen: Vec<Option<CanvasTick>> = logs
+        .iter()
+        .map(|log| {
+            canvas_ticks(log)
+                .into_iter()
+                .rfind(|(ms, _)| *ms >= last_script)
+                .map(|(_, tick)| tick)
+        })
+        .collect();
+    seen.first().and_then(Option::as_ref).is_some_and(|first| {
+        first.tiles > 0
+            && seen.iter().all(|tick| {
+                tick.as_ref()
+                    .is_some_and(|tick| tick.hash == first.hash && tick.tiles == first.tiles)
+            })
+    })
+}
+
 // needed helper: verifies every peer received a room message from every other peer
-async fn evaluate_room_messages(scenario: &Scenario, peers: &Peers, join_ok: bool) -> Check {
+async fn evaluate_room_messages(peers: &Peers, join_ok: bool) -> Check {
     if !join_ok {
         return Check {
             name: "room_message".to_string(),
@@ -319,7 +486,7 @@ async fn evaluate_room_messages(scenario: &Scenario, peers: &Peers, join_ok: boo
         };
     }
     let start = Instant::now();
-    let want = scenario.peers.saturating_sub(1);
+    let want = peers.logs.len().saturating_sub(1);
     let delivered =
         did_predicate_hold_within(Duration::from_secs(ROOM_MESSAGE_BUDGET_SECS), || {
             peers
@@ -360,7 +527,7 @@ async fn evaluate_join(scenario: &Scenario, peers: &Peers, ring_ok: bool) -> (bo
         );
     }
     let mesh = did_predicate_hold_within(Duration::from_secs(scenario.join_budget_secs), || {
-        are_all_peers_in_room(&peers.logs, &peers.room, scenario.peers)
+        are_all_peers_in_room(&peers.logs, &peers.room, peers.logs.len())
     })
     .await;
     let budget_ok = peers.t_join.elapsed().as_secs() <= scenario.join_budget_secs;
@@ -369,7 +536,7 @@ async fn evaluate_join(scenario: &Scenario, peers: &Peers, ring_ok: bool) -> (bo
     } else {
         format!(
             "mesh not reached: {}",
-            mesh_snapshot(&peers.logs, scenario.peers)
+            mesh_snapshot(&peers.logs, peers.logs.len())
         )
     };
     (
@@ -397,8 +564,14 @@ fn build_caption(scenario: &Scenario, env: &Env, peers: &Peers, checks: &[Check]
     let mut lines = vec![
         freenet_status(env, &peers.logs),
         format!(
-            "{} ui={} room={} transport={} peers={} · build {:.1}s",
-            scenario.name, scenario.ui, peers.room, env.transport, scenario.peers, env.build_secs
+            "{} bin={} ui={} room={} transport={} peers={} · build {:.1}s",
+            scenario.name,
+            scenario.bin,
+            scenario.ui.as_deref().unwrap_or("none"),
+            peers.room,
+            env.transport,
+            peers.logs.len(),
+            env.build_secs
         ),
         format!("created={} spawn_ok={}", peers.created, peers.spawn_ok),
     ];
@@ -470,37 +643,41 @@ fn early_report(scenario: &Scenario, detail: String) -> Report {
     }
 }
 
-// needed helper: spawns one app instance with its action/token args
+// needed helper: spawns one app instance with its action/script/token args
 fn spawn_peer(
-    bin: &Path,
-    dir: &Path,
+    scenario: &Scenario,
+    env: &Env,
+    index: usize,
     username: &str,
     action: Option<&str>,
-    token: &str,
-    transport: &str,
-    ui: &str,
-    is_room_ping_enabled: bool,
     windows: &mut Vec<TerminalGuard>,
 ) -> Result<PathBuf, String> {
-    let log = dir.join(format!("instance-{username}.log"));
+    let log = env.dir.join(format!("instance-{username}.log"));
     let mut args = vec![
         "--username".to_string(),
         username.to_string(),
         "--token".to_string(),
-        token.to_string(),
+        env.token.clone(),
         "--transport".to_string(),
-        transport.to_string(),
-        "--ui".to_string(),
-        ui.to_string(),
+        env.transport.clone(),
     ];
+    if let Some(ui) = &scenario.ui {
+        args.push("--ui".to_string());
+        args.push(ui.clone());
+    }
     if let Some(action) = action {
         args.push("--action".to_string());
         args.push(action.to_string());
     }
-    if is_room_ping_enabled {
+    if let Some(script) = scenario.scripts.get(index).and_then(Option::as_ref) {
+        args.push("--script".to_string());
+        args.push(script.clone());
+    }
+    if scenario.is_room_ping_enabled {
         args.push("--room-ping".to_string());
     }
-    let guard = super::spawn_app::spawn_app(bin, &args, username, &log)?;
+    let guard =
+        super::spawn_app::spawn_app(&env.bin, &args, username, &log, scenario.window_prefix)?;
     windows.push(guard);
     Ok(log)
 }

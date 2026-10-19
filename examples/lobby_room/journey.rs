@@ -10,7 +10,7 @@ mod tests {
     use bevy::prelude::*;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
-    use crate::{overlay, status};
+    use crate::{overlay, shared::status};
 
     const JOIN_ROOM: &str = "gamma";
     const JOURNEY_FPS: u32 = 30;

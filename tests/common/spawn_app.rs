@@ -3,8 +3,7 @@ use std::process::{Command, Stdio};
 
 use super::terminal_guard::TerminalGuard;
 
-const DEFAULT_RUST_LOG: &str =
-    "info,lobby_room=debug,p2p=debug,discovery=debug,freenet_libp2p_bevy_plugin=debug";
+const DEFAULT_RUST_LOG: &str = "info,lobby_room=debug,starboard_gossip=debug,p2p=debug,discovery=debug,freenet_libp2p_bevy_plugin=debug";
 
 /// # Errors
 /// Returns an error if the log cannot be created or the app fails to spawn.
@@ -13,13 +12,14 @@ pub fn spawn_app(
     args: &[String],
     username: &str,
     log: &Path,
+    window_prefix: &str,
 ) -> Result<TerminalGuard, String> {
     let log_file =
         std::fs::File::create(log).map_err(|e| format!("create log {}: {e}", log.display()))?;
     let err_file = log_file
         .try_clone()
         .map_err(|e| format!("clone log {}: {e}", log.display()))?;
-    let title = format!("lobby-{username}");
+    let title = format!("{window_prefix}-{username}");
     let rust_log = std::env::var("LOBBY_RUST_LOG").unwrap_or_else(|_| DEFAULT_RUST_LOG.to_string());
     let child = Command::new(bin)
         .args(args)

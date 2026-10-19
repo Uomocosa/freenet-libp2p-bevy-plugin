@@ -2,8 +2,8 @@ use std::process::Command;
 use std::time::Duration;
 
 pub fn cleanup_stale() {
-    let _ = Command::new("pkill")
-        .args(["-f", "examples/lobby_room"])
-        .output();
+    for example in ["examples/lobby_room", "examples/starboard_gossip"] {
+        let _ = Command::new("pkill").args(["-f", example]).output();
+    }
     std::thread::sleep(Duration::from_secs(2));
 }

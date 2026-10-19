@@ -4,7 +4,7 @@
 use bevy::prelude::*;
 use freenet_libp2p_bevy_plugin::{discovery, identity};
 
-use crate::status;
+use crate::shared::status;
 
 const BAR_COLOR: Color = Color::srgb(0.106, 0.122, 0.153);
 const DIM_COLOR: Color = Color::srgb(0.62, 0.66, 0.72);
@@ -216,7 +216,9 @@ mod tests {
 
     fn preview_build(app: &mut App) {
         app.insert_resource(discovery::Status::default());
-        app.insert_resource(crate::status::LocalUser(identity::Username::from("alice")));
+        app.insert_resource(crate::shared::status::LocalUser(identity::Username::from(
+            "alice",
+        )));
         app.add_plugins(Overlay);
         join_first_room(app.world_mut());
     }

@@ -41,6 +41,31 @@ pub fn last_tick(path: &Path) -> Option<Tick> {
     content.lines().filter_map(parse_tick_line).next_back()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CanvasTick {
+    pub room: Option<String>,
+    pub hash: u64,
+    pub tiles: usize,
+}
+
+#[must_use]
+pub fn last_canvas(path: &Path) -> Option<CanvasTick> {
+    let content = strip_ansi(&std::fs::read_to_string(path).ok()?);
+    content.lines().filter_map(parse_canvas_line).next_back()
+}
+
+/// Milliseconds-of-day plus the parsed tick for every `starboard canvas` line.
+#[must_use]
+pub fn canvas_ticks(path: &Path) -> Vec<(u64, CanvasTick)> {
+    strip_ansi(&std::fs::read_to_string(path).unwrap_or_default())
+        .lines()
+        .filter_map(|line| {
+            let tick = parse_canvas_line(line)?;
+            line_millis(line).map(|ms| (ms, tick))
+        })
+        .collect()
+}
+
 /// Milliseconds-of-day timestamps of every line containing `needle`.
 #[must_use]
 pub fn marker_times(path: &Path, needle: &str) -> Vec<(u64, String)> {
@@ -115,6 +140,27 @@ fn parse_tick_line(line: &str) -> Option<Tick> {
             tick.connected = value.parse().unwrap_or(0);
         } else if let Some(value) = token.strip_prefix("freenet_peers=") {
             tick.freenet_peers = value.parse().unwrap_or(0);
+        }
+    }
+    Some(tick)
+}
+
+// needed helper: parses one `starboard canvas ...` marker line
+fn parse_canvas_line(line: &str) -> Option<CanvasTick> {
+    let start = line.find("starboard canvas ")?;
+    let rest = line.get(start.checked_add("starboard canvas ".len())?..)?;
+    let mut tick = CanvasTick {
+        room: None,
+        hash: 0,
+        tiles: 0,
+    };
+    for token in rest.split_whitespace() {
+        if let Some(value) = token.strip_prefix("room=") {
+            tick.room = (value != "none").then(|| value.to_string());
+        } else if let Some(value) = token.strip_prefix("hash=") {
+            tick.hash = value.parse().unwrap_or(0);
+        } else if let Some(value) = token.strip_prefix("tiles=") {
+            tick.tiles = value.parse().unwrap_or(0);
         }
     }
     Some(tick)

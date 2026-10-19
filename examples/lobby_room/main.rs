@@ -2,11 +2,9 @@
 mod shared;
 
 mod args;
-mod intent;
 mod journey;
 mod overlay;
 mod ping;
-mod status;
 mod ui;
 
 use bevy::prelude::*;
@@ -33,9 +31,9 @@ async fn main() {
     }));
     app.insert_resource(discovery::FreenetPort(ws_port));
     let username = identity::Username::from(args.username.clone());
-    app.insert_resource(status::LocalUser(username.clone()));
+    app.insert_resource(shared::status::LocalUser(username.clone()));
     app.insert_resource(ping::IsRoomPingEnabled(args.is_room_ping_enabled));
-    app.insert_resource(intent::Intent::new(args.action.clone()));
+    app.insert_resource(shared::intent::Intent::new(args.action.clone()));
     let game = args.token.clone().map_or_else(
         || freenet_libp2p_bevy_plugin::game_id!(),
         identity::GameId::from,
@@ -55,7 +53,7 @@ async fn main() {
             app.add_plugins(discovery_plugins);
             app.add_systems(
                 Update,
-                intent::script_input::<
+                shared::intent::script_input::<
                     discovery::ui::RoomNameInput,
                     discovery::ui::CreateRoomButton,
                     discovery::ui::RoomButton,
@@ -71,7 +69,7 @@ async fn main() {
             app.add_plugins(ui::LobbyUi);
             app.add_systems(
                 Update,
-                intent::script_input::<ui::NameField, ui::NewRoomButton, ui::JoinButton>,
+                shared::intent::script_input::<ui::NameField, ui::NewRoomButton, ui::JoinButton>,
             );
         }
     }
@@ -79,9 +77,9 @@ async fn main() {
     app.add_systems(
         Update,
         (
-            intent::log_joined,
-            status::log_tick,
-            status::log_mesh,
+            shared::intent::log_joined,
+            shared::status::log_tick,
+            shared::status::log_mesh,
             ping::publish_room_ping,
             ping::log_room_messages,
         ),

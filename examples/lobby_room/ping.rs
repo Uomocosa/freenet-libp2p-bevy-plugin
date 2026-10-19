@@ -3,7 +3,7 @@ use derive_more::Deref;
 use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 use serde::{Deserialize, Serialize};
 
-use crate::status;
+use crate::shared::status;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Deref)]
 pub struct PingPayload(pub identity::Username);
@@ -69,7 +69,7 @@ mod tests {
     use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
     use super::{IsRoomPingEnabled, PingPayload, log_room_messages, publish_room_ping};
-    use crate::status::LocalUser;
+    use crate::shared::status::LocalUser;
 
     #[test]
     fn test_usage() {

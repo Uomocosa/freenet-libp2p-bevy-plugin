@@ -35,6 +35,11 @@ path = "tests/room_messaging.rs"
 required-features = ["e2e"]
 
 [[test]]
+name = "starboard_e2e"
+path = "tests/starboard_e2e.rs"
+required-features = ["e2e"]
+
+[[test]]
 name = "contract_wire"
 path = "tests/contract_wire.rs"
 

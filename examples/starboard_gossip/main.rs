@@ -6,6 +6,7 @@ mod shared;
 
 mod args;
 mod status;
+mod stroke_script;
 
 use bevy::prelude::*;
 use clap::Parser;
@@ -34,6 +35,10 @@ async fn main() {
     }));
     app.add_systems(Startup, spawn_camera);
     app.insert_resource(discovery::FreenetPort(ws_port));
+    app.insert_resource(shared::status::LocalUser(identity::Username::from(
+        args.username.clone(),
+    )));
+    app.insert_resource(shared::intent::Intent::new(args.action.clone()));
     app.add_plugins(plugin::P2PPlugin(
         plugin::Config::<starboard::room::CursorUpdate>::new(
             args::transport_mode(args.transport),
@@ -50,7 +55,27 @@ async fn main() {
         game,
     ));
     app.add_plugins(starboard::app::StarboardPlugin);
-    app.add_systems(Update, status::log_canvas_hash);
+    app.add_systems(
+        Update,
+        shared::intent::script_input::<
+            discovery::ui::RoomNameInput,
+            discovery::ui::CreateRoomButton,
+            discovery::ui::RoomButton,
+        >,
+    );
+    app.add_systems(
+        Update,
+        (
+            shared::intent::log_joined,
+            shared::status::log_tick,
+            shared::status::log_mesh,
+            status::log_canvas_hash,
+        ),
+    );
+    if let Some(script) = args.script {
+        app.insert_resource(stroke_script::StrokeScript::new(script));
+        app.add_systems(Update, stroke_script::run_stroke_script);
+    }
     app.run();
 }
 

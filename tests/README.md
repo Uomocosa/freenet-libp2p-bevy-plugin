@@ -1,15 +1,16 @@
 # Discovery e2e tests
 
 Real, visual, `#[ignore]`d end-to-end tests for the Freenet room lobby + libp2p mesh.
-They spawn real `lobby_room` windows (one embedded Freenet node each), record the
-screen, and send the clip to Telegram.
+They spawn real `lobby_room` (or `starboard_gossip`) windows (one embedded Freenet node
+each), record the screen, and send the clip to Telegram.
 
 ## Run
 
 ```
-just e2e-discovery   # 3 peers: all discover the created room
-just e2e-join        # 5 peers: discover, join, full mesh
-just e2e-room        # 3 peers: discover, join, full mesh, all-to-all room gossipsub
+just e2e-discovery   # 3 lobby_room peers: all discover the created room
+just e2e-join        # 5 lobby_room peers: discover, join, full mesh
+just e2e-room        # 3 lobby_room peers: discover, join, full mesh, all-to-all room gossipsub
+just e2e-starboard   # 3 starboard peers paint/erase, plus a 4th that joins late
 ```
 
 Direct equivalent:
@@ -18,6 +19,7 @@ Direct equivalent:
 cargo nextest run --test lobby_room_discovery --all-features --run-ignored all -- --nocapture
 cargo nextest run --test lobby_room_join      --all-features --run-ignored all -- --nocapture
 cargo nextest run --test room_messaging       --all-features --run-ignored all -- --nocapture
+cargo nextest run --test starboard_e2e        --all-features --run-ignored all -- --nocapture
 ```
 
 Prerequisites: an X session, `xterm`, `xdotool`, `wmctrl`, `ffmpeg` (with `x11grab`),
@@ -43,8 +45,11 @@ Adding any such shortcut invalidates the test even if it makes it pass.
 ## How it works (harness = `common/`)
 
 - `scenario.rs`: shared code both tests use. `Scenario::discover_only(3)` / `Scenario::join(5)`.
+  `Scenario::starboard(3)` / `Scenario::starboard_late_join(4)` drive the `starboard_gossip`
+  binary instead: `bin`, `window_prefix`, `ui` (starboard has none), `scripts` (per-peer
+  `--script`) and `late_join` are the knobs.
 - UI: every action goes through the on-screen buttons, driven by **real** in-process
-  input (`examples/lobby_room/intent.rs::script_input`). `create:<r>` focuses the name
+  input (`examples/shared/intent.rs::script_input`). `create:<r>` focuses the name
   field and types `<r>` with real `KeyboardInput` events, waiting for the Create button
   to become clickable, then clicks it with a real pointer click (`MouseButtonInput` +
   window cursor). `join:<r>` waits until the room's button appears and clicks it.
@@ -56,6 +61,9 @@ Adding any such shortcut invalidates the test even if it makes it pass.
   - discovery test: `--ui custom`, which disables `discovery::ui::DefaultUiPlugin` and adds
     the example's replacement `examples/lobby_room/ui.rs::LobbyUi`.
   - join test: `--ui default`, the plugin's default UI.
+  - starboard: `--script paint:<n>` / `--script erase:<n>` writes the app's own
+    `PendingLocalDraw` messages (the same seam the mouse writes) at fixed cells, so p1
+    paints, p2 erases some of it, and every peer must converge on one canvas hash.
 - Log markers are the oracle (keep them stable, or update `common/log_parse.rs`):
   - `lobby created room=<r>`
   - `lobby joined room=<r>`
@@ -72,7 +80,15 @@ Adding any such shortcut invalidates the test even if it makes it pass.
 - Checks: `spawn`, `lobby` (creator published), `ring` (every peer read the lobby),
   `discovery` (every peer's rooms lists the room), `join`, `converge`. A node
   that never reaches the ring is reported as `ring`/`isolated=[..]`, not as a
-  mystery `discovery` failure.
+  mystery `discovery` failure. Starboard adds two more:
+  - `late_join` (`Scenario::starboard_late_join`): the last peer is spawned only after the
+    others are meshed, then every peer must show `connected=N-1` again.
+  - `canvas`: after the last `starboard script done` marker, every peer's newest
+    `starboard canvas … hash=<h> tiles=<n>` line must agree, with `tiles > 0`
+    (budget `CANVAS_BUDGET_SECS` = 30 s).
+- Starboard markers (keep them stable, or update `common/log_parse.rs`):
+  - `starboard canvas room=<r> hash=<h> tiles=<n> cursor=<x>,<y> color=<c> size=<p>%` (1 Hz)
+  - `starboard script done paint|erase strokes=<n>`
 - Layering: Freenet only seeds candidates (lobby heartbeat, polled in its own task);
   room membership is libp2p-only — a peer is a member once it is connected AND has sent a
   `/blackboard/pex/1.0.0` handshake for the same room. Handshakes carry the sender's members, so one

@@ -3,7 +3,7 @@ use std::process::Command;
 
 /// # Errors
 /// Returns an error if the cargo build fails or the binary is missing.
-pub fn build_game() -> Result<PathBuf, String> {
+pub fn build_game(example: &str) -> Result<PathBuf, String> {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let target = target_root(manifest)?;
     let profile = std::env::var("LOBBY_BUILD_PROFILE").unwrap_or_else(|_| "dev".to_string());
@@ -13,7 +13,7 @@ pub fn build_game() -> Result<PathBuf, String> {
         .args([
             "build",
             "--example",
-            "lobby_room",
+            example,
             "--features",
             "e2e",
             "--profile",
@@ -32,7 +32,7 @@ pub fn build_game() -> Result<PathBuf, String> {
     } else {
         profile.as_str()
     };
-    let bin = target.join(folder).join("examples").join("lobby_room");
+    let bin = target.join(folder).join("examples").join(example);
     if !bin.exists() {
         return Err(format!("expected build output {} not found", bin.display()));
     }
