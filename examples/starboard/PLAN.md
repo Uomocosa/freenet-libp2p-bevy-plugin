@@ -1278,29 +1278,152 @@ CPU tile repaint (one pass over a fully painted 4 MiB canvas): 1 tile `<1 ms`, 3
 
 ## Step B7 — Starboard e2e acceptance
 
-- [ ] `tests/starboard_e2e.rs` (`#[ignore]`, `e2e`), reusing `tests/common/`: 3 real
+- [x] `tests/starboard_e2e.rs` (`#[ignore]`, `e2e`), reusing `tests/common/`: 3 real
       `starboard_gossip` windows meet via Freenet lobby only (HARD RULE), join one
       room; peer A paints scripted strokes (via a test-only `--script` arg), peer B
       erases some; all peers log canvas hash; assert all hashes equal within timeout.
       Record + send the clip like the other e2e tests. `just e2e-starboard`.
-- [ ] Late-join case: peer C joins after painting; its hash converges (snapshot path).
-- [ ] Run it; record outcome.
+- [x] Late-join case: peer C joins after painting; its hash converges (snapshot path).
+- [x] Run it; record outcome.
 
 ### What was done (Step B7)
-_(agent fills)_
+
+**Files added:** `examples/shared/{action,intent,status}.rs` (moved out of
+`examples/lobby_room/`), `examples/starboard_gossip/stroke_script.rs`,
+`tests/starboard_e2e.rs`.
+
+**Files changed:** `examples/lobby_room/{args,main,overlay,ping,journey}.rs` (use the shared
+modules; `intent.rs`/`status.rs` deleted), `examples/shared/mod.rs`,
+`examples/starboard_gossip/{args,main,status}.rs`, `tests/common/{build_game,cleanup_stale,
+log_parse,mod,scenario,spawn_app}.rs`, `Cargo.toml` (`[[test]] starboard_e2e`), `justfile`
+(`e2e-starboard`), `tests/README.md`.
+
+**Public API added:** `shared::{action::Action, intent::{Intent, script_input, log_joined},
+status::{LocalUser, log_tick, log_mesh}}` (relocated, not new);
+`starboard_gossip::{args::ScriptArg, stroke_script::{StrokeScript, run_stroke_script}}`;
+harness `{CanvasTick, canvas_ticks, last_canvas}`, `Scenario::{bin, window_prefix,
+ui: Option, scripts, late_join}`, `Scenario::{starboard, starboard_late_join}`,
+`CANVAS_BUDGET_SECS`. `build_game(example)` and `spawn_app(.., window_prefix)` changed shape.
+The plugin crate is untouched.
+
+**How the two halves meet.** The starboard bin now mounts the *shared* lobby script
+(`shared::intent::Intent` + `script_input` + `log_joined`, `shared::status::{log_tick,
+log_mesh}`), so it emits exactly the markers the proven harness reads (`lobby tick`,
+`lobby created|joined room=`, `lobby mesh`, `lobby intent pressed`) and creates/joins the
+room through **real** typed/clicked input. Painting and erasing go through the app's own
+`PendingLocalDraw` seam (`--script paint:<n>` / `erase:<n>`), and the bin's canvas line grew
+`tiles=<n>` so the harness can require a non-empty converged canvas. The eraser waits until
+its own canvas has content, then erases the painter's cells (same geometry, its own brush).
+
+**Measured (three mainnet runs, dev profile, this machine):**
+
+| Run | Peers | spawn | lobby | ring | discovery | join | converge | late_join | canvas |
+|---|---:|---|---|---|---:|---:|---:|---:|---|
+| `starboard_e2e` | 3 | 3/3 | published | 3/3 | 19 278 ms | 19 458 ms full mesh | 113 ms | — | **19 ms**, hash `13115979920788683196`, tiles 23 on all 3 |
+| `starboard_late_join` | 4 | 3/3 | published | 3/3 | 46 602 ms | 46 090 ms full mesh | 84 ms | 1 647 ms full mesh | **28 ms**, hash `17880803552194273149`, tiles 23 on all 4 |
+| `just e2e-join` (regression) | 5 | 5/5 | published | 5/5 | 7 038 ms | 4 633 ms full mesh | 98 ms | — | — |
+
+All budgets are the harness's own (discovery 120 s, join 180 s, converge 500 ms, canvas
+30 s). Clips recorded and sent (Telegram message ids 1607, 1609, 1611). Logs:
+`.local-run/starboard_e2e-1792358530`, `.local-run/starboard_e2e-1792358673`,
+`.local-run/lobby_room_join-1792358826`.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**240 passed**, 6 skipped), `just lint`, `just bevy-lint`, `just e2e-starboard`,
+`starboard_late_join` (`-E 'test(starboard_late_join)'`), `just e2e-join`. No contract
+changes.
+
+**Deviations / decisions:**
+- **`Action`, `Intent`, `status` moved to `examples/shared/`** (user call): without the
+  shared markers the harness's ring/discovery/join/converge checks cannot run against
+  starboard, and a second copy of ~250 lines of e2e oracle code would drift. `lobby_room`
+  now imports them; the only new shared content is the module list.
+- **`--script paint:<n>` / `erase:<n>`** (user call), parsed like the existing
+  `--action create:<room>`; `ScriptArg::strokes/label` are `const fn` taking `self`.
+- **Painting goes through `PendingLocalDraw`** (user call), the same message the mouse
+  writes in B4 (already covered headlessly), rather than synthesized clicks: a tiled
+  3-window run has no reliable hover/focus.
+- **The script only exists when asked for.** `--script` inserts `StrokeScript` and adds
+  `run_stroke_script`; a run without the arg is byte-for-byte the old bin.
+- **The late joiner is spawned mid-check**, after the first mesh and before the canvas
+  check, and the mesh is re-verified at the new size (`late_join` check).
+- **The moved `#![allow(clippy::needless_pass_by_value)]`** in `shared/intent.rs` is
+  lobby_room's existing file-level allow, relocated unchanged (not broadened, not copied);
+  flagged here for review.
+- **Not done:** the B6 `Update`-ordering fix (it changes plugin behaviour and wants its own
+  step).
+
+**Open issues (for later steps):**
+- Mainnet timings swing a lot run to run (the late-join run's discovery took 46.6 s vs
+  19.3 s) — the budgets are generous for that reason, and a red run needs a re-run before
+  it means anything.
+- `just e2e-starboard` runs both starboard tests back to back; each was run green
+  individually here.
+- B8: fold the starboard markers/checks into the README (done here) and re-read D14's
+  "final acceptance" wording against what the e2e now proves (hash agreement, not a
+  pixel-exact expectation).
 
 ---
 
 ## Step B8 — Polish & docs
 
-- [ ] `examples/starboard/README.md`: how to run, controls, architecture diagram
+- [x] `examples/starboard/README.md`: how to run, controls, architecture diagram
       (lobby → room → gossipsub → room_sync → Canvas).
-- [ ] Root `README.md`: mention starboard and room API defaults.
-- [ ] Revisit open issues collected in previous "What was done" sections; list
+- [x] Root `README.md`: mention starboard and room API defaults.
+- [x] Revisit open issues collected in previous "What was done" sections; list
       remaining ones here.
 
 ### What was done (Step B8)
-_(agent fills)_
+
+**Files added:**
+- `examples/starboard/README.md` — run, controls, architecture, module map, tests
+  and wire format. It links to the root README for the plugin API/defaults and to
+  `BENCH.md` for the measured numbers, so neither is duplicated.
+
+**Files changed:**
+- `README.md` — a new `## Examples` section (`lobby_room`, `starboard`) and a
+  completed Tasks list (`run`, `demo`, `run-starboard`, the four `e2e-*` recipes,
+  `bench-starboard`). The Rooms section already documents the room API defaults
+  (gossipsub, 100 ms heartbeat, `mesh_n_low` 2, `flood_publish`, 64 KiB payload cap,
+  2 s anti-entropy with an 8-fetch cap); it was checked against
+  `src/p2p/gossipsub_config.rs` and `src/room_sync/anti_entropy_config.rs` and
+  needed no change.
+- `examples/starboard/PLAN.md` — this section.
+
+**D14 acceptance.** "Final acceptance" is B7's e2e: every peer logs the same
+`starboard canvas … hash=<h> tiles=<n>` with `tiles > 0`. That is hash agreement,
+not a pixel-exact expectation: the canvas is a CRDT, so equal hashes prove equal
+cells.
+
+**Remaining open issues** (consolidated from A1–B7; nothing new in B8):
+
+| # | Issue | Source | Status |
+|---|---|---|---|
+| 1 | `created_at` merges by min, so a reused room name keeps its old day counter and a hostile client can push it to 0. | D6, A1 | accepted |
+| 2 | A room fresher than the peer's attach fetch can carry a too-new `created_at` for ≤1 lobby refresh (5 s); A8's gate absorbs it. | A1, A8 | bounded |
+| 3 | Publishing before the gossipsub mesh knows the subscription returns `NoPeersSubscribedToTopic` → `Event::Error`; anti-entropy repairs the data, not the error. | A2, A6 | open |
+| 4 | `game` is configured twice (`plugin::Config.game` and `discovery::Config.game`); every bin must pass the same value to both. | A2 | open |
+| 5 | The raw escape hatch (`NetEvent::Gossip`, `NetCommand::{Publish, Subscribe}`) still sits beside the room API. | A2, A4 | intentional |
+| 6 | `RoomSubscriptions.joined` is one slot: one room per session. | A4 | by design |
+| 7 | Anti-entropy announcements grow with touched tiles (2.0 / 8.0 KiB measured; ~12 KiB for a full canvas every 2 s). | A6, B6 | measured |
+| 8 | The create path's `JoiningRoom` screen has no automated e2e (the join e2e takes the list path). | A8 | open |
+| 9 | Brush size is per session; it is neither persisted nor shared with the room. | B4, D12 | accepted |
+| 10 | The board and lobby screens have not been reviewed together as one design; the leave flow is the plugin's default UI. | B5 | open |
+| 11 | A peer that stops moving keeps its last remote cursor until it leaves the room. | B5 | accepted (lossy presence) |
+| 12 | The GPU 4 MiB texture re-upload while painting is unmeasured (needs a render world). | B4, B6 | open |
+| 13 | Ordering `write_ops` / `send_local_draws` against `poll_p2p_events` would remove ~2 frames of op latency; proposed, not implemented. | B6 | open, needs its own step |
+| 14 | The 8-peer benchmark row is CPU-bound in the dev profile; no release-profile number. | B6 | open |
+| 15 | Mainnet e2e timings swing run to run; a red run needs a re-run before it means anything. | B7 | accepted |
+| 16 | `just e2e-starboard` runs the main and late-join scenarios back to back; each was green individually. | B7 | open |
+| 17 | `PLAN.md` §2's `Config`/`Room` field lists and `Command`/`Event` variants predate A1/A2/A4; the per-step "What was done" sections are authoritative. | A2 | open |
+
+**Phase 2** (`PLAN_HISTORY.md`) still has its three open questions (record TTL vs.
+re-publish, day-rollover pruning, per-room byte cap) and must not start until you
+answer them; H1 also defers that answer to H3.
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`,
+`just lint`, `just bevy-lint`. No Rust or contract changes, so no contract recipes
+and no e2e (B8 has no e2e box).
 
 ---
 

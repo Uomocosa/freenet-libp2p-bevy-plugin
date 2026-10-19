@@ -40,6 +40,14 @@ One room channel: gossipsub, one topic per room. Joining a room (through
 Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
 2, `flood_publish` enabled.
 
+## Examples
+
+- `examples/lobby_room/` — the smallest discovery + room-messaging app.
+- `examples/starboard/` — the reference game: a shared 1024×1024 canvas over the
+  room API, with a daily shape and colour per peer, presence cursors and
+  anti-entropy repair. Run it with `just run-starboard --username <name>`; see
+  [`examples/starboard/README.md`](examples/starboard/README.md).
+
 ## Developing this crate (examples, previews, e2e)
 
 ```sh
@@ -64,6 +72,11 @@ space-in-path `tikv-jemalloc-sys` workaround), with `jobs = 6`.
 
 ```sh
 just build | just clippy | just fmt | just test | just lint | just bevy-lint
+just run          # lobby_room, detached; args pass through (--ui, --action, …)
+just demo         # lobby_room with the default UI
+just run-starboard --username <name>   # starboard, detached
+just e2e-discovery | just e2e-join | just e2e-room | just e2e-starboard
+just bench-starboard   # rewrite examples/starboard/BENCH.md
 just contract   # build the lobby contract wasm
 just freenet-harness   # freenet contract harness (CRDT laws) against the lobby contract
 just setup      # one-time per clone: install the prek git hooks
