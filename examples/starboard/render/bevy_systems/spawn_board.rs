@@ -1,6 +1,4 @@
-use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::starboard;
 
@@ -11,53 +9,61 @@ pub fn spawn_board(
 ) {
     let brush = brush.into_inner();
     let board = images.add(canvas_image());
-    commands.spawn((
-        starboard::render::BoardSprite,
-        Sprite::from_image(board),
-        Transform::from_xyz(0.0, 0.0, 0.0),
-    ));
-    let outline = images.add(outline_image(*brush));
-    commands.spawn((
-        starboard::render::BrushOutlineSprite,
-        Sprite::from_image(outline),
-        Visibility::Hidden,
-    ));
+    commands
+        .spawn((
+            starboard::render::BoardSprite,
+            Sprite::from_image(board),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+        ))
+        .with_child((
+            starboard::render::BoardBorderSprite,
+            Sprite::from_color(starboard::render::BOARD_BORDER_COLOR, Vec2::ONE),
+            Transform::from_xyz(0.0, 0.0, -0.01),
+        ));
+    let fill = images.add(own_brush_image(*brush));
+    let outline = images.add(starboard::render::square_image(1, vec![0_u8; 4]));
+    commands
+        .spawn((
+            starboard::render::Cursor,
+            starboard::render::Owner::Me,
+            Sprite::from_image(fill),
+            Visibility::Hidden,
+        ))
+        .with_children(|own| {
+            own.spawn((
+                starboard::render::CursorOutline,
+                starboard::render::Owner::Me,
+                Sprite::from_image(outline),
+                Transform::from_xyz(0.0, 0.0, 0.1),
+            ));
+            own.spawn(starboard::render::cursor_label(
+                starboard::render::OWN_LABEL_COLOR,
+            ));
+        });
 }
 
-// needed helper: the 1024x1024 RGBA canvas kept on the CPU and re-uploaded when a tile changes
+// needed helper: the 1024x1024 checkered canvas kept on the CPU and re-uploaded when a tile changes
 fn canvas_image() -> Image {
-    let side = u32::try_from(starboard::canvas::CANVAS_SIDE).unwrap_or(1024);
-    Image::new_fill(
-        Extent3d {
-            width: side,
-            height: side,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        &starboard::render::CANVAS_BACKGROUND,
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
-    )
+    let side = starboard::canvas::CANVAS_SIDE;
+    let pixels = (0..side.saturating_mul(side))
+        .flat_map(|index| {
+            starboard::render::checker_background_rgba_at(
+                index.checked_rem(side).unwrap_or(0),
+                index.checked_div(side).unwrap_or(0),
+            )
+        })
+        .collect();
+    starboard::render::square_image(u32::try_from(side).unwrap_or(1024), pixels)
 }
 
-// needed helper: the cursor outline texture for the brush that is current when the board spawns
-fn outline_image(brush: starboard::input::OwnBrush) -> Image {
-    let starboard::render::BrushOutline { side, pixels } = starboard::render::brush_outline(
+// needed helper: the solid cursor texture for the brush that is current when the board spawns
+fn own_brush_image(brush: starboard::input::OwnBrush) -> Image {
+    let starboard::render::BrushImage { side, pixels } = starboard::render::solid_brush_image(
         brush.shape,
         starboard::canvas::brush_radius(brush.size_index),
         brush.color,
     );
-    Image::new(
-        Extent3d {
-            width: side,
-            height: side,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        pixels,
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
-    )
+    starboard::render::square_image(side, pixels)
 }
 
 #[cfg(test)]
@@ -127,12 +133,11 @@ mod tests {
         assert_eq!(image.texture_descriptor.size.width, 1024);
         assert_eq!(image.texture_descriptor.size.height, 1024);
 
-        let mut outlines = app
+        let mut cursors = app
             .world_mut()
-            .query_filtered::<&Visibility, With<starboard::render::BrushOutlineSprite>>();
-        assert_eq!(
-            *outlines.single(app.world()).expect("one outline sprite"),
-            Visibility::Hidden
-        );
+            .query_filtered::<(&Visibility, &starboard::render::Owner), With<starboard::render::Cursor>>();
+        let (visibility, owner) = cursors.single(app.world()).expect("one own cursor");
+        assert_eq!(*visibility, Visibility::Hidden);
+        assert!(owner.is_me());
     }
 }

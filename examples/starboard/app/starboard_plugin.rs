@@ -47,7 +47,9 @@ impl Plugin for StarboardPlugin {
                     room::bevy_systems::collect_remote_cursors,
                     render::bevy_systems::upload_dirty_tiles,
                     render::bevy_systems::follow_brush,
+                    render::bevy_systems::repaint_own_brush_outline,
                     render::bevy_systems::draw_remote_cursors,
+                    render::bevy_systems::draw_cursor_labels,
                 )
                     .chain(),
             );

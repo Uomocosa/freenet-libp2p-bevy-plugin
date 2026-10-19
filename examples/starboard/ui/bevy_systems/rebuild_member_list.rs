@@ -1,7 +1,5 @@
-use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use freenet_libp2p_bevy_plugin::{discovery, identity};
+use freenet_libp2p_bevy_plugin::discovery;
 
 use crate::starboard;
 
@@ -39,7 +37,7 @@ pub fn rebuild_member_list(
         .entity(list)
         .despawn_children()
         .with_children(|rows| {
-            for (peer, member) in &room.members {
+            for peer in room.members.keys() {
                 let icon = brushes
                     .get(peer)
                     .copied()
@@ -66,36 +64,20 @@ pub fn rebuild_member_list(
                             },
                         ));
                     }
-                    row.spawn((Text::new(member_label(peer, member)), TextLayout::no_wrap()));
+                    row.spawn((
+                        Text::new(starboard::room::member_name(status, peer)),
+                        TextLayout::no_wrap(),
+                    ));
                 });
             }
         });
 }
 
-// needed helper: the outline texture showing a peer's daily shape and colour
+// needed helper: the solid texture showing a peer's daily shape and colour
 fn icon_image(brush: starboard::identity::DailyBrush) -> Image {
-    let starboard::render::BrushOutline { side, pixels } =
-        starboard::render::brush_outline(brush.shape, starboard::ui::ICON_RADIUS, brush.color);
-    Image::new(
-        Extent3d {
-            width: side,
-            height: side,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        pixels,
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
-    )
-}
-
-// needed helper: prefer the peer's chosen name, else its id
-fn member_label(peer: &identity::PeerId, member: &discovery::Member) -> String {
-    member
-        .heartbeat
-        .display_name
-        .as_ref()
-        .map_or_else(|| peer.as_str().to_string(), ToString::to_string)
+    let starboard::render::BrushImage { side, pixels } =
+        starboard::render::solid_brush_image(brush.shape, starboard::ui::ICON_RADIUS, brush.color);
+    starboard::render::square_image(side, pixels)
 }
 
 #[cfg(test)]

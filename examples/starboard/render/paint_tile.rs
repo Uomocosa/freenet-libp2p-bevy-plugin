@@ -35,8 +35,8 @@ pub fn paint_tile(
             .saturating_add(local_y);
         let start = y.saturating_mul(side).saturating_add(x).saturating_mul(4);
         if let Some(pixel) = pixels.get_mut(start..start.saturating_add(4)) {
-            pixel.copy_from_slice(&cell.color.map_or(
-                starboard::render::CANVAS_BACKGROUND,
+            pixel.copy_from_slice(&cell.color.map_or_else(
+                || starboard::render::checker_background_rgba_at(x, y),
                 starboard::render::palette_rgba,
             ));
         }
@@ -75,7 +75,10 @@ mod tests {
             &pixels[start..start + 4],
             &starboard::render::palette_rgba(color)
         );
-        assert_eq!(&pixels[..4], &starboard::render::CANVAS_BACKGROUND);
+        assert_eq!(
+            &pixels[..4],
+            &starboard::render::checker_background_rgba_at(0, 0)
+        );
         assert!(!paint_tile(
             &canvas,
             starboard::canvas::TileId(5),

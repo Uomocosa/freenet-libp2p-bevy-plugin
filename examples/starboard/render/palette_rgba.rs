@@ -4,10 +4,9 @@ use crate::starboard;
 pub fn palette_rgba(color: starboard::identity::PaletteColor) -> [u8; 4] {
     starboard::identity::PALETTE
         .get(usize::from(*color))
-        .map_or(
-            starboard::render::CANVAS_BACKGROUND,
-            |[red, green, blue]| [*red, *green, *blue, 255],
-        )
+        .map_or([0, 0, 0, 0], |[red, green, blue]| {
+            [*red, *green, *blue, 255]
+        })
 }
 
 #[cfg(test)]
@@ -23,7 +22,7 @@ mod tests {
         );
         assert_eq!(
             palette_rgba(starboard::identity::PaletteColor(200)),
-            starboard::render::CANVAS_BACKGROUND
+            [0, 0, 0, 0]
         );
     }
 }

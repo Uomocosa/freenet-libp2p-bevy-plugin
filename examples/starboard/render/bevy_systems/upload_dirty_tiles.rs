@@ -48,7 +48,7 @@ mod tests {
                     depth_or_array_layers: 1,
                 },
                 TextureDimension::D2,
-                &starboard::render::CANVAS_BACKGROUND,
+                &[0, 0, 0, 255],
                 TextureFormat::Rgba8UnormSrgb,
                 RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
             ));

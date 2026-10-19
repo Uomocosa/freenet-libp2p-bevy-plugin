@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::render::render_resource::Extent3d;
 use bevy::window::PrimaryWindow;
 use freenet_libp2p_bevy_plugin::discovery;
 
@@ -11,10 +10,16 @@ pub fn follow_brush(
     cursor: Res<starboard::input::CursorCell>,
     view: Res<starboard::render::CanvasView>,
     brush: Res<starboard::input::OwnBrush>,
+    buttons: Res<ButtonInput<MouseButton>>,
     mut images: ResMut<Assets<Image>>,
-    outline: Single<
-        (&mut Sprite, &mut Transform, &mut Visibility),
-        With<starboard::render::BrushOutlineSprite>,
+    mut cursors: Query<
+        (
+            &starboard::render::Owner,
+            &mut Sprite,
+            &mut Transform,
+            &mut Visibility,
+        ),
+        With<starboard::render::Cursor>,
     >,
 ) {
     let status = status.into_inner();
@@ -23,24 +28,24 @@ pub fn follow_brush(
     let cursor = cursor.into_inner();
     let view = view.into_inner();
     let brush = brush.into_inner();
-    let (mut sprite, mut transform, mut visibility) = outline.into_inner();
+    let buttons = buttons.into_inner();
+    let Some((_, mut sprite, mut transform, mut visibility)) =
+        cursors.iter_mut().find(|(owner, _, _, _)| owner.is_me())
+    else {
+        return;
+    };
     if !is_in_room {
         *visibility = Visibility::Hidden;
         return;
     }
     if is_brush_changed {
-        let next = starboard::render::brush_outline(
+        let next = starboard::render::solid_brush_image(
             brush.shape,
             starboard::canvas::brush_radius(brush.size_index),
             brush.color,
         );
         if let Some(mut image) = images.get_mut(&sprite.image) {
-            image.resize(Extent3d {
-                width: next.side,
-                height: next.side,
-                depth_or_array_layers: 1,
-            });
-            image.data = Some(next.pixels);
+            starboard::render::replace_pixels(&mut image, next);
         }
     }
     let Ok(window) = windows.single() else {
@@ -53,15 +58,20 @@ pub fn follow_brush(
     let radius = starboard::canvas::brush_radius(brush.size_index);
     let side = f32::from(radius.saturating_mul(2).saturating_add(1));
     sprite.custom_size = Some(Vec2::splat(side * view.scale));
+    let alpha = if buttons.pressed(MouseButton::Left) {
+        1.0
+    } else {
+        starboard::render::OWN_PREVIEW_ALPHA
+    };
+    sprite.color = Color::WHITE.with_alpha(alpha);
     transform.translation = starboard::render::cell_center(cell, view, window.size());
+    transform.translation.z = starboard::render::OWN_CURSOR_Z;
     *visibility = Visibility::Visible;
 }
 
 #[cfg(test)]
 mod tests {
-    use bevy::asset::RenderAssetUsages;
     use bevy::prelude::*;
-    use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
     use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
@@ -85,6 +95,7 @@ mod tests {
         app.init_resource::<starboard::render::CanvasView>()
             .init_resource::<starboard::input::OwnBrush>()
             .init_resource::<starboard::input::CursorCell>()
+            .init_resource::<ButtonInput<MouseButton>>()
             .add_systems(Startup, starboard::render::bevy_systems::spawn_board)
             .add_systems(
                 Update,
@@ -97,6 +108,13 @@ mod tests {
     fn preview_cursor(world: &mut World) {
         **world.resource_mut::<starboard::input::CursorCell>() =
             Some(starboard::canvas::CellPos { x: 300, y: 200 });
+    }
+
+    fn preview_painting(world: &mut World) {
+        preview_cursor(world);
+        world
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
     }
 
     fn config() -> lele_bevy_preview::preview::Config {
@@ -121,6 +139,10 @@ mod tests {
                     label: String::from("cursor on the board"),
                     apply: preview_cursor,
                 },
+                lele_bevy_preview::scene::State {
+                    label: String::from("painting"),
+                    apply: preview_painting,
+                },
             ],
             timeline: None,
         }
@@ -142,7 +164,7 @@ mod tests {
         app.insert_resource(ready_status());
         let brush = starboard::input::OwnBrush::default();
         app.insert_resource(brush);
-        let starboard::render::BrushOutline { side, pixels } = starboard::render::brush_outline(
+        let starboard::render::BrushImage { side, pixels } = starboard::render::solid_brush_image(
             brush.shape,
             starboard::canvas::brush_radius(brush.size_index),
             brush.color,
@@ -150,17 +172,7 @@ mod tests {
         let image = app
             .world_mut()
             .resource_mut::<Assets<Image>>()
-            .add(Image::new(
-                Extent3d {
-                    width: side,
-                    height: side,
-                    depth_or_array_layers: 1,
-                },
-                TextureDimension::D2,
-                pixels,
-                TextureFormat::Rgba8UnormSrgb,
-                RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
-            ));
+            .add(starboard::render::square_image(side, pixels));
         app.world_mut().spawn((
             PrimaryWindow,
             Window {
@@ -169,12 +181,14 @@ mod tests {
             },
         ));
         app.world_mut().spawn((
-            starboard::render::BrushOutlineSprite,
+            starboard::render::Cursor,
+            starboard::render::Owner::Me,
             Sprite::from_image(image),
             Transform::default(),
             Visibility::Hidden,
         ));
         app.init_resource::<starboard::input::CursorCell>();
+        app.init_resource::<ButtonInput<MouseButton>>();
         app.add_systems(Update, follow_brush);
         app
     }
@@ -194,10 +208,10 @@ mod tests {
         );
         app.update();
 
-        let mut outlines = app.world_mut().query_filtered::<
-            (&Transform, &Visibility, &Sprite),
-            With<starboard::render::BrushOutlineSprite>,
-        >();
+        let mut outlines = app
+            .world_mut()
+            .query_filtered::<(&Transform, &Visibility, &Sprite), With<starboard::render::Cursor>>(
+            );
         let (transform, visibility, sprite) =
             outlines.single(app.world()).expect("one outline sprite");
         assert_eq!(*visibility, Visibility::Visible);
@@ -209,7 +223,7 @@ mod tests {
         app.update();
         let mut outlines = app
             .world_mut()
-            .query_filtered::<&Visibility, With<starboard::render::BrushOutlineSprite>>();
+            .query_filtered::<&Visibility, With<starboard::render::Cursor>>();
         assert_eq!(
             *outlines.single(app.world()).expect("one outline sprite"),
             Visibility::Hidden

@@ -1,6 +1,4 @@
-use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::window::PrimaryWindow;
 
 use crate::starboard;
@@ -12,12 +10,15 @@ pub fn draw_remote_cursors(
     view: Res<starboard::render::CanvasView>,
     cursors: Res<starboard::room::RemoteCursors>,
     brushes: Res<starboard::room::RoomBrushes>,
-    mut sprites: Query<(
-        Entity,
-        &starboard::render::RemoteCursorSprite,
-        &mut Sprite,
-        &mut Transform,
-    )>,
+    mut sprites: Query<
+        (
+            Entity,
+            &starboard::render::Owner,
+            &mut Sprite,
+            &mut Transform,
+        ),
+        With<starboard::render::Cursor>,
+    >,
 ) {
     let view = view.into_inner();
     let cursors = cursors.into_inner();
@@ -26,7 +27,10 @@ pub fn draw_remote_cursors(
         return;
     };
     let window_size = window.size();
-    for (entity, peer, mut sprite, mut transform) in &mut sprites {
+    for (entity, owner, mut sprite, mut transform) in &mut sprites {
+        let starboard::render::Owner::Peer(peer) = owner else {
+            continue;
+        };
         let Some(cursor) = cursors.get(peer) else {
             commands.entity(entity).despawn();
             continue;
@@ -41,21 +45,16 @@ pub fn draw_remote_cursors(
             .get(&sprite.image)
             .is_none_or(|image| image.texture_descriptor.size.width != wanted);
         if needs_texture && let Some(mut image) = images.get_mut(&sprite.image) {
-            let outline = starboard::render::brush_outline(brush.shape, radius, brush.color);
-            image.resize(Extent3d {
-                width: wanted,
-                height: wanted,
-                depth_or_array_layers: 1,
-            });
-            image.data = Some(outline.pixels);
+            starboard::render::replace_pixels(&mut image, remote_brush_image(brush, radius));
         }
         sprite.custom_size = Some(Vec2::splat(f32::from(outline_side) * view.scale));
         transform.translation = starboard::render::cell_center(cursor.cell, view, window_size);
     }
     for (peer, cursor) in cursors.iter() {
+        let wanted_owner = starboard::render::Owner::Peer(peer.clone());
         if sprites
             .iter()
-            .any(|(_, sprite_peer, _, _)| **sprite_peer == *peer)
+            .any(|(_, owner, _, _)| *owner == wanted_owner)
         {
             continue;
         }
@@ -63,24 +62,30 @@ pub fn draw_remote_cursors(
             continue;
         };
         let radius = starboard::canvas::brush_radius(cursor.size_index);
-        let outline = starboard::render::brush_outline(brush.shape, radius, brush.color);
-        let image = images.add(Image::new(
-            Extent3d {
-                width: outline.side,
-                height: outline.side,
-                depth_or_array_layers: 1,
-            },
-            TextureDimension::D2,
-            outline.pixels,
-            TextureFormat::Rgba8UnormSrgb,
-            RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
-        ));
-        commands.spawn((
-            starboard::render::RemoteCursorSprite(peer.clone()),
-            Sprite::from_image(image),
-            Transform::default(),
-        ));
+        let starboard::render::BrushImage { side, pixels } = remote_brush_image(brush, radius);
+        let image = images.add(starboard::render::square_image(side, pixels));
+        commands
+            .spawn((
+                starboard::render::Cursor,
+                wanted_owner,
+                Sprite::from_image(image),
+                Transform::default(),
+            ))
+            .with_child(starboard::render::cursor_label(
+                starboard::render::LABEL_COLOR,
+            ));
     }
+}
+
+// needed helper: a peer's cursor is a half-transparent fill inside a solid edge of its colour
+fn remote_brush_image(
+    brush: starboard::identity::DailyBrush,
+    radius: u16,
+) -> starboard::render::BrushImage {
+    let edge = starboard::render::palette_rgba(brush.color);
+    let [red, green, blue, _] = edge;
+    let fill = [red, green, blue, starboard::render::PREVIEW_FILL_ALPHA];
+    starboard::render::brush_image(brush.shape, radius, fill, edge)
 }
 
 #[cfg(test)]
@@ -210,7 +215,7 @@ mod tests {
         app.update();
         let mut sprites = app
             .world_mut()
-            .query_filtered::<(), With<starboard::render::RemoteCursorSprite>>();
+            .query_filtered::<(), With<starboard::render::Cursor>>();
         assert_eq!(sprites.iter(app.world()).count(), 0);
 
         app.world_mut()
@@ -219,7 +224,7 @@ mod tests {
         app.update();
         let mut sprites = app
             .world_mut()
-            .query_filtered::<(), With<starboard::render::RemoteCursorSprite>>();
+            .query_filtered::<(), With<starboard::render::Cursor>>();
         assert_eq!(sprites.iter(app.world()).count(), 1);
 
         app.world_mut()
@@ -228,7 +233,7 @@ mod tests {
         app.update();
         let mut sprites = app
             .world_mut()
-            .query_filtered::<(), With<starboard::render::RemoteCursorSprite>>();
+            .query_filtered::<(), With<starboard::render::Cursor>>();
         assert_eq!(sprites.iter(app.world()).count(), 0);
     }
 }

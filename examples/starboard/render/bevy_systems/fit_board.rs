@@ -7,6 +7,13 @@ pub fn fit_board(
     windows: Query<&Window, With<PrimaryWindow>>,
     mut view: ResMut<starboard::render::CanvasView>,
     board: Single<(&mut Sprite, &mut Transform), With<starboard::render::BoardSprite>>,
+    mut borders: Query<
+        &mut Sprite,
+        (
+            With<starboard::render::BoardBorderSprite>,
+            Without<starboard::render::BoardSprite>,
+        ),
+    >,
 ) {
     let Ok(window) = windows.single() else {
         return;
@@ -23,6 +30,11 @@ pub fn fit_board(
         f32::from(u16::try_from(starboard::canvas::CANVAS_SIDE).unwrap_or(1024)) * next.scale;
     sprite.custom_size = Some(Vec2::splat(side));
     transform.translation = Vec3::ZERO;
+    for mut border in &mut borders {
+        border.custom_size = Some(Vec2::splat(
+            2.0_f32.mul_add(starboard::render::BOARD_BORDER_PX, side),
+        ));
+    }
 }
 
 #[cfg(test)]
