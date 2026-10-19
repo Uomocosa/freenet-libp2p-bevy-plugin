@@ -42,6 +42,8 @@ peers download it on join; it is continuously updated.
 | HD5 | Name reuse | A dead room's name is reusable as a fresh room: lobby merge keeps the **newer** `created_at` (same `created_at` merges heartbeats). New `created_at` → new history key → empty board. |
 | HD6 | Stuck joiner | History fetch deadline → re-check the lobby: dead → "Room `<name>` no longer exists (all players left)"; alive → retry N times, then "Couldn't get room history". |
 | HD7 | Local history file | None. An explicit export/import may come later. |
+| HD8 | Dead rooms in the contract | **Option A + cap** (agreed 2026-10-19). The contract drops a room once **every** heartbeat in it is `Quit` (deterministic, no clock). When the lobby is full (`MAX_ROOMS`), it evicts the room whose newest heartbeat is oldest. Rooms whose last holder crashed stay until the cap evicts them; clients already hide them (`drop_dead`). No contract clock, no median — skew-proof by construction. |
+| HD9 | History size caps | Per process: **256 MB** of held history (configurable, may be lowered by default). Per room snapshot: **64 MB** — the writer refuses a larger one and logs an error. On overflow, `drop_oldest_history` evicts held rooms oldest-left first, never the current room, and publishes `Quit` for each evicted room (you no longer hold it, so the lobby must know). |
 
 ## Step H0 — Holder leases and room deletion
 
@@ -63,6 +65,24 @@ Contract code changed → `lobby_contract.wasm` rebuilt, so the contract key cha
 Deviation from the plan: `State::new` keeps its signature (`lease_ttl` defaults to
 `LeaseTimings::default().ttl`, `run` overrides it from config) to avoid touching 28 test sites.
 Verified: build, clippy, fmt, lint, bevy-lint, contract clippy/lint, 255 nextest, freenet-harness.
+
+## Step H0b — Drop dead rooms from the contract (HD8)
+
+- [ ] Contract `merge_lobby`: after merging, drop rooms where every heartbeat is
+      `Presence::Quit`.
+- [ ] Contract cap: when inserting would exceed `MAX_ROOMS`, evict the room with the
+      oldest newest-heartbeat (tie-break: smaller `RoomName`) instead of silently dropping
+      the incoming room.
+- [ ] Client `discovery::freenet::merge_room` / `Lobby::merge` mirror both rules so the
+      client view matches the contract.
+- [ ] Tests: all-`Quit` room is gone after merge (both orders); a stale `InRoom` heartbeat
+      arriving after the drop resurrects the room in the contract but `drop_dead` still hides
+      it (documented, accepted); cap evicts the oldest room; `just freenet-harness` CRDT laws
+      still pass — if the cap eviction breaks associativity, stop and report.
+- [ ] Contract key changes again → rebuild `lobby_contract.wasm`.
+
+### What was done (Step H0b)
+_(agent fills)_
 
 ## Step H1 — Record keys, chunking codec
 
@@ -86,6 +106,24 @@ _(agent fills)_
 
 ### What was done (Step H2)
 _(agent fills)_
+
+## Step H2b — History size caps + `drop_oldest_history` (HD9)
+
+- [ ] `HistoryLimits { per_process_bytes: 256 MB, per_room_bytes: 64 MB }` in the history
+      config (defaults may be lowered; keep them configurable).
+- [ ] Writer refuses a snapshot over `per_room_bytes` (error log, nothing stored).
+- [ ] `drop_oldest_history` (pure core over held rooms + their byte sizes + leave times →
+      rooms to evict): oldest-left first, never the current room, until under
+      `per_process_bytes`. Shell: remove the records from the Kad store, remove the room from
+      `discovery::state_machine::State.held_rooms`, publish `Presence::Quit` for it.
+- [ ] Runs after every history write and on the tick.
+- [ ] Tests: unit — eviction order, current room never evicted, stops once under the limit;
+      headless — small limit, the held room is evicted, `Quit` is published, and the room
+      disappears from another peer's lobby when it was the last holder.
+_(agent fills)_
+
+## Order
+H0 ✅ → H0b → H1 → H2 → H2b → H3 → H4.
 
 ## Step H3 — History writer/reader in SyncPlugin
 
@@ -118,6 +156,5 @@ _(agent fills)_
   last holder quits, the room is gone (HD3).
 - ~~Should history be pruned when a new day starts (D6)?~~ No — history belongs to the room
   generation (`created_at`), not the day.
-- Abuse/size limits: measure in H4; no cap until then.
-- `MAX_ROOMS` (256): dead names are never removed from the contract, so a full lobby drops
-  new rooms. Later step H5: keep the 256 newest rooms by `created_at` (still a CRDT).
+- ~~Abuse/size limits~~ → HD9 / Step H2b. Still measure real record sizes in H4.
+- ~~`MAX_ROOMS` fills with dead names~~ → HD8 / Step H0b.
