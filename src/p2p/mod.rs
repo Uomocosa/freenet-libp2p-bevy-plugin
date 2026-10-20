@@ -10,6 +10,18 @@ pub use behaviour::Behaviour;
 pub mod record_key;
 pub use record_key::record_key;
 
+pub mod history_manifest_record_key;
+pub use history_manifest_record_key::history_manifest_record_key;
+
+pub mod history_key_prefix;
+pub use history_key_prefix::history_key_prefix;
+
+pub mod split_snapshot_into_chunks;
+pub use split_snapshot_into_chunks::split_snapshot_into_chunks;
+
+pub mod join_chunks_into_snapshot;
+pub use join_chunks_into_snapshot::join_chunks_into_snapshot;
+
 pub mod parse_record_key;
 pub use parse_record_key::parse_record_key;
 
@@ -20,12 +32,12 @@ pub use matches_transport::matches_transport;
 pub mod basic;
 
 pub use basic::enums::{
-    Command, Event, MdnsMode, NetCommand, NetEvent, SnapshotRequest, SnapshotResponse,
+    ChunkError, Command, Event, MdnsMode, NetCommand, NetEvent, SnapshotRequest, SnapshotResponse,
     TransportMode,
 };
-pub use basic::newtypes::{ChunkIndex, ReplyId};
+pub use basic::newtypes::{ChunkIndex, ContentHash, HistoryKeyPrefix, ReplyId};
 pub use basic::resources::{CommandSender, EventReceiver, NetCommandSender};
-pub use basic::structs::{HistoryChunkId, RunnerConfig};
+pub use basic::structs::{ChunkedSnapshot, HistoryChunkId, HistoryManifest, RunnerConfig};
 
 pub mod mdns_behaviour;
 pub use mdns_behaviour::mdns_behaviour;

@@ -11,3 +11,15 @@ pub struct ChunkIndex(pub u64);
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref,
 )]
 pub struct ReplyId(pub u64);
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref, From,
+)]
+#[from(forward)]
+pub struct HistoryKeyPrefix(pub String);
+
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref, From,
+)]
+#[from(forward)]
+pub struct ContentHash(pub String);

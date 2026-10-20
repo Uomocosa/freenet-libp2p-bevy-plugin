@@ -78,6 +78,13 @@ pub enum NetEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChunkError {
+    WrongChunkCount { expected: u32, actual: usize },
+    HashMismatch,
+    Codec(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SnapshotRequest {
     Fetch {
         room: identity::RoomName,

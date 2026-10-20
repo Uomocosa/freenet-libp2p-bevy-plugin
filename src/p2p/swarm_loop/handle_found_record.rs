@@ -23,7 +23,6 @@ mod tests {
     use libp2p::kad;
 
     use super::handle_found_record;
-    use crate::identity;
     use crate::p2p;
 
     fn peer_record(key: kad::RecordKey) -> kad::PeerRecord {
@@ -42,7 +41,8 @@ mod tests {
     fn test_usage() {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<p2p::Event<u32>>();
         let chunk_id = p2p::HistoryChunkId {
-            room: identity::RoomName::from("room-a"),
+            prefix: p2p::HistoryKeyPrefix::from("abc"),
+            content_hash: p2p::ContentHash::from("def"),
             chunk: p2p::ChunkIndex(5),
         };
         handle_found_record(&tx, peer_record(p2p::record_key(&chunk_id)));
@@ -50,8 +50,13 @@ mod tests {
             panic!("expected a history chunk");
         };
         assert_eq!(
-            (id.room.as_str(), *id.chunk, data),
-            ("room-a", 5, vec![1, 2, 3])
+            (
+                id.prefix.as_str(),
+                id.content_hash.as_str(),
+                *id.chunk,
+                data
+            ),
+            ("abc", "def", 5, vec![1, 2, 3])
         );
     }
 
