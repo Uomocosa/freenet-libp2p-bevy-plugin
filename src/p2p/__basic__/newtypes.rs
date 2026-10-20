@@ -23,3 +23,21 @@ pub struct HistoryKeyPrefix(pub String);
 )]
 #[from(forward)]
 pub struct ContentHash(pub String);
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Deref,
+    From,
+)]
+#[from(forward)]
+pub struct HistoryByteCount(pub u64);

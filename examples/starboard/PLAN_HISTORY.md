@@ -158,21 +158,43 @@ prefix/content-hash scoped. The open questions were already answered (see bottom
 
 ## Step H2b — History size caps + `drop_oldest_history` (HD9)
 
-- [ ] `HistoryLimits { per_process_bytes: 256 MB, per_room_bytes: 64 MB }` in the history
+- [x] `HistoryLimits { per_process_bytes: 256 MB, per_room_bytes: 64 MB }` in the history
       config (defaults may be lowered; keep them configurable).
-- [ ] Writer refuses a snapshot over `per_room_bytes` (error log, nothing stored).
-- [ ] `drop_oldest_history` (pure core over held rooms + their byte sizes + leave times →
+- [x] Writer refuses a snapshot over `per_room_bytes` (error log, nothing stored).
+- [x] `drop_oldest_history` (pure core over held rooms + their byte sizes + leave times →
       rooms to evict): oldest-left first, never the current room, until under
       `per_process_bytes`. Shell: remove the records from the Kad store, remove the room from
       `discovery::state_machine::State.held_rooms`, publish `Presence::Quit` for it.
-- [ ] Runs after every history write and on the tick.
-- [ ] Tests: unit — eviction order, current room never evicted, stops once under the limit;
+- [x] Runs after every history write and on the tick.
+- [x] Tests: unit — eviction order, current room never evicted, stops once under the limit;
       headless — small limit, the held room is evicted, `Quit` is published, and the room
       disappears from another peer's lobby when it was the last holder.
-_(agent fills)_
+### What was done (Step H2b)
+- Renamed per review: `discovery::HistorySizeLimits { per_process_bytes, per_room_bytes }`
+  (`p2p::HistoryByteCount`), defaults 256 MB / 64 MB, field `discovery::Config.history_size_limits`.
+- **Deferred to H3:** the per-room 64 MB refusal. No writer exists yet; `per_room_bytes` is
+  config only until the H3 writer enforces it.
+- Byte counting lives in the swarm loop (owns the `MemoryStore`): `NetCommand::MeasureHistoryStore`
+  → `measure_history_store` → `NetEvent::HistoryStoreMeasured { bytes_by_prefix }`.
+  `NetCommand::RemoveHistoryRecords { prefix }` → `remove_history_records` (local store only;
+  replicas elsewhere expire by kad TTL). Records of rooms neither held nor current are not counted.
+- `State.held_rooms` value is now `HeldRoomHistory { created_at, left_at }` (`leave` takes `now`);
+  `State` gained `game`, `history_size_limits`, `evicted_rooms` (name → `created_at`).
+  `heartbeat_targets` publishes every evicted room as `Presence::Quit`; re-joining clears it.
+- Pure core `held_rooms_to_evict_until_history_fits` (current room + held rooms total; evicts
+  oldest `left_at` first, ties by name, until ≤ limit; current room is never a candidate).
+  Transition `drop_oldest_history(state, bytes_by_prefix)`. Deviation: no `now` parameter (unused).
+- Triggers: every `tick` and every `HistoryRecordStored` emit `MeasureHistoryStore`.
+- Kad `MemoryStore` `max_records` raised 1024 → `p2p::KADEMLIA_MAX_RECORDS = 8192` (≈ 480 MB of
+  60 KB chunks, so HD9 is the binding cap).
+- Tests: selector order / under-limit / current-room-over-limit; `drop_oldest_history` → `Quit`
+  target + `RemoveHistoryRecords`; `measure_history_store`, `remove_history_records` usage;
+  headless `p2p::run::tests::history_over_limit_is_removed_from_the_kademlia_store`.
+  "Room disappears from another peer's lobby" needs Freenet → covered in H4/S4b.
+- Verified: build, clippy, fmt, lint, bevy-lint, 283 nextest.
 
 ## Order
-H0 ✅ → H0b ✅ → H1 → H2 → H2b → H3 → H4.
+H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
 
 ## Step H3 — History writer/reader in SyncPlugin
 

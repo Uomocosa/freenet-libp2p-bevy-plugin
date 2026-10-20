@@ -1,5 +1,5 @@
 use libp2p::identity::Keypair;
-use libp2p::kad::store::MemoryStore;
+use libp2p::kad::store::{MemoryStore, MemoryStoreConfig};
 use libp2p::{
     StreamProtocol, dcutr, gossipsub, identify, kad, noise, ping, relay, request_response, tcp,
     yamux,
@@ -38,7 +38,13 @@ pub fn build_swarm<Payload: p2p::Message>(
                 };
                 kad_cfg.set_replication_factor(replication);
                 kad_cfg.set_max_packet_size(p2p::KADEMLIA_MAX_PACKET_BYTES);
-                let store = MemoryStore::new(kp.public().to_peer_id());
+                let store = MemoryStore::with_config(
+                    kp.public().to_peer_id(),
+                    MemoryStoreConfig {
+                        max_records: p2p::KADEMLIA_MAX_RECORDS,
+                        ..MemoryStoreConfig::default()
+                    },
+                );
                 let mut kademlia = kad::Behaviour::with_config(peer_id, store, kad_cfg);
                 kademlia.set_mode(Some(kad::Mode::Server));
                 let rr = request_response::Behaviour::with_codec(

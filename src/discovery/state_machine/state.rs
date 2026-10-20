@@ -16,7 +16,10 @@ pub struct State {
     pub freenet_peers: Vec<identity::FreenetPeer>,
     pub is_lobby_attached: bool,
     pub display_name: identity::Username,
-    pub held_rooms: BTreeMap<identity::RoomName, discovery::UnixTime>,
+    pub game: identity::GameId,
+    pub held_rooms: BTreeMap<identity::RoomName, discovery::state_machine::HeldRoomHistory>,
+    pub evicted_rooms: BTreeMap<identity::RoomName, discovery::UnixTime>,
+    pub history_size_limits: discovery::HistorySizeLimits,
     pub lease_ttl: Duration,
     pub is_quitting: bool,
 }
@@ -36,7 +39,10 @@ impl State {
             freenet_peers: Vec::new(),
             is_lobby_attached: false,
             display_name: identity::Username(String::new()),
+            game: discovery::Config::default().game,
             held_rooms: BTreeMap::new(),
+            evicted_rooms: BTreeMap::new(),
+            history_size_limits: discovery::HistorySizeLimits::default(),
             lease_ttl: discovery::LeaseTimings::default().ttl,
             is_quitting: false,
         }

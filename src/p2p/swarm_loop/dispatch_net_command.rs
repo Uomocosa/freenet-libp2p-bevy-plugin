@@ -36,10 +36,16 @@ pub fn dispatch_net_command<Payload: p2p::Message>(
             p2p::swarm_loop::put_history_record(swarm, event_tx, &id, value);
         }
         p2p::NetCommand::GetHistoryRecord { id } => {
-            swarm
-                .behaviour_mut()
-                .kademlia
-                .get_record(p2p::history_record_key(&id));
+            let key = p2p::history_record_key(&id);
+            swarm.behaviour_mut().kademlia.get_record(key);
+        }
+        p2p::NetCommand::MeasureHistoryStore => {
+            let bytes_by_prefix = p2p::swarm_loop::measure_history_store(swarm);
+            let measured = p2p::NetEvent::HistoryStoreMeasured { bytes_by_prefix };
+            event_tx.send(p2p::Event::Net(measured)).ok();
+        }
+        p2p::NetCommand::RemoveHistoryRecords { prefix } => {
+            p2p::swarm_loop::remove_history_records(swarm, &prefix);
         }
         p2p::NetCommand::Subscribe { topic } => {
             let topic = gossipsub::IdentTopic::new(topic.as_str());

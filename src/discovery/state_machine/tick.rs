@@ -1,4 +1,5 @@
 use crate::discovery;
+use crate::p2p;
 use discovery::state_machine::{Output, State};
 
 #[must_use]
@@ -15,6 +16,7 @@ pub fn tick(state: &mut State, now: discovery::UnixTime) -> Vec<Output> {
     outputs.extend(discovery::state_machine::wait_for_contract_self_heal(
         state, now,
     ));
+    outputs.push(Output::NetCommand(p2p::NetCommand::MeasureHistoryStore));
     outputs
 }
 
@@ -23,6 +25,7 @@ mod tests {
     use super::tick;
     use crate::discovery;
     use crate::identity;
+    use crate::p2p;
     use discovery::state_machine::State;
 
     #[test]
@@ -44,6 +47,15 @@ mod tests {
             state.last_handshake_at,
             Some(discovery::UnixTime::from_secs(100))
         );
-        assert_eq!(outputs.len(), 1);
+        let measures = outputs
+            .iter()
+            .filter(|output| {
+                **output
+                    == discovery::state_machine::Output::NetCommand(
+                        p2p::NetCommand::MeasureHistoryStore,
+                    )
+            })
+            .count();
+        assert_eq!((outputs.len(), measures), (3, 2));
     }
 }

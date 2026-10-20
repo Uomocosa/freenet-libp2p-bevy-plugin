@@ -20,6 +20,12 @@ pub struct HeartbeatTarget {
     pub presence: discovery::Presence,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HeldRoomHistory {
+    pub created_at: discovery::UnixTime,
+    pub left_at: discovery::UnixTime,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
     pub addrs: Vec<identity::PeerAddr>,

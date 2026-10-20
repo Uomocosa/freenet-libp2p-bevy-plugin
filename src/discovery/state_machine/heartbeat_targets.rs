@@ -10,15 +10,20 @@ pub fn heartbeat_targets(state: &State) -> Vec<HeartbeatTarget> {
             discovery::Presence::InRoom,
         )
     });
-    let holding = state.held_rooms.iter().map(|(name, created_at)| {
+    let holding = state.held_rooms.iter().map(|(name, held)| {
         (
             name.clone(),
-            *created_at,
+            held.created_at,
             discovery::Presence::HoldingHistory,
         )
     });
+    let evicted = state
+        .evicted_rooms
+        .iter()
+        .map(|(name, created_at)| (name.clone(), *created_at, discovery::Presence::Quit));
     in_room
         .chain(holding)
+        .chain(evicted)
         .map(|(room, created_at, presence)| HeartbeatTarget {
             room,
             created_at,
@@ -55,6 +60,13 @@ mod tests {
         });
         state.held_rooms.insert(
             identity::RoomName::from("old"),
+            discovery::state_machine::HeldRoomHistory {
+                created_at: discovery::UnixTime::from_secs(0),
+                left_at: discovery::UnixTime::from_secs(5),
+            },
+        );
+        state.evicted_rooms.insert(
+            identity::RoomName::from("gone"),
             discovery::UnixTime::from_secs(0),
         );
         let presences: Vec<_> = heartbeat_targets(&state)
@@ -69,6 +81,7 @@ mod tests {
                     identity::RoomName::from("old"),
                     discovery::Presence::HoldingHistory
                 ),
+                (identity::RoomName::from("gone"), discovery::Presence::Quit),
             ]
         );
         state.is_quitting = true;

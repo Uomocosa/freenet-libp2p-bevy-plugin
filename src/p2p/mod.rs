@@ -33,7 +33,7 @@ pub use basic::enums::{
     ChunkError, Command, Event, MdnsMode, NetCommand, NetEvent, RoomHistoryRecordKind,
     SnapshotRequest, SnapshotResponse, TransportMode,
 };
-pub use basic::newtypes::{ChunkIndex, ContentHash, HistoryKeyPrefix, ReplyId};
+pub use basic::newtypes::{ChunkIndex, ContentHash, HistoryByteCount, HistoryKeyPrefix, ReplyId};
 pub use basic::resources::{CommandSender, EventReceiver, NetCommandSender};
 pub use basic::structs::{ChunkedSnapshot, HistoryChunkId, HistoryManifest, RunnerConfig};
 

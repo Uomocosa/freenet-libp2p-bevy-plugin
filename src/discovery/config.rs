@@ -9,6 +9,7 @@ pub struct Config {
     pub deploy_policy: discovery::freenet::DeployPolicy,
     pub auto_subscribe: discovery::AutoSubscribe,
     pub lease: discovery::LeaseTimings,
+    pub history_size_limits: discovery::HistorySizeLimits,
 }
 
 impl Default for Config {
@@ -20,6 +21,7 @@ impl Default for Config {
             deploy_policy: discovery::freenet::DeployPolicy::default(),
             auto_subscribe: discovery::AutoSubscribe::default(),
             lease: discovery::LeaseTimings::default(),
+            history_size_limits: discovery::HistorySizeLimits::default(),
         }
     }
 }

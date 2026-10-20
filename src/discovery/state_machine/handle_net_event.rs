@@ -20,6 +20,12 @@ pub fn handle_net_event(
         p2p::NetEvent::PeerExchange { from, data } => {
             discovery::state_machine::handle_handshake(state, &from, &data, now)
         }
+        p2p::NetEvent::HistoryRecordStored { .. } => {
+            return vec![Output::NetCommand(p2p::NetCommand::MeasureHistoryStore)];
+        }
+        p2p::NetEvent::HistoryStoreMeasured { bytes_by_prefix } => {
+            return discovery::state_machine::drop_oldest_history(state, &bytes_by_prefix);
+        }
         _ => return Vec::new(),
     };
     outputs.extend(discovery::state_machine::dial_candidates(state, now));

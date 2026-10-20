@@ -26,6 +26,8 @@ pub async fn run(
     let mut state = State::new(me.clone());
     state.display_name = config.display_name.clone();
     state.lease_ttl = config.lease.ttl;
+    state.game = config.game.clone();
+    state.history_size_limits = config.history_size_limits;
     let (target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
     let (lobby_tx, mut lobbies) = tokio::sync::mpsc::unbounded_channel();
     let (peers_tx, mut peers) = tokio::sync::mpsc::unbounded_channel();

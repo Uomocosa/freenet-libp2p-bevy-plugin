@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::identity;
@@ -43,6 +45,9 @@ pub enum NetEvent {
     },
     HistoryRecordNotFound {
         id: p2p::RoomHistoryRecordKind,
+    },
+    HistoryStoreMeasured {
+        bytes_by_prefix: BTreeMap<p2p::HistoryKeyPrefix, p2p::HistoryByteCount>,
     },
     Gossip {
         topic: identity::Topic,
@@ -146,6 +151,10 @@ pub enum NetCommand {
     },
     GetHistoryRecord {
         id: p2p::RoomHistoryRecordKind,
+    },
+    MeasureHistoryStore,
+    RemoveHistoryRecords {
+        prefix: p2p::HistoryKeyPrefix,
     },
     Subscribe {
         topic: identity::Topic,

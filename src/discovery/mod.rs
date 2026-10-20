@@ -30,6 +30,9 @@ pub use config::Config;
 mod lease_timings;
 pub use lease_timings::LeaseTimings;
 
+mod history_size_limits;
+pub use history_size_limits::HistorySizeLimits;
+
 mod error;
 pub use error::Error;
 

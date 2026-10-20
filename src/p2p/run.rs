@@ -106,6 +106,7 @@ mod tests {
     use libp2p::identity::Keypair;
     use serde::{Deserialize, Serialize};
 
+    use crate::discovery;
     use crate::identity;
     use crate::p2p;
 
@@ -241,7 +242,8 @@ mod tests {
                     net @ (p2p::NetEvent::HistoryRecordStored { .. }
                     | p2p::NetEvent::HistoryRecordPutFailed { .. }
                     | p2p::NetEvent::HistoryRecordFound { .. }
-                    | p2p::NetEvent::HistoryRecordNotFound { .. }),
+                    | p2p::NetEvent::HistoryRecordNotFound { .. }
+                    | p2p::NetEvent::HistoryStoreMeasured { .. }),
                 ) = event
                 {
                     return Some(net);
@@ -398,5 +400,69 @@ mod tests {
 
         middle.handle.abort();
         reader.handle.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn history_over_limit_is_removed_from_the_kademlia_store() {
+        let game = identity::GameId::from("game");
+        let mut holder = node(&game);
+        wait_ready(&mut holder).await;
+        let mut state = discovery::state_machine::State::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
+        state.game = game.clone();
+        state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(1);
+        let room = identity::RoomName::from("old-room");
+        let created_at = discovery::UnixTime::from_secs(7);
+        state.held_rooms.insert(
+            room.clone(),
+            discovery::state_machine::HeldRoomHistory {
+                created_at,
+                left_at: discovery::UnixTime::from_secs(8),
+            },
+        );
+        let prefix = p2p::history_key_prefix(&game, &room, created_at);
+        let manifest = p2p::RoomHistoryRecordKind::Manifest(prefix.clone());
+        holder
+            .net_commands
+            .send(p2p::NetCommand::PutHistoryRecord {
+                id: manifest,
+                value: vec![1; 32],
+            })
+            .unwrap();
+        wait_history_event(&mut holder).await;
+
+        holder
+            .net_commands
+            .send(p2p::NetCommand::MeasureHistoryStore)
+            .unwrap();
+        let p2p::NetEvent::HistoryStoreMeasured { bytes_by_prefix } =
+            wait_history_event(&mut holder).await
+        else {
+            panic!("expected a history store measurement");
+        };
+        assert_eq!(
+            bytes_by_prefix.get(&prefix),
+            Some(&p2p::HistoryByteCount(32))
+        );
+        for output in discovery::state_machine::drop_oldest_history(&mut state, &bytes_by_prefix) {
+            if let discovery::state_machine::Output::NetCommand(command) = output {
+                holder.net_commands.send(command).unwrap();
+            }
+        }
+        assert_eq!(state.evicted_rooms.get(&room), Some(&created_at));
+
+        holder
+            .net_commands
+            .send(p2p::NetCommand::MeasureHistoryStore)
+            .unwrap();
+        assert_eq!(
+            wait_history_event(&mut holder).await,
+            p2p::NetEvent::HistoryStoreMeasured {
+                bytes_by_prefix: std::collections::BTreeMap::new()
+            }
+        );
+        holder.handle.abort();
     }
 }
