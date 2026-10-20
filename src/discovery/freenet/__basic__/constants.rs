@@ -8,5 +8,6 @@ pub const DEPLOY_TIMEOUT: Duration = Duration::from_secs(30);
 pub const LOBBY_REFRESH: Duration = Duration::from_secs(5);
 pub const RESUBSCRIBE: Duration = Duration::from_secs(10);
 pub const RING_WAIT: Duration = Duration::from_secs(30);
+pub const MAX_LOBBY_ROOMS: usize = 256;
 
 // no test_usage necessary

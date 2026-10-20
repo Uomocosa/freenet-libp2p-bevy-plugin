@@ -64,12 +64,40 @@ fn merge_lobby(mut base: Lobby, incoming: Lobby) -> Lobby {
         if merged.room_size == 0 || merged.members.len() > MAX_MEMBERS_PER_ROOM {
             continue;
         }
-        if !base.contains_key(&room) && base.len() >= MAX_ROOMS {
-            continue;
-        }
         base.insert(room, merged);
     }
+    drop_rooms_where_every_member_quit(&mut base);
+    evict_oldest_rooms_until_lobby_fits_capacity(&mut base, MAX_ROOMS);
     base
+}
+
+fn drop_rooms_where_every_member_quit(lobby: &mut Lobby) {
+    lobby.retain(|_, room| {
+        room.members
+            .values()
+            .any(|heartbeat| heartbeat.presence != Presence::Quit)
+    });
+}
+
+fn newest_heartbeat_in(room: &Room) -> UnixTime {
+    room.members
+        .values()
+        .map(|heartbeat| heartbeat.updated_at)
+        .max()
+        .unwrap_or(UnixTime::from_secs(0))
+}
+
+fn evict_oldest_rooms_until_lobby_fits_capacity(lobby: &mut Lobby, capacity: usize) {
+    while lobby.len() > capacity {
+        let oldest = lobby
+            .iter()
+            .min_by_key(|(name, room)| (newest_heartbeat_in(room), name.as_str()))
+            .map(|(name, _)| name.clone());
+        let Some(oldest) = oldest else {
+            break;
+        };
+        lobby.remove(&oldest);
+    }
 }
 
 fn decode_update(data: UpdateData<'static>) -> Option<Vec<u8>> {
@@ -191,6 +219,50 @@ mod tests {
         }
     }
 
+    fn room_at(updated_at: UnixTime) -> Room {
+        let mut members = BTreeMap::new();
+        members.insert(
+            PeerId("peer".to_string()),
+            Heartbeat {
+                addrs: Vec::new(),
+                updated_at,
+                display_name: None,
+                presence: Presence::InRoom,
+            },
+        );
+        Room {
+            room_size: 8,
+            created_at: UnixTime::from_secs(1),
+            members,
+        }
+    }
+
+    fn quit_room(updated_at: UnixTime) -> Room {
+        let mut record = room_at(updated_at);
+        for heartbeat in record.members.values_mut() {
+            heartbeat.presence = Presence::Quit;
+        }
+        record
+    }
+
+    fn lobby_with_rooms(count: usize, newest_at: impl Fn(usize) -> UnixTime) -> Lobby {
+        (0..count)
+            .map(|index| {
+                (
+                    RoomName(format!("room-{index:03}")),
+                    room_at(newest_at(index)),
+                )
+            })
+            .collect()
+    }
+
+    fn apply(params: &Parameters<'static>, base: &Lobby, incoming: &Lobby) -> Lobby {
+        let update = UpdateData::Delta(StateDelta::from(bincode::serialize(incoming).unwrap()));
+        let merged =
+            LobbyContract::update_state(params.clone(), state_of(base), vec![update]).unwrap();
+        bincode::deserialize(&state_bytes(merged)).unwrap()
+    }
+
     #[test]
     fn test_usage() {
         let params = Parameters::from(Vec::new());
@@ -277,9 +349,110 @@ mod tests {
         let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&incoming).unwrap()));
         let merged = LobbyContract::update_state(params, state_of(&base), vec![update]).unwrap();
         let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
-        assert_eq!(
-            decoded[&name].members[&PeerId("peer".to_string())].presence,
-            Presence::Quit
+        assert!(
+            !decoded.contains_key(&name),
+            "the quit tombstone must win over the older live heartbeat"
         );
+    }
+
+    #[test]
+    fn all_quit_room_is_dropped_in_either_merge_order() {
+        let params = Parameters::from(Vec::new());
+        let name = RoomName("room-a".to_string());
+        let live = room_at(UnixTime::from_secs(5));
+        let quit = quit_room(UnixTime::from_secs(9));
+        let pairs = [(live.clone(), quit.clone()), (quit, live)];
+        for (base_room, incoming_room) in pairs {
+            let base = Lobby::from([(name.clone(), base_room)]);
+            let incoming = Lobby::from([(name.clone(), incoming_room)]);
+            let merged = apply(&params, &base, &incoming);
+            assert!(
+                !merged.contains_key(&name),
+                "an all-quit room must not survive the merge"
+            );
+        }
+    }
+
+    #[test]
+    fn stale_live_heartbeat_resurrects_a_dropped_room() {
+        let params = Parameters::from(Vec::new());
+        let name = RoomName("room-a".to_string());
+        let dead = Lobby::from([(name.clone(), quit_room(UnixTime::from_secs(9)))]);
+        let dropped = apply(&params, &Lobby::new(), &dead);
+        assert!(!dropped.contains_key(&name));
+        let stale = Lobby::from([(name.clone(), room_at(UnixTime::from_secs(5)))]);
+        let revived = apply(&params, &dropped, &stale);
+        assert!(revived.contains_key(&name));
+    }
+
+    #[test]
+    fn all_quit_room_never_displaces_a_live_room() {
+        let params = Parameters::from(Vec::new());
+        let base = lobby_with_rooms(MAX_ROOMS, |index| {
+            UnixTime::from_secs(u64::try_from(index).unwrap_or_default().saturating_add(1))
+        });
+        let dead = Lobby::from([(
+            RoomName("z-dead".to_string()),
+            quit_room(UnixTime::from_secs(1_000)),
+        )]);
+        let merged = apply(&params, &base, &dead);
+        assert_eq!(merged.len(), MAX_ROOMS);
+        assert!(!merged.contains_key(&RoomName("z-dead".to_string())));
+        assert!(merged.contains_key(&RoomName("room-000".to_string())));
+    }
+
+    #[test]
+    fn cap_evicts_the_oldest_room_and_keeps_the_incoming_one() {
+        let params = Parameters::from(Vec::new());
+        let base = lobby_with_rooms(MAX_ROOMS, |index| {
+            UnixTime::from_secs(u64::try_from(index).unwrap_or_default().saturating_add(1))
+        });
+        let incoming = Lobby::from([(
+            RoomName("z-new".to_string()),
+            room_at(UnixTime::from_secs(1_000)),
+        )]);
+        let merged = apply(&params, &base, &incoming);
+        assert_eq!(merged.len(), MAX_ROOMS);
+        assert!(!merged.contains_key(&RoomName("room-000".to_string())));
+        assert!(merged.contains_key(&RoomName("z-new".to_string())));
+    }
+
+    #[test]
+    fn cap_evicts_the_smaller_name_when_newest_heartbeats_tie() {
+        let params = Parameters::from(Vec::new());
+        let base = lobby_with_rooms(MAX_ROOMS, |_| UnixTime::from_secs(5));
+        let incoming = Lobby::from([(
+            RoomName("z-new".to_string()),
+            room_at(UnixTime::from_secs(5)),
+        )]);
+        let merged = apply(&params, &base, &incoming);
+        assert_eq!(merged.len(), MAX_ROOMS);
+        assert!(!merged.contains_key(&RoomName("room-000".to_string())));
+        assert!(merged.contains_key(&RoomName("z-new".to_string())));
+    }
+
+    #[test]
+    fn cap_evicts_the_incoming_room_when_it_is_the_oldest() {
+        let params = Parameters::from(Vec::new());
+        let base = lobby_with_rooms(MAX_ROOMS, |_| UnixTime::from_secs(100));
+        let incoming = Lobby::from([(
+            RoomName("new-room".to_string()),
+            room_at(UnixTime::from_secs(1)),
+        )]);
+        let merged = apply(&params, &base, &incoming);
+        assert_eq!(merged.len(), MAX_ROOMS);
+        assert!(!merged.contains_key(&RoomName("new-room".to_string())));
+        assert!(merged.contains_key(&RoomName("room-000".to_string())));
+    }
+
+    #[test]
+    fn evicts_the_oldest_rooms_until_the_lobby_fits() {
+        let mut lobby = lobby_with_rooms(3, |index| {
+            UnixTime::from_secs(u64::try_from(index).unwrap_or_default())
+        });
+        evict_oldest_rooms_until_lobby_fits_capacity(&mut lobby, 2);
+        assert_eq!(lobby.len(), 2);
+        assert!(!lobby.contains_key(&RoomName("room-000".to_string())));
+        assert!(lobby.contains_key(&RoomName("room-002".to_string())));
     }
 }

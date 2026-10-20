@@ -68,21 +68,47 @@ Verified: build, clippy, fmt, lint, bevy-lint, contract clippy/lint, 255 nextest
 
 ## Step H0b — Drop dead rooms from the contract (HD8)
 
-- [ ] Contract `merge_lobby`: after merging, drop rooms where every heartbeat is
+- [x] Contract `merge_lobby`: after merging, drop rooms where every heartbeat is
       `Presence::Quit`.
-- [ ] Contract cap: when inserting would exceed `MAX_ROOMS`, evict the room with the
+- [x] Contract cap: when inserting would exceed `MAX_ROOMS`, evict the room with the
       oldest newest-heartbeat (tie-break: smaller `RoomName`) instead of silently dropping
       the incoming room.
-- [ ] Client `discovery::freenet::merge_room` / `Lobby::merge` mirror both rules so the
+- [x] Client `discovery::freenet::merge_room` / `Lobby::merge` mirror both rules so the
       client view matches the contract.
-- [ ] Tests: all-`Quit` room is gone after merge (both orders); a stale `InRoom` heartbeat
+- [x] Tests: all-`Quit` room is gone after merge (both orders); a stale `InRoom` heartbeat
       arriving after the drop resurrects the room in the contract but `drop_dead` still hides
       it (documented, accepted); cap evicts the oldest room; `just freenet-harness` CRDT laws
       still pass — if the cap eviction breaks associativity, stop and report.
-- [ ] Contract key changes again → rebuild `lobby_contract.wasm`.
+- [x] Contract key changes again → rebuild `lobby_contract.wasm`.
 
 ### What was done (Step H0b)
-_(agent fills)_
+
+- Contract: `merge_lobby` inserts every valid incoming room, then
+  `drop_rooms_where_every_member_quit` (a room with no members counts as all-`Quit`), then
+  `evict_oldest_rooms_until_lobby_fits_capacity(&mut base, MAX_ROOMS)`. Eviction rank is
+  `newest_heartbeat_in(room)`; ties lose to the smaller `RoomName`.
+- The cap keeps the **newest `MAX_ROOMS` of the union**, so an incoming room older than
+  every held room is itself evicted. That is what keeps merge associative (a "the incoming
+  always wins" rule is not).
+- Client mirror: `discovery::freenet::drop_rooms_where_every_member_quit` and
+  `discovery::freenet::evict_oldest_rooms_until_lobby_fits_capacity` (capacity parameter,
+  `discovery::freenet::MAX_LOBBY_ROOMS = 256`), both called once from `Lobby::merge` in the
+  contract's order: sweep, then cap.
+- Sweep-before-cap means an all-`Quit` incoming room never displaces a live one.
+- Tests: contract `all_quit_room_is_dropped_in_either_merge_order`,
+  `stale_live_heartbeat_resurrects_a_dropped_room`, `all_quit_room_never_displaces_a_live_room`,
+  `cap_evicts_the_oldest_room_and_keeps_the_incoming_one`,
+  `cap_evicts_the_smaller_name_when_newest_heartbeats_tie`,
+  `cap_evicts_the_incoming_room_when_it_is_the_oldest`,
+  `evicts_the_oldest_rooms_until_the_lobby_fits`; client `merge` both-orders sweep +
+  capacity; both new client fns have `test_usage`.
+- H0's `quit_tombstone_wins_over_older_heartbeat` now asserts the room is **gone** (the
+  tombstone wins by killing the room, not by keeping a `Quit` member). The `refresh`/`poll`
+  fixtures gained a real heartbeat because a zero-member room is now dropped.
+- `just freenet-harness` green (idempotent, commutative, associative unchanged).
+- Contract code changed → `lobby_contract.wasm` rebuilt, so the contract key changes again
+  (accepted). Verified: build, clippy, fmt, lint, bevy-lint, contract clippy/fmt/lint,
+  260 nextest + 10 contract tests, freenet-harness.
 
 ## Step H1 — Record keys, chunking codec
 
@@ -123,7 +149,7 @@ _(agent fills)_
 _(agent fills)_
 
 ## Order
-H0 ✅ → H0b → H1 → H2 → H2b → H3 → H4.
+H0 ✅ → H0b ✅ → H1 → H2 → H2b → H3 → H4.
 
 ## Step H3 — History writer/reader in SyncPlugin
 

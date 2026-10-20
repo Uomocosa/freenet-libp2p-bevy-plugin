@@ -61,7 +61,15 @@ mod tests {
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: discovery::UnixTime::from_secs(0),
-                members: BTreeMap::new(),
+                members: BTreeMap::from([(
+                    identity::PeerId::from("peer"),
+                    discovery::Heartbeat {
+                        addrs: Vec::new(),
+                        updated_at: discovery::UnixTime::from_secs(1),
+                        display_name: None,
+                        presence: discovery::Presence::InRoom,
+                    },
+                )]),
             },
         )])
     }

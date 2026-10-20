@@ -56,5 +56,11 @@ pub use publish_heartbeat::publish_heartbeat;
 mod merge_room;
 pub use merge_room::merge_room;
 
+mod drop_rooms_where_every_member_quit;
+pub use drop_rooms_where_every_member_quit::drop_rooms_where_every_member_quit;
+
+mod evict_oldest_rooms_until_lobby_fits_capacity;
+pub use evict_oldest_rooms_until_lobby_fits_capacity::evict_oldest_rooms_until_lobby_fits_capacity;
+
 mod run_lobby;
 pub use run_lobby::run_lobby;
