@@ -7,11 +7,8 @@ pub use message_codec::MessageCodec;
 pub mod behaviour;
 pub use behaviour::Behaviour;
 
-pub mod record_key;
-pub use record_key::record_key;
-
-pub mod history_manifest_record_key;
-pub use history_manifest_record_key::history_manifest_record_key;
+pub mod history_record_key;
+pub use history_record_key::history_record_key;
 
 pub mod history_key_prefix;
 pub use history_key_prefix::history_key_prefix;
@@ -22,8 +19,8 @@ pub use split_snapshot_into_chunks::split_snapshot_into_chunks;
 pub mod join_chunks_into_snapshot;
 pub use join_chunks_into_snapshot::join_chunks_into_snapshot;
 
-pub mod parse_record_key;
-pub use parse_record_key::parse_record_key;
+pub mod parse_history_record_key;
+pub use parse_history_record_key::parse_history_record_key;
 
 pub mod matches_transport;
 pub use matches_transport::matches_transport;
@@ -31,9 +28,10 @@ pub use matches_transport::matches_transport;
 #[path = "__basic__/mod.rs"]
 pub mod basic;
 
+pub use basic::constants::*;
 pub use basic::enums::{
-    ChunkError, Command, Event, MdnsMode, NetCommand, NetEvent, SnapshotRequest, SnapshotResponse,
-    TransportMode,
+    ChunkError, Command, Event, MdnsMode, NetCommand, NetEvent, RoomHistoryRecordKind,
+    SnapshotRequest, SnapshotResponse, TransportMode,
 };
 pub use basic::newtypes::{ChunkIndex, ContentHash, HistoryKeyPrefix, ReplyId};
 pub use basic::resources::{CommandSender, EventReceiver, NetCommandSender};

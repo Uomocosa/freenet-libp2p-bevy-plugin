@@ -53,12 +53,9 @@ pub fn handle_swarm_event<Payload: p2p::Message>(
                 .ok();
         }
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Kademlia(
-            kad::Event::OutboundQueryProgressed {
-                result: kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))),
-                ..
-            },
+            kad::Event::OutboundQueryProgressed { result, .. },
         )) => {
-            p2p::swarm_loop::handle_found_record(event_tx, peer_record);
+            p2p::swarm_loop::handle_kademlia_query_result(event_tx, result);
         }
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Gossipsub(gossip_event)) => {
             p2p::swarm_loop::handle_gossipsub(swarm, event_tx, subscriptions, gossip_event);

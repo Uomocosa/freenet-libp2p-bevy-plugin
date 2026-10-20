@@ -234,6 +234,28 @@ mod tests {
         }
     }
 
+    async fn wait_history_event(node: &mut Node) -> p2p::NetEvent {
+        let event = tokio::time::timeout(Duration::from_secs(15), async {
+            while let Some(event) = node.events.recv().await {
+                if let p2p::Event::Net(
+                    net @ (p2p::NetEvent::HistoryRecordStored { .. }
+                    | p2p::NetEvent::HistoryRecordPutFailed { .. }
+                    | p2p::NetEvent::HistoryRecordFound { .. }
+                    | p2p::NetEvent::HistoryRecordNotFound { .. }),
+                ) = event
+                {
+                    return Some(net);
+                }
+            }
+            None
+        })
+        .await;
+        let Ok(Some(event)) = event else {
+            panic!("no history record event arrived");
+        };
+        event
+    }
+
     #[test]
     fn test_usage() {
         let _ = stringify!(run::<TestPayload>);
@@ -299,5 +321,82 @@ mod tests {
         hub.handle.abort();
         left.handle.abort();
         right.handle.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn kademlia_history_record_survives_its_writer_leaving() {
+        let game = identity::GameId::from("game");
+        let mut writer = node(&game);
+        let mut middle = node(&game);
+        let mut reader = node(&game);
+        let writer_peer = wait_ready(&mut writer).await;
+        let middle_peer = dialable(&wait_ready(&mut middle).await);
+        let reader_peer = wait_ready(&mut reader).await;
+
+        for node in [&writer, &reader] {
+            node.net_commands
+                .send(p2p::NetCommand::AddKadPeer(middle_peer.clone()))
+                .unwrap();
+            node.net_commands
+                .send(p2p::NetCommand::Dial(middle_peer.clone()))
+                .unwrap();
+        }
+        wait_connected_to_all(
+            &mut middle,
+            &[writer_peer.id.clone(), reader_peer.id.clone()],
+        )
+        .await;
+
+        let prefix = p2p::HistoryKeyPrefix::from("room-generation");
+        let manifest = p2p::RoomHistoryRecordKind::Manifest(prefix.clone());
+        let chunk = p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+            prefix,
+            content_hash: p2p::ContentHash::from("hash"),
+            chunk: p2p::ChunkIndex(0),
+        });
+        let chunk_value: Vec<u8> = (0..60 * 1024).map(|i: u32| i.to_le_bytes()[0]).collect();
+        for (id, value) in [(&manifest, vec![7, 7, 7]), (&chunk, chunk_value.clone())] {
+            writer
+                .net_commands
+                .send(p2p::NetCommand::PutHistoryRecord {
+                    id: id.clone(),
+                    value,
+                })
+                .unwrap();
+            assert_eq!(
+                wait_history_event(&mut writer).await,
+                p2p::NetEvent::HistoryRecordStored { id: id.clone() }
+            );
+        }
+        writer.handle.abort();
+
+        for (id, value) in [(&manifest, vec![7, 7, 7]), (&chunk, chunk_value)] {
+            reader
+                .net_commands
+                .send(p2p::NetCommand::GetHistoryRecord { id: id.clone() })
+                .unwrap();
+            assert_eq!(
+                wait_history_event(&mut reader).await,
+                p2p::NetEvent::HistoryRecordFound {
+                    id: id.clone(),
+                    value
+                }
+            );
+        }
+
+        let unknown = p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("nope"));
+        reader
+            .net_commands
+            .send(p2p::NetCommand::GetHistoryRecord {
+                id: unknown.clone(),
+            })
+            .unwrap();
+        assert_eq!(
+            wait_history_event(&mut reader).await,
+            p2p::NetEvent::HistoryRecordNotFound { id: unknown }
+        );
+
+        middle.handle.abort();
+        reader.handle.abort();
     }
 }

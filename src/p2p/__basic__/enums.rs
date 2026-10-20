@@ -30,9 +30,19 @@ pub enum NetEvent {
     RelayReserved {
         relay_peer_id: identity::PeerId,
     },
-    HistoryChunk {
-        id: p2p::HistoryChunkId,
-        data: Vec<u8>,
+    HistoryRecordStored {
+        id: p2p::RoomHistoryRecordKind,
+    },
+    HistoryRecordPutFailed {
+        id: p2p::RoomHistoryRecordKind,
+        reason: String,
+    },
+    HistoryRecordFound {
+        id: p2p::RoomHistoryRecordKind,
+        value: Vec<u8>,
+    },
+    HistoryRecordNotFound {
+        id: p2p::RoomHistoryRecordKind,
     },
     Gossip {
         topic: identity::Topic,
@@ -75,6 +85,12 @@ pub enum NetEvent {
         index: room_sync::ReplicaSliceIndex,
         data: Vec<u8>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RoomHistoryRecordKind {
+    Manifest(p2p::HistoryKeyPrefix),
+    Chunk(p2p::HistoryChunkId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -124,12 +140,12 @@ pub enum NetCommand {
         mode: MdnsMode,
     },
     AddKadPeer(identity::Peer),
-    PutHistory {
-        id: p2p::HistoryChunkId,
-        data: Vec<u8>,
+    PutHistoryRecord {
+        id: p2p::RoomHistoryRecordKind,
+        value: Vec<u8>,
     },
-    FetchHistory {
-        id: p2p::HistoryChunkId,
+    GetHistoryRecord {
+        id: p2p::RoomHistoryRecordKind,
     },
     Subscribe {
         topic: identity::Topic,

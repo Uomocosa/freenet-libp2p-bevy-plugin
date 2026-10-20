@@ -32,14 +32,14 @@ pub fn dispatch_net_command<Payload: p2p::Message>(
         p2p::NetCommand::AddKadPeer(peer) => {
             p2p::swarm_loop::seed_kad_peer(swarm, &peer.id, &peer.addrs);
         }
-        p2p::NetCommand::PutHistory { id, data } => {
-            p2p::swarm_loop::put_history(swarm, &id, data);
+        p2p::NetCommand::PutHistoryRecord { id, value } => {
+            p2p::swarm_loop::put_history_record(swarm, event_tx, &id, value);
         }
-        p2p::NetCommand::FetchHistory { id } => {
+        p2p::NetCommand::GetHistoryRecord { id } => {
             swarm
                 .behaviour_mut()
                 .kademlia
-                .get_record(p2p::record_key(&id));
+                .get_record(p2p::history_record_key(&id));
         }
         p2p::NetCommand::Subscribe { topic } => {
             let topic = gossipsub::IdentTopic::new(topic.as_str());

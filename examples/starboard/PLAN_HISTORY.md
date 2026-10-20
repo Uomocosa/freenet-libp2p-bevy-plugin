@@ -112,26 +112,49 @@ Verified: build, clippy, fmt, lint, bevy-lint, contract clippy/lint, 255 nextest
 
 ## Step H1 — Record keys, chunking codec
 
-- [ ] Key builders, manifest type, chunk/unchunk + hash verify (pure).
-- [ ] Tests: round-trip for sizes 0, 1 B, 59 KB, 61 KB, 5 MB; corrupted chunk detected;
+- [x] Key builders, manifest type, chunk/unchunk + hash verify (pure).
+- [x] Tests: round-trip for sizes 0, 1 B, 59 KB, 61 KB, 5 MB; corrupted chunk detected;
       chunk keys differ for different content hashes.
-- [ ] **STOP before H3:** the "Open questions" at the bottom of this file must be answered
+- [x] **STOP before H3:** the "Open questions" at the bottom of this file must be answered
       by the user first. Ask them; do not guess.
 
 ### What was done (Step H1)
-_(agent fills)_
+Commit `b9a8812`: `history_key_prefix` (blake3 of game/room/`created_at`),
+`split_snapshot_into_chunks` / `join_chunks_into_snapshot` (zstd, ≤ 60 KB chunks, blake3
+content hash), `HistoryManifest` + `ChunkError`, manifest key builder; `HistoryChunkId` is now
+prefix/content-hash scoped. The open questions were already answered (see bottom).
 
 ## Step H2 — Kademlia put/get commands in the swarm loop
 
-- [ ] `NetCommand::{PutRecord{key,value}, GetRecord{key}}` + `NetEvent::{RecordStored,
+- [x] `NetCommand::{PutRecord{key,value}, GetRecord{key}}` + `NetEvent::{RecordStored,
       RecordFound{key,value}, RecordNotFound}` (check what `handle_found_record.rs`
       already does and extend it rather than duplicating).
-- [ ] Kad server mode for room members; check `MemoryStore` max value size and raise if
+- [x] Kad server mode for room members; check `MemoryStore` max value size and raise if
       needed (document).
-- [ ] Headless test: 3 swarms, A puts, A disconnects, C (connected only to B) gets it.
+- [x] Headless test: 3 swarms, A puts, A disconnects, C (connected only to B) gets it.
 
 ### What was done (Step H2)
-_(agent fills)_
+- Deviation: commands/events take a typed `p2p::RoomHistoryRecordKind { Manifest(prefix),
+  Chunk(HistoryChunkId) }` instead of a raw key (`kad::RecordKey` is not `Serialize`).
+  `NetCommand::{PutHistoryRecord{id,value}, GetHistoryRecord{id}}`;
+  `NetEvent::{HistoryRecordStored, HistoryRecordPutFailed{reason}, HistoryRecordFound{value},
+  HistoryRecordNotFound}` replace `PutHistory`/`FetchHistory`/`HistoryChunk`.
+- `record_key` + `history_manifest_record_key` → `history_record_key`; `parse_record_key` →
+  `parse_history_record_key` (now also parses the manifest key).
+- `handle_found_record` → `handle_kademlia_query_result`: `FoundRecord` → Found;
+  `NotFound`/`Timeout`/`QuorumFailed` → NotFound; `PutRecord` ok/err → Stored/PutFailed.
+  `put_history_record` reports a local-store refusal as PutFailed and no longer calls
+  `start_providing` (provider records are useless for value records).
+- **Packet size fix:** kad's default `max_packet_size` is 16 KiB, so every 60 KB chunk failed.
+  Now `p2p::KADEMLIA_MAX_PACKET_BYTES = 128 KiB` (the test fails without it).
+- Kad defaults kept (libp2p-kad 0.48): `MemoryStore` `max_value_bytes` 65 KiB (fits a 60 KB
+  chunk), `max_records` 1024 (≈ 60 MB of chunks — below HD9's 256 MB, raise in H2b), record
+  TTL 48 h, replication 1 h, republish 22 h, replication factor 8 (ours), `Quorum::One`.
+  Server mode was already on.
+- Test `p2p::run::tests::kademlia_history_record_survives_its_writer_leaving`: writer and
+  reader both connect only to a middle node; writer puts the manifest + a 60 KB chunk, is
+  aborted, reader gets both byte-identical; an unknown id gives NotFound.
+- Verified: build, clippy, fmt, lint, bevy-lint, 274 nextest.
 
 ## Step H2b — History size caps + `drop_oldest_history` (HD9)
 
