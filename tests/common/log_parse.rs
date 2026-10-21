@@ -93,6 +93,21 @@ pub fn senders_seen_in_room(path: &Path, room: &str) -> std::collections::BTreeS
         .collect()
 }
 
+/// The snapshot byte count of the last history write in the log.
+#[must_use]
+pub fn history_write_bytes(path: &Path) -> Option<u64> {
+    strip_ansi(&std::fs::read_to_string(path).unwrap_or_default())
+        .lines()
+        .filter_map(|line| {
+            let start = line.find("room history written")?;
+            let rest = line.get(start.checked_add("room history written".len())?..)?;
+            rest.split_whitespace()
+                .find_map(|token| token.strip_prefix("snapshot_bytes="))
+                .and_then(|value| value.parse().ok())
+        })
+        .next_back()
+}
+
 // needed helper: `2026-10-01T17:04:19.867931Z ...` -> milliseconds since midnight
 fn line_millis(line: &str) -> Option<u64> {
     let time = line.split_whitespace().next()?.split('T').nth(1)?;

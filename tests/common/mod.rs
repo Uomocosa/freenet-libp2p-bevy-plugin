@@ -12,8 +12,8 @@ pub use finish_record::finish_record;
 
 mod log_parse;
 pub use log_parse::{
-    CanvasTick, Tick, canvas_ticks, last_canvas, last_tick, log_contains, log_matches,
-    marker_times, read_head, senders_seen_in_room,
+    CanvasTick, Tick, canvas_ticks, history_write_bytes, last_canvas, last_tick, log_contains,
+    log_matches, marker_times, read_head, senders_seen_in_room,
 };
 
 mod poke;

@@ -29,7 +29,11 @@ pub fn track_pointer(
         starboard::canvas::DrawAction::Paint(brush.color)
     };
     draws.write(starboard::input::PendingLocalDraw(
-        starboard::input::draw_op(*brush, action, from, current),
+        starboard::input::draw_op(
+            *brush,
+            action,
+            starboard::canvas::Stroke { from, to: current },
+        ),
     ));
     **latest_painted = Some(current);
 }

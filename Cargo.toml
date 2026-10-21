@@ -40,6 +40,11 @@ path = "tests/starboard_e2e.rs"
 required-features = ["e2e"]
 
 [[test]]
+name = "starboard_history"
+path = "tests/starboard_history.rs"
+required-features = ["e2e"]
+
+[[test]]
 name = "contract_wire"
 path = "tests/contract_wire.rs"
 

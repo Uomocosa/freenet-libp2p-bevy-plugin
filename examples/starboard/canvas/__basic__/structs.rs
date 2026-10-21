@@ -19,6 +19,12 @@ pub struct CellPos {
     pub y: u16,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Stroke {
+    pub from: CellPos,
+    pub to: CellPos,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TouchedTile {
     pub id: starboard::canvas::TileId,

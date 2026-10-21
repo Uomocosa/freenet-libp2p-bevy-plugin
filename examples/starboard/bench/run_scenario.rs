@@ -33,7 +33,7 @@ pub async fn run_scenario(
     let room = identity::RoomName::from(starboard::bench::BENCH_ROOM);
     let topic = room_sync::sync_topic(&game, &room);
     let mut apps: Vec<App> = (0..config.peers)
-        .map(|_| starboard::app::test_harness::node_with(&game))
+        .map(|_| starboard::app::test_harness::node_with(&game, None))
         .collect();
     let peers: Vec<identity::Peer> = apps
         .iter_mut()

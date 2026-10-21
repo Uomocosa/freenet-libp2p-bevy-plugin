@@ -19,7 +19,7 @@ pub use basic::constants::{
 };
 pub use basic::enums::DrawAction;
 pub use basic::newtypes::{CanvasSnapshot, TileId};
-pub use basic::structs::{Cell, CellPos, DrawOp, TouchedTile};
+pub use basic::structs::{Cell, CellPos, DrawOp, Stroke, TouchedTile};
 pub use brush_radius::brush_radius;
 pub use canvas::Canvas;
 pub use decode_snapshot::decode_snapshot;

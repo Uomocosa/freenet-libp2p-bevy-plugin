@@ -4,15 +4,14 @@ use crate::starboard;
 pub const fn draw_op(
     brush: starboard::input::OwnBrush,
     action: starboard::canvas::DrawAction,
-    from: starboard::canvas::CellPos,
-    to: starboard::canvas::CellPos,
+    stroke: starboard::canvas::Stroke,
 ) -> starboard::canvas::DrawOp {
     starboard::canvas::DrawOp {
         action,
         shape: brush.shape,
         size_index: brush.size_index,
-        from,
-        to,
+        from: stroke.from,
+        to: stroke.to,
     }
 }
 
@@ -29,18 +28,21 @@ mod tests {
             size_index: 2,
         };
         let cell = starboard::canvas::CellPos { x: 10, y: 11 };
+        let stroke = starboard::canvas::Stroke {
+            from: cell,
+            to: cell,
+        };
         let paint = draw_op(
             brush,
             starboard::canvas::DrawAction::Paint(brush.color),
-            cell,
-            cell,
+            stroke,
         );
         assert_eq!(paint.shape, starboard::identity::Shape::Star);
         assert_eq!(paint.size_index, 2);
         assert_eq!(paint.from, cell);
         assert_eq!(paint.to, cell);
 
-        let erase = draw_op(brush, starboard::canvas::DrawAction::Erase, cell, cell);
+        let erase = draw_op(brush, starboard::canvas::DrawAction::Erase, stroke);
         assert_eq!(erase.action, starboard::canvas::DrawAction::Erase);
     }
 }

@@ -51,6 +51,13 @@ pub fn merge_and_write_history_records<Replica: room_sync::RoomState>(
     {
         return Vec::new();
     }
+    tracing::info!(
+        target: "room_sync",
+        snapshot_bytes = bytes.len(),
+        record_bytes = compressed_bytes,
+        chunks = chunked.chunks.len(),
+        "room history written"
+    );
     let Ok(manifest_bytes) = bincode::serialize(&chunked.manifest) else {
         return Vec::new();
     };

@@ -1,17 +1,15 @@
 use std::process::Command;
 use std::time::Duration;
 
-use super::terminal_guard::TerminalGuard;
-
 /// # Errors
 /// Returns an error if any window cannot be found and positioned.
-pub fn tile(windows: &[TerminalGuard]) -> Result<(), String> {
-    let targets = layout(windows.len());
+pub fn tile(titles: &[&str]) -> Result<(), String> {
+    let targets = layout(titles.len());
     for (index, (w, h, x, y)) in targets.iter().enumerate() {
-        let Some(window) = windows.get(index) else {
+        let Some(title) = titles.get(index) else {
             continue;
         };
-        place(&window.window_title, *w, *h, *x, *y)?;
+        place(title, *w, *h, *x, *y)?;
     }
     std::thread::sleep(Duration::from_millis(400));
     Ok(())

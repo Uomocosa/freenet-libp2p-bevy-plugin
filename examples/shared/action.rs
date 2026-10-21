@@ -5,7 +5,7 @@ use freenet_libp2p_bevy_plugin::identity::RoomName;
 /// Scripted interaction: `create:<room>` types the room name into the input and
 /// presses "Create New Room"; `join:<room>` presses that room's button once it shows
 /// up in the list. The name is always explicit — an empty name is rejected.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     Create(RoomName),
     Join(RoomName),

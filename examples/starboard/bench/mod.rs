@@ -4,6 +4,7 @@ pub mod basic;
 mod bench_date;
 mod bench_markdown;
 mod bench_starboard;
+mod history_bench;
 mod machine_info;
 mod percentiles;
 mod repaint_cost;

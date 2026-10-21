@@ -22,6 +22,11 @@ use crate::shared::action::Action;
 /// [`MouseButtonInput`]) and the click is retried, after a cooldown, until the
 /// room is actually joined — the cooldown avoids toggling back out, since a
 /// second press on the joined room is a `Leave`.
+/// The action the intent should drive next. A scripted session writes it when
+/// it wants to create a room, join one, or join one again after a leave.
+#[derive(Resource, Default, Debug, Clone)]
+pub struct PendingAction(pub Option<Action>);
+
 #[derive(Resource)]
 pub struct Intent {
     action: Option<Action>,
@@ -41,6 +46,16 @@ impl Intent {
             clicks: 0,
             cooldown: 0,
         }
+    }
+
+    /// Arms the intent with a new action and restarts its step machine, so the
+    /// scripted session can create a room, join it, and join it again later.
+    pub fn arm_with_action(&mut self, action: Action) {
+        self.action = Some(action);
+        self.step = Step::Type;
+        self.retries = 0;
+        self.clicks = 0;
+        self.cooldown = 0;
     }
 }
 
@@ -66,6 +81,7 @@ const MAX_CLICKS: u32 = 60;
 
 pub fn script_input<F, C, J>(
     mut intent: ResMut<Intent>,
+    pending: Option<Res<PendingAction>>,
     status: Res<discovery::Status>,
     mut windows: Query<(Entity, &mut Window), With<PrimaryWindow>>,
     fields: Query<Entity, With<F>>,
@@ -79,6 +95,9 @@ pub fn script_input<F, C, J>(
     C: Component,
     J: Component + Deref<Target = identity::RoomName>,
 {
+    if let Some(pending) = pending {
+        arm_with_pending(&mut intent, Some(&pending));
+    }
     let Some(action) = intent.action.clone() else {
         return;
     };
@@ -175,6 +194,16 @@ pub fn script_input<F, C, J>(
             }
         }
         Step::Done => {}
+    }
+}
+
+// needed helper: arms the intent with the wanted action when it changed
+fn arm_with_pending(intent: &mut Intent, pending: Option<&PendingAction>) {
+    let Some(action) = pending.and_then(|pending| pending.0.clone()) else {
+        return;
+    };
+    if intent.action.as_ref() != Some(&action) {
+        intent.arm_with_action(action);
     }
 }
 

@@ -27,8 +27,7 @@ pub fn scripted_stroke(
     starboard::input::draw_op(
         brush,
         starboard::canvas::DrawAction::Paint(brush.color),
-        from,
-        to,
+        starboard::canvas::Stroke { from, to },
     )
 }
 

@@ -39,6 +39,10 @@ e2e-room:
 e2e-starboard:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test starboard_e2e --all-features --run-ignored all -- --nocapture
 
+# Real, visual e2e: the Kademlia history scenarios (S4a, S4b, S4c) on one machine.
+e2e-history:
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test starboard_history --all-features --run-ignored all -- --nocapture
+
 # Run the starboard example detached (no terminal tie-up; only the app window).
 # Extra args: --username, --token, --transport.
 run-starboard *ARGS:
@@ -54,6 +58,11 @@ run-starboard *ARGS:
 # 20 s measured per scenario; overwrites examples/starboard/BENCH.md.
 bench-starboard:
     cargo nextest run --example starboard_gossip --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture
+
+# Headless history measurement (no window): one room's Kademlia history size and
+# put/get latency; overwrites examples/starboard/HISTORY.md.
+bench-history:
+    cargo nextest run --example starboard_gossip --all-features --run-ignored all -E 'test(history_bench)' -- --nocapture
 
 # Run the lobby_room example detached (no terminal tie-up; only the app window).
 # Extra args toggle ui/action/transport, e.g. `just run --ui custom --action create:room-1`.

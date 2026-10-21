@@ -9,7 +9,7 @@ use crate::starboard;
 pub const SETTLE: Duration = Duration::from_millis(20);
 pub const MAX_ROUNDS: usize = 400;
 
-pub fn node_with(game: &identity::GameId) -> App {
+pub fn node_with(game: &identity::GameId, history: Option<room_sync::HistoryConfig>) -> App {
     let mut app = App::new();
     app.add_plugins((
         MinimalPlugins,
@@ -23,9 +23,10 @@ pub fn node_with(game: &identity::GameId) -> App {
         )
         .with_game(game.clone()),
     ));
-    app.add_plugins(room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(
-        game.clone(),
-    ));
+    app.add_plugins(
+        room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game.clone())
+            .with_history_config(history),
+    );
     app.insert_resource(room_status(&identity::RoomName::from("alpha"), Vec::new()));
     app.init_resource::<ButtonInput<MouseButton>>();
     app.init_resource::<AccumulatedMouseScroll>();

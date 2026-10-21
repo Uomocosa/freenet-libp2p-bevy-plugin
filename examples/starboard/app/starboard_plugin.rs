@@ -95,10 +95,12 @@ mod tests {
             let op = starboard::input::draw_op(
                 brush,
                 starboard::canvas::DrawAction::Paint(brush.color),
-                starboard::canvas::CellPos { x, y },
-                starboard::canvas::CellPos {
-                    x: x.saturating_add(40),
-                    y: y.saturating_add(60),
+                starboard::canvas::Stroke {
+                    from: starboard::canvas::CellPos { x, y },
+                    to: starboard::canvas::CellPos {
+                        x: x.saturating_add(40),
+                        y: y.saturating_add(60),
+                    },
                 },
             );
             canvas.apply(
@@ -171,10 +173,12 @@ mod tests {
                 starboard::input::draw_op(
                     brush,
                     starboard::canvas::DrawAction::Paint(brush.color),
-                    starboard::canvas::CellPos { x, y },
-                    starboard::canvas::CellPos {
-                        x: x.saturating_add(80),
-                        y: y.saturating_add(40),
+                    starboard::canvas::Stroke {
+                        from: starboard::canvas::CellPos { x, y },
+                        to: starboard::canvas::CellPos {
+                            x: x.saturating_add(80),
+                            y: y.saturating_add(40),
+                        },
                     },
                 )
             })
@@ -190,8 +194,8 @@ mod tests {
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room-ae");
         let mut apps = vec![
-            test_harness::node_with(&game),
-            test_harness::node_with(&game),
+            test_harness::node_with(&game, None),
+            test_harness::node_with(&game, None),
         ];
         let peers: Vec<identity::Peer> = apps.iter_mut().map(test_harness::wait_ready).collect();
 
