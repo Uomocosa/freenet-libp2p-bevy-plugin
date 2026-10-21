@@ -1,8 +1,6 @@
 use std::time::Duration;
 
-use bevy::prelude::Resource;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Resource)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HolderHeartbeatIntervals {
     pub interval_between_heartbeats: Duration,
     pub ttl: Duration,

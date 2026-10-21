@@ -9,9 +9,7 @@ pub fn drive<Replica: room_sync::RoomState>(
     room_events: Option<MessageReader<discovery::Event>>,
     command_sender: Option<Res<discovery::CommandSender>>,
     mut join_error: Option<ResMut<discovery::ui::JoinError>>,
-    status: Option<Res<discovery::Status>>,
-    ready: Option<Res<p2p::ReadyChannel>>,
-    holder_heartbeat_intervals: Option<Res<discovery::HolderHeartbeatIntervals>>,
+    discovery_status: Option<Res<discovery::Status>>,
     net_events: Res<room_sync::bevy_systems::NetEvents>,
     game: Res<room_sync::SyncGame>,
     mut clock: ResMut<room_sync::LamportClock>,
@@ -19,18 +17,11 @@ pub fn drive<Replica: room_sync::RoomState>(
     mut room: ResMut<Replica>,
     mut pending: ResMut<p2p::PendingNetCommands>,
 ) {
-    let status = status.map(Res::into_inner);
+    let discovery_status = discovery_status.map(Res::into_inner);
     let command_sender = command_sender.map(Res::into_inner);
     let net_events = net_events.into_inner();
     let game = game.into_inner();
-    let self_peer_id = ready
-        .and_then(|ready| ready.ready_rx.borrow().clone())
-        .map(|peer| peer.id);
-    let ttl = holder_heartbeat_intervals.map_or_else(
-        || discovery::HolderHeartbeatIntervals::default().ttl,
-        |intervals| intervals.ttl,
-    );
-    let members: Vec<identity::PeerId> = status
+    let members: Vec<identity::PeerId> = discovery_status
         .as_ref()
         .and_then(|status| status.room.as_ref())
         .map_or_else(Vec::new, |joined| {
@@ -49,13 +40,8 @@ pub fn drive<Replica: room_sync::RoomState>(
                     pending.push(p2p::NetCommand::Subscribe {
                         topic: room_sync::sync_topic(game, room_name),
                     });
-                    let (prefix, lobby_status) = room_prefix_and_lobby_status(
-                        status,
-                        game,
-                        room_name,
-                        self_peer_id.as_ref(),
-                        ttl,
-                    );
+                    let (prefix, lobby_status) =
+                        room_prefix_and_lobby_status(discovery_status, game, room_name);
                     inputs.push(room_sync::state_machine::Input::Joined {
                         room: room_name.clone(),
                         prefix,
@@ -84,13 +70,8 @@ pub fn drive<Replica: room_sync::RoomState>(
                 }
                 discovery::Event::MembersChanged | discovery::Event::LobbyChanged => {
                     if let Some(room_name) = state.room.clone() {
-                        let (prefix, lobby_status) = room_prefix_and_lobby_status(
-                            status,
-                            game,
-                            &room_name,
-                            self_peer_id.as_ref(),
-                            ttl,
-                        );
+                        let (prefix, lobby_status) =
+                            room_prefix_and_lobby_status(discovery_status, game, &room_name);
                         inputs.push(room_sync::state_machine::Input::Members {
                             members: members.clone(),
                             prefix,
@@ -131,8 +112,6 @@ fn room_prefix_and_lobby_status(
     status: Option<&discovery::Status>,
     game: &identity::GameId,
     room_name: &identity::RoomName,
-    self_peer_id: Option<&identity::PeerId>,
-    ttl: std::time::Duration,
 ) -> (
     p2p::HistoryKeyPrefix,
     room_sync::state_machine::LobbyRoomStatus,
@@ -159,6 +138,8 @@ fn room_prefix_and_lobby_status(
             has_other_lobby_holders: false,
         },
         |status| {
+            let self_peer_id = status.self_peer_id.as_ref();
+            let ttl = status.lease_ttl;
             let Some(record) = status.lobby.get(room_name) else {
                 let is_the_contract_still_publishing_the_room =
                     status.room.as_ref().is_some_and(|joined| {
@@ -185,13 +166,18 @@ fn room_prefix_and_lobby_status(
                 })
                 .collect();
             let live_count = live_members.len();
-            let other_live_count = live_members
-                .iter()
-                .filter(|(peer, _)| Some(*peer) != self_peer_id)
-                .count();
+            let other_live_count = self_peer_id.map_or_else(
+                || live_count.saturating_sub(1),
+                |self_id| {
+                    live_members
+                        .iter()
+                        .filter(|(peer, _)| *peer != self_id)
+                        .count()
+                },
+            );
             let has_other_history_holder = live_members.iter().any(|(peer, heartbeat)| {
-                Some(*peer) != self_peer_id
-                    && heartbeat.presence == discovery::Presence::HoldingHistory
+                let is_other = self_peer_id != Some(*peer);
+                is_other && heartbeat.presence == discovery::Presence::HoldingHistory
             });
             room_sync::state_machine::LobbyRoomStatus {
                 is_room_alive_in_lobby: live_count > 0,
@@ -615,6 +601,8 @@ mod tests {
             }),
             freenet_peers: Vec::new(),
             is_lobby_attached: true,
+            self_peer_id: None,
+            lease_ttl: discovery::HolderHeartbeatIntervals::default().ttl,
         }
     }
 

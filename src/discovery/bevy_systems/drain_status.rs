@@ -47,6 +47,8 @@ mod tests {
             }),
             freenet_peers: Vec::new(),
             is_lobby_attached: true,
+            self_peer_id: None,
+            lease_ttl: discovery::HolderHeartbeatIntervals::default().ttl,
         };
         tx.send(status.clone()).ok();
         app.update();

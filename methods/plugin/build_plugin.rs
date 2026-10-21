@@ -8,7 +8,6 @@ use crate::p2p;
 
 pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.init_resource::<discovery::Status>();
-    app.insert_resource(plugin.lease);
     app.add_message::<discovery::Command>();
     app.add_message::<discovery::Event>();
     app.add_systems(

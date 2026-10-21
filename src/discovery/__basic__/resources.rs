@@ -1,20 +1,10 @@
 use std::sync::Mutex;
 
-use bevy::prelude::{Reflect, ReflectDefault, ReflectResource, Resource};
+use bevy::prelude::Resource;
 use derive_more::Deref;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::discovery;
-use crate::identity;
-
-#[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Reflect)]
-#[reflect(Resource, Default)]
-pub struct Status {
-    pub lobby: discovery::Lobby,
-    pub room: Option<discovery::JoinedRoom>,
-    pub freenet_peers: Vec<identity::FreenetPeer>,
-    pub is_lobby_attached: bool,
-}
 
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Deref)]
 pub struct FreenetPort(pub u16);
@@ -26,4 +16,4 @@ pub struct CommandSender(pub UnboundedSender<discovery::Command>);
 pub struct EventReceiver(pub Mutex<Option<UnboundedReceiver<discovery::Event>>>);
 
 #[derive(Resource, Debug, Deref)]
-pub struct StatusReceiver(pub Mutex<Option<UnboundedReceiver<Status>>>);
+pub struct StatusReceiver(pub Mutex<Option<UnboundedReceiver<discovery::Status>>>);
