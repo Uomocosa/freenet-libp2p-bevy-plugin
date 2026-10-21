@@ -139,8 +139,12 @@ fn room_prefix_and_lobby_status(
         },
         |status| {
             let Some(record) = status.lobby.get(room_name) else {
+                let is_the_contract_still_publishing_the_room =
+                    status.room.as_ref().is_some_and(|joined| {
+                        joined.name == *room_name && joined.phase == discovery::RoomPhase::Joining
+                    });
                 return room_sync::state_machine::LobbyRoomStatus {
-                    is_room_alive_in_lobby: false,
+                    is_room_alive_in_lobby: is_the_contract_still_publishing_the_room,
                     has_other_lobby_holders: false,
                 };
             };
@@ -939,6 +943,41 @@ mod tests {
             room_sync::state_machine::Phase::Ready
         );
         assert!(peer_d.world().resource::<Map>().entries.is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_room_the_contract_has_not_confirmed_yet_is_not_gone() {
+        let game = identity::GameId::from("game-new");
+        let room = identity::RoomName::from("room-new");
+        let history = Some(room_sync::HistoryConfig::default());
+        let mut creator = node_with(&game, None, history);
+        wait_ready(&mut creator);
+        let mut status = status_with_created_at(
+            &room,
+            discovery::UnixTime::from_secs(1),
+            Vec::new(),
+            BTreeMap::new(),
+        );
+        if let Some(joined) = status.room.as_mut() {
+            joined.phase = discovery::RoomPhase::Joining;
+        }
+        creator.insert_resource(status);
+        creator
+            .world_mut()
+            .resource_mut::<Messages<discovery::Event>>()
+            .write(discovery::Event::Joined(room.clone()));
+        for _ in 0..30 {
+            creator.update();
+            tokio::time::sleep(SETTLE).await;
+        }
+        assert!(
+            !log_contains_joined_error(&creator),
+            "a room the contract has not confirmed yet is not gone"
+        );
+    }
+
+    fn log_contains_joined_error(app: &App) -> bool {
+        app.world().resource::<discovery::ui::JoinError>().is_some()
     }
 
     #[tokio::test(flavor = "multi_thread")]
