@@ -54,7 +54,7 @@ pub async fn run_lobby(
         if is_due(
             last_publish,
             now,
-            freenet_config.discovery.lease.renew_every,
+            freenet_config.discovery.lease.interval_between_heartbeats,
         ) {
             for current in current {
                 let heartbeat = discovery::Heartbeat {

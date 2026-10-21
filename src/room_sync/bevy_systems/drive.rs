@@ -10,6 +10,8 @@ pub fn drive<Replica: room_sync::RoomState>(
     command_sender: Option<Res<discovery::CommandSender>>,
     mut join_error: Option<ResMut<discovery::ui::JoinError>>,
     status: Option<Res<discovery::Status>>,
+    ready: Option<Res<p2p::ReadyChannel>>,
+    holder_heartbeat_intervals: Option<Res<discovery::HolderHeartbeatIntervals>>,
     net_events: Res<room_sync::bevy_systems::NetEvents>,
     game: Res<room_sync::SyncGame>,
     mut clock: ResMut<room_sync::LamportClock>,
@@ -21,6 +23,13 @@ pub fn drive<Replica: room_sync::RoomState>(
     let command_sender = command_sender.map(Res::into_inner);
     let net_events = net_events.into_inner();
     let game = game.into_inner();
+    let self_peer_id = ready
+        .and_then(|ready| ready.ready_rx.borrow().clone())
+        .map(|peer| peer.id);
+    let ttl = holder_heartbeat_intervals.map_or_else(
+        || discovery::HolderHeartbeatIntervals::default().ttl,
+        |intervals| intervals.ttl,
+    );
     let members: Vec<identity::PeerId> = status
         .as_ref()
         .and_then(|status| status.room.as_ref())
@@ -40,8 +49,13 @@ pub fn drive<Replica: room_sync::RoomState>(
                     pending.push(p2p::NetCommand::Subscribe {
                         topic: room_sync::sync_topic(game, room_name),
                     });
-                    let (prefix, lobby_status) =
-                        room_prefix_and_lobby_status(status, game, room_name);
+                    let (prefix, lobby_status) = room_prefix_and_lobby_status(
+                        status,
+                        game,
+                        room_name,
+                        self_peer_id.as_ref(),
+                        ttl,
+                    );
                     inputs.push(room_sync::state_machine::Input::Joined {
                         room: room_name.clone(),
                         prefix,
@@ -70,8 +84,13 @@ pub fn drive<Replica: room_sync::RoomState>(
                 }
                 discovery::Event::MembersChanged | discovery::Event::LobbyChanged => {
                     if let Some(room_name) = state.room.clone() {
-                        let (prefix, lobby_status) =
-                            room_prefix_and_lobby_status(status, game, &room_name);
+                        let (prefix, lobby_status) = room_prefix_and_lobby_status(
+                            status,
+                            game,
+                            &room_name,
+                            self_peer_id.as_ref(),
+                            ttl,
+                        );
                         inputs.push(room_sync::state_machine::Input::Members {
                             members: members.clone(),
                             prefix,
@@ -112,6 +131,8 @@ fn room_prefix_and_lobby_status(
     status: Option<&discovery::Status>,
     game: &identity::GameId,
     room_name: &identity::RoomName,
+    self_peer_id: Option<&identity::PeerId>,
+    ttl: std::time::Duration,
 ) -> (
     p2p::HistoryKeyPrefix,
     room_sync::state_machine::LobbyRoomStatus,
@@ -148,18 +169,33 @@ fn room_prefix_and_lobby_status(
                     has_other_lobby_holders: false,
                 };
             };
-            let live_count = record
+            let now = record
                 .members
                 .values()
-                .filter(|heartbeat| heartbeat.presence != discovery::Presence::Quit)
+                .map(|heartbeat| heartbeat.updated_at)
+                .max()
+                .unwrap_or_else(|| discovery::UnixTime::from_secs(0));
+            let is_fresh =
+                |heartbeat: &discovery::Heartbeat| now.elapsed_since(heartbeat.updated_at) <= ttl;
+            let live_members: Vec<(&identity::PeerId, &discovery::Heartbeat)> = record
+                .members
+                .iter()
+                .filter(|(_, heartbeat)| {
+                    heartbeat.presence != discovery::Presence::Quit && is_fresh(heartbeat)
+                })
+                .collect();
+            let live_count = live_members.len();
+            let other_live_count = live_members
+                .iter()
+                .filter(|(peer, _)| Some(*peer) != self_peer_id)
                 .count();
-            let has_history_holder = record
-                .members
-                .values()
-                .any(|heartbeat| heartbeat.presence == discovery::Presence::HoldingHistory);
+            let has_other_history_holder = live_members.iter().any(|(peer, heartbeat)| {
+                Some(*peer) != self_peer_id
+                    && heartbeat.presence == discovery::Presence::HoldingHistory
+            });
             room_sync::state_machine::LobbyRoomStatus {
                 is_room_alive_in_lobby: live_count > 0,
-                has_other_lobby_holders: live_count > 1 || has_history_holder,
+                has_other_lobby_holders: other_live_count > 0 || has_other_history_holder,
             }
         },
     );

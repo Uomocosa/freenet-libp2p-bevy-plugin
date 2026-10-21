@@ -43,7 +43,7 @@ impl State {
             held_rooms: BTreeMap::new(),
             evicted_rooms: BTreeMap::new(),
             history_size_limits: discovery::HistorySizeLimits::default(),
-            lease_ttl: discovery::LeaseTimings::default().ttl,
+            lease_ttl: discovery::HolderHeartbeatIntervals::default().ttl,
             is_quitting: false,
         }
     }

@@ -27,8 +27,8 @@ pub use unix_time::UnixTime;
 mod config;
 pub use config::Config;
 
-mod lease_timings;
-pub use lease_timings::LeaseTimings;
+mod holder_heartbeat_intervals;
+pub use holder_heartbeat_intervals::HolderHeartbeatIntervals;
 
 mod history_size_limits;
 pub use history_size_limits::HistorySizeLimits;

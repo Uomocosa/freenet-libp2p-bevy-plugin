@@ -8,7 +8,7 @@ pub struct Config {
     pub room_size: discovery::RoomSize,
     pub deploy_policy: discovery::freenet::DeployPolicy,
     pub auto_subscribe: discovery::AutoSubscribe,
-    pub lease: discovery::LeaseTimings,
+    pub lease: discovery::HolderHeartbeatIntervals,
     pub history_size_limits: discovery::HistorySizeLimits,
 }
 
@@ -20,7 +20,7 @@ impl Default for Config {
             room_size: discovery::RoomSize::DEFAULT,
             deploy_policy: discovery::freenet::DeployPolicy::default(),
             auto_subscribe: discovery::AutoSubscribe::default(),
-            lease: discovery::LeaseTimings::default(),
+            lease: discovery::HolderHeartbeatIntervals::default(),
             history_size_limits: discovery::HistorySizeLimits::default(),
         }
     }

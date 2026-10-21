@@ -36,7 +36,7 @@ peers download it on join; it is continuously updated.
 | # | Topic | Decision |
 |---|---|---|
 | HD1 | Who holds history | A player who joined a room and has **not quit the game** holds and serves that room's history (also from the lobby or another room). |
-| HD2 | Holder lease | The existing lobby heartbeat **is** the lease: `Heartbeat.presence: Presence { InRoom, HoldingHistory, Quit }`. Renew every 30 s, dead after 90 s (`discovery::LeaseTimings`; the e2e passes values × `E2E_TIME_SCALE`). |
+| HD2 | Holder lease | The existing lobby heartbeat **is** the lease: `Heartbeat.presence: Presence { InRoom, HoldingHistory, Quit }`. Renew every 30 s, dead after 90 s (`discovery::HolderHeartbeatIntervals`; the e2e passes values × `E2E_TIME_SCALE`). |
 | HD3 | Room death | A room is dead when it has no heartbeat that is fresh and not `Quit`. Client-side only (`Lobby::drop_dead`): the contract has no clock and never prunes. |
 | HD4 | Clean quit | `AppExit` → `Command::Quit` → every target is republished as `Presence::Quit` (tombstone, wins by newest `updated_at`). Crash/kill is covered by the 90 s expiry. |
 | HD5 | Name reuse | A dead room's name is reusable as a fresh room: lobby merge keeps the **newer** `created_at` (same `created_at` merges heartbeats). New `created_at` → new history key → empty board. |
@@ -55,7 +55,7 @@ peers download it on join; it is continuously updated.
       publishes them all every `lease.renew_every`.
 - [x] `Command::Quit` + `send_quit_on_exit` (`Last` schedule, sends straight through
       `CommandSender` so no second `forward_commands` instance double-forwards).
-- [x] `LeaseTimings` in `discovery::Config`; `HEARTBEAT_TTL` and `REPUBLISH` removed.
+- [x] `HolderHeartbeatIntervals` in `discovery::Config`; `HEARTBEAT_TTL` and `REPUBLISH` removed.
 - [x] Tests: contract `recreated_room_replaces_old_generation_both_orders`,
       `quit_tombstone_wins_over_older_heartbeat`; `drop_dead` presence table; `merge_room`
       generations; `heartbeat_targets` presences + quit.
@@ -63,7 +63,7 @@ peers download it on join; it is continuously updated.
 ### What was done (Step H0)
 Contract code changed → `lobby_contract.wasm` rebuilt, so the contract key changes (accepted).
 Deviation from the plan: `State::new` keeps its signature (`lease_ttl` defaults to
-`LeaseTimings::default().ttl`, `run` overrides it from config) to avoid touching 28 test sites.
+`HolderHeartbeatIntervals::default().ttl`, `run` overrides it from config) to avoid touching 28 test sites.
 Verified: build, clippy, fmt, lint, bevy-lint, contract clippy/lint, 255 nextest, freenet-harness.
 
 ## Step H0b — Drop dead rooms from the contract (HD8)
@@ -211,7 +211,7 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
 ### What was done (Step H3)
 - `NetCommand::PutHistoryRecord` and `put_history_record` now carry `ttl: Duration` and set
   `kad::Record.expires = Instant::now().checked_add(ttl)` from the history config (default
-  90 s = `LeaseTimings::default().ttl`).
+  90 s = `HolderHeartbeatIntervals::default().ttl`).
 - `discovery::state_machine::seed_candidates` → `collect_room_peers_from_lobby`: returns
   `Vec<Output>` emitting `NetCommand::AddKadPeer` for every non-`Quit` lobby member (`InRoom`
   and `HoldingHistory`) while still seeding only `InRoom` into `state.candidates`.

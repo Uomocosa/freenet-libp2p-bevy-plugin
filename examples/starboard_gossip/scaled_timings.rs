@@ -6,9 +6,9 @@ use freenet_libp2p_bevy_plugin::{discovery, room_sync};
 ///
 /// The scale exists for the slow Windows peer: CROSS-OS-PLAN X9 multiplies every
 /// wait by it, and the lease is the wait a holder's history lives for.
-pub fn scaled_lease_timings(time_scale: f64) -> discovery::LeaseTimings {
-    discovery::LeaseTimings {
-        renew_every: scaled(Duration::from_secs(30), time_scale),
+pub fn scaled_lease_timings(time_scale: f64) -> discovery::HolderHeartbeatIntervals {
+    discovery::HolderHeartbeatIntervals {
+        interval_between_heartbeats: scaled(Duration::from_secs(30), time_scale),
         ttl: scaled(Duration::from_secs(90), time_scale),
     }
 }
@@ -45,7 +45,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let lease = scaled_lease_timings(1.0);
-        assert_eq!(lease.renew_every, Duration::from_secs(30));
+        assert_eq!(lease.interval_between_heartbeats, Duration::from_secs(30));
         assert_eq!(lease.ttl, Duration::from_secs(90));
         let history = scaled_history_config(1.0);
         assert_eq!(history.write_interval, Duration::from_secs(30));

@@ -49,7 +49,7 @@ mod tests {
         assert_eq!(lobby.len(), 1);
         lobby.drop_dead(
             discovery::UnixTime::from_secs(500),
-            discovery::LeaseTimings::default().ttl,
+            discovery::HolderHeartbeatIntervals::default().ttl,
         );
         assert!(lobby.is_empty());
     }
