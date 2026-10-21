@@ -4,9 +4,9 @@ use crate::discovery;
 
 pub fn drop_dead(lobby: &mut discovery::Lobby, now: discovery::UnixTime, ttl: Duration) {
     for record in lobby.values_mut() {
-        record.members.retain(|_, heartbeat| {
-            heartbeat.presence != discovery::Presence::Quit
-                && now.elapsed_since(heartbeat.updated_at) <= ttl
+        record.members.retain(|_, room_member| {
+            room_member.presence != discovery::Presence::Quit
+                && now.elapsed_since(room_member.updated_at) <= ttl
         });
     }
     lobby.retain(|_, record| !record.members.is_empty());
@@ -22,9 +22,12 @@ mod tests {
     use super::drop_dead;
     use crate::discovery;
 
-    fn heartbeat(updated_at: discovery::UnixTime) -> discovery::Heartbeat {
-        discovery::Heartbeat {
-            addrs: Vec::new(),
+    fn room_member(updated_at: discovery::UnixTime) -> discovery::RoomMember {
+        discovery::RoomMember {
+            peer: identity::Peer {
+                id: identity::PeerId::from("p"),
+                addrs: Vec::new(),
+            },
             updated_at,
             display_name: None,
             presence: discovery::Presence::InRoom,
@@ -42,11 +45,11 @@ mod tests {
                 members: BTreeMap::from([
                     (
                         identity::PeerId::from("fresh"),
-                        heartbeat(discovery::UnixTime::from_secs(190)),
+                        room_member(discovery::UnixTime::from_secs(190)),
                     ),
                     (
                         identity::PeerId::from("stale"),
-                        heartbeat(discovery::UnixTime::from_secs(1)),
+                        room_member(discovery::UnixTime::from_secs(1)),
                     ),
                 ]),
             },
@@ -58,7 +61,7 @@ mod tests {
                 created_at: discovery::UnixTime::from_secs(0),
                 members: BTreeMap::from([(
                     identity::PeerId::from("gone"),
-                    heartbeat(discovery::UnixTime::from_secs(1)),
+                    room_member(discovery::UnixTime::from_secs(1)),
                 )]),
             },
         );
@@ -94,9 +97,9 @@ mod tests {
                     created_at: discovery::UnixTime::from_secs(0),
                     members: BTreeMap::from([(
                         identity::PeerId::from("p"),
-                        discovery::Heartbeat {
+                        discovery::RoomMember {
                             presence,
-                            ..heartbeat(discovery::UnixTime::from_secs(updated_at))
+                            ..room_member(discovery::UnixTime::from_secs(updated_at))
                         },
                     )]),
                 },

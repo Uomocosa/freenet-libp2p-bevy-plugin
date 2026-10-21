@@ -7,10 +7,16 @@ use crate::basic::enums::Presence;
 use crate::basic::newtypes::PeerId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Heartbeat {
+pub struct Peer {
+    pub id: PeerId,
     pub addrs: Vec<String>,
-    pub updated_at: UnixTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoomMember {
+    pub peer: Peer,
     pub display_name: Option<String>,
+    pub updated_at: UnixTime,
     pub presence: Presence,
 }
 
@@ -18,5 +24,5 @@ pub struct Heartbeat {
 pub struct Room {
     pub room_size: u16,
     pub created_at: UnixTime,
-    pub members: BTreeMap<PeerId, Heartbeat>,
+    pub members: BTreeMap<PeerId, RoomMember>,
 }

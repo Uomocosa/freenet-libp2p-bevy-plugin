@@ -4,6 +4,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::Receiver;
 
 use crate::discovery;
+use crate::identity;
 use discovery::freenet::basic::constants;
 
 pub async fn run_lobby(
@@ -57,8 +58,11 @@ pub async fn run_lobby(
             freenet_config.discovery.lease.interval_between_heartbeats,
         ) {
             for current in current {
-                let heartbeat = discovery::Heartbeat {
-                    addrs: current.addrs,
+                let room_member = discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: freenet_config.me.clone(),
+                        addrs: current.addrs,
+                    },
                     updated_at: discovery::UnixTime::now(),
                     display_name: Some(current.display_name),
                     presence: current.presence,
@@ -68,7 +72,7 @@ pub async fn run_lobby(
                     &mut subscription,
                     &current.room,
                     &freenet_config.me,
-                    heartbeat,
+                    room_member,
                     freenet_config.discovery.room_size,
                     current.created_at,
                 ) {

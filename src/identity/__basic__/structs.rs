@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::identity;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Peer {
     pub id: identity::PeerId,
     pub addrs: Vec<identity::PeerAddr>,

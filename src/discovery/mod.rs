@@ -12,7 +12,7 @@ pub use basic::constants::*;
 pub use basic::enums::{AutoSubscribe, LinkStatus, Presence, RoomPhase, Step};
 pub use basic::messages::{Command, Event};
 pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, StatusReceiver};
-pub use basic::structs::{Heartbeat, JoinedRoom, Member, Room, RunChannels};
+pub use basic::structs::{JoinedRoom, Member, Room, RoomMember, RunChannels};
 pub use basic::type_aliases::Members;
 
 mod lobby;

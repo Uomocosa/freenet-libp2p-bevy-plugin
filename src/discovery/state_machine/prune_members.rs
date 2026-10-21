@@ -14,7 +14,7 @@ pub fn prune_members(state: &mut State, now: discovery::UnixTime) -> Vec<Output>
     };
     let before = room.members.len();
     room.members.retain(|peer, member| {
-        connected.contains(peer) || now.elapsed_since(member.heartbeat.updated_at) <= grace
+        connected.contains(peer) || now.elapsed_since(member.room_member.updated_at) <= grace
     });
     if room.members.len() == before {
         Vec::new()
@@ -41,8 +41,11 @@ mod tests {
             members.insert(
                 identity::PeerId::from(peer),
                 discovery::Member {
-                    heartbeat: discovery::Heartbeat {
-                        addrs: Vec::new(),
+                    room_member: discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: identity::PeerId::from(peer),
+                            addrs: Vec::new(),
+                        },
                         updated_at: discovery::UnixTime::from_secs(0),
                         display_name: None,
                         presence: discovery::Presence::InRoom,

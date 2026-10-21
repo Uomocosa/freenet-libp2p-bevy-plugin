@@ -25,8 +25,11 @@ mod tests {
         let mut members = BTreeMap::new();
         members.insert(
             identity::PeerId::from(peer),
-            discovery::Heartbeat {
-                addrs: Vec::new(),
+            discovery::RoomMember {
+                peer: identity::Peer {
+                    id: identity::PeerId::from(peer),
+                    addrs: Vec::new(),
+                },
                 updated_at,
                 display_name: None,
                 presence: discovery::Presence::InRoom,
@@ -41,8 +44,8 @@ mod tests {
 
     fn quit_room(updated_at: discovery::UnixTime) -> discovery::Room {
         let mut record = record("peer", updated_at);
-        for heartbeat in record.members.values_mut() {
-            heartbeat.presence = discovery::Presence::Quit;
+        for room_member in record.members.values_mut() {
+            room_member.presence = discovery::Presence::Quit;
         }
         record
     }
@@ -108,7 +111,7 @@ mod tests {
             .get(&room)
             .and_then(|record| record.members.get(&identity::PeerId::from("peer")));
         assert_eq!(
-            row.map(|heartbeat| heartbeat.updated_at),
+            row.map(|room_member| room_member.updated_at),
             Some(discovery::UnixTime::from_secs(9))
         );
     }

@@ -6,7 +6,7 @@ pub fn member_name(status: &discovery::Status, peer: &identity::PeerId) -> Strin
         .room
         .as_ref()
         .and_then(|room| room.members.get(peer))
-        .and_then(|member| member.heartbeat.display_name.as_ref())
+        .and_then(|member| member.room_member.display_name.as_ref())
         .map_or_else(|| peer.as_str().to_string(), ToString::to_string)
 }
 
@@ -23,8 +23,11 @@ mod tests {
         members.insert(
             peer.clone(),
             discovery::Member {
-                heartbeat: discovery::Heartbeat {
-                    addrs: Vec::new(),
+                room_member: discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: peer.clone(),
+                        addrs: Vec::new(),
+                    },
                     updated_at: discovery::UnixTime::from_secs(0),
                     display_name: Some(identity::Username::from("ada")),
                     presence: discovery::Presence::InRoom,

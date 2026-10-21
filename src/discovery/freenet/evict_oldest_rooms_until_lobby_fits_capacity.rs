@@ -4,7 +4,7 @@ pub fn evict_oldest_rooms_until_lobby_fits_capacity(lobby: &mut discovery::Lobby
     while lobby.len() > capacity {
         let oldest = lobby
             .iter()
-            .min_by_key(|(name, room)| (newest_heartbeat_in(room), name.as_str()))
+            .min_by_key(|(name, room)| (newest_room_member(room), name.as_str()))
             .map(|(name, _)| name.clone());
         let Some(oldest) = oldest else {
             break;
@@ -13,10 +13,10 @@ pub fn evict_oldest_rooms_until_lobby_fits_capacity(lobby: &mut discovery::Lobby
     }
 }
 
-fn newest_heartbeat_in(room: &discovery::Room) -> discovery::UnixTime {
+fn newest_room_member(room: &discovery::Room) -> discovery::UnixTime {
     room.members
         .values()
-        .map(|heartbeat| heartbeat.updated_at)
+        .map(|room_member| room_member.updated_at)
         .max()
         .unwrap_or(discovery::UnixTime::from_secs(0))
 }
@@ -34,8 +34,11 @@ mod tests {
             created_at: discovery::UnixTime::from_secs(0),
             members: BTreeMap::from([(
                 identity::PeerId::from("peer"),
-                discovery::Heartbeat {
-                    addrs: Vec::new(),
+                discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: identity::PeerId::from("peer"),
+                        addrs: Vec::new(),
+                    },
                     updated_at,
                     display_name: None,
                     presence: discovery::Presence::InRoom,

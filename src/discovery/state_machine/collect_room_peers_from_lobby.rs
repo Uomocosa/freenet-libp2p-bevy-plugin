@@ -14,34 +14,34 @@ pub fn collect_room_peers_from_lobby(state: &mut State) -> Vec<Output> {
     let seeds: Vec<_> = record
         .members
         .iter()
-        .filter(|(peer, heartbeat)| {
+        .filter(|(peer, room_member)| {
             **peer != state.me.id
-                && !heartbeat.addrs.is_empty()
-                && heartbeat.presence != discovery::Presence::Quit
+                && !room_member.peer.addrs.is_empty()
+                && room_member.presence != discovery::Presence::Quit
         })
-        .map(|(peer, heartbeat)| (peer.clone(), heartbeat.clone()))
+        .map(|(peer, room_member)| (peer.clone(), room_member.clone()))
         .collect();
     let mut outputs = Vec::new();
-    for (peer, heartbeat) in seeds {
+    for (peer, room_member) in seeds {
         outputs.push(Output::NetCommand(p2p::NetCommand::AddKadPeer(
             identity::Peer {
                 id: peer.clone(),
-                addrs: heartbeat.addrs.clone(),
+                addrs: room_member.peer.addrs.clone(),
             },
         )));
-        if heartbeat.presence != discovery::Presence::InRoom {
+        if room_member.presence != discovery::Presence::InRoom {
             continue;
         }
         let newer = state
             .candidates
             .get(&peer)
-            .is_none_or(|known| known.seen_at < heartbeat.updated_at);
+            .is_none_or(|known| known.seen_at < room_member.updated_at);
         if newer {
             state.candidates.insert(
                 peer,
                 discovery::state_machine::Candidate {
-                    addrs: heartbeat.addrs,
-                    seen_at: heartbeat.updated_at,
+                    addrs: room_member.peer.addrs,
+                    seen_at: room_member.updated_at,
                 },
             );
         }
@@ -72,14 +72,20 @@ mod tests {
             phase: discovery::RoomPhase::Ready,
             members: discovery::Members::new(),
         });
-        let in_room = discovery::Heartbeat {
-            addrs: vec![identity::PeerAddr::from("/ip4/1")],
+        let in_room = discovery::RoomMember {
+            peer: identity::Peer {
+                id: identity::PeerId::from("me"),
+                addrs: vec![identity::PeerAddr::from("/ip4/1")],
+            },
             updated_at: discovery::UnixTime::from_secs(5),
             display_name: None,
             presence: discovery::Presence::InRoom,
         };
-        let holder = discovery::Heartbeat {
-            addrs: vec![identity::PeerAddr::from("/ip4/2")],
+        let holder = discovery::RoomMember {
+            peer: identity::Peer {
+                id: identity::PeerId::from("holder"),
+                addrs: vec![identity::PeerAddr::from("/ip4/2")],
+            },
             updated_at: discovery::UnixTime::from_secs(5),
             display_name: None,
             presence: discovery::Presence::HoldingHistory,

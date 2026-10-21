@@ -61,13 +61,16 @@ fn initial_lobby(
     let Some(target) = target else {
         return discovery::Lobby::default();
     };
-    let heartbeat = discovery::Heartbeat {
-        addrs: target.addrs.clone(),
+    let room_member = discovery::RoomMember {
+        peer: identity::Peer {
+            id: me.clone(),
+            addrs: target.addrs.clone(),
+        },
         updated_at: discovery::UnixTime::now(),
         display_name: Some(target.display_name.clone()),
         presence: target.presence,
     };
-    let members = std::collections::BTreeMap::from([(me.clone(), heartbeat)]);
+    let members = std::collections::BTreeMap::from([(me.clone(), room_member)]);
     discovery::Lobby::from([(
         target.room.clone(),
         discovery::Room {

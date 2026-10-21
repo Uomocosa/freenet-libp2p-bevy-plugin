@@ -10,11 +10,11 @@ pub fn publish_heartbeat(
     subscription: &mut discovery::freenet::LobbyContractSubscription,
     room: &identity::RoomName,
     me: &identity::PeerId,
-    heartbeat: discovery::Heartbeat,
+    room_member: discovery::RoomMember,
     room_size: discovery::RoomSize,
     created_at: discovery::UnixTime,
 ) -> Result<(), discovery::Error> {
-    let members = BTreeMap::from([(me.clone(), heartbeat)]);
+    let members = BTreeMap::from([(me.clone(), room_member)]);
     let update = discovery::Lobby::from([(
         room.clone(),
         discovery::Room {
@@ -61,8 +61,11 @@ mod tests {
             key: contract_key(),
             lobby: discovery::Lobby::default(),
         };
-        let heartbeat = discovery::Heartbeat {
-            addrs: Vec::new(),
+        let room_member = discovery::RoomMember {
+            peer: identity::Peer {
+                id: identity::PeerId::from("me"),
+                addrs: Vec::new(),
+            },
             updated_at: discovery::UnixTime::from_secs(1),
             display_name: None,
             presence: discovery::Presence::InRoom,
@@ -72,7 +75,7 @@ mod tests {
                 &mut subscription,
                 &identity::RoomName::from("room-a"),
                 &identity::PeerId::from("me"),
-                heartbeat,
+                room_member,
                 discovery::RoomSize::DEFAULT,
                 discovery::UnixTime::from_secs(0),
             )

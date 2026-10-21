@@ -194,7 +194,7 @@ const fn display_for(is_shown: bool) -> Display {
 // needed helper: prefer the peer's chosen name, else a short id
 fn peer_label(peer: &identity::PeerId, member: &discovery::Member) -> String {
     member
-        .heartbeat
+        .room_member
         .display_name
         .as_ref()
         .map_or_else(|| short_peer(peer.as_str()), ToString::to_string)
@@ -257,8 +257,11 @@ mod tests {
             members.insert(
                 identity::PeerId::from(peer),
                 discovery::Member {
-                    heartbeat: discovery::Heartbeat {
-                        addrs: Vec::new(),
+                    room_member: discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: identity::PeerId::from(peer),
+                            addrs: Vec::new(),
+                        },
                         updated_at: discovery::UnixTime::from_secs(0),
                         display_name: name.map(identity::Username::from),
                         presence: discovery::Presence::InRoom,

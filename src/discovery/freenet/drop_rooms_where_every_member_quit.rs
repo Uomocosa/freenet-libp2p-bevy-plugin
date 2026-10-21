@@ -4,7 +4,7 @@ pub fn drop_rooms_where_every_member_quit(lobby: &mut discovery::Lobby) {
     lobby.retain(|_, room| {
         room.members
             .values()
-            .any(|heartbeat| heartbeat.presence != discovery::Presence::Quit)
+            .any(|room_member| room_member.presence != discovery::Presence::Quit)
     });
 }
 
@@ -21,8 +21,11 @@ mod tests {
             created_at: discovery::UnixTime::from_secs(0),
             members: BTreeMap::from([(
                 identity::PeerId::from("peer"),
-                discovery::Heartbeat {
-                    addrs: Vec::new(),
+                discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: identity::PeerId::from("peer"),
+                        addrs: Vec::new(),
+                    },
                     updated_at: discovery::UnixTime::from_secs(1),
                     display_name: None,
                     presence,

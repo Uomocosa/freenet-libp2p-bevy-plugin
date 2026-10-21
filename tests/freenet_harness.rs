@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use freenet_contract_harness::{SuiteConfig, run_suite};
 use freenet_stdlib::prelude::*;
-use lobby_contract::{Heartbeat, Lobby, LobbyContract, PeerId, Room, RoomName, UnixTime};
+use lobby_contract::{Lobby, LobbyContract, Peer, PeerId, Room, RoomMember, RoomName, UnixTime};
 
 fn encode(lobby: &Lobby) -> State<'static> {
     State::from(bincode::serialize(lobby).unwrap_or_default())
@@ -13,8 +13,11 @@ fn one_room(updated_at: u64, created_at: u64) -> Lobby {
     let mut members = BTreeMap::new();
     members.insert(
         PeerId("peer".to_string()),
-        Heartbeat {
-            addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
+        RoomMember {
+            peer: Peer {
+                id: PeerId("peer".to_string()),
+                addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
+            },
             updated_at: UnixTime(updated_at),
             display_name: None,
             presence: lobby_contract::Presence::InRoom,

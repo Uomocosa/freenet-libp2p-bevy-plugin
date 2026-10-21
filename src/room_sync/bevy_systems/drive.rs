@@ -153,16 +153,17 @@ fn room_prefix_and_lobby_status(
             let now = record
                 .members
                 .values()
-                .map(|heartbeat| heartbeat.updated_at)
+                .map(|room_member| room_member.updated_at)
                 .max()
                 .unwrap_or_else(|| discovery::UnixTime::from_secs(0));
-            let is_fresh =
-                |heartbeat: &discovery::Heartbeat| now.elapsed_since(heartbeat.updated_at) <= ttl;
-            let live_members: Vec<(&identity::PeerId, &discovery::Heartbeat)> = record
+            let is_fresh = |room_member: &discovery::RoomMember| {
+                now.elapsed_since(room_member.updated_at) <= ttl
+            };
+            let live_members: Vec<(&identity::PeerId, &discovery::RoomMember)> = record
                 .members
                 .iter()
-                .filter(|(_, heartbeat)| {
-                    heartbeat.presence != discovery::Presence::Quit && is_fresh(heartbeat)
+                .filter(|(_, room_member)| {
+                    room_member.presence != discovery::Presence::Quit && is_fresh(room_member)
                 })
                 .collect();
             let live_count = live_members.len();
@@ -175,9 +176,9 @@ fn room_prefix_and_lobby_status(
                         .count()
                 },
             );
-            let has_other_history_holder = live_members.iter().any(|(peer, heartbeat)| {
+            let has_other_history_holder = live_members.iter().any(|(peer, room_member)| {
                 let is_other = self_peer_id != Some(*peer);
-                is_other && heartbeat.presence == discovery::Presence::HoldingHistory
+                is_other && room_member.presence == discovery::Presence::HoldingHistory
             });
             room_sync::state_machine::LobbyRoomStatus {
                 is_room_alive_in_lobby: live_count > 0,
@@ -562,9 +563,12 @@ mod tests {
                         .into_iter()
                         .map(|(peer, presence)| {
                             (
-                                peer,
-                                discovery::Heartbeat {
-                                    addrs: Vec::new(),
+                                peer.clone(),
+                                discovery::RoomMember {
+                                    peer: identity::Peer {
+                                        id: peer,
+                                        addrs: Vec::new(),
+                                    },
                                     updated_at: created_at,
                                     display_name: None,
                                     presence,
@@ -585,10 +589,13 @@ mod tests {
                     .into_iter()
                     .map(|peer| {
                         (
-                            peer,
+                            peer.clone(),
                             discovery::Member {
-                                heartbeat: discovery::Heartbeat {
-                                    addrs: Vec::new(),
+                                room_member: discovery::RoomMember {
+                                    peer: identity::Peer {
+                                        id: peer,
+                                        addrs: Vec::new(),
+                                    },
                                     updated_at: created_at,
                                     display_name: None,
                                     presence: discovery::Presence::InRoom,

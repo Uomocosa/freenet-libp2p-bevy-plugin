@@ -45,8 +45,11 @@ mod tests {
         for peer in ["me", "a"] {
             members.insert(
                 identity::PeerId::from(peer),
-                discovery::Heartbeat {
-                    addrs: vec![identity::PeerAddr::from("/ip4/1")],
+                discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: identity::PeerId::from(peer),
+                        addrs: vec![identity::PeerAddr::from("/ip4/1")],
+                    },
                     updated_at: discovery::UnixTime::from_secs(3),
                     display_name: None,
                     presence: discovery::Presence::InRoom,

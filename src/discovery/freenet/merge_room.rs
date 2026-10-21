@@ -1,12 +1,12 @@
 use crate::discovery;
-use discovery::{Heartbeat, Room};
+use discovery::{Room, RoomMember};
 
 #[must_use]
 pub fn merge_room(current: Option<Room>, incoming: Room) -> Room {
     match current {
         Some(mut existing) if existing.created_at == incoming.created_at => {
-            for (peer, heartbeat) in incoming.members {
-                let merged = merge_heartbeat(existing.members.remove(&peer), heartbeat);
+            for (peer, room_member) in incoming.members {
+                let merged = merge_room_member(existing.members.remove(&peer), room_member);
                 existing.members.insert(peer, merged);
             }
             existing.room_size = existing.room_size.max(incoming.room_size);
@@ -18,7 +18,7 @@ pub fn merge_room(current: Option<Room>, incoming: Room) -> Room {
 }
 
 // needed helper: last-write-wins on the client-supplied timestamp
-fn merge_heartbeat(current: Option<Heartbeat>, incoming: Heartbeat) -> Heartbeat {
+fn merge_room_member(current: Option<RoomMember>, incoming: RoomMember) -> RoomMember {
     match current {
         Some(existing) if existing.updated_at >= incoming.updated_at => existing,
         _ => incoming,
@@ -38,8 +38,11 @@ mod tests {
         let mut members = BTreeMap::new();
         members.insert(
             identity::PeerId::from("peer"),
-            discovery::Heartbeat {
-                addrs: Vec::new(),
+            discovery::RoomMember {
+                peer: identity::Peer {
+                    id: identity::PeerId::from("peer"),
+                    addrs: Vec::new(),
+                },
                 updated_at: discovery::UnixTime::from_secs(5),
                 display_name: None,
                 presence: discovery::Presence::InRoom,
@@ -53,8 +56,11 @@ mod tests {
         let mut newer = BTreeMap::new();
         newer.insert(
             identity::PeerId::from("peer"),
-            discovery::Heartbeat {
-                addrs: Vec::new(),
+            discovery::RoomMember {
+                peer: identity::Peer {
+                    id: identity::PeerId::from("peer"),
+                    addrs: Vec::new(),
+                },
                 updated_at: discovery::UnixTime::from_secs(9),
                 display_name: None,
                 presence: discovery::Presence::InRoom,

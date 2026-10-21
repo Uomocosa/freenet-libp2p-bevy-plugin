@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub mod basic;
 pub use basic::enums::Presence;
 pub use basic::newtypes::{PeerId, RoomName};
-pub use basic::structs::{Heartbeat, Room};
+pub use basic::structs::{Peer, Room, RoomMember};
 pub use basic::type_aliases::Lobby;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Deref)]
@@ -33,7 +33,7 @@ fn valid_room_name(name: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
-fn merge_heartbeat(current: Option<Heartbeat>, incoming: Heartbeat) -> Heartbeat {
+fn merge_room_member(current: Option<RoomMember>, incoming: RoomMember) -> RoomMember {
     match current {
         Some(existing) if existing.updated_at >= incoming.updated_at => existing,
         _ => incoming,
@@ -43,8 +43,8 @@ fn merge_heartbeat(current: Option<Heartbeat>, incoming: Heartbeat) -> Heartbeat
 fn merge_room(current: Option<Room>, incoming: Room) -> Room {
     match current {
         Some(mut existing) if existing.created_at == incoming.created_at => {
-            for (peer, heartbeat) in incoming.members {
-                let merged = merge_heartbeat(existing.members.remove(&peer), heartbeat);
+            for (peer, room_member) in incoming.members {
+                let merged = merge_room_member(existing.members.remove(&peer), room_member);
                 existing.members.insert(peer, merged);
             }
             existing.room_size = existing.room_size.max(incoming.room_size);
@@ -75,14 +75,14 @@ fn drop_rooms_where_every_member_quit(lobby: &mut Lobby) {
     lobby.retain(|_, room| {
         room.members
             .values()
-            .any(|heartbeat| heartbeat.presence != Presence::Quit)
+            .any(|room_member| room_member.presence != Presence::Quit)
     });
 }
 
-fn newest_heartbeat_in(room: &Room) -> UnixTime {
+fn newest_room_member(room: &Room) -> UnixTime {
     room.members
         .values()
-        .map(|heartbeat| heartbeat.updated_at)
+        .map(|room_member| room_member.updated_at)
         .max()
         .unwrap_or(UnixTime::from_secs(0))
 }
@@ -91,7 +91,7 @@ fn evict_oldest_rooms_until_lobby_fits_capacity(lobby: &mut Lobby, capacity: usi
     while lobby.len() > capacity {
         let oldest = lobby
             .iter()
-            .min_by_key(|(name, room)| (newest_heartbeat_in(room), name.as_str()))
+            .min_by_key(|(name, room)| (newest_room_member(room), name.as_str()))
             .map(|(name, _)| name.clone());
         let Some(oldest) = oldest else {
             break;
@@ -205,8 +205,11 @@ mod tests {
         let mut members = BTreeMap::new();
         members.insert(
             PeerId(peer.to_string()),
-            Heartbeat {
-                addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
+            RoomMember {
+                peer: Peer {
+                    id: PeerId(peer.to_string()),
+                    addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
+                },
                 updated_at,
                 display_name: None,
                 presence: Presence::InRoom,
@@ -223,8 +226,11 @@ mod tests {
         let mut members = BTreeMap::new();
         members.insert(
             PeerId("peer".to_string()),
-            Heartbeat {
-                addrs: Vec::new(),
+            RoomMember {
+                peer: Peer {
+                    id: PeerId("peer".to_string()),
+                    addrs: Vec::new(),
+                },
                 updated_at,
                 display_name: None,
                 presence: Presence::InRoom,

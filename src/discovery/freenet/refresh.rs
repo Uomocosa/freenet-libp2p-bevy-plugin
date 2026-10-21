@@ -44,8 +44,11 @@ mod tests {
                 created_at: discovery::UnixTime::from_secs(0),
                 members: std::collections::BTreeMap::from([(
                     identity::PeerId::from("peer"),
-                    discovery::Heartbeat {
-                        addrs: Vec::new(),
+                    discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: identity::PeerId::from("peer"),
+                            addrs: Vec::new(),
+                        },
                         updated_at: discovery::UnixTime::from_secs(1),
                         display_name: None,
                         presence: discovery::Presence::InRoom,

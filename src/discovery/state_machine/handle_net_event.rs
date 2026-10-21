@@ -42,7 +42,7 @@ fn mark_lost(state: &mut State, peer: &identity::PeerId, now: discovery::UnixTim
         return Vec::new();
     };
     member.status = discovery::LinkStatus::Lost;
-    member.heartbeat.updated_at = now;
+    member.room_member.updated_at = now;
     vec![Output::Notify(discovery::Event::MembersChanged)]
 }
 

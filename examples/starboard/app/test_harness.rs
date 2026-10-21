@@ -40,10 +40,13 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
     let mut room_members = discovery::Members::new();
     for peer in members {
         room_members.insert(
-            peer,
+            peer.clone(),
             discovery::Member {
-                heartbeat: discovery::Heartbeat {
-                    addrs: Vec::new(),
+                room_member: discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: peer,
+                        addrs: Vec::new(),
+                    },
                     updated_at: discovery::UnixTime::from_secs(0),
                     display_name: None,
                     presence: discovery::Presence::InRoom,

@@ -94,8 +94,11 @@ mod tests {
             members.insert(
                 identity::PeerId::from(format!("peer-{index}").as_str()),
                 discovery::Member {
-                    heartbeat: discovery::Heartbeat {
-                        addrs: Vec::new(),
+                    room_member: discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: identity::PeerId::from(format!("peer-{index}").as_str()),
+                            addrs: Vec::new(),
+                        },
                         updated_at: discovery::UnixTime::from_secs(0),
                         display_name: Some(identity::Username::from(
                             format!("user{index}").as_str(),

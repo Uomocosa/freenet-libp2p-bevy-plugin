@@ -8,10 +8,10 @@ use crate::discovery;
 use crate::identity;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct Heartbeat {
-    pub addrs: Vec<identity::PeerAddr>,
-    pub updated_at: discovery::UnixTime,
+pub struct RoomMember {
+    pub peer: identity::Peer,
     pub display_name: Option<identity::Username>,
+    pub updated_at: discovery::UnixTime,
     pub presence: discovery::Presence,
 }
 
@@ -19,12 +19,12 @@ pub struct Heartbeat {
 pub struct Room {
     pub room_size: discovery::RoomSize,
     pub created_at: discovery::UnixTime,
-    pub members: BTreeMap<identity::PeerId, Heartbeat>,
+    pub members: BTreeMap<identity::PeerId, RoomMember>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct Member {
-    pub heartbeat: Heartbeat,
+    pub room_member: RoomMember,
     pub status: discovery::LinkStatus,
 }
 

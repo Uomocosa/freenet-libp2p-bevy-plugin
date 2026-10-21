@@ -28,8 +28,11 @@ pub fn handle_handshake(
         return Vec::new();
     };
     let member = discovery::Member {
-        heartbeat: discovery::Heartbeat {
-            addrs: handshake.addrs,
+        room_member: discovery::RoomMember {
+            peer: identity::Peer {
+                id: from.clone(),
+                addrs: handshake.addrs,
+            },
             updated_at: now,
             display_name: Some(handshake.display_name),
             presence: discovery::Presence::InRoom,

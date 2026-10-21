@@ -30,8 +30,11 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let heartbeat = discovery::Heartbeat {
-            addrs: Vec::new(),
+        let room_member = discovery::RoomMember {
+            peer: identity::Peer {
+                id: identity::PeerId::from("peer"),
+                addrs: Vec::new(),
+            },
             updated_at: discovery::UnixTime::from_secs(1),
             display_name: None,
             presence: discovery::Presence::InRoom,
@@ -41,7 +44,7 @@ mod tests {
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: discovery::UnixTime::from_secs(0),
-                members: BTreeMap::from([(identity::PeerId::from("peer"), heartbeat)]),
+                members: BTreeMap::from([(identity::PeerId::from("peer"), room_member)]),
             },
         )]);
         let mut lobby = discovery::Lobby::default();

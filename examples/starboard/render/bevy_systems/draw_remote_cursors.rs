@@ -102,8 +102,11 @@ mod tests {
             members.insert(
                 identity::PeerId::from(*peer),
                 discovery::Member {
-                    heartbeat: discovery::Heartbeat {
-                        addrs: Vec::new(),
+                    room_member: discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: identity::PeerId::from(*peer),
+                            addrs: Vec::new(),
+                        },
                         updated_at: discovery::UnixTime::from_secs(0),
                         display_name: None,
                         presence: discovery::Presence::InRoom,

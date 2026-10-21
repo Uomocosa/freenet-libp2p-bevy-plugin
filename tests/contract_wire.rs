@@ -8,8 +8,11 @@ fn plugin_lobby() -> discovery::Lobby {
     for (peer, name) in [("alice-peer", Some("alice")), ("bob-peer", None)] {
         members.insert(
             identity::PeerId::from(peer),
-            discovery::Heartbeat {
-                addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/1")],
+            discovery::RoomMember {
+                peer: identity::Peer {
+                    id: identity::PeerId::from(peer),
+                    addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/1")],
+                },
                 updated_at: discovery::UnixTime::from_secs(7),
                 display_name: name.map(identity::Username::from),
                 presence: discovery::Presence::InRoom,
@@ -37,7 +40,7 @@ fn test_usage() {
             .get(&lobby_contract::PeerId(String::from("alice-peer")))
     });
     assert_eq!(
-        alice.and_then(|heartbeat| heartbeat.display_name.as_deref()),
+        alice.and_then(|room_member| room_member.display_name.as_deref()),
         Some("alice")
     );
     let back = bincode::serialize(&contract).unwrap_or_default();
