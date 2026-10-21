@@ -33,9 +33,26 @@ To leave, click the door at the bottom-right or press **Esc**, then confirm.
 | `--token <game>` | lobby and topic namespace; defaults to `game_id!()` |
 | `--transport tcp\|quic\|both` | libp2p transports (default `both`) |
 | `--action create:<room>\|join:<room>` | drive the lobby with scripted input |
-| `--script paint:<n>\|erase:<n>` | drive the board with scripted strokes |
+| `--script <step>,<step>,…` | drive the whole session with scripted steps |
+| `--join-timeout-secs <n>` | how long to wait for the room to show up (default 180) |
 
 `--action` and `--script` exist for the e2e harness; a normal run needs neither.
+They are **exclusive**: passing both is a CLI error.
+
+The `--script` steps are `create:<room>`, `join:<room>`, `leave:<room>`,
+`wait-for-n-members:<n>`, `wait-secs:<n>`, `wait-converged:<room>`,
+`paint-from-to:<x.y>-<x.y>`, `erase-from-to:<x.y>-<x.y>` and `exit`. A step that does
+not make sense is rejected on the command line with the reason:
+
+```
+$ starboard_gossip --username p1 --script "paint-from-to:10.20-9999.5"
+error: invalid value 'paint-from-to:10.20-9999.5' for '--script [<...>...]':
+       cell '9999.5' is outside the canvas (0..1024)
+```
+
+The Kademlia history is on: every peer stores its room's board in the local
+Kademlia store, so a peer that joins a room nobody is in still gets the board back
+(`examples/starboard/HISTORY.md` has the measured sizes and latencies).
 
 ## Controls
 
@@ -93,12 +110,15 @@ The plugin owns discovery, transport and sync; the example owns the game:
 ```sh
 just test              # unit tests and UI previews
 just e2e-starboard     # 3 real windows + a late joiner over Freenet (X + network)
+just e2e-history       # the Kademlia history scenarios S4a, S4b, S4c (X + network)
 just bench-starboard   # 2 and 8 in-process peers; rewrites BENCH.md
+just bench-history     # one room's history size and put/get latency; rewrites HISTORY.md
 ```
 
-[`BENCH.md`](BENCH.md) holds the last measured numbers and the limits of the
-measurement. [`PLAN.md`](PLAN.md) and [`PLAN_HISTORY.md`](PLAN_HISTORY.md) hold the
-step history and the Phase 2 design.
+[`BENCH.md`](BENCH.md) holds the last measured numbers of the room sync and the limits
+of the measurement; [`HISTORY.md`](HISTORY.md) holds the measured Kademlia history
+sizes and latencies. [`PLAN.md`](PLAN.md) and [`PLAN_HISTORY.md`](PLAN_HISTORY.md) hold
+the step history and the Phase 2 design.
 
 ## Wire format
 

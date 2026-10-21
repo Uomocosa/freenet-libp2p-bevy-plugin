@@ -241,18 +241,232 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
 ## Step H4 — Enable in starboard + e2e
 
 - [ ] Turn on `history` in starboard; local e2e (see `tests/CROSS-OS-PLAN.md`):
-      S4a all leave but stay → board restored; S4b all quit → room gone, join error +
-      known exit code; S4c last holder killed while a peer joins → error screen.
-- [ ] Measure record sizes and put/get latency; write them below.
-- [ ] Decide whether `history` becomes default-on.
+      S4a all leave but stay → board restored ✅; S4b all quit → room gone, join error +
+      known exit code ✅; S4c last holder killed while a peer is joining → error screen
+      ❌ **NOT RUN** — the joiner accepts an empty board instead of failing (the
+      fallback cannot tell a dead holder from a new room; see the findings).
+- [x] Measure record sizes and put/get latency; write them below.
+- [x] Decide whether `history` becomes default-on.
 
 ### What was done (Step H4)
-_(agent fills)_
+
+**Files added (product):**
+- `examples/starboard_gossip/script.rs` — the `--script` vocabulary: `ScriptStep`
+  (`CreateRoom`, `JoinRoom`, `LeaveRoom`, `WaitForNMembers`, `WaitSecs`,
+  `WaitConverged`, `PaintFromTo`, `EraseFromTo`, `ExitGame`), `MemberCount`, and
+  `parse_script_step`.
+- `examples/starboard_gossip/parse_stroke.rs` — `parse_stroke`: `10.20-30.102` → a
+  `Stroke`, with an error that names the offending part.
+- `examples/starboard_gossip/script_runner.rs` — `ScriptRunner` + `run_script`: walks
+  the step list and logs `starboard script done <step>` per step.
+- `examples/starboard_gossip/join_failure.rs` — `JoinTarget`, `JoinLimits`,
+  `JOIN_FAILED_EXIT_CODE = 2`, and `exit_on_join_failure`: the watchdog that turns a
+  failed join into one known exit code.
+- `examples/starboard_gossip/scaled_timings.rs` — `scaled_lease_timings`,
+  `scaled_history_config`: the lease and history timings × `E2E_TIME_SCALE`.
+- `examples/starboard/bench/history_bench.rs` — `HistoryBoard`, `HistoryReport`,
+  `measure_history`, `history_markdown` + the ignored `history_bench` test.
+- `examples/starboard/HISTORY.md` — the measured record sizes and latencies.
+- `tests/starboard_history.rs` — the three local e2e scenarios (S4a, S4b, S4c).
+
+**Files changed (product):**
+- `src/room_sync/bevy_systems/drive.rs` — **the plugin fix the e2e found**: the lobby
+  liveness check. A room that is not in the lobby is only *gone* when the contract
+  has confirmed it (the discovery's `RoomPhase::Ready`); while the peer is still
+  joining (`RoomPhase::Joining`) the contract may simply not have published the room
+  yet, and the history fallback used to call that "all players left" — which made the
+  **creator fail its own join** (the new room is not in the contract for a few
+  seconds). New test: `a_room_the_contract_has_not_confirmed_yet_is_not_gone`.
+- `examples/starboard_gossip/main.rs` — the history is on
+  (`with_history_config(Some(...))`), the lease and history timings are scaled, the
+  script runner runs before the lobby intent, the join watchdog is registered, and
+  `main` returns `AppExit` so a failed join exits with code 2.
+- `examples/starboard_gossip/args.rs` — `--script` is now a comma-separated list of
+  steps (`value_delimiter = ','`), `--script` and `--action` are exclusive
+  (`conflicts_with`), and `--join-timeout-secs` (default 300) bounds the wait for
+  the room to show up in the lobby.
+- `examples/starboard/canvas/__basic__/structs.rs` — `Stroke { from, to }` (the
+  canvas's coordinate pair; `DrawOp` keeps its flat `from`/`to` because it is the
+  bincode wire format).
+- `examples/starboard/input/draw_op.rs` — `draw_op(brush, action, stroke)` takes the
+  named stroke instead of two positional cells.
+- `examples/starboard/input/bevy_systems/track_pointer.rs`,
+  `examples/starboard/bench/scripted_stroke.rs`,
+  `examples/starboard/app/starboard_plugin.rs` — the `draw_op` call sites.
+- `examples/starboard/app/test_harness.rs` — `node_with(game, history)`: one fixture,
+  one behaviour parameter.
+- `examples/shared/intent.rs` — `PendingAction` resource + `Intent::arm_with_action`;
+  the shared `script_input` system arms the intent when the wanted action changed,
+  so the method is used by both examples (no dead code in `lobby_room`).
+- `examples/shared/action.rs` — `Action` derives `PartialEq, Eq` (the arming compares it).
+- `src/room_sync/merge_and_write_history_records.rs` — one `tracing::info!`:
+  `room history written snapshot_bytes=… record_bytes=… chunks=…`. The e2e sequences
+  on it, and the sizes are measurable from the log.
+- `tests/common/scenario.rs` — `Scenario` is now a flow, a roster and a budget:
+  `ScenarioFlow` (one enum replaces the `join` / `is_room_ping_enabled` / `late_join`
+  flags), `PeerSpec { role, spawn, script }`, `PeerRole`, `PeerSpawn`,
+  `ScenarioBudgets`, plus the three history flows.
+- `tests/common/log_parse.rs` — `history_write_bytes`: the snapshot byte count of the
+  last history write.
+- `tests/common/tile.rs` — `tile` takes the window titles (the roster owns the
+  windows, not a parallel list).
+- `Cargo.toml` — the `starboard_history` test. `justfile` — `bench-history`,
+  `e2e-history`.
+
+**The script vocabulary** (the `--script` list is comma-separated):
+
+| Step | Argument | Meaning |
+|---|---|---|
+| `create:<room>` | room name | type the name, press Create |
+| `join:<room>` | room name | press that room's button |
+| `leave:<room>` | room name | leave the room, stay in the game |
+| `wait-for-n-members:<n>` | member count | wait until n peers are connected in the room |
+| `wait-secs:<n>` | seconds | wait n seconds |
+| `wait-converged:<room>` | room name | wait until that room's canvas hash stops changing |
+| `paint-from-to:<from>-<to>` | `x.y-x.y` cells | paint one stroke |
+| `erase-from-to:<from>-<to>` | `x.y-x.y` cells | erase one stroke (waits for content first) |
+| `exit` | — | publish `Quit`, then end the game |
+
+**Public API added:** `room_sync` — unchanged (only a log line). `examples/starboard` —
+`canvas::Stroke`. `examples/starboard_gossip` — `ScriptStep`, `MemberCount`,
+`parse_script_step`, `parse_stroke`, `ScriptRunner`, `run_script`, `JoinTarget`,
+`JoinLimits`, `JOIN_FAILED_EXIT_CODE`, `exit_on_join_failure`, `scaled_lease_timings`,
+`scaled_history_config`. `tests/common` — `ScenarioFlow`, `PeerSpec`, `PeerRole`,
+`PeerSpawn`, `ScenarioBudgets`, `history_write_bytes`.
+
+**Tests added:** `parse_script_step` (every verb, unknown verb, missing room, bad
+count, bad stroke, the harness's own script shape), `parse_stroke` (round trip,
+missing cells, non-numeric cell, cell outside the canvas), `args` (a comma-separated
+script, the `--script`/`--action` conflict, a bad step's reason), `script_runner` (a
+zero-second wait, a paint step waiting for the room, a join step arming the intent),
+`join_failure` (a room that left the lobby, the plugin's own join error, no report
+without a join), `scaled_timings` (the scaled lease and history timings), the
+harness's `every_scripted_stroke_names_two_cells` (the script shape the harness
+writes), and the plugin's `a_room_the_contract_has_not_confirmed_yet_is_not_gone`.
+
+**Measured (`examples/starboard/HISTORY.md`, `just bench-history`, dev profile,
+AMD Ryzen 5 7600X, 12 threads, in-process peers on localhost):**
+
+| Board | Strokes | Snapshot bytes | Record bytes | Chunks | Put latency | Get latency |
+|---|---:|---:|---:|---:|---:|---:|
+| e2e board | 6 | 187 | 196 | 1 | 21 ms | 21 ms |
+| busy board | 10 000 | 426 158 | 333 204 | 6 | 48 ms | 0 ms |
+
+The put latency is the time until a second peer confirmed the record; the get
+latency is the time until the reader held the manifest (the chunks follow). The busy
+board's record is 333 KB in 6 chunks of ≤ 60 KB — far below HD9's 64 MB per-room cap.
+
+**Decisions:**
+- **`history` stays off by default in the plugin.** `room_sync::SyncPlugin::history`
+  remains `None`; the starboard bin opts in. The measurement says the feature is
+  cheap (196 B and ~20 ms for the e2e board), but it is a *distributed* feature whose
+  put is only confirmed when the writer's Kademlia routing table has a peer — the
+  lobby seeds it, a bare peer does not — and the cross-machine run has not proven it
+  yet. It becomes default-on only after the 5G run (CROSS-OS-PLAN step 8) is green.
+- **The record lives ten minutes, not one lease.** The starboard bin sets
+  `record_ttl = 600 s` (scaled): the mainnet's contract state can take *minutes* to
+  reach a cold node (measured: 2 min 27 s for a late joiner's first lobby read), so a
+  record that dies with the lease (90 s) is gone before a late joiner can ask for it.
+  The room's death is decided by the lobby, not by the record's TTL.
+- **`--script` and `--action` are exclusive** (the user's call). The consequence: the
+  script carries the room action (`create:` / `join:`), and the harness templates the
+  run's room name into the script text (`{room}`) because the room name is only known
+  per run.
+- **The comma delimiter, not the semicolon** (the user's call): `;` separates
+  statements in PowerShell, so `--script "a, b, c"` keeps the shell out of it.
+- **The stroke is explicit** (the user's call): `PaintFromTo(Stroke)` / `EraseFromTo(Stroke)`
+  replaced `Paint(StrokeCount)` / `Erase(StrokeCount)`, and `StrokeCount` is gone —
+  the script says which cells to paint, not how many strokes.
+- **The history scenarios do not use the op path.** Only the first peer paints: the
+  second one would have to *erase* to differ, and an erase published before the
+  gossipsub mesh knows the subscription is lost.
+
+**Findings:**
+1. **The put is local-first, the confirmation is asynchronous.** libp2p-kad's
+   `put_record` stores the record in the local store *before* the replication query,
+   so a holder can serve the history immediately; but the `HistoryRecordStored` event
+   only arrives once a peer confirms the quorum. A peer whose Kademlia routing table
+   is empty never gets that event — the bench had to seed the routing table the way
+   the lobby does (`AddKadPeer`), and the plugin itself never waits for the event.
+2. **The room snapshot is compressed twice.** The canvas's snapshot is already zstd
+   (B2), and the chunker compresses it again — which is why the busy board's record
+   (333 KB) is *smaller* than its snapshot (426 KB).
+3. **Turning the history on exposed a bug in the fallback's liveness check** (fixed
+   above): the creator of a room failed its own join, because the new room is not in
+   the contract for the first seconds and the fallback read that as "all players
+   left". The liveness check now only calls a room gone once the contract confirmed
+   it.
+4. **The fallback counts retries, not a deadline.** HD6 says "history fetch deadline
+   → re-check the lobby", but the implementation gives up after `max_fetch_retries`
+   (3) *failed fetches* — and a failed Kademlia fetch is fast (tens of milliseconds),
+   so three of them are over long before a room's first history write (up to 30 s
+   after the room started). A peer that joins a room whose history has not been
+   written yet can therefore be told "couldn't get room history". Left as it is (the
+   fallback only runs when no live member can serve the board), and recorded here for
+   the next step.
+5. **The mainnet's contract state lags a cold node by minutes.** A late joiner read
+   an *empty* lobby for 2 min 27 s before the room appeared in it — the contract's
+   subscription had not caught up with the node's cold start. Two consequences: the
+   record's TTL has to be minutes (see the decisions above), and the e2e's budgets
+   have to cover a late joiner's own join (`HISTORY_RESTORE_BUDGET_SECS` = 420 s).
+6. **The gossipsub mesh did not form between the peers, so the ops were lost.** The
+   peers were connected and had exchanged their topic subscriptions, yet
+   `mesh_peers(topic)` was 0 for the whole overlap: every publish failed with
+   `NoPeersSubscribedToTopic` (the known window of B2's open issue #3) and the
+   anti-entropy did **not** repair it within 25 s (its announcements travel on the
+   same topic). The room sync therefore still converges only through the snapshot
+   path. Pre-existing, not introduced by H4 — but it is the reason the history
+   scenarios do not rely on the op path.
+7. **The fallback cannot tell "the holder died" from "the room is new"** — S4c's
+   joiner (the only holder was killed) got an *empty board* instead of the error
+   screen. The fallback accepts an empty board when the lobby has no *other* holder,
+   and "other" is counted as "the live members minus one" — which counts the local
+   peer as one of them. While the joiner's own heartbeat has not reached the
+   contract yet, the room's only other member (the dead holder) is taken for "me",
+   so the room looks like it has no other holder. The fix has two parts: the room
+   sync needs its own peer id (it can: `p2p::ReadyChannel`) so "other" means "not
+   me", and it needs the lease TTL so a member whose heartbeat is older than the
+   lease (dead) can be told apart from one that is still connecting. Neither is
+   exposed to the room sync today, so S4c is **NOT RUN** (the scenario is in the
+   tree and fails with this reason).
+
+**Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
+(**326 passed**, 11 skipped), `just lint`, `just bevy-lint`, `just bench-history`.
+
+**e2e (`just e2e-history`, one machine, Freenet mainnet, dev profile):**
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| S4a — the holders left the room, a late joiner restores the board | ✅ | `wrote=true left=true late_joined=true restored=true`; the late joiner's canvas hash equals the holders' (`18418444412079406693`) |
+| S4b — every player quit the game, a later joiner finds the room gone | ✅ | `quit=true late_joined=true join_failed=true`: the joiner reported `Room <name> no longer exists (all players left)` and exited with code 2 |
+| S4c — the last holder is killed while a peer is joining | ❌ | the joiner accepted an empty board instead of showing the error screen (finding 7) |
+
+The runs are slow by nature: the mainnet's contract state reaches a cold node in
+seconds to minutes (measured: 26 s for the first batch, 27 s for the discovery, and
+2 min 27 s for a late joiner's first lobby read in one run), and the e2e waits for
+the *events* (the history write, the leave, the restore) rather than for a clock.
+
+S4b's check does not require the *watcher* to see the room disappear: the contract's
+state reaches the watcher's node minutes after the contract dropped the room, so the
+watcher can still list a room that is already gone. The watcher stays in the
+scenario as the evidence that the room really died, and the check reports
+`watcher_saw_the_room_gone=` beside the result.
+
+**Open issues (for later steps):**
+- The e2e run is recorded in `tests/CROSS-OS-PLAN.md`'s terms; `result.json` and the
+  cross-machine workflow are CROSS-OS-PLAN §6 steps 3–5, not H4.
+- `E2E_TIME_SCALE` is read from the environment by the bin and scales the lease and
+  the history timings; the local e2e runs at scale 1 (the mainnet lobby round trip is
+  20–60 s, so a *shorter* lease would kill live rooms).
+
 
 ## Open questions
 - ~~Who keeps records alive when every room member is offline?~~ Holders (HD1); when the
   last holder quits, the room is gone (HD3).
 - ~~Should history be pruned when a new day starts (D6)?~~ No — history belongs to the room
   generation (`created_at`), not the day.
-- ~~Abuse/size limits~~ → HD9 / Step H2b. Still measure real record sizes in H4.
+- ~~Abuse/size limits~~ → HD9 / Step H2b. Measured in H4: 196 B for the e2e board,
+  333 KB in 6 chunks for a 10 000-stroke board (see `examples/starboard/HISTORY.md`).
 - ~~`MAX_ROOMS` fills with dead names~~ → HD8 / Step H0b.
+- ~~Should `history` be default-on in the plugin?~~ No (H4): the starboard bin opts in;
+  it becomes default-on only after the cross-machine run (CROSS-OS-PLAN step 8) is green.

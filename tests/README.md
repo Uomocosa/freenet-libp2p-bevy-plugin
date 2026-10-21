@@ -11,6 +11,7 @@ just e2e-discovery   # 3 lobby_room peers: all discover the created room
 just e2e-join        # 5 lobby_room peers: discover, join, full mesh
 just e2e-room        # 3 lobby_room peers: discover, join, full mesh, all-to-all room gossipsub
 just e2e-starboard   # 3 starboard peers paint/erase, plus a 4th that joins late
+just e2e-history     # the Kademlia history scenarios S4a, S4b, S4c
 ```
 
 Direct equivalent:
@@ -20,6 +21,7 @@ cargo nextest run --test lobby_room_discovery --all-features --run-ignored all -
 cargo nextest run --test lobby_room_join      --all-features --run-ignored all -- --nocapture
 cargo nextest run --test room_messaging       --all-features --run-ignored all -- --nocapture
 cargo nextest run --test starboard_e2e        --all-features --run-ignored all -- --nocapture
+cargo nextest run --test starboard_history    --all-features --run-ignored all -- --nocapture
 ```
 
 Prerequisites: an X session, `xterm`, `xdotool`, `wmctrl`, `ffmpeg` (with `x11grab`),
@@ -46,8 +48,10 @@ Adding any such shortcut invalidates the test even if it makes it pass.
 
 - `scenario.rs`: shared code both tests use. `Scenario::discover_only(3)` / `Scenario::join(5)`.
   `Scenario::starboard(3)` / `Scenario::starboard_late_join(4)` drive the `starboard_gossip`
-  binary instead: `bin`, `window_prefix`, `ui` (starboard has none), `scripts` (per-peer
-  `--script`) and `late_join` are the knobs.
+  binary instead. A scenario is a **flow** (`ScenarioFlow`), a **roster**
+  (`Vec<PeerSpec>`) and a **budget** (`ScenarioBudgets`): `PeerSpec { role, spawn,
+  script }` says what one peer does (`Creator` / `Joiner` / `Watcher`), when it is
+  spawned (`First` / `Late`) and whether it is scripted.
 - UI: every action goes through the on-screen buttons, driven by **real** in-process
   input (`examples/shared/intent.rs::script_input`). `create:<r>` focuses the name
   field and types `<r>` with real `KeyboardInput` events, waiting for the Create button
@@ -56,14 +60,17 @@ Adding any such shortcut invalidates the test even if it makes it pass.
   The UI's own click handler sends the `discovery::Command`.
   - the name must be non-empty: an empty name leaves the Create button disabled, and a
     `create` with no name is rejected (an error, never silently ignored).
-  - the harness chooses the room name (`--action create:<r>`) and reads it back from
+  - the harness chooses the room name and reads it back from
     `lobby created room=<r>`.
   - discovery test: `--ui custom`, which disables `discovery::ui::DefaultUiPlugin` and adds
     the example's replacement `examples/lobby_room/ui.rs::LobbyUi`.
   - join test: `--ui default`, the plugin's default UI.
-  - starboard: `--script paint:<n>` / `--script erase:<n>` writes the app's own
-    `PendingLocalDraw` messages (the same seam the mouse writes) at fixed cells, so p1
-    paints, p2 erases some of it, and every peer must converge on one canvas hash.
+  - starboard: `--script` is a **comma-separated list of steps** and is exclusive with
+    `--action` (the CLI rejects both). The steps are `create:<r>`, `join:<r>`,
+    `leave:<r>`, `wait-for-n-members:<n>`, `wait-secs:<n>`, `wait-converged:<r>`,
+    `paint-from-to:<x.y>-<x.y>`, `erase-from-to:<x.y>-<x.y>` and `exit`. A step that
+    does not make sense is rejected on the CLI with the reason
+    (`cell '9999.5' is outside the canvas (0..1024)`).
 - Log markers are the oracle (keep them stable, or update `common/log_parse.rs`):
   - `lobby created room=<r>`
   - `lobby joined room=<r>`
@@ -88,7 +95,13 @@ Adding any such shortcut invalidates the test even if it makes it pass.
     (budget `CANVAS_BUDGET_SECS` = 30 s).
 - Starboard markers (keep them stable, or update `common/log_parse.rs`):
   - `starboard canvas room=<r> hash=<h> tiles=<n> cursor=<x>,<y> color=<c> size=<p>%` (1 Hz)
-  - `starboard script done paint|erase strokes=<n>`
+  - `starboard script done <step>` — one line per finished step (`paint`, `erase`,
+    `leave`, `join`, `create`, `wait-secs`, `wait-members`, `wait-converged`, `exit`)
+- History markers (the Kademlia history scenarios):
+  - `room history written snapshot_bytes=<n> record_bytes=<n> chunks=<n>` — the plugin's
+    writer stored a room's snapshot; the e2e sequences on it
+  - `starboard join failed room=<r> reason=<why>` — the peer could not join; it exits
+    with code 2 (`JOIN_FAILED_EXIT_CODE`)
 - Layering: Freenet only seeds candidates (lobby heartbeat, polled in its own task);
   room membership is libp2p-only — a peer is a member once it is connected AND has sent a
   `/blackboard/pex/1.0.0` handshake for the same room. Handshakes carry the sender's members, so one
@@ -107,3 +120,5 @@ Adding any such shortcut invalidates the test even if it makes it pass.
 - `LOBBY_KEEP=1` — leave the windows alive after the run for inspection.
 - `LOBBY_RECORD_SECS` — override the ffmpeg capture cap (we stop it early anyway).
 - `RUST_LOG` — tracing filter for the example process.
+- `E2E_TIME_SCALE` — scales the lease and history timings of the example (default 1);
+  the harness passes its own environment on to the peers.

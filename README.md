@@ -76,8 +76,9 @@ just build | just clippy | just fmt | just test | just lint | just bevy-lint
 just run          # lobby_room, detached; args pass through (--ui, --action, …)
 just demo         # lobby_room with the default UI
 just run-starboard --username <name>   # starboard, detached
-just e2e-discovery | just e2e-join | just e2e-room | just e2e-starboard
+just e2e-discovery | just e2e-join | just e2e-room | just e2e-starboard | just e2e-history
 just bench-starboard   # rewrite examples/starboard/BENCH.md
+just bench-history     # rewrite examples/starboard/HISTORY.md
 just contract   # build the lobby contract wasm
 just freenet-harness   # freenet contract harness (CRDT laws) against the lobby contract
 just setup      # one-time per clone: install the prek git hooks
