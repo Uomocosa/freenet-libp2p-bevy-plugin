@@ -2,6 +2,10 @@
 pub mod basic;
 
 pub use basic::enums::{Input, Output, Phase};
+pub use basic::structs::{
+    KademliaHistoryState, LobbyRoomStatus, MemberSnapshotFetchState, PendingHistoryFetch,
+    SliceAntiEntropyState,
+};
 
 mod state;
 pub use state::State;
@@ -44,6 +48,18 @@ pub use handle_replica_slice_received::handle_replica_slice_received;
 
 mod handle_failed;
 pub use handle_failed::handle_failed;
+
+mod start_kademlia_history_fetch;
+pub use start_kademlia_history_fetch::start_kademlia_history_fetch;
+
+mod start_history_write_check;
+pub use start_history_write_check::start_history_write_check;
+
+mod handle_history_record_found;
+pub use handle_history_record_found::handle_history_record_found;
+
+mod handle_history_record_not_found;
+pub use handle_history_record_not_found::handle_history_record_not_found;
 
 mod update;
 pub use update::update;

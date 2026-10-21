@@ -12,7 +12,7 @@ pub fn handle_fetch<Op>(
     if state.room.is_none() {
         return Vec::new();
     }
-    vec![room_sync::state_machine::Output::Snapshot { id, room, part }]
+    vec![room_sync::state_machine::Output::SendSnapshotPartToRoomMember { id, room, part }]
 }
 
 // no test_usage necessary

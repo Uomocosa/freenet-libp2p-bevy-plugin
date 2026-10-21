@@ -50,6 +50,7 @@ mod tests {
                 &tx,
                 &p2p::RoomHistoryRecordKind::Manifest(prefix.clone()),
                 vec![1],
+                std::time::Duration::from_secs(90),
             );
         }
         remove_history_records(&mut swarm, &gone);

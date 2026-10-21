@@ -13,9 +13,10 @@ pub fn handle_remote_slice_content_hashes<Op>(
     let Some(room) = state.room.clone() else {
         return Vec::new();
     };
-    let max_fetches = state.max_slice_fetches_per_peer;
+    let max_fetches = state.slice_anti_entropy.max_fetches_per_peer;
     let awaiting = state
-        .slice_fetches_awaiting_reply
+        .slice_anti_entropy
+        .fetches_awaiting_reply
         .entry(from.clone())
         .or_default();
     let mut outputs = Vec::new();

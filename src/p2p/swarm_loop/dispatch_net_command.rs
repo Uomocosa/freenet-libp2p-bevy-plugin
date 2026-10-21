@@ -32,8 +32,8 @@ pub fn dispatch_net_command<Payload: p2p::Message>(
         p2p::NetCommand::AddKadPeer(peer) => {
             p2p::swarm_loop::seed_kad_peer(swarm, &peer.id, &peer.addrs);
         }
-        p2p::NetCommand::PutHistoryRecord { id, value } => {
-            p2p::swarm_loop::put_history_record(swarm, event_tx, &id, value);
+        p2p::NetCommand::PutHistoryRecord { id, value, ttl } => {
+            p2p::swarm_loop::put_history_record(swarm, event_tx, &id, value, ttl);
         }
         p2p::NetCommand::GetHistoryRecord { id } => {
             let key = p2p::history_record_key(&id);

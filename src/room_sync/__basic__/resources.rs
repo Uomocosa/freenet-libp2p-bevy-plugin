@@ -9,4 +9,7 @@ pub struct SyncGame(pub identity::GameId);
 #[derive(Resource, Deref, DerefMut)]
 pub struct AntiEntropyTimer(pub Timer);
 
+#[derive(Resource, Deref, DerefMut)]
+pub struct HistoryWriteTimer(pub Timer);
+
 // no test_usage necessary

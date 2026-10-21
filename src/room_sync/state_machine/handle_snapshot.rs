@@ -8,40 +8,42 @@ pub fn handle_snapshot<Op>(
     total: u32,
     data: Vec<u8>,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
-    if state.phase != room_sync::state_machine::Phase::Fetching
+    if state.phase != room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember
         || state.room.as_ref() != Some(&room)
+        || total == 0
+        || part >= total
     {
         return Vec::new();
     }
-    let Ok(total) = usize::try_from(total) else {
-        return Vec::new();
-    };
-    let Ok(index) = usize::try_from(part) else {
-        return Vec::new();
-    };
-    if state.parts.len() != total {
-        state.total = u32::try_from(total).unwrap_or(u32::MAX);
-        state.parts = vec![None; total];
+    if state.member_snapshot.total_parts != total {
+        state.member_snapshot.total_parts = total;
+        state.member_snapshot.received_parts.clear();
     }
-    let Some(slot) = state.parts.get_mut(index) else {
-        return Vec::new();
-    };
-    *slot = Some(data);
-    if let Some(next) = state.parts.iter().position(Option::is_none) {
-        let Some(peer) = state.source.clone() else {
+    state.member_snapshot.received_parts.insert(part, data);
+    if let Some(next_part) =
+        (0..total).find(|index| !state.member_snapshot.received_parts.contains_key(index))
+    {
+        let Some(peer) = state.member_snapshot.current_source.clone() else {
             return Vec::new();
         };
-        return vec![room_sync::state_machine::Output::Fetch {
-            peer,
-            room,
-            part: u32::try_from(next).unwrap_or(u32::MAX),
-        }];
+        return vec![
+            room_sync::state_machine::Output::FetchSnapshotPartFromRoomMember {
+                peer,
+                room,
+                part: next_part,
+            },
+        ];
     }
-    let complete: Vec<Vec<u8>> = state.parts.iter().flatten().cloned().collect();
+    let complete: Vec<Vec<u8>> = state
+        .member_snapshot
+        .received_parts
+        .values()
+        .cloned()
+        .collect();
     let bytes = room_sync::join_parts(&complete);
     state.phase = room_sync::state_machine::Phase::Ready;
     let mut outputs = vec![room_sync::state_machine::Output::Merge { bytes }];
-    for (meta, op) in state.buffered.drain(..) {
+    for (meta, op) in state.buffered_ops.drain(..) {
         outputs.push(room_sync::state_machine::Output::Apply { meta, op });
     }
     outputs

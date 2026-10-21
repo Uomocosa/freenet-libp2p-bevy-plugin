@@ -11,9 +11,11 @@ pub fn handle_lobby(
         return Vec::new();
     }
     state.lobby = lobby;
-    discovery::state_machine::seed_candidates(state);
+    let mut outputs = discovery::state_machine::collect_room_peers_from_lobby(state);
     discovery::state_machine::align_room_created_at(state);
-    let mut outputs = discovery::state_machine::wait_for_contract_self_heal(state, now);
+    outputs.extend(discovery::state_machine::wait_for_contract_self_heal(
+        state, now,
+    ));
     outputs.push(Output::Notify(discovery::Event::LobbyChanged));
     outputs
 }
@@ -66,7 +68,13 @@ mod tests {
                 lobby.clone(),
                 discovery::UnixTime::from_secs(10)
             ),
-            vec![Output::Notify(discovery::Event::LobbyChanged)]
+            vec![
+                Output::NetCommand(crate::p2p::NetCommand::AddKadPeer(identity::Peer {
+                    id: identity::PeerId::from("a"),
+                    addrs: vec![identity::PeerAddr::from("/ip4/1")],
+                })),
+                Output::Notify(discovery::Event::LobbyChanged),
+            ]
         );
         assert_eq!(state.candidates.len(), 1);
         assert_eq!(

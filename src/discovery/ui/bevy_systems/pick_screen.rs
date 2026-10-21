@@ -1,21 +1,27 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use discovery::ui::Screen;
+use discovery::ui::{JoinError, Screen};
 
 pub fn pick_screen(
     status: Res<discovery::Status>,
+    join_error: Option<Res<JoinError>>,
     screen: Res<State<Screen>>,
     mut next: ResMut<NextState<Screen>>,
 ) {
     let status = status.into_inner();
     let current = *screen.into_inner().get();
+    let has_join_error = join_error.is_some_and(|err| err.is_some());
     let phase = status.room.as_ref().map(|room| room.phase);
-    let wanted = match (phase, current) {
-        (Some(discovery::RoomPhase::Ready), _) => Screen::InRoom,
-        (Some(discovery::RoomPhase::Joining), _) => Screen::JoiningRoom,
-        (None, Screen::Connecting) if !status.is_lobby_attached => Screen::Connecting,
-        (None, _) => Screen::Lobby,
+    let wanted = if has_join_error {
+        Screen::JoinFailed
+    } else {
+        match (phase, current) {
+            (Some(discovery::RoomPhase::Ready), _) => Screen::InRoom,
+            (Some(discovery::RoomPhase::Joining), _) => Screen::JoiningRoom,
+            (None, Screen::Connecting) if !status.is_lobby_attached => Screen::Connecting,
+            (None, _) => Screen::Lobby,
+        }
     };
     if wanted != current {
         tracing::info!(target: "discovery", "ui screen {current:?} -> {wanted:?}");
@@ -44,6 +50,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(StatesPlugin);
         app.init_state::<discovery::ui::Screen>();
+        app.init_resource::<discovery::ui::JoinError>();
         app.insert_resource(status);
         app.add_systems(Update, pick_screen);
         app.update();

@@ -57,8 +57,15 @@ mod tests {
             &tx,
             &p2p::RoomHistoryRecordKind::Manifest(prefix.clone()),
             vec![1, 2, 3],
+            std::time::Duration::from_secs(90),
         );
-        p2p::swarm_loop::put_history_record(&mut swarm, &tx, &chunk, vec![0; 10]);
+        p2p::swarm_loop::put_history_record(
+            &mut swarm,
+            &tx,
+            &chunk,
+            vec![0; 10],
+            std::time::Duration::from_secs(90),
+        );
         let measured = measure_history_store(&mut swarm);
         assert_eq!(measured.get(&prefix), Some(&p2p::HistoryByteCount(13)));
     }

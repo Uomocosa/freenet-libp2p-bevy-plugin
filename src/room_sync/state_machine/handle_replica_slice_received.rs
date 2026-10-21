@@ -8,7 +8,11 @@ pub fn handle_replica_slice_received<Op>(
     index: room_sync::ReplicaSliceIndex,
     data: Vec<u8>,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
-    if let Some(awaiting) = state.slice_fetches_awaiting_reply.get_mut(from) {
+    if let Some(awaiting) = state
+        .slice_anti_entropy
+        .fetches_awaiting_reply
+        .get_mut(from)
+    {
         awaiting.remove(&index);
     }
     if state.room.as_ref() != Some(room) {

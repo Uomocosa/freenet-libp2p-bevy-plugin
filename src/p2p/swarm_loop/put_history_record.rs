@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use libp2p::kad;
 
 use crate::p2p;
@@ -7,12 +9,13 @@ pub fn put_history_record<Payload: p2p::Message>(
     event_tx: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     id: &p2p::RoomHistoryRecordKind,
     value: Vec<u8>,
+    ttl: Duration,
 ) {
     let record = kad::Record {
         key: p2p::history_record_key(id),
         value,
         publisher: None,
-        expires: None,
+        expires: std::time::Instant::now().checked_add(ttl),
     };
     if let Err(error) = swarm
         .behaviour_mut()
@@ -30,6 +33,8 @@ pub fn put_history_record<Payload: p2p::Message>(
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use libp2p::identity::Keypair;
 
     use super::put_history_record;
@@ -54,7 +59,13 @@ mod tests {
     async fn test_usage() {
         let mut swarm = swarm();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        put_history_record(&mut swarm, &tx, &manifest(), vec![1, 2, 3]);
+        put_history_record(
+            &mut swarm,
+            &tx,
+            &manifest(),
+            vec![1, 2, 3],
+            Duration::from_secs(90),
+        );
         assert!(rx.try_recv().is_err());
     }
 
@@ -62,7 +73,13 @@ mod tests {
     async fn test_usage_reports_a_value_the_store_refuses() {
         let mut swarm = swarm();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        put_history_record(&mut swarm, &tx, &manifest(), vec![0; 70 * 1024]);
+        put_history_record(
+            &mut swarm,
+            &tx,
+            &manifest(),
+            vec![0; 70 * 1024],
+            Duration::from_secs(90),
+        );
         assert!(matches!(
             rx.try_recv(),
             Ok(p2p::Event::Net(

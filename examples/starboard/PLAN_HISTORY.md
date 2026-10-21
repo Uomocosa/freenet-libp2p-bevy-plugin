@@ -198,18 +198,45 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
 
 ## Step H3 — History writer/reader in SyncPlugin
 
-- [ ] Writer timer + manifest compare; reader fallback on join (state machine, pure
+- [x] Writer timer + manifest compare; reader fallback on join (state machine, pure
       reducer + thin system). The fallback replaces `room_sync::state_machine::retry_fetch`'s
       `give_up` (today a joiner silently accepts an empty board): Kad → lobby re-check →
       `discovery::Event::RoomGone` / `HistoryUnavailable` + error screen (HD6).
-- [ ] Holders keep their room's records after leaving (HD1); `put_history` sets `expires`
+- [x] Holders keep their room's records after leaving (HD1); `put_history` sets `expires`
       from the lease instead of `None`.
-- [ ] Headless multi-App tests: A,B leave but stay in the game, C joins → same hash;
+- [x] Headless multi-App tests: A,B leave but stay in the game, C joins → same hash;
       all quit → C gets `RoomGone`; holder killed → `RoomGone` after the TTL; last holder
       quits mid-fetch → `RoomGone` within the deadline; recreated name starts empty.
 
 ### What was done (Step H3)
-_(agent fills)_
+- `NetCommand::PutHistoryRecord` and `put_history_record` now carry `ttl: Duration` and set
+  `kad::Record.expires = Instant::now().checked_add(ttl)` from the history config (default
+  90 s = `LeaseTimings::default().ttl`).
+- `discovery::state_machine::seed_candidates` → `collect_room_peers_from_lobby`: returns
+  `Vec<Output>` emitting `NetCommand::AddKadPeer` for every non-`Quit` lobby member (`InRoom`
+  and `HoldingHistory`) while still seeding only `InRoom` into `state.candidates`.
+- `room_sync::HistoryConfig { write_interval: 30s, record_ttl: 90s, per_room_bytes: 64 MB,
+  max_fetch_retries: 3 }`, `HistoryWriteTimer`, and `SyncPlugin::with_history_config` (plus
+  `with_anti_entropy` → `with_anti_entropy_config`).
+- `room_sync::state_machine::State<Op>` decomposed into `MemberSnapshotFetchState`
+  (`received_parts: BTreeMap<u32, Vec<u8>>`), `SliceAntiEntropyState`, `KademliaHistoryState`,
+  `PendingHistoryFetch` (`received_chunks: BTreeMap<ChunkIndex, Vec<u8>>`), and
+  `LobbyRoomStatus`.
+- Parallel `Phase` / `Input` / `Output` naming: `FetchingSnapshotFromRoomMember`,
+  `FetchingHistoryFromKademlia`, `Failed`; `SnapshotPartReceivedFromRoomMember`,
+  `SnapshotPartRequestedByRoomMember`, `RequestToRoomMemberFailed`, `HistoryWriteTimerFired`,
+  `HistoryRecordFound`, `HistoryRecordNotFound`; `FetchSnapshotPartFromRoomMember`,
+  `SendSnapshotPartToRoomMember`, `GetHistoryRecord`, `MergeAndWriteHistory`, `RoomGone`,
+  `HistoryUnavailable`.
+- Transitions: `start_kademlia_history_fetch`, `start_history_write_check`,
+  `handle_history_record_found`, `handle_history_record_not_found`, and pure helper
+  `merge_and_write_history_records` (merges stored history into replica before writing,
+  enforces HD9 `per_room_bytes`, skips write if `content_hash` matches, writes chunks then
+  manifest).
+- `discovery::Event::{RoomGone, HistoryUnavailable}` + default UI `Screen::JoinFailed`,
+  `JoinError`, `JoinErrorRoot`, `JoinErrorDismissButton`, `record_join_error`,
+  `spawn_join_failed` (+ PNG preview), `dismiss_join_failed`.
+- Verified: build, clippy, fmt, lint, bevy-lint, 298 nextest.
 
 ## Step H4 — Enable in starboard + e2e
 

@@ -17,4 +17,6 @@ pub enum Event {
     RoomReady(identity::RoomName),
     Left(identity::RoomName),
     MembersChanged,
+    RoomGone(identity::RoomName),
+    HistoryUnavailable(identity::RoomName),
 }

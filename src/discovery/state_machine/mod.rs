@@ -29,8 +29,8 @@ pub use tick::tick;
 mod add_candidates;
 pub use add_candidates::add_candidates;
 
-mod seed_candidates;
-pub use seed_candidates::seed_candidates;
+mod collect_room_peers_from_lobby;
+pub use collect_room_peers_from_lobby::collect_room_peers_from_lobby;
 
 mod dial_candidates;
 pub use dial_candidates::dial_candidates;

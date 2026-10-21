@@ -13,7 +13,7 @@ pub fn handle_remote<Op>(
     if state.phase == room_sync::state_machine::Phase::Ready {
         vec![room_sync::state_machine::Output::Apply { meta, op }]
     } else {
-        state.buffered.push((meta, op));
+        state.buffered_ops.push((meta, op));
         Vec::new()
     }
 }

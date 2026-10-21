@@ -6,6 +6,7 @@ pub enum Screen {
     Connecting,
     Lobby,
     JoiningRoom,
+    JoinFailed,
     InRoom,
 }
 

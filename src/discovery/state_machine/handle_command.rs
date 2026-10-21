@@ -44,7 +44,9 @@ fn join(state: &mut State, room: identity::RoomName, now: discovery::UnixTime) -
         members: discovery::Members::new(),
     });
     state.joining_since = Some(now);
-    discovery::state_machine::seed_candidates(state);
+    outputs.extend(discovery::state_machine::collect_room_peers_from_lobby(
+        state,
+    ));
     outputs.extend(discovery::state_machine::broadcast_handshake(state));
     outputs.extend(discovery::state_machine::dial_candidates(state, now));
     tracing::info!(target: "discovery", room = %room.as_str(), "discovery joined room");

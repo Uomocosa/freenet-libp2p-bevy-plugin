@@ -4,19 +4,23 @@ use crate::discovery;
 
 pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
     use discovery::ui::bevy_systems as ui;
-    use discovery::ui::{LeaveDialog, Screen};
+    use discovery::ui::{JoinError, LeaveDialog, Screen};
 
+    app.init_resource::<JoinError>();
+    app.add_message::<discovery::Event>();
     app.add_systems(OnEnter(Screen::Connecting), ui::spawn_connecting);
     app.add_systems(OnEnter(Screen::Lobby), ui::spawn_root);
     app.add_systems(OnEnter(Screen::JoiningRoom), ui::spawn_joining_room);
+    app.add_systems(OnEnter(Screen::JoinFailed), ui::spawn_join_failed);
     app.add_systems(OnEnter(Screen::InRoom), ui::spawn_leave_door);
     app.add_systems(OnEnter(LeaveDialog::Open), ui::spawn_leave_prompt);
     app.add_systems(
         Update,
         (
-            ui::pick_screen,
+            (ui::record_join_error, ui::pick_screen).chain(),
             ui::animate_hover,
             ui::spin_connecting.run_if(in_state(Screen::Connecting)),
+            ui::dismiss_join_failed.run_if(in_state(Screen::JoinFailed)),
             (
                 (ui::rebuild_room_list, ui::highlight_current_room).chain(),
                 ui::gate_create,

@@ -7,20 +7,23 @@ pub fn fetch_next<Op>(
         return Vec::new();
     };
     let peer = state
+        .member_snapshot
         .members
         .iter()
-        .find(|member| !state.asked.contains(member))
+        .find(|member| !state.member_snapshot.asked_members.contains(member))
         .cloned();
     let Some(peer) = peer else {
         return Vec::new();
     };
-    state.asked.push(peer.clone());
-    state.source = Some(peer.clone());
-    vec![room_sync::state_machine::Output::Fetch {
-        peer,
-        room,
-        part: 0,
-    }]
+    state.member_snapshot.asked_members.push(peer.clone());
+    state.member_snapshot.current_source = Some(peer.clone());
+    vec![
+        room_sync::state_machine::Output::FetchSnapshotPartFromRoomMember {
+            peer,
+            room,
+            part: 0,
+        },
+    ]
 }
 
 // no test_usage necessary

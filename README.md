@@ -33,9 +33,10 @@ One room channel: gossipsub, one topic per room. Joining a room (through
   is rejected with `p2p::Event::Error`, not silently dropped.
 - `room_sync::SyncPlugin<Replica>` replicates a `RoomState` per room. Its
   `anti_entropy: Option<room_sync::AntiEntropyConfig>` (default on: 2 s interval, at
-  most 8 slice fetches per peer; `with_anti_entropy(None)` turns it off) repairs ops
+  most 8 slice fetches per peer; `with_anti_entropy_config(None)` turns it off) repairs ops
   lost on gossip: peers announce one content hash per replica slice and fetch the
-  slices whose hash differs.
+  slices whose hash differs. Optional Kademlia room history is configured via
+  `with_history_config(Some(room_sync::HistoryConfig::default()))`.
 
 Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
 2, `flood_publish` enabled.

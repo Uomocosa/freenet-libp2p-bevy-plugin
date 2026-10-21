@@ -363,6 +363,7 @@ mod tests {
                 .send(p2p::NetCommand::PutHistoryRecord {
                     id: id.clone(),
                     value,
+                    ttl: Duration::from_secs(90),
                 })
                 .unwrap();
             assert_eq!(
@@ -429,6 +430,7 @@ mod tests {
             .send(p2p::NetCommand::PutHistoryRecord {
                 id: manifest,
                 value: vec![1; 32],
+                ttl: Duration::from_secs(90),
             })
             .unwrap();
         wait_history_event(&mut holder).await;

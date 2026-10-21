@@ -6,38 +6,52 @@ use crate::room_sync;
 pub enum Phase {
     #[default]
     Idle,
-    Fetching,
+    FetchingSnapshotFromRoomMember,
+    FetchingHistoryFromKademlia,
     Ready,
+    Failed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input<Op> {
     Joined {
         room: identity::RoomName,
+        prefix: p2p::HistoryKeyPrefix,
         members: Vec<identity::PeerId>,
+        lobby_status: room_sync::state_machine::LobbyRoomStatus,
     },
     Members {
         members: Vec<identity::PeerId>,
+        prefix: p2p::HistoryKeyPrefix,
+        lobby_status: room_sync::state_machine::LobbyRoomStatus,
     },
     Remote {
         room: identity::RoomName,
         meta: room_sync::OpMeta,
         op: Op,
     },
-    Snapshot {
+    SnapshotPartReceivedFromRoomMember {
         room: identity::RoomName,
         part: u32,
         total: u32,
         data: Vec<u8>,
     },
-    Fetch {
+    SnapshotPartRequestedByRoomMember {
         id: p2p::ReplyId,
         room: identity::RoomName,
         part: u32,
     },
     Tick,
-    Failed {
+    RequestToRoomMemberFailed {
         from: identity::PeerId,
+    },
+    HistoryWriteTimerFired,
+    HistoryRecordFound {
+        id: p2p::RoomHistoryRecordKind,
+        value: Vec<u8>,
+    },
+    HistoryRecordNotFound {
+        id: p2p::RoomHistoryRecordKind,
     },
     AntiEntropyTimerFired {
         local: room_sync::ReplicaSliceContentHashes,
@@ -62,12 +76,12 @@ pub enum Input<Op> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Output<Op> {
-    Fetch {
+    FetchSnapshotPartFromRoomMember {
         peer: identity::PeerId,
         room: identity::RoomName,
         part: u32,
     },
-    Snapshot {
+    SendSnapshotPartToRoomMember {
         id: p2p::ReplyId,
         room: identity::RoomName,
         part: u32,
@@ -78,6 +92,20 @@ pub enum Output<Op> {
     Apply {
         meta: room_sync::OpMeta,
         op: Op,
+    },
+    GetHistoryRecord {
+        id: p2p::RoomHistoryRecordKind,
+    },
+    MergeAndWriteHistory {
+        prefix: p2p::HistoryKeyPrefix,
+        stored_manifest: Option<p2p::HistoryManifest>,
+        stored_snapshot: Option<Vec<u8>>,
+    },
+    RoomGone {
+        room: identity::RoomName,
+    },
+    HistoryUnavailable {
+        room: identity::RoomName,
     },
     PublishSliceContentHashes {
         room: identity::RoomName,

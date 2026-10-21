@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
@@ -148,6 +149,7 @@ pub enum NetCommand {
     PutHistoryRecord {
         id: p2p::RoomHistoryRecordKind,
         value: Vec<u8>,
+        ttl: Duration,
     },
     GetHistoryRecord {
         id: p2p::RoomHistoryRecordKind,

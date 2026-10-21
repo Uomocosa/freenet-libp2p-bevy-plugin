@@ -1,12 +1,15 @@
 use crate::discovery;
-use discovery::state_machine::State;
+use crate::identity;
+use crate::p2p;
+use discovery::state_machine::{Output, State};
 
-pub fn seed_candidates(state: &mut State) {
+#[must_use]
+pub fn collect_room_peers_from_lobby(state: &mut State) -> Vec<Output> {
     let Some(room) = &state.room else {
-        return;
+        return Vec::new();
     };
     let Some(record) = state.lobby.get(&room.name) else {
-        return;
+        return Vec::new();
     };
     let seeds: Vec<_> = record
         .members
@@ -14,11 +17,21 @@ pub fn seed_candidates(state: &mut State) {
         .filter(|(peer, heartbeat)| {
             **peer != state.me.id
                 && !heartbeat.addrs.is_empty()
-                && heartbeat.presence == discovery::Presence::InRoom
+                && heartbeat.presence != discovery::Presence::Quit
         })
         .map(|(peer, heartbeat)| (peer.clone(), heartbeat.clone()))
         .collect();
+    let mut outputs = Vec::new();
     for (peer, heartbeat) in seeds {
+        outputs.push(Output::NetCommand(p2p::NetCommand::AddKadPeer(
+            identity::Peer {
+                id: peer.clone(),
+                addrs: heartbeat.addrs.clone(),
+            },
+        )));
+        if heartbeat.presence != discovery::Presence::InRoom {
+            continue;
+        }
         let newer = state
             .candidates
             .get(&peer)
@@ -33,16 +46,18 @@ pub fn seed_candidates(state: &mut State) {
             );
         }
     }
+    outputs
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::identity;
     use std::collections::BTreeMap;
 
-    use super::seed_candidates;
+    use super::collect_room_peers_from_lobby;
     use crate::discovery;
-    use discovery::state_machine::State;
+    use crate::identity;
+    use crate::p2p;
+    use discovery::state_machine::{Output, State};
 
     #[test]
     fn test_usage() {
@@ -57,15 +72,22 @@ mod tests {
             phase: discovery::RoomPhase::Ready,
             members: discovery::Members::new(),
         });
-        let heartbeat = discovery::Heartbeat {
+        let in_room = discovery::Heartbeat {
             addrs: vec![identity::PeerAddr::from("/ip4/1")],
             updated_at: discovery::UnixTime::from_secs(5),
             display_name: None,
             presence: discovery::Presence::InRoom,
         };
+        let holder = discovery::Heartbeat {
+            addrs: vec![identity::PeerAddr::from("/ip4/2")],
+            updated_at: discovery::UnixTime::from_secs(5),
+            display_name: None,
+            presence: discovery::Presence::HoldingHistory,
+        };
         let members = BTreeMap::from([
-            (identity::PeerId::from("me"), heartbeat.clone()),
-            (identity::PeerId::from("a"), heartbeat),
+            (identity::PeerId::from("me"), in_room.clone()),
+            (identity::PeerId::from("a"), in_room),
+            (identity::PeerId::from("holder"), holder),
         ]);
         state.lobby.insert(
             room,
@@ -75,8 +97,21 @@ mod tests {
                 members,
             },
         );
-        seed_candidates(&mut state);
+        let outputs = collect_room_peers_from_lobby(&mut state);
         let seeded: Vec<_> = state.candidates.keys().cloned().collect();
         assert_eq!(seeded, vec![identity::PeerId::from("a")]);
+        assert_eq!(
+            outputs,
+            vec![
+                Output::NetCommand(p2p::NetCommand::AddKadPeer(identity::Peer {
+                    id: identity::PeerId::from("a"),
+                    addrs: vec![identity::PeerAddr::from("/ip4/1")],
+                })),
+                Output::NetCommand(p2p::NetCommand::AddKadPeer(identity::Peer {
+                    id: identity::PeerId::from("holder"),
+                    addrs: vec![identity::PeerAddr::from("/ip4/2")],
+                })),
+            ]
+        );
     }
 }

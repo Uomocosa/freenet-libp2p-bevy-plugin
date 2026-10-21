@@ -4,17 +4,23 @@ pub mod basic;
 pub use basic::aliases::ReplicaSliceContentHashes;
 pub use basic::constants::PART_BYTES;
 pub use basic::enums::ReplicaSyncTopicMessage;
-pub use basic::resources::{AntiEntropyTimer, SyncGame};
+pub use basic::resources::{AntiEntropyTimer, HistoryWriteTimer, SyncGame};
 pub use basic::structs::OpMeta;
 
 mod anti_entropy_config;
 pub use anti_entropy_config::AntiEntropyConfig;
+
+mod history_config;
+pub use history_config::HistoryConfig;
 
 mod join_parts;
 pub use join_parts::join_parts;
 
 mod lamport_clock;
 pub use lamport_clock::LamportClock;
+
+mod merge_and_write_history_records;
+pub use merge_and_write_history_records::merge_and_write_history_records;
 
 mod peer_author;
 pub use peer_author::peer_author;

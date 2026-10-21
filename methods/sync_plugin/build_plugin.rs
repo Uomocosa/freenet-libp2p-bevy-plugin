@@ -29,10 +29,31 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
         )));
         app.world_mut()
             .resource_mut::<room_sync::bevy_systems::SyncState<Replica::Op>>()
-            .max_slice_fetches_per_peer = anti_entropy.max_slice_fetches_per_peer;
+            .slice_anti_entropy
+            .max_fetches_per_peer = anti_entropy.max_slice_fetches_per_peer;
         app.add_systems(
             Update,
             room_sync::bevy_systems::publish_slice_content_hashes::<Replica>,
+        );
+    }
+    if let Some(history) = plugin.history {
+        app.insert_resource(history);
+        app.insert_resource(room_sync::HistoryWriteTimer(Timer::new(
+            history.write_interval,
+            TimerMode::Repeating,
+        )));
+        {
+            let mut sync_state = app
+                .world_mut()
+                .resource_mut::<room_sync::bevy_systems::SyncState<Replica::Op>>();
+            sync_state.kademlia_history.is_enabled = true;
+            sync_state.kademlia_history.max_fetch_retries = history.max_fetch_retries;
+            sync_state.kademlia_history.per_room_bytes = history.per_room_bytes;
+            sync_state.kademlia_history.record_ttl = history.record_ttl;
+        }
+        app.add_systems(
+            Update,
+            room_sync::bevy_systems::refresh_room_history::<Replica>,
         );
     }
     app.insert_resource(room_sync::SyncGame(plugin.game.clone()));
@@ -115,9 +136,10 @@ mod tests {
             p2p::TransportMode::Both,
             p2p::MdnsMode::Disabled,
         )));
-        app.add_plugins(room_sync::SyncPlugin::<Map>::new(identity::GameId::from(
-            "test",
-        )));
+        app.add_plugins(
+            room_sync::SyncPlugin::<Map>::new(identity::GameId::from("test"))
+                .with_history_config(Some(room_sync::HistoryConfig::default())),
+        );
         app.update();
         assert!(
             app.world()
@@ -125,5 +147,10 @@ mod tests {
                 .is_some()
         );
         assert!(app.world().get_resource::<Map>().is_some());
+        assert!(
+            app.world()
+                .get_resource::<room_sync::HistoryConfig>()
+                .is_some()
+        );
     }
 }
