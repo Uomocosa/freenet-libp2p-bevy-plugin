@@ -15,23 +15,16 @@ pub enum RoomPhase {
     Ready,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Default)]
-pub enum AutoSubscribe {
-    #[default]
-    Enabled,
-    Disabled,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
-pub enum Step {
-    #[display("fetch")]
-    Fetch,
-    #[display("deploy")]
-    Deploy,
+pub enum LobbyRequestKind {
+    #[display("lobby fetch")]
+    FetchLobby,
+    #[display("lobby deploy")]
+    DeployLobby,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum Presence {
+pub enum RoomMembership {
     InRoom,
     HoldingHistory,
     Quit,

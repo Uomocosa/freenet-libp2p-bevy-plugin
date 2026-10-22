@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[path = "__basic__/mod.rs"]
 pub mod basic;
-pub use basic::enums::Presence;
+pub use basic::enums::RoomMembership;
 pub use basic::newtypes::{PeerId, RoomName};
 pub use basic::structs::{Peer, Room, RoomMember};
 pub use basic::type_aliases::Lobby;
@@ -75,7 +75,7 @@ fn drop_rooms_where_every_member_quit(lobby: &mut Lobby) {
     lobby.retain(|_, room| {
         room.members
             .values()
-            .any(|room_member| room_member.presence != Presence::Quit)
+            .any(|room_member| room_member.membership != RoomMembership::Quit)
     });
 }
 
@@ -212,7 +212,7 @@ mod tests {
                 },
                 updated_at,
                 display_name: None,
-                presence: Presence::InRoom,
+                membership: RoomMembership::InRoom,
             },
         );
         Room {
@@ -233,7 +233,7 @@ mod tests {
                 },
                 updated_at,
                 display_name: None,
-                presence: Presence::InRoom,
+                membership: RoomMembership::InRoom,
             },
         );
         Room {
@@ -246,7 +246,7 @@ mod tests {
     fn quit_room(updated_at: UnixTime) -> Room {
         let mut record = room_at(updated_at);
         for heartbeat in record.members.values_mut() {
-            heartbeat.presence = Presence::Quit;
+            heartbeat.membership = RoomMembership::Quit;
         }
         record
     }
@@ -348,7 +348,7 @@ mod tests {
         let live = room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1));
         let mut quit = room("peer", UnixTime::from_secs(9), UnixTime::from_secs(1));
         for heartbeat in quit.members.values_mut() {
-            heartbeat.presence = Presence::Quit;
+            heartbeat.membership = RoomMembership::Quit;
         }
         let base = Lobby::from([(name.clone(), live)]);
         let incoming = Lobby::from([(name.clone(), quit)]);

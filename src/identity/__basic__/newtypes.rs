@@ -19,44 +19,6 @@ use serde::{Deserialize, Serialize};
 )]
 #[reflect(Hash)]
 #[from(forward)]
-pub struct PeerId(pub String);
-
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    Deref,
-    Display,
-    From,
-    Reflect,
-)]
-#[reflect(Hash)]
-#[from(forward)]
-pub struct PeerAddr(pub String);
-
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    Deref,
-    Display,
-    From,
-    Reflect,
-)]
-#[reflect(Hash)]
-#[from(forward)]
 pub struct RoomName(pub String);
 
 #[derive(
@@ -76,30 +38,7 @@ pub struct RoomName(pub String);
 )]
 #[reflect(Hash)]
 #[from(forward)]
-pub struct Topic(pub String);
-
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    Deref,
-    Display,
-    From,
-    Reflect,
-)]
-#[reflect(Hash)]
-#[from(forward)]
 pub struct FreenetPeerId(pub String);
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deref, Display, From)]
-#[from(forward)]
-pub struct GameId(pub String);
 
 #[derive(
     Debug,

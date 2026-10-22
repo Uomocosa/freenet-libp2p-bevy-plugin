@@ -16,12 +16,6 @@ pub struct ReplyId(pub u64);
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref, From,
 )]
 #[from(forward)]
-pub struct HistoryKeyPrefix(pub String);
-
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref, From,
-)]
-#[from(forward)]
 pub struct ContentHash(pub String);
 
 #[derive(

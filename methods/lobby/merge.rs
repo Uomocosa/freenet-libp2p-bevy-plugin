@@ -3,14 +3,11 @@ use crate::discovery;
 pub fn merge(lobby: &mut discovery::Lobby, incoming: discovery::Lobby) {
     let discovery::Lobby(rooms) = incoming;
     for (room, record) in rooms {
-        let merged = discovery::freenet::merge_room(lobby.remove(&room), record);
+        let merged = discovery::LobbyRoom::merge_room(lobby.remove(&room), record);
         lobby.insert(room, merged);
     }
-    discovery::freenet::drop_rooms_where_every_member_quit(lobby);
-    discovery::freenet::evict_oldest_rooms_until_lobby_fits_capacity(
-        lobby,
-        discovery::freenet::MAX_LOBBY_ROOMS,
-    );
+    lobby.drop_rooms_where_every_member_quit();
+    lobby.evict_oldest_rooms_until_lobby_fits_capacity(discovery::freenet::MAX_LOBBY_ROOMS);
 }
 
 #[cfg(test)]
@@ -21,7 +18,7 @@ mod tests {
     use super::merge;
     use crate::discovery;
 
-    fn record(peer: &str, updated_at: discovery::UnixTime) -> discovery::Room {
+    fn record(peer: &str, updated_at: discovery::UnixTime) -> discovery::LobbyRoom {
         let mut members = BTreeMap::new();
         members.insert(
             identity::PeerId::from(peer),
@@ -32,20 +29,20 @@ mod tests {
                 },
                 updated_at,
                 display_name: None,
-                presence: discovery::Presence::InRoom,
+                membership: discovery::RoomMembership::InRoom,
             },
         );
-        discovery::Room {
+        discovery::LobbyRoom {
             room_size: discovery::RoomSize::DEFAULT,
             created_at: discovery::UnixTime::from_secs(0),
             members,
         }
     }
 
-    fn quit_room(updated_at: discovery::UnixTime) -> discovery::Room {
+    fn quit_room(updated_at: discovery::UnixTime) -> discovery::LobbyRoom {
         let mut record = record("peer", updated_at);
         for room_member in record.members.values_mut() {
-            room_member.presence = discovery::Presence::Quit;
+            room_member.membership = discovery::RoomMembership::Quit;
         }
         record
     }

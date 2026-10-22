@@ -1,4 +1,22 @@
 #[path = "__basic__/mod.rs"]
 pub mod basic;
-pub use basic::newtypes::{FreenetPeerId, GameId, PeerAddr, PeerId, RoomName, Topic, Username};
-pub use basic::structs::{FreenetPeer, Peer};
+
+pub use basic::newtypes::{FreenetPeerId, RoomName, Username};
+
+mod freenet_peer;
+pub use freenet_peer::FreenetPeer;
+
+mod game_id;
+pub use game_id::GameId;
+
+mod peer;
+pub use peer::Peer;
+
+mod peer_addr;
+pub use peer_addr::PeerAddr;
+
+mod peer_id;
+pub use peer_id::PeerId;
+
+mod topic;
+pub use topic::Topic;

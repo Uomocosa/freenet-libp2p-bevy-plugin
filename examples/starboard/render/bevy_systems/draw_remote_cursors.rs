@@ -109,7 +109,7 @@ mod tests {
                         },
                         updated_at: discovery::UnixTime::from_secs(0),
                         display_name: None,
-                        presence: discovery::Presence::InRoom,
+                        membership: discovery::RoomMembership::InRoom,
                     },
                     status: discovery::LinkStatus::Connected,
                 },

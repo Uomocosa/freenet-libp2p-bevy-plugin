@@ -39,13 +39,13 @@ mod tests {
 
     use super::RoomSubscriptions;
     use crate::identity;
-    use crate::p2p;
 
     #[test]
     fn test_usage() {
         let room = identity::RoomName::from("room-a");
         let mut rooms = RoomSubscriptions::new(identity::GameId::from("game"));
-        let topic = gossipsub::IdentTopic::new(p2p::room_topic(&rooms.game, &room).as_str());
+        let topic =
+            gossipsub::IdentTopic::new(identity::Topic::for_room(&rooms.game, &room).as_str());
         assert_eq!(rooms.room(&topic.hash()), None);
         assert_eq!(rooms.joined, None);
         rooms.register(&topic, room.clone());

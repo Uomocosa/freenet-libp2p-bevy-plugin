@@ -90,7 +90,7 @@ pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
         &starboard::app::test_harness::dialable(&peers[0]),
     );
 
-    let prefix = p2p::history_key_prefix(&game, &room, discovery::UnixTime::from_secs(1));
+    let prefix = p2p::HistoryKeyPrefix::new(&game, &room, discovery::UnixTime::from_secs(1));
     paint(&mut writer, board);
     let (snapshot_bytes, commands) = write_commands(&mut writer, &prefix);
     let (record_bytes, chunk_count) = command_sizes(&commands);
@@ -202,7 +202,7 @@ fn write_commands(app: &mut App, prefix: &p2p::HistoryKeyPrefix) -> (u64, Vec<p2
     let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
     let snapshot = room_sync::RoomState::snapshot(&*canvas);
     let snapshot_bytes = bincode::serialize(&snapshot).map_or(0, |bytes| bytes.len());
-    let commands = room_sync::merge_and_write_history_records(
+    let commands = p2p::NetCommand::merge_and_write_history_records(
         &mut *canvas,
         prefix,
         None,

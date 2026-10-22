@@ -1,4 +1,12 @@
+mod attach;
 mod connect;
+mod connected_peers;
+mod fetch_and_subscribe;
 mod send;
+mod wait_until_ring_ready;
+pub use attach::attach;
 pub use connect::connect;
+pub use connected_peers::connected_peers;
+pub use fetch_and_subscribe::fetch_and_subscribe;
 pub use send::send;
+pub use wait_until_ring_ready::wait_until_ring_ready;

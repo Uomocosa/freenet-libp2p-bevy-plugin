@@ -39,19 +39,18 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         error!(target: "discovery", "discovery: FreenetPort missing, discovery disabled");
         return;
     };
-    if plugin.auto_subscribe == discovery::AutoSubscribe::Enabled {
-        app.add_systems(
-            Update,
-            discovery::bevy_systems::follow_room.after(discovery::bevy_systems::drain_events),
-        );
-    }
+    app.add_systems(
+        Update,
+        discovery::bevy_systems::follow_room.after(discovery::bevy_systems::drain_events),
+    );
     let channels = discovery::RunChannels {
         net,
         commands: command_rx,
         statuses: status_tx,
         events: event_tx,
     };
-    tokio::spawn(discovery::run((**plugin).clone(), endpoint, channels));
+    let config = (**plugin).clone();
+    tokio::spawn(async move { config.run(endpoint, channels).await });
 }
 
 fn net_link(app: &App) -> Option<discovery::libp2p::NetLink> {

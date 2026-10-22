@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use bevy::prelude::Reflect;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -12,14 +10,7 @@ pub struct RoomMember {
     pub peer: identity::Peer,
     pub display_name: Option<identity::Username>,
     pub updated_at: discovery::UnixTime,
-    pub presence: discovery::Presence,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct Room {
-    pub room_size: discovery::RoomSize,
-    pub created_at: discovery::UnixTime,
-    pub members: BTreeMap<identity::PeerId, RoomMember>,
+    pub membership: discovery::RoomMembership,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]

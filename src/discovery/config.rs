@@ -1,3 +1,5 @@
+use atomic_delegate_macros::atomic_delegates;
+
 use crate::discovery;
 use crate::identity;
 
@@ -7,9 +9,13 @@ pub struct Config {
     pub display_name: identity::Username,
     pub room_size: discovery::RoomSize,
     pub deploy_policy: discovery::freenet::DeployPolicy,
-    pub auto_subscribe: discovery::AutoSubscribe,
     pub lease: discovery::HolderHeartbeatIntervals,
     pub history_size_limits: discovery::HistorySizeLimits,
+}
+
+#[atomic_delegates]
+impl Config {
+    pub async fn run(&self, endpoint: discovery::FreenetPort, channels: discovery::RunChannels) {}
 }
 
 impl Default for Config {
@@ -19,7 +25,6 @@ impl Default for Config {
             display_name: identity::Username::from("anonymous"),
             room_size: discovery::RoomSize::DEFAULT,
             deploy_policy: discovery::freenet::DeployPolicy::default(),
-            auto_subscribe: discovery::AutoSubscribe::default(),
             lease: discovery::HolderHeartbeatIntervals::default(),
             history_size_limits: discovery::HistorySizeLimits::default(),
         }
@@ -29,18 +34,18 @@ impl Default for Config {
 #[cfg(test)]
 mod tests {
     use super::Config;
+
     use crate::discovery;
 
     #[test]
     fn test_usage() {
         let config = Config::default();
-        let params = discovery::freenet::contract_params(&config.game);
+        let params = config.game.contract_params();
         assert_eq!(params, b"test".to_vec());
         assert_eq!(config.room_size, discovery::RoomSize::DEFAULT);
         assert_eq!(
             config.deploy_policy,
             discovery::freenet::DeployPolicy::FetchOrDeploy
         );
-        assert_eq!(config.auto_subscribe, discovery::AutoSubscribe::Enabled);
     }
 }

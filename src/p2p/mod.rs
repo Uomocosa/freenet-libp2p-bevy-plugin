@@ -7,58 +7,43 @@ pub use message_codec::MessageCodec;
 pub mod behaviour;
 pub use behaviour::Behaviour;
 
-pub mod history_record_key;
-pub use history_record_key::history_record_key;
+pub mod room_history_record_kind;
+pub use room_history_record_kind::RoomHistoryRecordKind;
 
 pub mod history_key_prefix;
-pub use history_key_prefix::history_key_prefix;
+pub use history_key_prefix::HistoryKeyPrefix;
 
-pub mod split_snapshot_into_chunks;
-pub use split_snapshot_into_chunks::split_snapshot_into_chunks;
+pub mod chunked_snapshot;
+pub use chunked_snapshot::ChunkedSnapshot;
 
-pub mod join_chunks_into_snapshot;
-pub use join_chunks_into_snapshot::join_chunks_into_snapshot;
+pub mod transport_mode;
+pub use transport_mode::TransportMode;
 
-pub mod parse_history_record_key;
-pub use parse_history_record_key::parse_history_record_key;
+pub mod mdns_mode;
+pub use mdns_mode::MdnsMode;
 
-pub mod matches_transport;
-pub use matches_transport::matches_transport;
+pub mod net_command;
+pub use net_command::NetCommand;
+
+pub mod runner_config;
+pub use runner_config::RunnerConfig;
 
 #[path = "__basic__/mod.rs"]
 pub mod basic;
 
 pub use basic::constants::*;
-pub use basic::enums::{
-    ChunkError, Command, Event, MdnsMode, NetCommand, NetEvent, RoomHistoryRecordKind,
-    SnapshotRequest, SnapshotResponse, TransportMode,
-};
-pub use basic::newtypes::{ChunkIndex, ContentHash, HistoryByteCount, HistoryKeyPrefix, ReplyId};
+pub use basic::enums::{ChunkError, Command, Event, NetEvent, SnapshotRequest, SnapshotResponse};
+pub use basic::newtypes::{ChunkIndex, ContentHash, HistoryByteCount, ReplyId};
 pub use basic::resources::{CommandSender, EventReceiver, NetCommandSender};
-pub use basic::structs::{ChunkedSnapshot, HistoryChunkId, HistoryManifest, RunnerConfig};
-
-pub mod mdns_behaviour;
-pub use mdns_behaviour::mdns_behaviour;
-
-pub mod build_swarm;
-pub use build_swarm::build_swarm;
+pub use basic::structs::{HistoryChunkId, HistoryManifest};
 
 pub mod gossipsub_config;
 pub use gossipsub_config::GossipsubConfig;
 
-pub mod room_topic;
-pub use room_topic::room_topic;
-
-pub mod run;
-pub use run::run;
-
-pub mod sync_protocol;
-pub use sync_protocol::sync_protocol;
-
 pub(crate) mod swarm_loop;
 
-pub mod spawn_runner;
-pub use spawn_runner::spawn_runner;
+pub mod swarm_loop_state;
+pub use swarm_loop_state::SwarmLoopState;
 
 pub mod commands;
 pub use commands::Commands;

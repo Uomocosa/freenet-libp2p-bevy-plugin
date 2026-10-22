@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::identity;
 use crate::p2p;
 use crate::room_sync;
 
@@ -20,7 +21,7 @@ pub fn publish_slice_content_hashes<Replica: room_sync::RoomState>(
     let input = room_sync::state_machine::Input::AntiEntropyTimerFired {
         local: replica.slice_content_hashes(),
     };
-    for output in room_sync::state_machine::update(&mut state, input) {
+    for output in state.update(input) {
         let room_sync::state_machine::Output::PublishSliceContentHashes { room, hashes } = output
         else {
             continue;
@@ -32,7 +33,7 @@ pub fn publish_slice_content_hashes<Replica: room_sync::RoomState>(
             };
         if let Ok(data) = bincode::serialize(&message) {
             pending.push(p2p::NetCommand::Publish {
-                topic: room_sync::sync_topic(game, &room),
+                topic: identity::Topic::for_room_sync(game, &room),
                 data,
             });
         }

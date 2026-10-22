@@ -5,9 +5,12 @@ use freenet_stdlib::client_api::ClientError;
 use freenet_stdlib::client_api::ClientRequest;
 use freenet_stdlib::client_api::ContractResponse;
 use freenet_stdlib::client_api::HostResponse;
+use freenet_stdlib::prelude::{ContractInstanceId, ContractKey};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::discovery;
+use crate::identity;
+use discovery::freenet::basic::constants;
 
 pub struct Client {
     pub(crate) write: tokio::sync::mpsc::UnboundedSender<Message>,
@@ -16,6 +19,29 @@ pub struct Client {
 
 #[atomic_delegates]
 impl Client {
+    pub async fn attach(
+        &mut self,
+        contract_wasm: &[u8],
+        params: &[u8],
+        deploy: discovery::freenet::DeployPolicy,
+        ring_wait: Duration,
+        initial_lobby: &discovery::Lobby,
+    ) -> Result<(ContractKey, discovery::Lobby), discovery::Error> {
+    }
+    pub async fn wait_until_ring_ready(
+        &mut self,
+        budget: Duration,
+    ) -> Result<(), discovery::Error> {
+    }
+    pub async fn connected_peers(
+        &mut self,
+    ) -> Result<Vec<identity::FreenetPeer>, discovery::Error> {
+    }
+    pub async fn fetch_and_subscribe(
+        &mut self,
+        instance_id: ContractInstanceId,
+    ) -> Result<discovery::Lobby, discovery::Error> {
+    }
     pub async fn connect(host: &str, port: u16) -> Result<Self, discovery::Error> {}
     pub fn send(&self, request: &ClientRequest<'_>) -> Result<(), discovery::Error> {}
 }
@@ -43,7 +69,27 @@ impl Client {
         &mut self,
         timeout: Duration,
     ) -> Option<Result<HostResponse, discovery::Error>> {
-        tokio::time::timeout(timeout, self.recv_response()).await.ok()
+        tokio::time::timeout(timeout, self.recv_response())
+            .await
+            .ok()
+    }
+}
+
+impl Client {
+    pub async fn connect_socket(host: &str, port: u16) -> Self {
+        loop {
+            match Self::connect(host, port).await {
+                Ok(client) => return client,
+                Err(e) => {
+                    tracing::warn!(
+                        target: "discovery",
+                        error = %e,
+                        "freenet websocket connect failed, retrying"
+                    );
+                    tokio::time::sleep(constants::CONNECT_RETRY).await;
+                }
+            }
+        }
     }
 }
 

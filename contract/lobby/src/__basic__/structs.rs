@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::UnixTime;
-use crate::basic::enums::Presence;
+use crate::basic::enums::RoomMembership;
 use crate::basic::newtypes::PeerId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -17,7 +17,7 @@ pub struct RoomMember {
     pub peer: Peer,
     pub display_name: Option<String>,
     pub updated_at: UnixTime,
-    pub presence: Presence,
+    pub membership: RoomMembership,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

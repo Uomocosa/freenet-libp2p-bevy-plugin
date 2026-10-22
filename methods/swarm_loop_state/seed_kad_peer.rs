@@ -1,0 +1,60 @@
+use libp2p::kad;
+
+use crate::identity;
+use crate::p2p;
+
+pub fn seed_kad_peer<Payload: p2p::Message>(
+    state: &mut p2p::SwarmLoopState<Payload>,
+    peer_id: &identity::PeerId,
+    addrs: &[identity::PeerAddr],
+) {
+    let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() else {
+        return;
+    };
+    let mut added = false;
+    for addr in addrs {
+        if let Ok(ma) = addr.parse::<libp2p::Multiaddr>()
+            && state
+                .swarm
+                .behaviour_mut()
+                .kademlia
+                .add_address(&libp2p_id, ma)
+                == kad::RoutingUpdate::Success
+        {
+            added = true;
+        }
+    }
+    if added {
+        let _ = state.swarm.behaviour_mut().kademlia.bootstrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::seed_kad_peer;
+
+    use crate::identity;
+    use crate::p2p;
+
+    #[tokio::test]
+    async fn test_usage() {
+        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let peer = libp2p::PeerId::random();
+        let addrs = vec![
+            identity::PeerAddr::from("/ip4/10.0.0.2/tcp/4001"),
+            identity::PeerAddr::from("not-an-addr"),
+        ];
+        seed_kad_peer(&mut state, &identity::PeerId(peer.to_string()), &addrs);
+        let known = state
+            .swarm
+            .behaviour_mut()
+            .kademlia
+            .kbuckets()
+            .any(|bucket| {
+                bucket
+                    .iter()
+                    .any(|entry| *entry.node.key.preimage() == peer)
+            });
+        assert!(known);
+    }
+}

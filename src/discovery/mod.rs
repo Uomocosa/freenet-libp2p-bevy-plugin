@@ -9,14 +9,17 @@ pub mod ui;
 pub mod basic;
 
 pub use basic::constants::*;
-pub use basic::enums::{AutoSubscribe, LinkStatus, Presence, RoomPhase, Step};
+pub use basic::enums::{LinkStatus, LobbyRequestKind, RoomMembership, RoomPhase};
 pub use basic::messages::{Command, Event};
 pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, StatusReceiver};
-pub use basic::structs::{JoinedRoom, Member, Room, RoomMember, RunChannels};
+pub use basic::structs::{JoinedRoom, Member, RoomMember, RunChannels};
 pub use basic::type_aliases::Members;
 
 mod lobby;
 pub use lobby::Lobby;
+
+mod lobby_room;
+pub use lobby_room::LobbyRoom;
 
 mod room_size;
 pub use room_size::RoomSize;
@@ -40,9 +43,6 @@ mod error;
 pub use error::Error;
 
 mod game_id;
-
-mod run;
-pub use run::run;
 
 mod plugin;
 pub use plugin::Plugin;

@@ -103,7 +103,7 @@ mod tests {
                         display_name: Some(identity::Username::from(
                             format!("user{index}").as_str(),
                         )),
-                        presence: discovery::Presence::InRoom,
+                        membership: discovery::RoomMembership::InRoom,
                     },
                     status: discovery::LinkStatus::Connected,
                 },

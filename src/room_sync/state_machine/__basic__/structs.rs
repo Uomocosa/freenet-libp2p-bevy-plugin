@@ -11,15 +11,6 @@ pub struct LobbyRoomStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct MemberSnapshotFetchState {
-    pub total_parts: u32,
-    pub received_parts: BTreeMap<u32, Vec<u8>>,
-    pub members: Vec<identity::PeerId>,
-    pub asked_members: Vec<identity::PeerId>,
-    pub current_source: Option<identity::PeerId>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SliceAntiEntropyState {
     pub fetches_awaiting_reply: BTreeMap<identity::PeerId, BTreeSet<room_sync::ReplicaSliceIndex>>,
     pub max_fetches_per_peer: usize,

@@ -221,7 +221,7 @@ mod tests {
         let mut status = discovery::Status::default();
         status.lobby.insert(
             identity::RoomName::from("alpha"),
-            discovery::Room {
+            discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: discovery::UnixTime::from_secs(0),
                 members: std::collections::BTreeMap::new(),
@@ -236,7 +236,7 @@ mod tests {
         let mut status = world.resource_mut::<discovery::Status>();
         status.lobby.insert(
             identity::RoomName::from("gamma"),
-            discovery::Room {
+            discovery::LobbyRoom {
                 room_size: discovery::RoomSize::try_from(4).expect("fixture room size is non-zero"),
                 created_at: discovery::UnixTime::from_secs(0),
                 members: std::collections::BTreeMap::new(),

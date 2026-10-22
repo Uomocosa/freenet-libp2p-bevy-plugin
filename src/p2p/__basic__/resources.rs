@@ -5,7 +5,7 @@ use derive_more::Deref;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::p2p;
-use crate::p2p::basic::enums::{Command, Event, NetCommand};
+use crate::p2p::basic::enums::{Command, Event};
 
 #[derive(Resource, Deref)]
 pub struct CommandSender<Payload: p2p::Message>(pub UnboundedSender<Command<Payload>>);
@@ -16,4 +16,4 @@ pub struct EventReceiver<Payload: p2p::Message>(
 );
 
 #[derive(Resource, Deref)]
-pub struct NetCommandSender(pub UnboundedSender<NetCommand>);
+pub struct NetCommandSender(pub UnboundedSender<p2p::NetCommand>);

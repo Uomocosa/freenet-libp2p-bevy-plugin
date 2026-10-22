@@ -81,7 +81,7 @@ mod tests {
         };
         status.lobby.insert(
             identity::RoomName::from("alpha"),
-            discovery::Room {
+            discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: discovery::UnixTime::from_secs(0),
                 members: BTreeMap::new(),

@@ -15,13 +15,13 @@ fn plugin_lobby() -> discovery::Lobby {
                 },
                 updated_at: discovery::UnixTime::from_secs(7),
                 display_name: name.map(identity::Username::from),
-                presence: discovery::Presence::InRoom,
+                membership: discovery::RoomMembership::InRoom,
             },
         );
     }
     discovery::Lobby::from([(
         identity::RoomName::from("room-a"),
-        discovery::Room {
+        discovery::LobbyRoom {
             room_size: discovery::RoomSize::DEFAULT,
             created_at: discovery::UnixTime::from_secs(7),
             members,

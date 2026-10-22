@@ -10,18 +10,13 @@ pub fn build_plugin<Payload: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<Payloa
     let (net_tx, net_rx) = tokio::sync::mpsc::unbounded_channel();
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
     let keypair = libp2p::identity::Keypair::generate_ed25519();
-    let _runner = p2p::spawn_runner::<Payload>(
-        cmd_rx,
-        net_rx,
-        event_tx,
-        keypair,
-        p2p::RunnerConfig {
-            mode: p2p_plugin.mode,
-            mdns: p2p_plugin.mdns,
-            game: p2p_plugin.game.clone(),
-            gossipsub: p2p_plugin.gossipsub,
-        },
-    );
+    let config = p2p::RunnerConfig {
+        mode: p2p_plugin.mode,
+        mdns: p2p_plugin.mdns,
+        game: p2p_plugin.game.clone(),
+        gossipsub: p2p_plugin.gossipsub,
+    };
+    let _runner = config.spawn_runner::<Payload>(cmd_rx, net_rx, event_tx, keypair);
     app.insert_resource(p2p::Events::<Payload>::default());
     app.insert_resource(p2p::Commands::<Payload>::default());
     app.insert_resource(p2p::PendingNetCommands::default());

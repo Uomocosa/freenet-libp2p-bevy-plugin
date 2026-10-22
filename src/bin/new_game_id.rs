@@ -3,7 +3,7 @@ fn main() {
 }
 
 #[must_use]
-pub fn new_game_id() -> String {
+fn new_game_id() -> String {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())

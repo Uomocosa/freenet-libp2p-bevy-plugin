@@ -20,7 +20,7 @@ fn one_room(updated_at: u64, created_at: u64) -> Lobby {
             },
             updated_at: UnixTime(updated_at),
             display_name: None,
-            presence: lobby_contract::Presence::InRoom,
+            membership: lobby_contract::RoomMembership::InRoom,
         },
     );
     let mut lobby = Lobby::new();

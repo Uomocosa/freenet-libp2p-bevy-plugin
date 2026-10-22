@@ -5,7 +5,7 @@ use crate::discovery;
 pub fn drop_dead(lobby: &mut discovery::Lobby, now: discovery::UnixTime, ttl: Duration) {
     for record in lobby.values_mut() {
         record.members.retain(|_, room_member| {
-            room_member.presence != discovery::Presence::Quit
+            room_member.membership != discovery::RoomMembership::Quit
                 && now.elapsed_since(room_member.updated_at) <= ttl
         });
     }
@@ -30,7 +30,7 @@ mod tests {
             },
             updated_at,
             display_name: None,
-            presence: discovery::Presence::InRoom,
+            membership: discovery::RoomMembership::InRoom,
         }
     }
 
@@ -39,7 +39,7 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             identity::RoomName::from("live"),
-            discovery::Room {
+            discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: discovery::UnixTime::from_secs(0),
                 members: BTreeMap::from([
@@ -56,7 +56,7 @@ mod tests {
         );
         lobby.insert(
             identity::RoomName::from("dead"),
-            discovery::Room {
+            discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: discovery::UnixTime::from_secs(0),
                 members: BTreeMap::from([(
@@ -84,28 +84,28 @@ mod tests {
         let now = discovery::UnixTime::from_secs(100);
         let ttl = Duration::from_secs(90);
         let cases = [
-            (discovery::Presence::InRoom, 50, 1),
-            (discovery::Presence::HoldingHistory, 50, 1),
-            (discovery::Presence::HoldingHistory, 5, 0),
-            (discovery::Presence::Quit, 99, 0),
+            (discovery::RoomMembership::InRoom, 50, 1),
+            (discovery::RoomMembership::HoldingHistory, 50, 1),
+            (discovery::RoomMembership::HoldingHistory, 5, 0),
+            (discovery::RoomMembership::Quit, 99, 0),
         ];
-        for (presence, updated_at, rooms_left) in cases {
+        for (membership, updated_at, rooms_left) in cases {
             let mut lobby = discovery::Lobby::from([(
                 identity::RoomName::from("r"),
-                discovery::Room {
+                discovery::LobbyRoom {
                     room_size: discovery::RoomSize::DEFAULT,
                     created_at: discovery::UnixTime::from_secs(0),
                     members: BTreeMap::from([(
                         identity::PeerId::from("p"),
                         discovery::RoomMember {
-                            presence,
+                            membership,
                             ..room_member(discovery::UnixTime::from_secs(updated_at))
                         },
                     )]),
                 },
             )]);
             drop_dead(&mut lobby, now, ttl);
-            assert_eq!(lobby.len(), rooms_left, "{presence:?} at {updated_at}");
+            assert_eq!(lobby.len(), rooms_left, "{membership:?} at {updated_at}");
         }
     }
 }

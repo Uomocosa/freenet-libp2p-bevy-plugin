@@ -1,24 +1,10 @@
 use std::collections::BTreeMap;
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
 use crate::identity;
 use crate::p2p;
 use crate::room_sync;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TransportMode {
-    Tcp,
-    Quic,
-    Both,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum MdnsMode {
-    Enabled,
-    Disabled,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetEvent {
@@ -94,12 +80,6 @@ pub enum NetEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RoomHistoryRecordKind {
-    Manifest(p2p::HistoryKeyPrefix),
-    Chunk(p2p::HistoryChunkId),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChunkError {
     WrongChunkCount { expected: u32, actual: usize },
     HashMismatch,
@@ -136,67 +116,9 @@ pub enum SnapshotResponse {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum NetCommand {
-    Dial(identity::Peer),
-    ReserveRelay {
-        relay_addr: identity::PeerAddr,
-    },
-    SetMdns {
-        mode: MdnsMode,
-    },
-    AddKadPeer(identity::Peer),
-    PutHistoryRecord {
-        id: p2p::RoomHistoryRecordKind,
-        value: Vec<u8>,
-        ttl: Duration,
-    },
-    GetHistoryRecord {
-        id: p2p::RoomHistoryRecordKind,
-    },
-    MeasureHistoryStore,
-    RemoveHistoryRecords {
-        prefix: p2p::HistoryKeyPrefix,
-    },
-    Subscribe {
-        topic: identity::Topic,
-    },
-    Unsubscribe {
-        topic: identity::Topic,
-    },
-    SubscribeRoom {
-        room: identity::RoomName,
-    },
-    UnsubscribeRoom {
-        room: identity::RoomName,
-    },
-    FetchSnapshot {
-        peer_id: identity::PeerId,
-        room: identity::RoomName,
-        part: u32,
-    },
-    FetchReplicaSlice {
-        peer_id: identity::PeerId,
-        room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
-    },
-    RespondSnapshot {
-        id: p2p::ReplyId,
-        frame: p2p::SnapshotResponse,
-    },
-    Publish {
-        topic: identity::Topic,
-        data: Vec<u8>,
-    },
-    PeerExchange {
-        peer_id: identity::PeerId,
-        data: Vec<u8>,
-    },
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command<Payload> {
-    Net(NetCommand),
+    Net(p2p::NetCommand),
     Send {
         peer_id: identity::PeerId,
         payload: Payload,

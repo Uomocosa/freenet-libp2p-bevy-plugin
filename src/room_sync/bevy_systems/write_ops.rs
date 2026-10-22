@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::discovery;
+use crate::identity;
 use crate::p2p;
 use crate::room_sync;
 
@@ -25,8 +26,8 @@ pub fn write_ops<Replica: room_sync::RoomState>(
         writer.restore(ops);
         return;
     };
-    let author = room_sync::peer_author(&me.id);
-    let topic = room_sync::sync_topic(game, &joined.name);
+    let author = me.id.peer_author();
+    let topic = identity::Topic::for_room_sync(game, &joined.name);
     for op in ops {
         let meta = room_sync::OpMeta {
             lamport: clock.tick(),

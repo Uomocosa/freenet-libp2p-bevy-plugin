@@ -1,0 +1,2 @@
+mod merge_and_write_history_records;
+pub use merge_and_write_history_records::merge_and_write_history_records;
