@@ -9,10 +9,18 @@ const DRAIN_TIMEOUT: Duration = Duration::from_millis(10);
 pub async fn poll(
     state: &mut discovery::freenet::LobbyContractSubscription,
 ) -> Result<discovery::Lobby, discovery::Error> {
-    while let Some(result) = state.client.recv_response_timeout(DRAIN_TIMEOUT).await {
+    loop {
+        let reply = match state
+            .client
+            .recv_reply(discovery::FreenetRequestKind::PollLobby, DRAIN_TIMEOUT)
+            .await
+        {
+            Err(discovery::Error::Timeout(_)) => break,
+            reply => reply?,
+        };
         if let HostResponse::ContractResponse(ContractResponse::GetResponse {
             state: bytes, ..
-        }) = result?
+        }) = reply
         {
             absorb_bytes(state, bytes.as_ref())?;
         }

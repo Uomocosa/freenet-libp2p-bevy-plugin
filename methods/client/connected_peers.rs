@@ -8,10 +8,10 @@ pub async fn connected_peers(
     state: &mut discovery::freenet::Client,
 ) -> Result<Vec<identity::FreenetPeer>, discovery::Error> {
     state.send(&ClientRequest::NodeQueries(NodeQuery::ConnectedPeers))?;
-    let reply = discovery::freenet::RequestTimeout(constants::REQUEST_TIMEOUT)
-        .within(
+    let reply = state
+        .recv_reply(
             discovery::FreenetRequestKind::QueryPeers,
-            state.recv_response(),
+            constants::REQUEST_TIMEOUT,
         )
         .await?;
     match reply {

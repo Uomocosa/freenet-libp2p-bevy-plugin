@@ -86,7 +86,7 @@ async fn deploy_contract(
         blocking_subscribe: false,
     };
     client.send(&ClientRequest::ContractOp(put))?;
-    match client.recv_response().await? {
+    match client.next_reply().await? {
         HostResponse::ContractResponse(
             ContractResponse::PutResponse { key }
             | ContractResponse::SubscribeResponse { key, .. }

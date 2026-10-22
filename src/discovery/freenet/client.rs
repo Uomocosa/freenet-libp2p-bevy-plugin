@@ -48,15 +48,17 @@ impl Client {
 
 #[rustfmt::skip]
 impl Client {
-    pub async fn recv(&mut self) -> Result<HostResponse, discovery::Error> {
-        match self.read.recv().await {
-            Some(Ok(response)) => Ok(response),
-            Some(Err(e)) => Err(discovery::Error::from(e)),
-            None => Err(discovery::Error::Disconnected),
-        }
+    pub async fn recv_reply(
+        &mut self,
+        kind: discovery::FreenetRequestKind,
+        timeout: Duration,
+    ) -> Result<HostResponse, discovery::Error> {
+        discovery::freenet::RequestTimeout(timeout)
+            .within(kind, self.next_reply())
+            .await
     }
 
-    pub async fn recv_response(&mut self) -> Result<HostResponse, discovery::Error> {
+    pub(crate) async fn next_reply(&mut self) -> Result<HostResponse, discovery::Error> {
         loop {
             match self.recv().await? {
                 HostResponse::ContractResponse(ContractResponse::UpdateNotification { .. }) => {}
@@ -65,13 +67,12 @@ impl Client {
         }
     }
 
-    pub async fn recv_response_timeout(
-        &mut self,
-        timeout: Duration,
-    ) -> Option<Result<HostResponse, discovery::Error>> {
-        tokio::time::timeout(timeout, self.recv_response())
-            .await
-            .ok()
+    async fn recv(&mut self) -> Result<HostResponse, discovery::Error> {
+        match self.read.recv().await {
+            Some(Ok(response)) => Ok(response),
+            Some(Err(e)) => Err(discovery::Error::from(e)),
+            None => Err(discovery::Error::Disconnected),
+        }
     }
 }
 
@@ -98,6 +99,7 @@ mod tests {
     use std::time::Duration;
 
     use super::Client;
+    use crate::discovery;
 
     fn disconnected_client() -> Client {
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -110,9 +112,24 @@ mod tests {
     async fn test_usage() {
         let mut client = disconnected_client();
         assert!(client.recv().await.is_err());
-        assert!(client.recv_response().await.is_err());
-        let mut client = disconnected_client();
-        let result = client.recv_response_timeout(Duration::from_millis(1)).await;
-        assert!(matches!(result, Some(Err(_))));
+        assert!(client.next_reply().await.is_err());
+        let result = client
+            .recv_reply(
+                discovery::FreenetRequestKind::QueryPeers,
+                Duration::from_millis(1),
+            )
+            .await;
+        assert!(matches!(result, Err(discovery::Error::Disconnected)));
+
+        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        let mut silent = Client { write, read };
+        let result = silent
+            .recv_reply(
+                discovery::FreenetRequestKind::QueryPeers,
+                Duration::from_millis(1),
+            )
+            .await;
+        assert!(matches!(result, Err(discovery::Error::Timeout(_))));
     }
 }

@@ -24,6 +24,8 @@ pub enum FreenetRequestKind {
     DeployLobby,
     #[display("peer query")]
     QueryPeers,
+    #[display("lobby poll")]
+    PollLobby,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]

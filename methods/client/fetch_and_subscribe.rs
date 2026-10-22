@@ -15,7 +15,7 @@ pub async fn fetch_and_subscribe(
     };
     state.send(&ClientRequest::ContractOp(get))?;
     loop {
-        match state.recv_response().await? {
+        match state.next_reply().await? {
             HostResponse::ContractResponse(ContractResponse::GetResponse { state, .. }) => {
                 return Ok(bincode::deserialize(state.as_ref())?);
             }
