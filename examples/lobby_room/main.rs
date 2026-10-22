@@ -13,12 +13,12 @@ use clap::Parser;
 use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> bevy::app::AppExit {
     let args = args::Args::parse();
     init_tracing();
     let Ok((_node_guard, ws_port)) = shared::node::bootstrap_node().await else {
         eprintln!("failed to start embedded freenet node");
-        return;
+        return bevy::app::AppExit::error();
     };
     let transport = args::transport_mode(args.transport);
     let mut app = App::new();
@@ -96,7 +96,7 @@ async fn main() {
             ping::log_room_messages,
         ),
     );
-    app.run();
+    app.run()
 }
 
 // needed helper: stdout tracing so the run log captures every marker line

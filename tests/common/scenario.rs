@@ -5,371 +5,345 @@ use std::time::{Duration, Instant};
 use telegram_bot_helper::send_video_best_effort;
 
 use super::{
-    CanvasTick, TerminalGuard, build_game, canvas_ticks, cleanup_stale, finish_record,
-    history_write_bytes, last_canvas, last_tick, log_contains, marker_times, poke, read_head,
-    require_x11, rings_ready, senders_seen_in_room, speed_clip, start_record, tile, wakeup_screen,
+    TerminalGuard, build_game, cleanup_stale, finish_record, history_write_bytes, last_canvas,
+    log_contains, marker_times, read_head, require_x11, speed_clip, start_record, tile,
+    wakeup_screen,
 };
 
-pub const DISCOVERY_BUDGET_SECS: u64 = 120;
-pub const JOIN_BUDGET_SECS: u64 = 180;
-pub const ROOM_MESSAGE_BUDGET_SECS: u64 = 30;
 /// libp2p-only join target: last joiner's press -> every peer fully meshed.
 pub const CONVERGE_BUDGET_MS: u64 = 500;
-/// Starboard only: last scripted stroke -> every peer reporting the same canvas.
-pub const CANVAS_BUDGET_SECS: u64 = 30;
-/// History only: a holder wrote its room's history into the Kademlia store.
-pub const HISTORY_WRITE_BUDGET_SECS: u64 = 120;
-/// History only: a holder left the room or quit the game.
-pub const HISTORY_LEAVE_BUDGET_SECS: u64 = 420;
-/// History only: a late joiner restored the board from the Kademlia history.
-/// The mainnet's contract state can take minutes to reach a cold node, so the
-/// late joiner's own join is inside this budget.
-pub const HISTORY_RESTORE_BUDGET_SECS: u64 = 420;
-/// History only: a peer that could not join reported the failure and exited.
-pub const HISTORY_FAILURE_BUDGET_SECS: u64 = 420;
 
-const SPAWN_TIMEOUT_SECS: u64 = 180;
-const RECORD_SECS: u64 = 600;
-const POLL_MS: u64 = 500;
-const SPAWN_GAP_MS: u64 = 300;
-const CREATED_MARKER: &str = "lobby created room=";
-const SCRIPT_DONE_MARKER: &str = "starboard script done";
-const JOIN_FAILED_MARKER: &str = "starboard join failed";
-const JOIN_FAILED_EXIT_CODE: i32 = 2;
-
-/// What a scenario proves. One variant per shape of run, so the flags that
-/// used to spell it out cannot contradict each other.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ScenarioFlow {
-    /// The peers read the lobby and never join a room.
-    DiscoveryOnly,
-    /// The peers join one room and mesh.
-    Join,
-    /// The peers join one room and exchange room messages.
-    RoomPing,
-    /// The starboard peers paint, erase and converge on one canvas.
-    Starboard,
-    /// The same, plus one peer that joins only after the painting stopped.
-    StarboardLateJoin,
-    /// S4a: every peer left the room, a late joiner restores the board.
-    HistoryRestore,
-    /// S4b: every peer quit the game, a later joiner finds the room gone.
-    HistoryRoomGone,
-    /// S4c: the last holder is killed while a peer is joining.
-    HistoryHolderKilled,
-}
-
-/// What a peer does with the room.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PeerRole {
-    /// Creates the room.
-    Creator,
-    /// Joins the room.
-    Joiner,
-    /// Stays in the lobby and never joins a room.
-    Watcher,
-}
+const POLL: Duration = Duration::from_millis(500);
+const SPAWN_GAP: Duration = Duration::from_millis(300);
+const RECORD_MARGIN_SECS: u64 = 60;
+const ROOM: &str = "{room}";
+const STEP_DONE_MARKER: &str = "script step done step=";
+const SCRIPT_DONE_MARKER: &str = "script done";
+const SCRIPT_FAILED_MARKER: &str = "script failed";
+const CRASH_MARKER: &str = "script crash-app";
 
 /// When a peer is spawned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PeerSpawn {
+pub enum PeerStart {
     /// With the first batch.
-    First,
-    /// After the first batch has done its job.
-    Late,
+    Now,
+    /// Once peer `peer` (0-based) logged that its step `step` (1-based) is done.
+    AfterStepDone { peer: usize, step: usize },
 }
 
-/// One peer of a scenario. A scripted peer carries its room action in the
-/// script, so `--script` and `--action` are never both passed.
+/// One peer of a scenario: its `--script` (with `{room}` for the run's room) and when it starts.
 #[derive(Debug, Clone)]
-pub struct PeerSpec {
-    pub role: PeerRole,
-    pub spawn: PeerSpawn,
-    pub script: Option<String>,
+pub struct PeerRun {
+    pub script: String,
+    pub start: PeerStart,
 }
 
-/// How long a scenario waits for things.
-#[derive(Debug, Clone, Copy)]
-pub struct ScenarioBudgets {
-    /// Seconds the scenario waits for the lobby row.
-    pub discovery: u64,
-    /// Seconds the scenario waits for the room to mesh.
-    pub join: u64,
-    /// Seconds the peer waits for its room to show up in the lobby.
-    pub join_timeout: u64,
-}
+/// A check over every peer's log, run once all the scripts finished. `Ok` carries the detail.
+pub type OnFinish = fn(&[PathBuf]) -> Result<String, String>;
 
+/// One e2e run: N scripted peers. It passes when every peer's script ends as written —
+/// `exit-app` exits 0, `crash-app` dies, `stay` is still running — and `on_finish` agrees.
 pub struct Scenario {
     pub name: String,
     pub bin: &'static str,
     pub window_prefix: &'static str,
     pub ui: Option<String>,
-    pub flow: ScenarioFlow,
-    pub peers: Vec<PeerSpec>,
-    pub budgets: ScenarioBudgets,
+    pub extra_args: Vec<String>,
+    pub peers: Vec<PeerRun>,
+    pub cap: Duration,
+    pub on_finish: Option<OnFinish>,
 }
 
 impl Scenario {
+    /// The creator stays in its room; every other peer waits for the room in its lobby.
     #[must_use]
     pub fn discover_only(peers: usize) -> Self {
+        let mut runs = vec![now(format!("{}, stay", create_and_enter()))];
+        for _ in 1..peers {
+            runs.push(now("wait-lobby-room:{room}@180s, exit-app".to_string()));
+        }
         Self {
             name: "lobby_room_discovery".to_string(),
-            bin: "lobby_room",
-            window_prefix: "lobby",
             ui: Some("custom".to_string()),
-            flow: ScenarioFlow::DiscoveryOnly,
-            peers: roster(peers, PeerRole::Watcher),
-            budgets: default_budgets(),
+            peers: runs,
+            cap: Duration::from_mins(5),
+            ..Self::lobby()
         }
     }
 
+    /// Every peer ends up in one fully meshed room.
     #[must_use]
     pub fn join(peers: usize) -> Self {
+        let meshed = format!("wait-members:{peers}@180s, sleep:5s, exit-app");
         Self {
             name: "lobby_room_join".to_string(),
-            bin: "lobby_room",
-            window_prefix: "lobby",
             ui: Some("default".to_string()),
-            flow: ScenarioFlow::Join,
-            peers: roster(peers, PeerRole::Joiner),
-            budgets: default_budgets(),
+            peers: room_roster(peers, &meshed),
+            cap: Duration::from_mins(7),
+            on_finish: Some(did_mesh_converge_within_budget),
+            ..Self::lobby()
         }
     }
 
+    /// The meshed room, then room messages from every other member.
     #[must_use]
     pub fn room_messaging(peers: usize) -> Self {
+        let others = peers.saturating_sub(1);
+        let tail = format!(
+            "wait-members:{peers}@180s, wait-room-messages:{others}@60s, sleep:5s, exit-app"
+        );
         Self {
             name: "room_messaging".to_string(),
-            bin: "lobby_room",
-            window_prefix: "lobby",
             ui: Some("default".to_string()),
-            flow: ScenarioFlow::RoomPing,
-            peers: roster(peers, PeerRole::Joiner),
-            budgets: default_budgets(),
+            extra_args: vec!["--room-ping".to_string()],
+            peers: room_roster(peers, &tail),
+            cap: Duration::from_mins(8),
+            on_finish: Some(did_mesh_converge_within_budget),
+            ..Self::lobby()
         }
     }
 
-    /// Three starboard windows: p1 paints, p2 erases some of it, p3 only watches.
+    /// p1 paints, p2 erases some of it, the rest only watch; every canvas ends the same.
     #[must_use]
     pub fn starboard(peers: usize) -> Self {
-        Self {
-            name: "starboard_e2e".to_string(),
-            bin: "starboard_gossip",
-            window_prefix: "starboard",
-            ui: None,
-            flow: ScenarioFlow::Starboard,
-            peers: starboard_roster(peers, PeerSpawn::First),
-            budgets: default_budgets(),
-        }
-    }
-
-    /// The same, plus one peer that joins only after the painting stopped.
-    #[must_use]
-    pub fn starboard_late_join(peers: usize) -> Self {
-        Self {
-            name: "starboard_e2e".to_string(),
-            flow: ScenarioFlow::StarboardLateJoin,
-            peers: starboard_roster(peers, PeerSpawn::Late),
-            ..Self::starboard(peers)
-        }
-    }
-
-    /// S4a: two holders paint, leave the room, and a third peer restores the
-    /// board from the Kademlia history.
-    #[must_use]
-    pub fn starboard_history_restore(peers: usize) -> Self {
-        Self {
-            name: "starboard_history_restore".to_string(),
-            bin: "starboard_gossip",
-            window_prefix: "starboard",
-            ui: None,
-            flow: ScenarioFlow::HistoryRestore,
-            peers: history_restore_roster(peers),
-            budgets: default_budgets(),
-        }
-    }
-
-    /// S4b: the holders quit the game, a watcher watches the room disappear,
-    /// and a later joiner finds the room gone.
-    #[must_use]
-    pub fn starboard_history_room_gone(peers: usize) -> Self {
-        Self {
-            name: "starboard_history_room_gone".to_string(),
-            bin: "starboard_gossip",
-            window_prefix: "starboard",
-            ui: None,
-            flow: ScenarioFlow::HistoryRoomGone,
-            peers: history_room_gone_roster(peers),
-            budgets: default_budgets(),
-        }
-    }
-
-    /// S4c: the only holder is killed while the joiner is joining.
-    #[must_use]
-    pub fn starboard_history_holder_killed(peers: usize) -> Self {
-        Self {
-            name: "starboard_history_holder_killed".to_string(),
-            bin: "starboard_gossip",
-            window_prefix: "starboard",
-            ui: None,
-            flow: ScenarioFlow::HistoryHolderKilled,
-            peers: history_holder_killed_roster(peers),
-            budgets: default_budgets(),
-        }
-    }
-}
-
-/// The budgets every scenario starts from.
-const fn default_budgets() -> ScenarioBudgets {
-    ScenarioBudgets {
-        discovery: DISCOVERY_BUDGET_SECS,
-        join: JOIN_BUDGET_SECS,
-        join_timeout: JOIN_BUDGET_SECS,
-    }
-}
-
-/// One creator and `peers - 1` peers in the given role.
-fn roster(peers: usize, role: PeerRole) -> Vec<PeerSpec> {
-    let mut roster = vec![PeerSpec {
-        role: PeerRole::Creator,
-        spawn: PeerSpawn::First,
-        script: None,
-    }];
-    for _ in 1..peers {
-        roster.push(PeerSpec {
-            role,
-            spawn: PeerSpawn::First,
-            script: None,
-        });
-    }
-    roster
-}
-
-/// The starboard roster: p1 paints, p2 erases, the rest only watch the board.
-fn starboard_roster(peers: usize, late: PeerSpawn) -> Vec<PeerSpec> {
-    let mut roster = vec![
-        PeerSpec {
-            role: PeerRole::Creator,
-            spawn: PeerSpawn::First,
-            script: Some(format!("create:{{room}}, {}", paint_script())),
-        },
-        PeerSpec {
-            role: PeerRole::Joiner,
-            spawn: PeerSpawn::First,
-            script: Some(format!("join:{{room}}, {}", erase_script())),
-        },
-    ];
-    for _ in 2..peers {
-        roster.push(PeerSpec {
-            role: PeerRole::Joiner,
-            spawn: PeerSpawn::First,
-            script: None,
-        });
-    }
-    if let Some(last) = roster.last_mut() {
-        last.spawn = late;
-    }
-    roster
-}
-
-/// Two holders that paint and then leave the room, plus a late joiner.
-///
-/// Only the first peer paints: the second one would have to *erase* to differ,
-/// and an erase published before the gossipsub mesh knows the subscription is
-/// lost (the known `NoPeersSubscribedToTopic` window). The point of the scenario
-/// is the history restore, not the op path.
-fn history_restore_roster(peers: usize) -> Vec<PeerSpec> {
-    let holders = peers.saturating_sub(1).max(2);
-    let mut roster = vec![
-        PeerSpec {
-            role: PeerRole::Creator,
-            spawn: PeerSpawn::First,
-            script: Some(format!(
-                "create:{{room}}, {}, wait-secs:45, leave:{{room}}",
+        let members = format!("wait-members:{peers}@180s");
+        let end = "wait-canvas-stable@60s, sleep:10s, exit-app";
+        let mut runs = vec![
+            now(format!(
+                "{}, {members}, {}, {end}",
+                create_and_enter(),
                 paint_script()
             )),
-        },
-        PeerSpec {
-            role: PeerRole::Joiner,
-            spawn: PeerSpawn::First,
-            script: Some("join:{room}, wait-secs:45, leave:{room}".to_string()),
-        },
-    ];
-    for _ in 2..holders {
-        roster.push(PeerSpec {
-            role: PeerRole::Joiner,
-            spawn: PeerSpawn::First,
-            script: None,
-        });
-    }
-    roster.push(PeerSpec {
-        role: PeerRole::Joiner,
-        spawn: PeerSpawn::Late,
-        script: None,
-    });
-    roster
-}
-
-/// Two holders that paint and then quit the game, a watcher, and a late joiner.
-fn history_room_gone_roster(peers: usize) -> Vec<PeerSpec> {
-    let mut roster = vec![
-        PeerSpec {
-            role: PeerRole::Creator,
-            spawn: PeerSpawn::First,
-            script: Some(format!(
-                "create:{{room}}, {}, wait-secs:45, exit",
-                paint_script()
-            )),
-        },
-        PeerSpec {
-            role: PeerRole::Joiner,
-            spawn: PeerSpawn::First,
-            script: Some(format!(
-                "join:{{room}}, {}, wait-secs:45, exit",
+            now(format!(
+                "{}, {members}, wait-canvas-nonempty@120s, {}, {end}",
+                join_and_enter(),
                 erase_script()
             )),
-        },
-        PeerSpec {
-            role: PeerRole::Watcher,
-            spawn: PeerSpawn::First,
-            script: None,
-        },
-    ];
-    for _ in 3..peers.saturating_sub(1) {
-        roster.push(PeerSpec {
-            role: PeerRole::Watcher,
-            spawn: PeerSpawn::First,
-            script: None,
-        });
+        ];
+        for _ in 2..peers {
+            runs.push(now(format!(
+                "{}, {members}, wait-canvas-nonempty@120s, {end}",
+                join_and_enter()
+            )));
+        }
+        Self {
+            name: "starboard_e2e".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(10),
+            on_finish: Some(do_all_canvases_agree),
+            ..Self::starboard_base()
+        }
     }
-    roster.push(PeerSpec {
-        role: PeerRole::Joiner,
-        spawn: PeerSpawn::Late,
-        script: None,
-    });
-    roster
+
+    /// The first `peers - 1` paint as in `starboard`, then wait for one more peer that joins
+    /// only after the painting stopped and must end with the same canvas.
+    #[must_use]
+    pub fn starboard_late_join(peers: usize) -> Self {
+        let first = peers.saturating_sub(1);
+        let members = format!("wait-members:{first}@180s");
+        let end = format!("wait-canvas-stable@60s, wait-members:{peers}@420s, sleep:10s, exit-app");
+        let painter = format!(
+            "{}, {members}, {}, {end}",
+            create_and_enter(),
+            paint_script()
+        );
+        let mut runs = vec![now(painter.clone())];
+        for _ in 1..first {
+            runs.push(now(format!(
+                "{}, {members}, wait-canvas-nonempty@120s, {end}",
+                join_and_enter()
+            )));
+        }
+        runs.push(PeerRun {
+            script: format!(
+                "{}, wait-canvas-nonempty@120s, wait-canvas-stable@60s, sleep:10s, exit-app",
+                late_join_and_enter()
+            ),
+            start: after(0, last_step_matching(&painter, "paint-from-to")),
+        });
+        Self {
+            name: "starboard_late_join".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(15),
+            on_finish: Some(do_all_canvases_agree),
+            ..Self::starboard_base()
+        }
+    }
+
+    /// S4a: the holders paint, stay while the history is written, and leave the room; a late
+    /// joiner restores the board from the Kademlia history.
+    #[must_use]
+    pub fn starboard_history_restore(peers: usize) -> Self {
+        let holders = peers.saturating_sub(1).max(2);
+        let members = format!("wait-members:{holders}@180s");
+        let leave = "sleep:45s, leave:{room}, wait-left:{room}@30s, exit-app";
+        let mut runs = vec![now(format!(
+            "{}, {members}, {}, wait-canvas-stable@60s, {leave}",
+            create_and_enter(),
+            paint_script()
+        ))];
+        let holder = format!(
+            "{}, {members}, wait-canvas-nonempty@120s, {leave}",
+            join_and_enter()
+        );
+        for _ in 1..holders {
+            runs.push(now(holder.clone()));
+        }
+        runs.push(PeerRun {
+            script: format!(
+                "{}, wait-canvas-nonempty@120s, wait-canvas-stable@60s, exit-app",
+                late_join_and_enter()
+            ),
+            start: after(
+                holders.saturating_sub(1),
+                last_step_matching(&holder, "wait-left"),
+            ),
+        });
+        Self {
+            name: "starboard_history_restore".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(20),
+            on_finish: Some(was_history_written_and_restored),
+            ..Self::starboard_base()
+        }
+    }
+
+    /// S4b: the holders quit the game, the watchers stay in the lobby, and a later joiner
+    /// finds the room gone.
+    #[must_use]
+    pub fn starboard_history_room_gone(peers: usize) -> Self {
+        let members = "wait-members:2@180s";
+        let quit = "wait-canvas-stable@60s, sleep:45s, exit-app";
+        let painter = format!(
+            "{}, {members}, {}, {quit}",
+            create_and_enter(),
+            paint_script()
+        );
+        let mut runs = vec![
+            now(painter.clone()),
+            now(format!(
+                "{}, {members}, wait-canvas-nonempty@120s, {}, {quit}",
+                join_and_enter(),
+                erase_script()
+            )),
+        ];
+        for _ in 2..peers.saturating_sub(1) {
+            runs.push(now("wait-lobby-room:{room}@180s, stay".to_string()));
+        }
+        runs.push(PeerRun {
+            script: "join:{room}, wait-join-failed:{room}@420s, exit-app".to_string(),
+            start: after(0, step_count(&painter)),
+        });
+        Self {
+            name: "starboard_history_room_gone".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(20),
+            ..Self::starboard_base()
+        }
+    }
+
+    /// S4c: the only holder crashes while the joiner is joining.
+    #[must_use]
+    pub fn starboard_history_holder_killed(peers: usize) -> Self {
+        let holder = format!(
+            "{}, {}, wait-canvas-stable@60s, sleep:5s, crash-app",
+            create_and_enter(),
+            paint_script()
+        );
+        let mut runs = vec![now(holder.clone())];
+        for _ in 1..peers.saturating_sub(1) {
+            runs.push(now("wait-lobby-room:{room}@180s, stay".to_string()));
+        }
+        runs.push(PeerRun {
+            script: "join:{room}, wait-join-failed:{room}@420s, exit-app".to_string(),
+            start: after(0, last_step_matching(&holder, "wait-canvas-stable")),
+        });
+        Self {
+            name: "starboard_history_holder_killed".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(15),
+            ..Self::starboard_base()
+        }
+    }
+
+    // needed helper: the fields every lobby_room scenario shares
+    fn lobby() -> Self {
+        Self {
+            name: String::new(),
+            bin: "lobby_room",
+            window_prefix: "lobby",
+            ui: None,
+            extra_args: Vec::new(),
+            peers: Vec::new(),
+            cap: Duration::from_mins(5),
+            on_finish: None,
+        }
+    }
+
+    // needed helper: the fields every starboard_gossip scenario shares
+    fn starboard_base() -> Self {
+        Self {
+            bin: "starboard_gossip",
+            window_prefix: "starboard",
+            ..Self::lobby()
+        }
+    }
 }
 
-/// One holder that paints, and a joiner that arrives after the holder is killed.
-fn history_holder_killed_roster(peers: usize) -> Vec<PeerSpec> {
-    let mut roster = vec![PeerSpec {
-        role: PeerRole::Creator,
-        spawn: PeerSpawn::First,
-        script: Some(format!("create:{{room}}, {}", paint_script())),
-    }];
-    for _ in 1..peers.saturating_sub(1) {
-        roster.push(PeerSpec {
-            role: PeerRole::Joiner,
-            spawn: PeerSpawn::First,
-            script: None,
-        });
+/// A peer of the first batch.
+const fn now(script: String) -> PeerRun {
+    PeerRun {
+        script,
+        start: PeerStart::Now,
     }
-    roster.push(PeerSpec {
-        role: PeerRole::Joiner,
-        spawn: PeerSpawn::Late,
-        script: None,
-    });
-    roster
+}
+
+/// When a late peer starts: once `peer` finished its 1-based step `step`.
+const fn after(peer: usize, step: usize) -> PeerStart {
+    PeerStart::AfterStepDone { peer, step }
+}
+
+/// The creator's opening: create the room and be in it.
+fn create_and_enter() -> String {
+    "create:{room}, wait-join-succeeded:{room}@180s".to_string()
+}
+
+/// A first-batch joiner's opening: see the room, join it, be in it.
+fn join_and_enter() -> String {
+    "wait-lobby-room:{room}@180s, join:{room}, wait-join-succeeded:{room}@180s".to_string()
+}
+
+/// A late joiner's opening: a cold node can take minutes to read the lobby.
+fn late_join_and_enter() -> String {
+    "wait-lobby-room:{room}@420s, join:{room}, wait-join-succeeded:{room}@420s".to_string()
+}
+
+/// One creator and `peers - 1` joiners, all ending with `tail`.
+fn room_roster(peers: usize, tail: &str) -> Vec<PeerRun> {
+    let mut runs = vec![now(format!("{}, {tail}", create_and_enter()))];
+    for _ in 1..peers {
+        runs.push(now(format!("{}, {tail}", join_and_enter())));
+    }
+    runs
+}
+
+/// The steps of a script, trimmed.
+fn script_steps(script: &str) -> Vec<&str> {
+    script.split(',').map(str::trim).collect()
+}
+
+/// How many steps a script has.
+fn step_count(script: &str) -> usize {
+    script_steps(script).len()
+}
+
+/// The 1-based position of the last step starting with `verb`, or of the last step.
+fn last_step_matching(script: &str, verb: &str) -> usize {
+    let steps = script_steps(script);
+    steps
+        .iter()
+        .rposition(|step| step.starts_with(verb))
+        .map_or(steps.len(), |index| index.saturating_add(1))
 }
 
 /// The strokes the painter draws, as the script spells them.
@@ -393,6 +367,22 @@ fn strokes(count: u32, verb: &str) -> String {
         })
         .collect::<Vec<String>>()
         .join(", ")
+}
+
+/// How a peer's script ends, which decides what "done" means for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ScriptEnding {
+    ExitApp,
+    CrashApp,
+    Stay,
+}
+
+fn script_ending(script: &str) -> ScriptEnding {
+    match script_steps(script).last().copied() {
+        Some("crash-app") => ScriptEnding::CrashApp,
+        Some("stay") => ScriptEnding::Stay,
+        _ => ScriptEnding::ExitApp,
+    }
 }
 
 pub struct Check {
@@ -433,55 +423,32 @@ struct Env {
     recording: Option<Child>,
 }
 
+/// How a peer's process ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PeerExit {
+    Code(i32),
+    Signal,
+}
+
+/// A peer of the run: its log, its process once it was spawned, and how it ended.
 struct RunningPeer {
-    role: PeerRole,
-    spawn: PeerSpawn,
     log: PathBuf,
-    guard: TerminalGuard,
+    guard: Option<TerminalGuard>,
+    exit: Option<PeerExit>,
 }
 
-struct RunningPeers {
-    peers: Vec<RunningPeer>,
-    room: String,
-    created: bool,
-    spawn_ok: bool,
-    t_create: Instant,
-    t_join: Instant,
-}
-
-impl RunningPeers {
-    /// The peers that are in the room.
-    fn room_indices(&self) -> Vec<usize> {
-        self.peers
-            .iter()
-            .enumerate()
-            .filter(|(_, peer)| peer.role != PeerRole::Watcher)
-            .map(|(index, _)| index)
-            .collect()
-    }
-
-    /// The peers that only watch the lobby.
-    fn watcher_indices(&self) -> Vec<usize> {
-        self.peers
-            .iter()
-            .enumerate()
-            .filter(|(_, peer)| peer.role == PeerRole::Watcher)
-            .map(|(index, _)| index)
-            .collect()
-    }
-
-    /// The peers that were spawned after the first batch.
-    fn late_indices(&self) -> Vec<usize> {
-        self.peers
-            .iter()
-            .enumerate()
-            .filter(|(_, peer)| peer.spawn == PeerSpawn::Late)
-            .map(|(index, _)| index)
-            .collect()
-    }
-
-    fn logs(&self) -> Vec<PathBuf> {
-        self.peers.iter().map(|peer| peer.log.clone()).collect()
+impl RunningPeer {
+    // needed helper: records the exit code the first time the process is seen gone
+    fn poll_exit(&mut self) {
+        if self.exit.is_some() {
+            return;
+        }
+        let Some(child) = self.guard.as_mut().and_then(|guard| guard.child.as_mut()) else {
+            return;
+        };
+        if let Ok(Some(status)) = child.try_wait() {
+            self.exit = Some(status.code().map_or(PeerExit::Signal, PeerExit::Code));
+        }
     }
 }
 
@@ -490,13 +457,36 @@ pub async fn run_scenario(scenario: Scenario) -> Report {
         Ok(env) => env,
         Err(detail) => return early_report(&scenario, detail),
     };
-    let mut peers = spawn(&scenario, &env);
-    let checks = evaluate(&scenario, &env, &mut peers).await;
+    let mut peers: Vec<RunningPeer> = (0..scenario.peers.len())
+        .map(|index| RunningPeer {
+            log: env
+                .dir
+                .join(format!("instance-p{}.log", index.saturating_add(1))),
+            guard: None,
+            exit: None,
+        })
+        .collect();
+    drive(&scenario, &env, &mut peers).await;
+    let mut checks: Vec<Check> = scenario
+        .peers
+        .iter()
+        .zip(peers.iter())
+        .enumerate()
+        .map(|(index, (run, peer))| peer_check(index, run, peer))
+        .collect();
+    if let Some(on_finish) = scenario.on_finish {
+        let logs: Vec<PathBuf> = peers.iter().map(|peer| peer.log.clone()).collect();
+        let result = on_finish(&logs);
+        checks.push(Check {
+            name: "on_finish".to_string(),
+            ok: result.is_ok(),
+            detail: result.unwrap_or_else(|detail| detail),
+        });
+    }
     let clip = stop_recording(env.recording.take(), &env.raw, &env.clip);
     let windows: Vec<TerminalGuard> = peers
-        .peers
         .iter_mut()
-        .map(|peer| std::mem::replace(&mut peer.guard, discarded_guard()))
+        .filter_map(|peer| peer.guard.take())
         .collect();
     release(windows);
     let caption = build_caption(&scenario, &env, &peers, &checks);
@@ -523,7 +513,10 @@ fn prepare(scenario: &Scenario) -> Result<Env, String> {
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let raw = dir.join("raw.mp4");
     let clip = dir.join("clip.mp4");
-    let recording = start_record(RECORD_SECS, &raw);
+    let recording = start_record(
+        scenario.cap.as_secs().saturating_add(RECORD_MARGIN_SECS),
+        &raw,
+    );
     Ok(Env {
         bin,
         dir,
@@ -537,619 +530,174 @@ fn prepare(scenario: &Scenario) -> Result<Env, String> {
     })
 }
 
-fn spawn(scenario: &Scenario, env: &Env) -> RunningPeers {
-    let mut peers = Vec::new();
-    let mut spawn_ok = true;
-    for (index, spec) in scenario.peers.iter().enumerate() {
-        if spec.spawn == PeerSpawn::Late {
-            continue;
+/// Spawns the peers as their starts come due and waits until every script ended, one
+/// failed, or the cap is reached.
+async fn drive(scenario: &Scenario, env: &Env, peers: &mut [RunningPeer]) {
+    let started = Instant::now();
+    loop {
+        let mut did_spawn = false;
+        for index in 0..peers.len() {
+            if peers.get(index).is_some_and(|peer| peer.guard.is_some()) {
+                continue;
+            }
+            let Some(run) = scenario.peers.get(index) else {
+                continue;
+            };
+            if !is_start_due(run.start, peers) {
+                continue;
+            }
+            match spawn_peer(scenario, env, index, run) {
+                Ok(guard) => {
+                    if let Some(peer) = peers.get_mut(index) {
+                        peer.guard = Some(guard);
+                    }
+                    did_spawn = true;
+                }
+                Err(e) => eprintln!("spawn p{}: {e}", index.saturating_add(1)),
+            }
+            tokio::time::sleep(SPAWN_GAP).await;
         }
-        let username = format!("p{}", index.saturating_add(1));
-        let action = room_action(spec.role, &env.room);
-        let pushed = push_peer(
-            scenario,
-            env,
-            spec,
-            &username,
-            action.as_deref(),
-            &mut peers,
-        );
-        if let Err(e) = &pushed {
-            eprintln!("{e}");
-            spawn_ok = false;
+        if did_spawn {
+            tile_peers(peers);
         }
-        std::thread::sleep(Duration::from_millis(SPAWN_GAP_MS));
-    }
-    // the UI picks the room name; read it back from the creator's log
-    let room = peers
-        .first()
-        .map(|peer| peer.log.clone())
-        .filter(|log| did_log_appear_within(log, CREATED_MARKER, SPAWN_TIMEOUT_SECS))
-        .and_then(|log| created_room(&log))
-        .unwrap_or_default();
-    let created = !room.is_empty();
-    let t_create = Instant::now();
-    let t_join = t_create;
-    if let Err(e) = tile_peers(&peers) {
-        eprintln!("tile: {e}");
-    }
-    RunningPeers {
-        peers,
-        room,
-        created,
-        spawn_ok,
-        t_create,
-        t_join,
+        peers.iter_mut().for_each(RunningPeer::poll_exit);
+        if has_any_script_failed(scenario, peers)
+            || have_all_scripts_ended(scenario, peers)
+            || started.elapsed() >= scenario.cap
+        {
+            return;
+        }
+        tokio::time::sleep(POLL).await;
     }
 }
 
-/// The `--action` of a peer that is not scripted.
-fn room_action(role: PeerRole, room: &str) -> Option<String> {
-    match role {
-        PeerRole::Creator => Some(format!("create:{room}")),
-        PeerRole::Joiner => Some(format!("join:{room}")),
-        PeerRole::Watcher => None,
+// needed helper: whether a peer's start condition holds now
+fn is_start_due(start: PeerStart, peers: &[RunningPeer]) -> bool {
+    match start {
+        PeerStart::Now => true,
+        PeerStart::AfterStepDone { peer, step } => peers.get(peer).is_some_and(|trigger| {
+            log_contains(&trigger.log, &format!("{STEP_DONE_MARKER}{step}/"))
+        }),
     }
 }
 
-fn push_peer(
+fn spawn_peer(
     scenario: &Scenario,
     env: &Env,
-    spec: &PeerSpec,
-    username: &str,
-    action: Option<&str>,
-    peers: &mut Vec<RunningPeer>,
-) -> Result<(), String> {
+    index: usize,
+    run: &PeerRun,
+) -> Result<TerminalGuard, String> {
+    let username = format!("p{}", index.saturating_add(1));
     let log = env.dir.join(format!("instance-{username}.log"));
     let mut args = vec![
         "--username".to_string(),
-        username.to_string(),
+        username.clone(),
         "--token".to_string(),
         env.token.clone(),
         "--transport".to_string(),
         env.transport.clone(),
-        "--join-timeout-secs".to_string(),
-        scenario.budgets.join_timeout.to_string(),
+        "--script".to_string(),
+        run.script.replace(ROOM, &env.room),
     ];
     if let Some(ui) = &scenario.ui {
         args.push("--ui".to_string());
         args.push(ui.clone());
     }
-    match &spec.script {
-        Some(script) => {
-            args.push("--script".to_string());
-            args.push(script.replace("{room}", &env.room));
-        }
-        None => {
-            if let Some(action) = action {
-                args.push("--action".to_string());
-                args.push(action.to_string());
-            }
-        }
-    }
-    let guard =
-        super::spawn_app::spawn_app(&env.bin, &args, username, &log, scenario.window_prefix)?;
-    peers.push(RunningPeer {
-        role: spec.role,
-        spawn: spec.spawn,
-        log,
-        guard,
-    });
-    Ok(())
+    args.extend(scenario.extra_args.iter().cloned());
+    super::spawn_app::spawn_app(&env.bin, &args, &username, &log, scenario.window_prefix)
 }
 
-/// A guard that owns no process, for the peers that already exited.
-const fn discarded_guard() -> TerminalGuard {
-    TerminalGuard {
-        child: None,
-        window_title: String::new(),
-        log: PathBuf::new(),
-    }
-}
-
-async fn evaluate(scenario: &Scenario, env: &Env, peers: &mut RunningPeers) -> Vec<Check> {
-    // Wait for the lobby row itself, not a transport-connection proxy. `ring ready`
-    // is emitted once a node actually reads the lobby, which on mainnet can take
-    // tens of seconds; the two checks then separate "a node never read the lobby"
-    // (ring) from "lobby read but the row is missing" (discovery).
-    let seen = did_predicate_hold_within(Duration::from_secs(scenario.budgets.discovery), || {
-        do_all_peers_see_room(&peers.logs(), &peers.room)
+fn has_any_script_failed(scenario: &Scenario, peers: &[RunningPeer]) -> bool {
+    scenario.peers.iter().zip(peers).any(|(run, peer)| {
+        log_contains(&peer.log, SCRIPT_FAILED_MARKER)
+            || (script_ending(&run.script) != ScriptEnding::CrashApp
+                && peer.exit.is_some_and(|exit| exit != PeerExit::Code(0)))
     })
-    .await;
-    let ring_ready = rings_ready(&peers.logs());
-    let ring_ok = ring_ready.iter().all(|ready| *ready);
-    let discovery_ms = peers.t_create.elapsed().as_millis();
-    let discovery_ok = ring_ok
-        && peers.created
-        && peers.spawn_ok
-        && seen
-        && peers.t_create.elapsed().as_secs() <= scenario.budgets.discovery;
-    let (join_ok, join_ms, join_detail) = evaluate_join(scenario, peers, ring_ok).await;
-    let expected = first_batch_size(scenario);
-    let spawn_check = Check {
-        name: "spawn".to_string(),
-        ok: peers.spawn_ok && peers.peers.len() == expected,
-        detail: format!("{}/{} instances", peers.peers.len(), expected),
-    };
-    let published = creator_published(&peers.logs());
-    let lobby_check = Check {
-        name: "lobby".to_string(),
-        ok: peers.created && published,
-        detail: format!("created={} published={published}", peers.created),
-    };
-    let ring_check = Check {
-        name: "ring".to_string(),
-        ok: ring_ok,
-        detail: ring_detail(&peers.logs(), &ring_ready),
-    };
-    let discovery_check = Check {
-        name: "discovery".to_string(),
-        ok: discovery_ok,
-        detail: format!(
-            "{discovery_ms}ms budget={}s created={} seen={seen} isolated=[{}]",
-            scenario.budgets.discovery,
-            peers.created,
-            isolated_peers(&peers.logs()).join(",")
-        ),
-    };
-    let join_check = Check {
-        name: "join".to_string(),
-        ok: join_ok,
-        detail: format!(
-            "{join_ms}ms budget={}s {join_detail}",
-            scenario.budgets.join
-        ),
-    };
-    let mut checks = vec![
-        spawn_check,
-        lobby_check,
-        ring_check,
-        discovery_check,
-        join_check,
-    ];
-    match scenario.flow {
-        ScenarioFlow::DiscoveryOnly => {}
-        ScenarioFlow::Join => {
-            checks.push(converge_check(&peers.logs(), peers.peers.len()));
-        }
-        ScenarioFlow::RoomPing => {
-            checks.push(converge_check(&peers.logs(), peers.peers.len()));
-            checks.push(evaluate_room_messages(peers, join_ok).await);
-        }
-        ScenarioFlow::Starboard => {
-            checks.push(converge_check(&peers.logs(), peers.peers.len()));
-            checks.push(canvas_check(peers).await);
-        }
-        ScenarioFlow::StarboardLateJoin => {
-            checks.push(converge_check(&peers.logs(), peers.peers.len()));
-            checks.push(canvas_check(peers).await);
-            checks.push(late_join_check(scenario, env, peers).await);
-        }
-        ScenarioFlow::HistoryRestore => {
-            checks.push(history_restore_check(scenario, env, peers).await);
-        }
-        ScenarioFlow::HistoryRoomGone => {
-            checks.push(history_room_gone_check(scenario, env, peers).await);
-        }
-        ScenarioFlow::HistoryHolderKilled => {
-            checks.push(history_holder_killed_check(scenario, env, peers).await);
-        }
-    }
-    checks
 }
 
-// needed helper: peers spawned before the checks run (the late joiner comes later)
-fn first_batch_size(scenario: &Scenario) -> usize {
+fn have_all_scripts_ended(scenario: &Scenario, peers: &[RunningPeer]) -> bool {
     scenario
         .peers
         .iter()
-        .filter(|spec| spec.spawn == PeerSpawn::First)
-        .count()
+        .zip(peers)
+        .all(|(run, peer)| match script_ending(&run.script) {
+            ScriptEnding::Stay => true,
+            ScriptEnding::ExitApp | ScriptEnding::CrashApp => peer.exit.is_some(),
+        })
 }
 
-// needed helper: positions the peers' windows on the screen
-fn tile_peers(peers: &[RunningPeer]) -> Result<(), String> {
-    let titles: Vec<&str> = peers
-        .iter()
-        .map(|peer| peer.guard.window_title.as_str())
-        .collect();
-    tile(&titles)
-}
-
-// needed helper: spawns one late peer and waits for the new mesh
-async fn late_join_check(scenario: &Scenario, env: &Env, peers: &mut RunningPeers) -> Check {
-    let username = format!("p{}", peers.peers.len().saturating_add(1));
-    let Some(spec) = late_spec(scenario) else {
+/// Whether one peer's script ended the way it was written to.
+fn peer_check(index: usize, run: &PeerRun, peer: &RunningPeer) -> Check {
+    let name = format!("p{}", index.saturating_add(1));
+    let progress = script_progress(&peer.log, step_count(&run.script));
+    if peer.guard.is_none() && peer.exit.is_none() {
         return Check {
-            name: "late_join".to_string(),
+            name,
             ok: false,
-            detail: "the scenario has no late peer".to_string(),
+            detail: format!("never started ({:?})", run.start),
         };
-    };
-    let start = Instant::now();
-    let action = room_action(spec.role, &peers.room);
-    let pushed = push_peer(
-        scenario,
-        env,
-        &spec,
-        &username,
-        action.as_deref(),
-        &mut peers.peers,
-    );
-    if let Err(e) = &pushed {
-        eprintln!("{e}");
     }
-    let spawned = pushed.is_ok();
-    if let Err(e) = tile_peers(&peers.peers) {
-        eprintln!("tile: {e}");
+    if let Some((_, line)) = marker_times(&peer.log, SCRIPT_FAILED_MARKER).last() {
+        return Check {
+            name,
+            ok: false,
+            detail: after_marker(line, SCRIPT_FAILED_MARKER),
+        };
     }
-    let total = peers.peers.len();
-    let meshed = did_predicate_hold_within(Duration::from_secs(scenario.budgets.join), || {
-        are_all_peers_in_room(&peers.logs(), &peers.room, total)
-    })
-    .await;
-    let detail = if meshed {
-        "full mesh".to_string()
-    } else {
-        format!("mesh not reached: {}", mesh_snapshot(&peers.logs(), total))
-    };
-    Check {
-        name: "late_join".to_string(),
-        ok: spawned && meshed,
-        detail: format!(
-            "{}ms budget={}s {total} instances {detail}",
-            start.elapsed().as_millis(),
-            scenario.budgets.join
+    let (ok, outcome) = match script_ending(&run.script) {
+        ScriptEnding::ExitApp => (
+            peer.exit == Some(PeerExit::Code(0)) && log_contains(&peer.log, SCRIPT_DONE_MARKER),
+            format!("exit={:?}", peer.exit),
         ),
-    }
-}
-
-// needed helper: the scenario's late peer, if it has one
-fn late_spec(scenario: &Scenario) -> Option<PeerSpec> {
-    scenario
-        .peers
-        .iter()
-        .find(|spec| spec.spawn == PeerSpawn::Late)
-        .cloned()
-}
-
-// needed helper: every peer's canvas hash agrees after the last scripted stroke
-async fn canvas_check(peers: &RunningPeers) -> Check {
-    let start = Instant::now();
-    let agreed = did_predicate_hold_within(Duration::from_secs(CANVAS_BUDGET_SECS), || {
-        do_canvases_agree(&peers.logs())
-    })
-    .await;
-    let snapshot: Vec<String> = peers
-        .logs()
-        .iter()
-        .enumerate()
-        .map(|(index, log)| {
-            let tick = last_canvas(log);
-            format!(
-                "p{}:hash={},tiles={}",
-                index.saturating_add(1),
-                tick.as_ref().map_or(0, |tick| tick.hash),
-                tick.as_ref().map_or(0, |tick| tick.tiles)
+        ScriptEnding::CrashApp => (
+            peer.exit.is_some() && log_contains(&peer.log, CRASH_MARKER),
+            format!("crashed={}", peer.exit.is_some()),
+        ),
+        ScriptEnding::Stay => {
+            let before_stay = step_count(&run.script).saturating_sub(1);
+            (
+                peer.exit.is_none()
+                    && (before_stay == 0
+                        || log_contains(&peer.log, &format!("{STEP_DONE_MARKER}{before_stay}/"))),
+                format!("still running={}", peer.exit.is_none()),
             )
-        })
-        .collect();
-    Check {
-        name: "canvas".to_string(),
-        ok: agreed,
-        detail: format!(
-            "{}ms budget={CANVAS_BUDGET_SECS}s [{}]",
-            start.elapsed().as_millis(),
-            snapshot.join(" ")
-        ),
-    }
-}
-
-// needed helper: every peer reports the same non-empty canvas after the last stroke
-fn do_canvases_agree(logs: &[PathBuf]) -> bool {
-    let last_script = logs
-        .iter()
-        .filter_map(|log| {
-            marker_times(log, SCRIPT_DONE_MARKER)
-                .last()
-                .map(|(ms, _)| *ms)
-        })
-        .max();
-    let Some(last_script) = last_script else {
-        return false;
+        }
     };
-    let seen: Vec<Option<CanvasTick>> = logs
-        .iter()
-        .map(|log| {
-            canvas_ticks(log)
-                .into_iter()
-                .rfind(|(ms, _)| *ms >= last_script)
-                .map(|(_, tick)| tick)
-        })
-        .collect();
-    seen.first().and_then(Option::as_ref).is_some_and(|first| {
-        first.tiles > 0
-            && seen.iter().all(|tick| {
-                tick.as_ref()
-                    .is_some_and(|tick| tick.hash == first.hash && tick.tiles == first.tiles)
-            })
-    })
-}
-
-// needed helper: verifies every peer received a room message from every other peer
-async fn evaluate_room_messages(peers: &RunningPeers, join_ok: bool) -> Check {
-    if !join_ok {
-        return Check {
-            name: "room_message".to_string(),
-            ok: false,
-            detail: "skipped: join did not reach full mesh".to_string(),
-        };
-    }
-    let start = Instant::now();
-    let want = peers.peers.len().saturating_sub(1);
-    let delivered =
-        did_predicate_hold_within(Duration::from_secs(ROOM_MESSAGE_BUDGET_SECS), || {
-            peers
-                .logs()
-                .iter()
-                .all(|log| senders_seen_in_room(log, &peers.room).len() >= want)
-        })
-        .await;
-    let counts: Vec<String> = peers
-        .logs()
-        .iter()
-        .enumerate()
-        .map(|(index, log)| {
-            let got = senders_seen_in_room(log, &peers.room).len();
-            format!("p{}:{got}/{want}", index.saturating_add(1))
-        })
-        .collect();
     Check {
-        name: "room_message".to_string(),
-        ok: delivered,
-        detail: format!(
-            "{}ms budget={ROOM_MESSAGE_BUDGET_SECS}s [{}]",
-            start.elapsed().as_millis(),
-            counts.join(" ")
-        ),
+        name,
+        ok,
+        detail: format!("{outcome} {progress}"),
     }
 }
 
-async fn evaluate_join(
-    scenario: &Scenario,
-    peers: &RunningPeers,
-    ring_ok: bool,
-) -> (bool, u128, String) {
-    if scenario.flow == ScenarioFlow::DiscoveryOnly {
-        return (true, 0, "n/a".to_string());
-    }
-    if !ring_ok {
-        return (
-            false,
-            peers.t_join.elapsed().as_millis(),
-            "skipped: freenet ring never ready".to_string(),
-        );
-    }
-    let logs: Vec<PathBuf> = peers
-        .room_indices()
-        .iter()
-        .filter_map(|index| peers.peers.get(*index))
-        .map(|peer| peer.log.clone())
-        .collect();
-    let mesh = did_predicate_hold_within(Duration::from_secs(scenario.budgets.join), || {
-        are_all_peers_in_room(&logs, &peers.room, logs.len())
-    })
-    .await;
-    let budget_ok = peers.t_join.elapsed().as_secs() <= scenario.budgets.join;
-    let detail = if mesh {
-        "full mesh".to_string()
-    } else {
-        format!("mesh not reached: {}", mesh_snapshot(&logs, logs.len()))
-    };
-    (
-        mesh && budget_ok,
-        peers.t_join.elapsed().as_millis(),
-        detail,
+// needed helper: the last step a peer finished, as `done k/n <step>`
+fn script_progress(log: &Path, steps: usize) -> String {
+    marker_times(log, STEP_DONE_MARKER).last().map_or_else(
+        || format!("done 0/{steps}"),
+        |(_, line)| format!("done {}", after_marker(line, STEP_DONE_MARKER)),
     )
 }
 
-// needed helper: S4a — the holders wrote their history and left the room, and a
-// late joiner restored the same board from the Kademlia history
-async fn history_restore_check(scenario: &Scenario, env: &Env, peers: &mut RunningPeers) -> Check {
-    let holders = peers.room_indices();
-    // One holder is enough: the second one merges the stored history and skips
-    // the write when the content is already there.
-    let wrote = did_predicate_hold_within(Duration::from_secs(HISTORY_WRITE_BUDGET_SECS), || {
-        holders
-            .iter()
-            .filter_map(|index| peers.peers.get(*index))
-            .any(|peer| history_write_bytes(&peer.log).is_some())
-    })
-    .await;
-    let left = did_predicate_hold_within(Duration::from_secs(HISTORY_LEAVE_BUDGET_SECS), || {
-        holders
-            .iter()
-            .filter_map(|index| peers.peers.get(*index))
-            .all(|peer| {
-                marker_times(&peer.log, "starboard script done leave")
-                    .last()
-                    .is_some()
-            })
-    })
-    .await;
-    let late = spawn_late_peer(scenario, env, peers);
-    let expected: Vec<u64> = holders
+/// The rest of a log line after `marker`, trimmed.
+fn after_marker(line: &str, marker: &str) -> String {
+    line.find(marker)
+        .and_then(|index| line.get(index.saturating_add(marker.len())..))
+        .unwrap_or(line)
+        .trim()
+        .to_string()
+}
+
+// needed helper: positions the live peers' windows on the screen
+fn tile_peers(peers: &[RunningPeer]) {
+    let titles: Vec<&str> = peers
         .iter()
-        .filter_map(|index| peers.peers.get(*index))
-        .filter_map(|peer| last_canvas(&peer.log).map(|tick| tick.hash))
+        .filter(|peer| peer.exit.is_none())
+        .filter_map(|peer| peer.guard.as_ref())
+        .map(|guard| guard.window_title.as_str())
         .collect();
-    let late_indices = peers.late_indices();
-    let restored =
-        did_predicate_hold_within(Duration::from_secs(HISTORY_RESTORE_BUDGET_SECS), || {
-            let Some(index) = late_indices.first() else {
-                return false;
-            };
-            let Some(peer) = peers.peers.get(*index) else {
-                return false;
-            };
-            let Some(actual) = last_canvas(&peer.log) else {
-                return false;
-            };
-            !expected.is_empty() && expected.iter().all(|hash| *hash == actual.hash)
-        })
-        .await;
-    Check {
-        name: "history_restore".to_string(),
-        ok: wrote && left && late && restored,
-        detail: format!(
-            "wrote={wrote} left={left} late_joined={late} restored={restored} expected={expected:?}"
-        ),
+    if let Err(e) = tile(&titles) {
+        eprintln!("tile: {e}");
     }
-}
-
-// needed helper: S4b — the holders quit the game and a later joiner reported the
-// room as gone and exited with the code. The watcher's view of the room's death
-// is evidence, not the requirement: the contract's state reaches the watcher's
-// node minutes later, so a watcher can still list a room the contract has
-// already dropped.
-async fn history_room_gone_check(
-    scenario: &Scenario,
-    env: &Env,
-    peers: &mut RunningPeers,
-) -> Check {
-    let holders = peers.room_indices();
-    let watchers = peers.watcher_indices();
-    let quit = did_predicate_hold_within(Duration::from_secs(HISTORY_LEAVE_BUDGET_SECS), || {
-        holders
-            .iter()
-            .filter_map(|index| peers.peers.get(*index))
-            .all(|peer| {
-                marker_times(&peer.log, "starboard script done exit")
-                    .last()
-                    .is_some()
-            })
-    })
-    .await;
-    let gone = did_predicate_hold_within(Duration::from_secs(HISTORY_LEAVE_BUDGET_SECS), || {
-        watchers
-            .iter()
-            .filter_map(|index| peers.peers.get(*index))
-            .all(|peer| !watcher_sees_room(&peer.log, &peers.room))
-    })
-    .await;
-    let late = spawn_late_peer(scenario, env, peers);
-    let late_indices = peers.late_indices();
-    let failed =
-        did_predicate_hold_within(Duration::from_secs(HISTORY_FAILURE_BUDGET_SECS), || {
-            late_indices.iter().any(|index| {
-                let Some(peer) = peers.peers.get_mut(*index) else {
-                    return false;
-                };
-                log_contains(&peer.log, JOIN_FAILED_MARKER)
-                    && exit_code(peer) == Some(JOIN_FAILED_EXIT_CODE)
-            })
-        })
-        .await;
-    Check {
-        name: "history_room_gone".to_string(),
-        ok: quit && late && failed,
-        detail: format!(
-            "quit={quit} watcher_saw_the_room_gone={gone} late_joined={late} join_failed={failed}"
-        ),
-    }
-}
-
-// needed helper: S4c — the only holder was killed while the joiner was joining,
-// and the joiner reported the failure and exited with the code
-async fn history_holder_killed_check(
-    scenario: &Scenario,
-    env: &Env,
-    peers: &mut RunningPeers,
-) -> Check {
-    let Some(spec) = late_spec(scenario) else {
-        return Check {
-            name: "history_holder_killed".to_string(),
-            ok: false,
-            detail: "the scenario has no late peer".to_string(),
-        };
-    };
-    let username = format!("p{}", peers.peers.len().saturating_add(1));
-    let action = room_action(spec.role, &peers.room);
-    let pushed = push_peer(
-        scenario,
-        env,
-        &spec,
-        &username,
-        action.as_deref(),
-        &mut peers.peers,
-    );
-    if let Err(e) = &pushed {
-        eprintln!("{e}");
-    }
-    let killed = kill_peer(peers.peers.first_mut());
-    let late_indices = peers.late_indices();
-    let failed =
-        did_predicate_hold_within(Duration::from_secs(HISTORY_FAILURE_BUDGET_SECS), || {
-            late_indices.iter().any(|index| {
-                let Some(peer) = peers.peers.get_mut(*index) else {
-                    return false;
-                };
-                log_contains(&peer.log, JOIN_FAILED_MARKER)
-                    && exit_code(peer) == Some(JOIN_FAILED_EXIT_CODE)
-            })
-        })
-        .await;
-    Check {
-        name: "history_holder_killed".to_string(),
-        ok: pushed.is_ok() && killed && failed,
-        detail: format!("holder_killed={killed} join_failed={failed}"),
-    }
-}
-
-// needed helper: spawns the scenario's late peer
-fn spawn_late_peer(scenario: &Scenario, env: &Env, peers: &mut RunningPeers) -> bool {
-    let Some(spec) = late_spec(scenario) else {
-        return false;
-    };
-    let username = format!("p{}", peers.peers.len().saturating_add(1));
-    let action = room_action(spec.role, &peers.room);
-    let pushed = push_peer(
-        scenario,
-        env,
-        &spec,
-        &username,
-        action.as_deref(),
-        &mut peers.peers,
-    );
-    if let Err(e) = &pushed {
-        eprintln!("{e}");
-    }
-    pushed.is_ok()
-}
-
-// needed helper: whether the peer already exited, and with which code
-fn exit_code(peer: &mut RunningPeer) -> Option<i32> {
-    peer.guard
-        .child
-        .as_mut()
-        .and_then(|child| child.try_wait().ok().flatten())
-        .map(|status| status.code().unwrap_or(-1))
-}
-
-// needed helper: kills a peer, the way a crash would
-fn kill_peer(peer: Option<&mut RunningPeer>) -> bool {
-    let Some(peer) = peer else {
-        return false;
-    };
-    let Some(child) = peer.guard.child.as_mut() else {
-        return false;
-    };
-    child.kill().is_ok()
-}
-
-// needed helper: whether the watcher's lobby still lists the room
-fn watcher_sees_room(log: &Path, room: &str) -> bool {
-    last_tick(log).is_some_and(|tick| tick.rooms.iter().any(|name| name == room))
 }
 
 fn stop_recording(recording: Option<Child>, raw: &Path, clip: &Path) -> Option<PathBuf> {
@@ -1166,20 +714,25 @@ fn release(windows: Vec<TerminalGuard>) {
     }
 }
 
-fn build_caption(scenario: &Scenario, env: &Env, peers: &RunningPeers, checks: &[Check]) -> String {
+fn build_caption(
+    scenario: &Scenario,
+    env: &Env,
+    peers: &[RunningPeer],
+    checks: &[Check],
+) -> String {
+    let logs: Vec<PathBuf> = peers.iter().map(|peer| peer.log.clone()).collect();
     let mut lines = vec![
-        freenet_status(env, &peers.logs()),
+        freenet_status(env, &logs),
         format!(
             "{} bin={} ui={} room={} transport={} peers={} · build {:.1}s",
             scenario.name,
             scenario.bin,
             scenario.ui.as_deref().unwrap_or("none"),
-            peers.room,
+            env.room,
             env.transport,
-            peers.peers.len(),
+            peers.len(),
             env.build_secs
         ),
-        format!("created={} spawn_ok={}", peers.created, peers.spawn_ok),
     ];
     for check in checks {
         lines.push(format!(
@@ -1249,155 +802,15 @@ fn early_report(scenario: &Scenario, detail: String) -> Report {
     }
 }
 
-// needed helper: names the peers whose freenet node never read the lobby
-fn ring_detail(logs: &[PathBuf], ring_ready: &[bool]) -> String {
-    let missing: Vec<String> = ring_ready
-        .iter()
-        .enumerate()
-        .filter(|(_, ready)| !**ready)
-        .map(|(index, _)| format!("p{}", index.saturating_add(1)))
-        .collect();
-    if missing.is_empty() {
-        format!("{}/{} peers read the lobby", ring_ready.len(), logs.len())
-    } else {
-        format!("never read the lobby: {}", missing.join(","))
-    }
-}
-
-// needed helper: the creator's embedded freenet node seeded a lobby with its room
-//
-// The deploy ack can land after `REQUEST_TIMEOUT`, so the ack log line alone is a
-// false negative; reading back a lobby that already holds our room (the seeded
-// `rooms>=1`) is the durable signal that the `Put` landed.
-fn creator_published(logs: &[PathBuf]) -> bool {
-    let Some(log) = logs.first() else {
-        return false;
-    };
-    log_contains(log, "discovery: lobby contract deployed")
-        || ring_ready_rooms(log).is_some_and(|rooms| rooms > 0)
-        || lobby_lists_a_room(log)
-}
-
-// needed helper: the creator's own lobby read listed a room (the durable signal
-// that its publish landed — the ring-ready line is written once, and it can land
-// before the room is in the contract)
-fn lobby_lists_a_room(log: &Path) -> bool {
-    std::fs::read_to_string(log)
-        .unwrap_or_default()
-        .lines()
-        .filter(|line| line.contains("lobby changed rooms="))
-        .any(|line| {
-            line.split_whitespace()
-                .find_map(|token| token.strip_prefix("rooms="))
-                .and_then(|rooms| rooms.parse::<usize>().ok())
-                .is_some_and(|rooms| rooms > 0)
-        })
-}
-
-// needed helper: the `rooms=<n>` count from the node's `lobby freenet ring ready` line
-fn ring_ready_rooms(log: &Path) -> Option<usize> {
-    let text = std::fs::read_to_string(log).ok()?;
-    text.lines()
-        .filter(|line| line.contains("lobby freenet ring ready"))
-        .find_map(|line| {
-            line.split_whitespace()
-                .find_map(|token| token.strip_prefix("rooms="))
-                .and_then(|rooms| rooms.parse().ok())
-        })
-}
-
-// needed helper: peers whose freenet node reported zero ring connections
-fn isolated_peers(logs: &[PathBuf]) -> Vec<String> {
-    logs.iter()
-        .enumerate()
-        .filter(|(_, log)| log_contains(log, "Node isolated with zero ring connections"))
-        .map(|(index, _)| format!("p{}", index.saturating_add(1)))
-        .collect()
-}
-
-// needed helper: every peer's latest tick lists the room in the rooms
-fn do_all_peers_see_room(logs: &[PathBuf], room: &str) -> bool {
-    logs.iter()
-        .all(|log| last_tick(log).is_some_and(|tick| tick.rooms.iter().any(|r| r == room)))
-}
-
-// needed helper: every peer is in the room with a full mesh
-fn are_all_peers_in_room(logs: &[PathBuf], room: &str, peers: usize) -> bool {
-    logs.iter().all(|log| {
-        last_tick(log).is_some_and(|tick| {
-            tick.room.as_deref() == Some(room) && tick.connected == peers.saturating_sub(1)
-        })
-    })
-}
-
-// needed helper: the current per-peer tick summary for failure details
-fn mesh_snapshot(logs: &[PathBuf], peers: usize) -> String {
-    let want = peers.saturating_sub(1);
-    logs.iter()
-        .enumerate()
-        .map(|(index, log)| {
-            let tick = last_tick(log);
-            let room = tick
-                .as_ref()
-                .and_then(|t| t.room.clone())
-                .unwrap_or_else(|| "none".to_string());
-            let connected = tick.as_ref().map_or(0, |t| t.connected);
-            format!(
-                "p{}:room={room},connected={connected}/{want}",
-                index.saturating_add(1)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-// needed helper: polls one log until it contains a marker or the timeout elapses
-fn did_log_appear_within(log: &Path, needle: &str, timeout_secs: u64) -> bool {
-    let start = Instant::now();
-    while start.elapsed().as_secs() < timeout_secs {
-        if log_contains(log, needle) {
-            return true;
-        }
-        poke();
-        std::thread::sleep(Duration::from_millis(POLL_MS));
-    }
-    log_contains(log, needle)
-}
-
-// needed helper: async polling predicate with screen poke
-async fn did_predicate_hold_within(timeout: Duration, mut predicate: impl FnMut() -> bool) -> bool {
-    let start = Instant::now();
-    while start.elapsed() < timeout {
-        if predicate() {
-            return true;
-        }
-        poke();
-        tokio::time::sleep(Duration::from_millis(POLL_MS)).await;
-    }
-    predicate()
-}
-
-// needed helper: unix seconds for unique run/room names
 fn epoch_secs() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or_default()
+        .map_or(0, |elapsed| elapsed.as_secs())
 }
 
-// needed helper: room name from the creator's `lobby created room=<r>` marker
-fn created_room(log: &Path) -> Option<String> {
-    let text = std::fs::read_to_string(log).ok()?;
-    text.lines().find_map(|line| {
-        let index = line.find(CREATED_MARKER)?;
-        let rest = line.get(index.checked_add(CREATED_MARKER.len())?..)?;
-        rest.split_whitespace().next().map(str::to_string)
-    })
-}
-
-// needed helper: last joiner's button press -> every peer has all N-1 links (event-driven)
-fn converge_check(logs: &[PathBuf], peers: usize) -> Check {
-    let want = format!("connected={}", peers.saturating_sub(1));
+/// `on_finish`: last joiner's button press -> every peer has all N-1 links (event-driven).
+fn did_mesh_converge_within_budget(logs: &[PathBuf]) -> Result<String, String> {
+    let want = format!("connected={}", logs.len().saturating_sub(1));
     let last_press = logs
         .iter()
         .filter_map(|log| {
@@ -1405,40 +818,80 @@ fn converge_check(logs: &[PathBuf], peers: usize) -> Check {
                 .first()
                 .map(|(ms, _)| *ms)
         })
-        .max();
-    let meshed: Vec<Option<u64>> = logs
+        .max()
+        .ok_or_else(|| "no peer pressed a room button".to_string())?;
+    let meshed: Option<Vec<u64>> = logs
         .iter()
         .map(|log| {
             marker_times(log, "lobby mesh ")
                 .into_iter()
                 .find(|(ms, line)| {
-                    last_press.is_some_and(|press| *ms >= press)
-                        && line.split_whitespace().any(|token| token == want)
+                    *ms >= last_press && line.split_whitespace().any(|token| token == want)
                 })
                 .map(|(ms, _)| ms)
         })
         .collect();
-    let converge = last_press.and_then(|press| {
-        meshed
-            .iter()
-            .copied()
-            .collect::<Option<Vec<u64>>>()
-            .and_then(|times| times.into_iter().max())
-            .map(|done| done.saturating_sub(press))
+    let converge_ms = meshed
+        .and_then(|times| times.into_iter().max())
+        .map(|done| done.saturating_sub(last_press))
+        .ok_or_else(|| "never fully meshed after the last press".to_string())?;
+    let detail =
+        format!("converge {converge_ms}ms budget={CONVERGE_BUDGET_MS}ms (last press -> full mesh)");
+    if converge_ms <= CONVERGE_BUDGET_MS {
+        Ok(detail)
+    } else {
+        Err(detail)
+    }
+}
+
+/// `on_finish`: every peer's last logged canvas has the same hash, and it is not empty.
+fn do_all_canvases_agree(logs: &[PathBuf]) -> Result<String, String> {
+    let canvases: Vec<Option<(u64, usize)>> = logs
+        .iter()
+        .map(|log| last_canvas(log).map(|tick| (tick.hash, tick.tiles)))
+        .collect();
+    let detail = format!("last canvas (hash, tiles) per peer: {canvases:?}");
+    let first = canvases.first().copied().flatten();
+    let does_every_peer_agree = first.is_some_and(|(hash, tiles)| {
+        tiles > 0
+            && canvases
+                .iter()
+                .all(|canvas| canvas.is_some_and(|(other, _)| other == hash))
     });
-    Check {
-        name: "converge".to_string(),
-        ok: converge.is_some_and(|ms| ms <= CONVERGE_BUDGET_MS),
-        detail: converge.map_or_else(
-            || "never fully meshed after the last press".to_string(),
-            |ms| format!("{ms}ms budget={CONVERGE_BUDGET_MS}ms (last press -> full mesh)"),
-        ),
+    if does_every_peer_agree {
+        Ok(detail)
+    } else {
+        Err(detail)
+    }
+}
+
+/// `on_finish` (S4a): a holder wrote the room history, and the late joiner (the last peer)
+/// ended on the painter's canvas.
+fn was_history_written_and_restored(logs: &[PathBuf]) -> Result<String, String> {
+    let written = logs.iter().find_map(|log| history_write_bytes(log));
+    let painted = logs
+        .first()
+        .and_then(|log| last_canvas(log))
+        .map(|tick| tick.hash);
+    let restored = logs
+        .last()
+        .and_then(|log| last_canvas(log))
+        .map(|tick| tick.hash);
+    let detail = format!(
+        "history_snapshot_bytes={written:?} painter_hash={painted:?} late_joiner_hash={restored:?}"
+    );
+    if written.is_some() && painted.is_some() && painted == restored {
+        Ok(detail)
+    } else {
+        Err(detail)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{erase_script, paint_script};
+    use super::{
+        Scenario, ScriptEnding, erase_script, last_step_matching, paint_script, script_ending,
+    };
 
     /// The harness writes the script, the example parses it. The shape of every
     /// stroke step is pinned here, and the parser is pinned on the same shape in
@@ -1459,5 +912,39 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn every_wait_in_every_scenario_carries_a_deadline() {
+        let scenarios = [
+            Scenario::discover_only(3),
+            Scenario::join(5),
+            Scenario::room_messaging(3),
+            Scenario::starboard(3),
+            Scenario::starboard_late_join(4),
+            Scenario::starboard_history_restore(3),
+            Scenario::starboard_history_room_gone(4),
+            Scenario::starboard_history_holder_killed(2),
+        ];
+        for scenario in scenarios {
+            for run in &scenario.peers {
+                for step in run.script.split(',').map(str::trim) {
+                    assert_eq!(
+                        step.starts_with("wait-"),
+                        step.contains('@'),
+                        "{}: wait steps and only wait steps carry @Ns: {step}",
+                        scenario.name
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_script_ends_as_its_last_step_says() {
+        assert_eq!(script_ending("join:r, stay"), ScriptEnding::Stay);
+        assert_eq!(script_ending("join:r, crash-app"), ScriptEnding::CrashApp);
+        assert_eq!(script_ending("join:r, exit-app"), ScriptEnding::ExitApp);
+        assert_eq!(last_step_matching("a, paint-1, paint-2, b", "paint"), 3);
     }
 }
