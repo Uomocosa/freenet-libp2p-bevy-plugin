@@ -33,7 +33,7 @@ pub fn publish_slice_content_hashes<Replica: room_sync::RoomState>(
             };
         if let Ok(data) = bincode::serialize(&message) {
             pending.push(p2p::NetCommand::Publish {
-                topic: identity::Topic::for_room_sync(game, &room),
+                topic: identity::Topic::from_room_sync(game, &room),
                 data,
             });
         }

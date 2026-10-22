@@ -73,9 +73,9 @@ mod tests {
         let joining = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Joining {
-                    since: discovery::UnixTime::from_secs(0),
+                    since: discovery::UnixTime::from(0),
                 },
                 members: discovery::Members::new(),
             }),
@@ -85,7 +85,7 @@ mod tests {
         let joined = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
             }),

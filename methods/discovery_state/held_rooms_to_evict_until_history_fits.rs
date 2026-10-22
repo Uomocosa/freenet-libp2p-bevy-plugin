@@ -51,8 +51,8 @@ mod tests {
             state.held_rooms.insert(
                 identity::RoomName::from(*name),
                 discovery::state_machine::HeldRoomHistory {
-                    created_at: discovery::UnixTime::from_secs(0),
-                    left_at: discovery::UnixTime::from_secs(*left_at),
+                    created_at: discovery::UnixTime::from(0),
+                    left_at: discovery::UnixTime::from(*left_at),
                 },
             );
         }

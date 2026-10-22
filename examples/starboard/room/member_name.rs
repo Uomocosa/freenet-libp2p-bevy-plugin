@@ -27,7 +27,7 @@ mod tests {
                     id: peer.clone(),
                     addrs: Vec::new(),
                 },
-                updated_at: discovery::UnixTime::from_secs(0),
+                updated_at: discovery::UnixTime::from(0),
                 display_name: Some(identity::Username::from("ada")),
                 membership: discovery::RoomMembership::Occupant,
             },
@@ -35,7 +35,7 @@ mod tests {
         let status = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members,
             }),

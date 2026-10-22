@@ -6,8 +6,18 @@ use serde::{Deserialize, Serialize};
 pub struct ReplicaSliceContentHash(pub u64);
 
 #[atomic_delegates]
-impl ReplicaSliceContentHash {
-    pub fn from_bytes(bytes: &[u8]) -> Self {}
+impl From<&[u8]> for ReplicaSliceContentHash {
+    fn from(bytes: &[u8]) -> Self {}
 }
 
-// no test_usage necessary
+#[cfg(test)]
+mod tests {
+    use crate::room_sync::ReplicaSliceContentHash;
+
+    #[test]
+    fn test_usage() {
+        let hash = ReplicaSliceContentHash::from(b"tile".as_slice());
+        assert_eq!(hash, ReplicaSliceContentHash::from(b"tile".as_slice()));
+        assert_ne!(hash, ReplicaSliceContentHash::from(b"tile!".as_slice()));
+    }
+}

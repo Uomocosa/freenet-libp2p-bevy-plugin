@@ -28,14 +28,14 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let split = p2p::ChunkedSnapshot::split(&[7, 8, 9], 1).expect("split");
+        let split = p2p::ChunkedSnapshot::try_from_payload(&[7, 8, 9], 1).expect("split");
         let joined = join(&split.chunks, &split.manifest).expect("join");
         assert_eq!(joined, vec![7, 8, 9]);
     }
 
     #[test]
     fn test_usage_detects_corruption() {
-        let split = p2p::ChunkedSnapshot::split(&[7, 8, 9], 1).expect("split");
+        let split = p2p::ChunkedSnapshot::try_from_payload(&[7, 8, 9], 1).expect("split");
         let mut chunks = split.chunks.clone();
         if let Some(first) = chunks.first_mut() {
             first.push(0xFF);
@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn test_usage_rejects_wrong_count() {
-        let split = p2p::ChunkedSnapshot::split(&[7, 8, 9], 1).expect("split");
+        let split = p2p::ChunkedSnapshot::try_from_payload(&[7, 8, 9], 1).expect("split");
         let error = join(&[], &split.manifest).expect_err("empty");
         assert_eq!(
             error,

@@ -27,7 +27,7 @@ fn newest_room_member(room: &discovery::LobbyRoom) -> discovery::UnixTime {
         .values()
         .map(|room_member| room_member.updated_at)
         .max()
-        .unwrap_or(discovery::UnixTime::from_secs(0))
+        .unwrap_or_else(|| discovery::UnixTime::from(0))
 }
 
 #[rustfmt::skip]
@@ -67,7 +67,7 @@ mod tests {
                 id: identity::PeerId::from("peer"),
                 addrs: Vec::new(),
             },
-            updated_at: discovery::UnixTime::from_secs(1),
+            updated_at: discovery::UnixTime::from(1),
             display_name: None,
             membership: discovery::RoomMembership::Occupant,
         };
@@ -75,7 +75,7 @@ mod tests {
             identity::RoomName::from("room-a"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 members: BTreeMap::from([(identity::PeerId::from("peer"), room_member)]),
             },
         )]);
@@ -83,7 +83,7 @@ mod tests {
         lobby.merge(incoming);
         assert_eq!(lobby.len(), 1);
         lobby.drop_dead(
-            discovery::UnixTime::from_secs(500),
+            discovery::UnixTime::from(500),
             discovery::HolderHeartbeatIntervals::default().ttl,
         );
         assert!(lobby.is_empty());

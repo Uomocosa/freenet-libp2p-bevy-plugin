@@ -31,7 +31,7 @@ pub async fn run_scenario(
 ) -> starboard::bench::BenchReport {
     let game = identity::GameId::from(starboard::bench::BENCH_GAME);
     let room = identity::RoomName::from(starboard::bench::BENCH_ROOM);
-    let topic = identity::Topic::for_room_sync(&game, &room);
+    let topic = identity::Topic::from_room_sync(&game, &room);
     let mut apps: Vec<App> = (0..config.peers)
         .map(|_| starboard::app::test_harness::node_with(&game, None))
         .collect();

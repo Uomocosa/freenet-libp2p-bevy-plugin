@@ -9,24 +9,19 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct UnixTime(u64);
 
+#[rustfmt::skip]
+impl From<u64> for UnixTime {
+    fn from(secs: u64) -> Self { Self(secs) }
+}
+
 impl UnixTime {
-    #[must_use]
-    pub const fn from_secs(secs: u64) -> Self {
-        Self(secs)
-    }
-
-    #[must_use]
-    pub const fn from_mins(mins: u64) -> Self {
-        Self(mins.saturating_mul(60))
-    }
-
     #[must_use]
     pub fn now() -> Self {
         let secs = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or_default();
-        Self::from_secs(secs)
+        Self::from(secs)
     }
 }
 
@@ -50,18 +45,17 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        assert_eq!(UnixTime::from_mins(1), UnixTime::from_secs(60));
-        assert_eq!(UnixTime::from_secs(60).as_secs(), 60);
+        assert_eq!(UnixTime::from(60).as_secs(), 60);
         assert_eq!(
-            UnixTime::from_secs(25).elapsed_since(UnixTime::from_secs(10)),
+            UnixTime::from(25).elapsed_since(UnixTime::from(10)),
             Duration::from_secs(15)
         );
-        assert!(UnixTime::now() > UnixTime::from_secs(1_700_000_000));
+        assert!(UnixTime::now() > UnixTime::from(1_700_000_000));
     }
 
     #[test]
     fn wire_is_transparent() {
-        let time = UnixTime::from_secs(9);
+        let time = UnixTime::from(9);
         assert_eq!(
             bincode::serialize(&time).unwrap_or_default(),
             bincode::serialize(&9_u64).unwrap_or_default()

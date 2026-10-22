@@ -49,7 +49,7 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from_secs(0),
+            created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
@@ -63,19 +63,16 @@ mod tests {
                 addrs: vec![identity::PeerAddr::from("/ip4/2")],
             },
         ];
-        state.add_candidates(peers, discovery::UnixTime::from_secs(1));
+        state.add_candidates(peers, discovery::UnixTime::from(1));
         state.connected.insert(identity::PeerId::from("b"));
-        let mut outputs = dial_candidates(&mut state, discovery::UnixTime::from_secs(10));
-        outputs.extend(dial_candidates(
-            &mut state,
-            discovery::UnixTime::from_secs(10),
-        ));
+        let mut outputs = dial_candidates(&mut state, discovery::UnixTime::from(10));
+        outputs.extend(dial_candidates(&mut state, discovery::UnixTime::from(10)));
         assert!(matches!(
             outputs.as_slice(),
             [Output::NetCommand(p2p::NetCommand::Dial(peer))] if peer.id.as_str() == "a"
         ));
         assert_eq!(
-            dial_candidates(&mut state, discovery::UnixTime::from_secs(12)).len(),
+            dial_candidates(&mut state, discovery::UnixTime::from(12)).len(),
             1
         );
     }

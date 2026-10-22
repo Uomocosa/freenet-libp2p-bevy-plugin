@@ -7,7 +7,8 @@ pub async fn poll_peers(
     state: &discovery::freenet::Config,
     peers_tx: UnboundedSender<Vec<identity::FreenetPeer>>,
 ) {
-    let mut client = discovery::freenet::Client::connect_socket(&state.host, state.port).await;
+    let mut client =
+        discovery::freenet::Client::from_host_and_port_with_retry(&state.host, state.port).await;
     let mut interval = tokio::time::interval(discovery::TICK);
     loop {
         interval.tick().await;

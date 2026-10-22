@@ -34,7 +34,7 @@ mod tests {
         );
         discovery::LobbyRoom {
             room_size: discovery::RoomSize::DEFAULT,
-            created_at: discovery::UnixTime::from_secs(0),
+            created_at: discovery::UnixTime::from(0),
             members,
         }
     }
@@ -50,8 +50,8 @@ mod tests {
     #[test]
     fn drops_a_room_when_every_member_is_departed_in_either_merge_order() {
         let room = identity::RoomName::from("room-a");
-        let live = record("peer", discovery::UnixTime::from_secs(5));
-        let departed = departed_room(discovery::UnixTime::from_secs(9));
+        let live = record("peer", discovery::UnixTime::from(5));
+        let departed = departed_room(discovery::UnixTime::from(9));
         let pairs = [(live.clone(), departed.clone()), (departed, live)];
         for (base_room, incoming_room) in pairs {
             let mut base = discovery::Lobby::from([(room.clone(), base_room)]);
@@ -66,9 +66,7 @@ mod tests {
     #[test]
     fn evicts_the_oldest_room_when_over_capacity() {
         let newest_at = |index: usize| {
-            discovery::UnixTime::from_secs(
-                u64::try_from(index).unwrap_or_default().saturating_add(1),
-            )
+            discovery::UnixTime::from(u64::try_from(index).unwrap_or_default().saturating_add(1))
         };
         let mut lobby = discovery::Lobby::from(
             (0..discovery::freenet::MAX_LOBBY_ROOMS)
@@ -94,22 +92,16 @@ mod tests {
     fn test_usage() {
         let room = identity::RoomName::from("room-a");
         let mut base = discovery::Lobby::default();
-        base.insert(
-            room.clone(),
-            record("peer", discovery::UnixTime::from_secs(5)),
-        );
+        base.insert(room.clone(), record("peer", discovery::UnixTime::from(5)));
         let mut incoming = discovery::Lobby::default();
-        incoming.insert(
-            room.clone(),
-            record("peer", discovery::UnixTime::from_secs(9)),
-        );
+        incoming.insert(room.clone(), record("peer", discovery::UnixTime::from(9)));
         merge(&mut base, incoming);
         let row = base
             .get(&room)
             .and_then(|record| record.members.get(&identity::PeerId::from("peer")));
         assert_eq!(
             row.map(|room_member| room_member.updated_at),
-            Some(discovery::UnixTime::from_secs(9))
+            Some(discovery::UnixTime::from(9))
         );
     }
 }

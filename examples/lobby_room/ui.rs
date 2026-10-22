@@ -223,7 +223,7 @@ mod tests {
             identity::RoomName::from("alpha"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 members: std::collections::BTreeMap::new(),
             },
         );
@@ -238,7 +238,7 @@ mod tests {
             identity::RoomName::from("gamma"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::try_from(4).expect("fixture room size is non-zero"),
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 members: std::collections::BTreeMap::new(),
             },
         );

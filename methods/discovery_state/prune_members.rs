@@ -45,7 +45,7 @@ mod tests {
                         id: identity::PeerId::from(peer),
                         addrs: Vec::new(),
                     },
-                    updated_at: discovery::UnixTime::from_secs(0),
+                    updated_at: discovery::UnixTime::from(0),
                     display_name: None,
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -53,12 +53,12 @@ mod tests {
         }
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from_secs(0),
+            created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members,
         });
         state.connected.insert(identity::PeerId::from("live"));
-        let _ = prune_members(&mut state, discovery::UnixTime::from_secs(100));
+        let _ = prune_members(&mut state, discovery::UnixTime::from(100));
         let left: Vec<_> = state
             .room
             .as_ref()

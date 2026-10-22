@@ -9,7 +9,7 @@ use freenet_stdlib::client_api::{ClientError, HostResponse};
 
 use crate::discovery;
 
-pub async fn connect(
+pub async fn try_from_host_and_port(
     host: &str,
     port: u16,
 ) -> Result<discovery::freenet::Client, discovery::Error> {
@@ -65,10 +65,10 @@ pub async fn connect(
 
 #[cfg(test)]
 mod tests {
-    use super::connect;
+    use super::try_from_host_and_port;
 
     #[tokio::test]
     async fn test_usage() {
-        assert!(connect("127.0.0.1", 1).await.is_err());
+        assert!(try_from_host_and_port("127.0.0.1", 1).await.is_err());
     }
 }

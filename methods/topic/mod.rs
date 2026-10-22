@@ -1,4 +1,4 @@
-mod for_room;
-mod for_room_sync;
-pub use for_room::for_room;
-pub use for_room_sync::for_room_sync;
+mod from_room;
+mod from_room_sync;
+pub use from_room::from_room;
+pub use from_room_sync::from_room_sync;

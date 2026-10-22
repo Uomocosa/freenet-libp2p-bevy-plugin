@@ -8,7 +8,7 @@ pub fn unsubscribe_room<Payload: p2p::Message>(
     room: &identity::RoomName,
 ) {
     let topic = gossipsub::IdentTopic::new(
-        identity::Topic::for_room(&state.subscriptions.game, room).as_str(),
+        identity::Topic::from_room(&state.subscriptions.game, room).as_str(),
     );
     let _ = state.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
     state.subscriptions.unregister(&topic);

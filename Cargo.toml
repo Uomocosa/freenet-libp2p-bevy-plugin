@@ -75,7 +75,7 @@ module_inception = "allow"
 missing_errors_doc = "allow"
 
 [dependencies]
-atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.1" }
+atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.2" }
 bevy = { version = "=0.19.1", default-features = false, features = ["2d", "ui"] }
 derive_more = { version = "=2.1.1", features = ["deref", "deref_mut", "display", "from"] }
 libp2p = { version = "=0.56.0", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }

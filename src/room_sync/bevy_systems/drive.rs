@@ -30,7 +30,7 @@ pub fn drive<Replica: room_sync::RoomState>(
             match event {
                 discovery::Event::Joined(room_name) => {
                     pending.push(p2p::NetCommand::Subscribe {
-                        topic: identity::Topic::for_room_sync(game, room_name),
+                        topic: identity::Topic::from_room_sync(game, room_name),
                     });
                     let (prefix, lobby_status) =
                         room_prefix_and_lobby_status(discovery_status, game, room_name);
@@ -43,7 +43,7 @@ pub fn drive<Replica: room_sync::RoomState>(
                 }
                 discovery::Event::Left(room_name) => {
                     pending.push(p2p::NetCommand::Unsubscribe {
-                        topic: identity::Topic::for_room_sync(game, room_name),
+                        topic: identity::Topic::from_room_sync(game, room_name),
                     });
                     *state = room_sync::bevy_systems::SyncState(
                         room_sync::state_machine::ReplicaState {
@@ -124,7 +124,7 @@ fn room_prefix_and_lobby_status(
                         .map(|joined| joined.created_at)
                 })
         })
-        .unwrap_or_else(|| discovery::UnixTime::from_secs(0));
+        .unwrap_or_else(|| discovery::UnixTime::from(0));
     let prefix = p2p::HistoryKeyPrefix::new(game, room_name, created_at);
     let lobby_status = status.map_or(
         room_sync::state_machine::LobbyRoomStatus {
@@ -150,7 +150,7 @@ fn room_prefix_and_lobby_status(
                 .values()
                 .map(|room_member| room_member.updated_at)
                 .max()
-                .unwrap_or_else(|| discovery::UnixTime::from_secs(0));
+                .unwrap_or_else(|| discovery::UnixTime::from(0));
             let is_fresh = |room_member: &discovery::RoomMember| {
                 now.elapsed_since(room_member.updated_at) <= ttl
             };
@@ -198,7 +198,7 @@ fn net_event_to_input<Replica: room_sync::RoomState>(
             let expected = state
                 .room
                 .as_ref()
-                .map(|room| identity::Topic::for_room_sync(game, room));
+                .map(|room| identity::Topic::from_room_sync(game, room));
             if expected.as_ref() != Some(topic) {
                 return None;
             }
@@ -356,7 +356,7 @@ fn perform<Replica: room_sync::RoomState>(
                 };
             if let Ok(data) = bincode::serialize(&msg) {
                 pending.push(NetCommand::Publish {
-                    topic: identity::Topic::for_room_sync(game, &room),
+                    topic: identity::Topic::from_room_sync(game, &room),
                     data,
                 });
             }
@@ -485,7 +485,7 @@ mod tests {
                     let bytes = bincode::serialize(&entries).unwrap_or_default();
                     (
                         index,
-                        room_sync::ReplicaSliceContentHash::from_bytes(&bytes),
+                        room_sync::ReplicaSliceContentHash::from(bytes.as_slice()),
                     )
                 })
                 .collect()
@@ -623,12 +623,7 @@ mod tests {
             .iter()
             .map(|peer| (peer.clone(), discovery::RoomMembership::Occupant))
             .collect();
-        status_with_created_at(
-            room,
-            discovery::UnixTime::from_secs(1),
-            members,
-            lobby_members,
-        )
+        status_with_created_at(room, discovery::UnixTime::from(1), members, lobby_members)
     }
 
     fn join(app: &mut App, room: &identity::RoomName, members: Vec<identity::PeerId>) {
@@ -861,7 +856,7 @@ mod tests {
             .subscribe();
         connect_and_seed_kad(&mut peer_b, &a);
 
-        let gen1 = discovery::UnixTime::from_secs(10);
+        let gen1 = discovery::UnixTime::from(10);
         let lobby_ab = BTreeMap::from([
             (a.id.clone(), discovery::RoomMembership::Occupant),
             (b.id.clone(), discovery::RoomMembership::Occupant),
@@ -948,7 +943,7 @@ mod tests {
         let history = Some(room_sync::HistoryConfig::default());
         let mut peer_d = node_with(&game, None, history);
         let d = wait_ready(&mut peer_d);
-        let gen2 = discovery::UnixTime::from_secs(20);
+        let gen2 = discovery::UnixTime::from(20);
         peer_d.insert_resource(status_with_created_at(
             &room,
             gen2,
@@ -990,13 +985,13 @@ mod tests {
         wait_ready(&mut creator);
         let mut status = status_with_created_at(
             &room,
-            discovery::UnixTime::from_secs(1),
+            discovery::UnixTime::from(1),
             Vec::new(),
             BTreeMap::new(),
         );
         if let Some(joined) = status.room.as_mut() {
             joined.phase = discovery::JoinPhase::Joining {
-                since: discovery::UnixTime::from_secs(0),
+                since: discovery::UnixTime::from(0),
             };
         }
         creator.insert_resource(status);
@@ -1032,7 +1027,7 @@ mod tests {
         wait_ready(&mut joiner);
         joiner.insert_resource(status_with_created_at(
             &room,
-            discovery::UnixTime::from_secs(1),
+            discovery::UnixTime::from(1),
             Vec::new(),
             BTreeMap::new(),
         ));
@@ -1062,7 +1057,7 @@ mod tests {
         let holder_id = identity::PeerId::from("holder");
         mid_joiner.insert_resource(status_with_created_at(
             &room,
-            discovery::UnixTime::from_secs(2),
+            discovery::UnixTime::from(2),
             Vec::new(),
             BTreeMap::from([(holder_id, discovery::RoomMembership::HistoryHolder)]),
         ));
@@ -1081,7 +1076,7 @@ mod tests {
 
         mid_joiner.insert_resource(status_with_created_at(
             &room,
-            discovery::UnixTime::from_secs(2),
+            discovery::UnixTime::from(2),
             Vec::new(),
             BTreeMap::new(),
         ));

@@ -45,7 +45,7 @@ mod tests {
         let room = identity::RoomName::from("room-a");
         let mut rooms = RoomSubscriptions::new(identity::GameId::from("game"));
         let topic =
-            gossipsub::IdentTopic::new(identity::Topic::for_room(&rooms.game, &room).as_str());
+            gossipsub::IdentTopic::new(identity::Topic::from_room(&rooms.game, &room).as_str());
         assert_eq!(rooms.room(&topic.hash()), None);
         assert_eq!(rooms.joined, None);
         rooms.register(&topic, room.clone());

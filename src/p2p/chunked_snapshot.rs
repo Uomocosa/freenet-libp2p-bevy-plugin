@@ -11,7 +11,11 @@ pub struct ChunkedSnapshot {
 
 #[atomic_delegates]
 impl ChunkedSnapshot {
-    pub fn split(payload: &[u8], lamport_max: u64) -> Result<ChunkedSnapshot, p2p::ChunkError> {}
+    pub fn try_from_payload(
+        payload: &[u8],
+        lamport_max: u64,
+    ) -> Result<ChunkedSnapshot, p2p::ChunkError> {
+    }
     pub fn join(
         chunks: &[Vec<u8>],
         manifest: &p2p::HistoryManifest,
@@ -25,7 +29,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let split = ChunkedSnapshot::split(&[7, 8, 9], 1).expect("split");
+        let split = ChunkedSnapshot::try_from_payload(&[7, 8, 9], 1).expect("split");
         assert_eq!(split.chunks.len(), 1);
     }
 }

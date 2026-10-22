@@ -42,7 +42,7 @@ impl Client {
         instance_id: ContractInstanceId,
     ) -> Result<discovery::Lobby, discovery::Error> {
     }
-    pub async fn connect(host: &str, port: u16) -> Result<Self, discovery::Error> {}
+    pub async fn try_from_host_and_port(host: &str, port: u16) -> Result<Self, discovery::Error> {}
     pub fn send(&self, request: &ClientRequest<'_>) -> Result<(), discovery::Error> {}
 }
 
@@ -77,9 +77,9 @@ impl Client {
 }
 
 impl Client {
-    pub async fn connect_socket(host: &str, port: u16) -> Self {
+    pub async fn from_host_and_port_with_retry(host: &str, port: u16) -> Self {
         loop {
-            match Self::connect(host, port).await {
+            match Self::try_from_host_and_port(host, port).await {
                 Ok(client) => return client,
                 Err(e) => {
                     tracing::warn!(

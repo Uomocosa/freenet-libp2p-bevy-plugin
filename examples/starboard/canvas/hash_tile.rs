@@ -11,7 +11,7 @@ pub fn hash_tile(tile: &starboard::canvas::Tile) -> room_sync::ReplicaSliceConte
         let color_tag = cell.color.map_or(255_u8, |palette_color| *palette_color);
         bytes.push(color_tag);
     }
-    room_sync::ReplicaSliceContentHash::from_bytes(&bytes)
+    room_sync::ReplicaSliceContentHash::from(bytes.as_slice())
 }
 
 #[cfg(test)]

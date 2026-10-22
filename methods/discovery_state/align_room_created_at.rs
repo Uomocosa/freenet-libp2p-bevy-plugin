@@ -32,9 +32,9 @@ mod tests {
         let room = identity::RoomName::from("r");
         state.room = Some(discovery::JoinedRoom {
             name: room.clone(),
-            created_at: discovery::UnixTime::from_secs(500),
+            created_at: discovery::UnixTime::from(500),
             phase: discovery::JoinPhase::Joining {
-                since: discovery::UnixTime::from_secs(0),
+                since: discovery::UnixTime::from(0),
             },
             members: discovery::Members::new(),
         });
@@ -42,14 +42,14 @@ mod tests {
             room,
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from_secs(100),
+                created_at: discovery::UnixTime::from(100),
                 members: BTreeMap::new(),
             },
         );
         align_room_created_at(&mut state);
         assert_eq!(
             state.room.as_ref().map(|room| room.created_at),
-            Some(discovery::UnixTime::from_secs(100))
+            Some(discovery::UnixTime::from(100))
         );
     }
 
@@ -61,16 +61,16 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from_secs(500),
+            created_at: discovery::UnixTime::from(500),
             phase: discovery::JoinPhase::Joining {
-                since: discovery::UnixTime::from_secs(0),
+                since: discovery::UnixTime::from(0),
             },
             members: discovery::Members::new(),
         });
         align_room_created_at(&mut state);
         assert_eq!(
             state.room.as_ref().map(|room| room.created_at),
-            Some(discovery::UnixTime::from_secs(500))
+            Some(discovery::UnixTime::from(500))
         );
     }
 }

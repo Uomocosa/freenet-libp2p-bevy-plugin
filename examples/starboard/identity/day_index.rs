@@ -18,11 +18,11 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let created_at = UnixTime::from_secs(1_000);
-        assert_eq!(day_index(created_at, UnixTime::from_secs(500)), 0);
-        assert_eq!(day_index(created_at, UnixTime::from_secs(1_000)), 0);
-        assert_eq!(day_index(created_at, UnixTime::from_secs(87_399)), 0);
-        assert_eq!(day_index(created_at, UnixTime::from_secs(87_400)), 1);
-        assert_eq!(day_index(created_at, UnixTime::from_secs(173_800)), 2);
+        let created_at = UnixTime::from(1_000);
+        assert_eq!(day_index(created_at, UnixTime::from(500)), 0);
+        assert_eq!(day_index(created_at, UnixTime::from(1_000)), 0);
+        assert_eq!(day_index(created_at, UnixTime::from(87_399)), 0);
+        assert_eq!(day_index(created_at, UnixTime::from(87_400)), 1);
+        assert_eq!(day_index(created_at, UnixTime::from(173_800)), 2);
     }
 }

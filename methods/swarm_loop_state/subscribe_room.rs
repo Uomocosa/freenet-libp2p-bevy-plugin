@@ -8,7 +8,7 @@ pub fn subscribe_room<Payload: p2p::Message>(
     room: identity::RoomName,
 ) {
     let topic = gossipsub::IdentTopic::new(
-        identity::Topic::for_room(&state.subscriptions.game, &room).as_str(),
+        identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
     );
     match state.swarm.behaviour_mut().gossipsub.subscribe(&topic) {
         Ok(_) => {

@@ -78,7 +78,7 @@ fn publish_room<Payload: p2p::Message>(
         return;
     }
     let topic = libp2p::gossipsub::IdentTopic::new(
-        identity::Topic::for_room(&state.subscriptions.game, room).as_str(),
+        identity::Topic::from_room(&state.subscriptions.game, room).as_str(),
     );
     if let Err(error) = state.swarm.behaviour_mut().gossipsub.publish(topic, data) {
         state
@@ -120,7 +120,7 @@ mod tests {
         let command = p2p::Command::Net(p2p::NetCommand::SubscribeRoom { room: room.clone() });
         assert!(dispatch_command(&mut state, &config(), Some(command)));
         let topic = libp2p::gossipsub::IdentTopic::new(
-            identity::Topic::for_room(&state.subscriptions.game, &room).as_str(),
+            identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
         );
         assert_eq!(state.subscriptions.room(&topic.hash()), Some(&room));
         assert_eq!(state.subscriptions.joined, Some(room));

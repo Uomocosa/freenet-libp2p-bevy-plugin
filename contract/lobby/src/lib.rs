@@ -14,11 +14,9 @@ pub use basic::type_aliases::Lobby;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Deref)]
 pub struct UnixTime(pub u64);
 
-impl UnixTime {
-    #[must_use]
-    pub const fn from_secs(secs: u64) -> Self {
-        Self(secs)
-    }
+#[rustfmt::skip]
+impl From<u64> for UnixTime {
+    fn from(secs: u64) -> Self { Self(secs) }
 }
 
 const MAX_ROOMS: usize = 256;
@@ -84,7 +82,7 @@ fn newest_room_member(room: &Room) -> UnixTime {
         .values()
         .map(|room_member| room_member.updated_at)
         .max()
-        .unwrap_or(UnixTime::from_secs(0))
+        .unwrap_or_else(|| UnixTime::from(0))
 }
 
 fn evict_oldest_rooms_until_lobby_fits_capacity(lobby: &mut Lobby, capacity: usize) {
@@ -238,7 +236,7 @@ mod tests {
         );
         Room {
             room_size: 8,
-            created_at: UnixTime::from_secs(1),
+            created_at: UnixTime::from(1),
             members,
         }
     }
@@ -282,7 +280,7 @@ mod tests {
         let mut base = Lobby::new();
         base.insert(
             RoomName("room-a".to_string()),
-            room("peer", UnixTime::from_secs(5), UnixTime::from_secs(10)),
+            room("peer", UnixTime::from(5), UnixTime::from(10)),
         );
         let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&base).unwrap()));
         let merged =
@@ -297,7 +295,7 @@ mod tests {
                 let mut old = Lobby::new();
                 old.insert(
                     RoomName("room-a".to_string()),
-                    room("peer", UnixTime::from_secs(1), UnixTime::from_secs(10)),
+                    room("peer", UnixTime::from(1), UnixTime::from(10)),
                 );
                 old
             })
@@ -309,7 +307,7 @@ mod tests {
         assert_eq!(
             decoded[&RoomName("room-a".to_string())].members[&PeerId("peer".to_string())]
                 .updated_at,
-            UnixTime::from_secs(5)
+            UnixTime::from(5)
         );
     }
 
@@ -317,8 +315,8 @@ mod tests {
     fn recreated_room_replaces_old_generation_both_orders() {
         let params = Parameters::from(Vec::new());
         let room_name = RoomName("room-a".to_string());
-        let low = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(100));
-        let high = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(500));
+        let low = room("peer", UnixTime::from(1), UnixTime::from(100));
+        let high = room("peer", UnixTime::from(1), UnixTime::from(500));
 
         for (first, second) in [(low.clone(), high.clone()), (high, low)] {
             let mut base = Lobby::new();
@@ -335,7 +333,7 @@ mod tests {
             let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
             assert_eq!(
                 decoded[&room_name].created_at,
-                UnixTime::from_secs(500),
+                UnixTime::from(500),
                 "the newer generation must win in either merge order"
             );
         }
@@ -345,8 +343,8 @@ mod tests {
     fn departed_tombstone_wins_over_older_heartbeat() {
         let params = Parameters::from(Vec::new());
         let name = RoomName("room-a".to_string());
-        let live = room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1));
-        let mut departed = room("peer", UnixTime::from_secs(9), UnixTime::from_secs(1));
+        let live = room("peer", UnixTime::from(5), UnixTime::from(1));
+        let mut departed = room("peer", UnixTime::from(9), UnixTime::from(1));
         for heartbeat in departed.members.values_mut() {
             heartbeat.membership = RoomMembership::Departed;
         }
@@ -365,8 +363,8 @@ mod tests {
     fn all_departed_room_is_dropped_in_either_merge_order() {
         let params = Parameters::from(Vec::new());
         let name = RoomName("room-a".to_string());
-        let live = room_at(UnixTime::from_secs(5));
-        let departed = departed_room(UnixTime::from_secs(9));
+        let live = room_at(UnixTime::from(5));
+        let departed = departed_room(UnixTime::from(9));
         let pairs = [(live.clone(), departed.clone()), (departed, live)];
         for (base_room, incoming_room) in pairs {
             let base = Lobby::from([(name.clone(), base_room)]);
@@ -383,10 +381,10 @@ mod tests {
     fn stale_live_heartbeat_resurrects_a_dropped_room() {
         let params = Parameters::from(Vec::new());
         let name = RoomName("room-a".to_string());
-        let dead = Lobby::from([(name.clone(), departed_room(UnixTime::from_secs(9)))]);
+        let dead = Lobby::from([(name.clone(), departed_room(UnixTime::from(9)))]);
         let dropped = apply(&params, &Lobby::new(), &dead);
         assert!(!dropped.contains_key(&name));
-        let stale = Lobby::from([(name.clone(), room_at(UnixTime::from_secs(5)))]);
+        let stale = Lobby::from([(name.clone(), room_at(UnixTime::from(5)))]);
         let revived = apply(&params, &dropped, &stale);
         assert!(revived.contains_key(&name));
     }
@@ -395,11 +393,11 @@ mod tests {
     fn all_departed_room_never_displaces_a_live_room() {
         let params = Parameters::from(Vec::new());
         let base = lobby_with_rooms(MAX_ROOMS, |index| {
-            UnixTime::from_secs(u64::try_from(index).unwrap_or_default().saturating_add(1))
+            UnixTime::from(u64::try_from(index).unwrap_or_default().saturating_add(1))
         });
         let dead = Lobby::from([(
             RoomName("z-dead".to_string()),
-            departed_room(UnixTime::from_secs(1_000)),
+            departed_room(UnixTime::from(1_000)),
         )]);
         let merged = apply(&params, &base, &dead);
         assert_eq!(merged.len(), MAX_ROOMS);
@@ -411,11 +409,11 @@ mod tests {
     fn cap_evicts_the_oldest_room_and_keeps_the_incoming_one() {
         let params = Parameters::from(Vec::new());
         let base = lobby_with_rooms(MAX_ROOMS, |index| {
-            UnixTime::from_secs(u64::try_from(index).unwrap_or_default().saturating_add(1))
+            UnixTime::from(u64::try_from(index).unwrap_or_default().saturating_add(1))
         });
         let incoming = Lobby::from([(
             RoomName("z-new".to_string()),
-            room_at(UnixTime::from_secs(1_000)),
+            room_at(UnixTime::from(1_000)),
         )]);
         let merged = apply(&params, &base, &incoming);
         assert_eq!(merged.len(), MAX_ROOMS);
@@ -426,11 +424,8 @@ mod tests {
     #[test]
     fn cap_evicts_the_smaller_name_when_newest_heartbeats_tie() {
         let params = Parameters::from(Vec::new());
-        let base = lobby_with_rooms(MAX_ROOMS, |_| UnixTime::from_secs(5));
-        let incoming = Lobby::from([(
-            RoomName("z-new".to_string()),
-            room_at(UnixTime::from_secs(5)),
-        )]);
+        let base = lobby_with_rooms(MAX_ROOMS, |_| UnixTime::from(5));
+        let incoming = Lobby::from([(RoomName("z-new".to_string()), room_at(UnixTime::from(5)))]);
         let merged = apply(&params, &base, &incoming);
         assert_eq!(merged.len(), MAX_ROOMS);
         assert!(!merged.contains_key(&RoomName("room-000".to_string())));
@@ -440,11 +435,9 @@ mod tests {
     #[test]
     fn cap_evicts_the_incoming_room_when_it_is_the_oldest() {
         let params = Parameters::from(Vec::new());
-        let base = lobby_with_rooms(MAX_ROOMS, |_| UnixTime::from_secs(100));
-        let incoming = Lobby::from([(
-            RoomName("new-room".to_string()),
-            room_at(UnixTime::from_secs(1)),
-        )]);
+        let base = lobby_with_rooms(MAX_ROOMS, |_| UnixTime::from(100));
+        let incoming =
+            Lobby::from([(RoomName("new-room".to_string()), room_at(UnixTime::from(1)))]);
         let merged = apply(&params, &base, &incoming);
         assert_eq!(merged.len(), MAX_ROOMS);
         assert!(!merged.contains_key(&RoomName("new-room".to_string())));
@@ -454,7 +447,7 @@ mod tests {
     #[test]
     fn evicts_the_oldest_rooms_until_the_lobby_fits() {
         let mut lobby = lobby_with_rooms(3, |index| {
-            UnixTime::from_secs(u64::try_from(index).unwrap_or_default())
+            UnixTime::from(u64::try_from(index).unwrap_or_default())
         });
         evict_oldest_rooms_until_lobby_fits_capacity(&mut lobby, 2);
         assert_eq!(lobby.len(), 2);

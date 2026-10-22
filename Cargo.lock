@@ -524,7 +524,18 @@ name = "atomic-delegate-macros"
 version = "0.0.1"
 source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.1#c96343298c7b304d2b7ce25e919cbc7c479e9642"
 dependencies = [
- "lele-snake-case",
+ "lele-snake-case 0.0.1",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "atomic-delegate-macros"
+version = "0.0.2"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.2#f1e70036ff60ff7f34e03a4e304686f411a43512"
+dependencies = [
+ "lele-snake-case 0.0.2",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -3933,7 +3944,7 @@ name = "freenet-libp2p-bevy-plugin"
 version = "0.0.1"
 dependencies = [
  "async-trait",
- "atomic-delegate-macros",
+ "atomic-delegate-macros 0.0.2",
  "bevy",
  "bincode",
  "blake3",
@@ -5720,6 +5731,11 @@ dependencies = [
 name = "lele-snake-case"
 version = "0.0.1"
 source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.1#c96343298c7b304d2b7ce25e919cbc7c479e9642"
+
+[[package]]
+name = "lele-snake-case"
+version = "0.0.2"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.2#f1e70036ff60ff7f34e03a4e304686f411a43512"
 
 [[package]]
 name = "libappindicator"
@@ -9487,7 +9503,7 @@ name = "telegram-bot-helper"
 version = "0.0.6"
 source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.6#c7ec2ec772c5f81332bc196050ef873c4aa520af"
 dependencies = [
- "atomic-delegate-macros",
+ "atomic-delegate-macros 0.0.1",
  "chrono",
  "dotenvy",
  "reqwest",

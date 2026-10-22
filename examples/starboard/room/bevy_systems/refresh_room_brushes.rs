@@ -54,7 +54,7 @@ mod tests {
                         id: identity::PeerId::from(peer),
                         addrs: Vec::new(),
                     },
-                    updated_at: discovery::UnixTime::from_secs(0),
+                    updated_at: discovery::UnixTime::from(0),
                     display_name: None,
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -63,7 +63,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from_secs(1),
+                created_at: discovery::UnixTime::from(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
             }),

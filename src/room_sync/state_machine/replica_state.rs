@@ -300,7 +300,7 @@ mod tests {
             manifest: None,
             received_chunks: BTreeMap::new(),
         });
-        let split = p2p::ChunkedSnapshot::split(&[1, 2, 3], 4).expect("split");
+        let split = p2p::ChunkedSnapshot::try_from_payload(&[1, 2, 3], 4).expect("split");
         let manifest_bytes = bincode::serialize(&split.manifest).expect("manifest");
         let manifest_out = state.handle_history_record_found(
             &p2p::RoomHistoryRecordKind::Manifest(prefix.clone()),

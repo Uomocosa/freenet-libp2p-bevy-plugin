@@ -57,20 +57,20 @@ mod tests {
         assert_eq!(heartbeat_targets(&state), Vec::new());
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from_secs(0),
+            created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
         state.held_rooms.insert(
             identity::RoomName::from("old"),
             discovery::state_machine::HeldRoomHistory {
-                created_at: discovery::UnixTime::from_secs(0),
-                left_at: discovery::UnixTime::from_secs(5),
+                created_at: discovery::UnixTime::from(0),
+                left_at: discovery::UnixTime::from(5),
             },
         );
         state.evicted_rooms.insert(
             identity::RoomName::from("gone"),
-            discovery::UnixTime::from_secs(0),
+            discovery::UnixTime::from(0),
         );
         let presences: Vec<_> = heartbeat_targets(&state)
             .into_iter()

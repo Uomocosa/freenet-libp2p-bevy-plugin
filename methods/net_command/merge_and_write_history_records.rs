@@ -29,7 +29,7 @@ pub fn merge_and_write_history_records<Replica: room_sync::RoomState>(
         );
         return Vec::new();
     }
-    let Ok(chunked) = p2p::ChunkedSnapshot::split(&bytes, lamport_max) else {
+    let Ok(chunked) = p2p::ChunkedSnapshot::try_from_payload(&bytes, lamport_max) else {
         return Vec::new();
     };
     let compressed_bytes: u64 = chunked

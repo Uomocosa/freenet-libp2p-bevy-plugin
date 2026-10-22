@@ -647,7 +647,7 @@ mod tests {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
         let room = identity::RoomName::from("room-a");
         let hash = gossipsub::IdentTopic::new(
-            identity::Topic::for_room(&state.subscriptions.game, &room).as_str(),
+            identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
         )
         .hash();
         state.dispatch_net_command(p2p::NetCommand::SubscribeRoom { room: room.clone() });
@@ -740,7 +740,7 @@ mod tests {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let room = identity::RoomName::from("room-a");
         let topic = gossipsub::IdentTopic::new(
-            identity::Topic::for_room(&state.subscriptions.game, &room).as_str(),
+            identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
         );
         state.subscriptions.register(&topic, room.clone());
         let data = bincode::serialize(&9u32).unwrap();
@@ -764,7 +764,7 @@ mod tests {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let room = identity::RoomName::from("room-a");
         let topic = gossipsub::IdentTopic::new(
-            identity::Topic::for_room(&state.subscriptions.game, &room).as_str(),
+            identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
         );
         state.subscriptions.register(&topic, room);
         state.handle_gossipsub(message_event(

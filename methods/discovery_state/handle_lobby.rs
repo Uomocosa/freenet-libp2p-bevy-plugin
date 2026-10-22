@@ -35,7 +35,7 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from_secs(0),
+            created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
@@ -48,7 +48,7 @@ mod tests {
                         id: identity::PeerId::from(peer),
                         addrs: vec![identity::PeerAddr::from("/ip4/1")],
                     },
-                    updated_at: discovery::UnixTime::from_secs(3),
+                    updated_at: discovery::UnixTime::from(3),
                     display_name: None,
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -59,16 +59,12 @@ mod tests {
             identity::RoomName::from("r"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 members,
             },
         );
         assert_eq!(
-            handle_lobby(
-                &mut state,
-                lobby.clone(),
-                discovery::UnixTime::from_secs(10)
-            ),
+            handle_lobby(&mut state, lobby.clone(), discovery::UnixTime::from(10)),
             vec![
                 Output::NetCommand(crate::p2p::NetCommand::AddKadPeer(identity::Peer {
                     id: identity::PeerId::from("a"),
@@ -79,7 +75,7 @@ mod tests {
         );
         assert_eq!(state.candidates.len(), 1);
         assert_eq!(
-            handle_lobby(&mut state, lobby, discovery::UnixTime::from_secs(10)),
+            handle_lobby(&mut state, lobby, discovery::UnixTime::from(10)),
             Vec::new()
         );
     }

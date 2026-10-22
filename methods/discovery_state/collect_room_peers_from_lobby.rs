@@ -68,7 +68,7 @@ mod tests {
         let room = identity::RoomName::from("r");
         state.room = Some(discovery::JoinedRoom {
             name: room.clone(),
-            created_at: discovery::UnixTime::from_secs(0),
+            created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
@@ -77,7 +77,7 @@ mod tests {
                 id: identity::PeerId::from("me"),
                 addrs: vec![identity::PeerAddr::from("/ip4/1")],
             },
-            updated_at: discovery::UnixTime::from_secs(5),
+            updated_at: discovery::UnixTime::from(5),
             display_name: None,
             membership: discovery::RoomMembership::Occupant,
         };
@@ -86,7 +86,7 @@ mod tests {
                 id: identity::PeerId::from("holder"),
                 addrs: vec![identity::PeerAddr::from("/ip4/2")],
             },
-            updated_at: discovery::UnixTime::from_secs(5),
+            updated_at: discovery::UnixTime::from(5),
             display_name: None,
             membership: discovery::RoomMembership::HistoryHolder,
         };
@@ -99,7 +99,7 @@ mod tests {
             room,
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 members,
             },
         );

@@ -41,15 +41,15 @@ mod tests {
             identity::RoomName::from("live"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 members: BTreeMap::from([
                     (
                         identity::PeerId::from("fresh"),
-                        room_member(discovery::UnixTime::from_secs(190)),
+                        room_member(discovery::UnixTime::from(190)),
                     ),
                     (
                         identity::PeerId::from("stale"),
-                        room_member(discovery::UnixTime::from_secs(1)),
+                        room_member(discovery::UnixTime::from(1)),
                     ),
                 ]),
             },
@@ -58,16 +58,16 @@ mod tests {
             identity::RoomName::from("dead"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 members: BTreeMap::from([(
                     identity::PeerId::from("gone"),
-                    room_member(discovery::UnixTime::from_secs(1)),
+                    room_member(discovery::UnixTime::from(1)),
                 )]),
             },
         );
         drop_dead(
             &mut lobby,
-            discovery::UnixTime::from_secs(200),
+            discovery::UnixTime::from(200),
             Duration::from_secs(90),
         );
         let live = lobby;
@@ -81,7 +81,7 @@ mod tests {
 
     #[test]
     fn drops_departed_and_expired_holders() {
-        let now = discovery::UnixTime::from_secs(100);
+        let now = discovery::UnixTime::from(100);
         let ttl = Duration::from_secs(90);
         let cases = [
             (discovery::RoomMembership::Occupant, 50, 1),
@@ -94,12 +94,12 @@ mod tests {
                 identity::RoomName::from("r"),
                 discovery::LobbyRoom {
                     room_size: discovery::RoomSize::DEFAULT,
-                    created_at: discovery::UnixTime::from_secs(0),
+                    created_at: discovery::UnixTime::from(0),
                     members: BTreeMap::from([(
                         identity::PeerId::from("p"),
                         discovery::RoomMember {
                             membership,
-                            ..room_member(discovery::UnixTime::from_secs(updated_at))
+                            ..room_member(discovery::UnixTime::from(updated_at))
                         },
                     )]),
                 },

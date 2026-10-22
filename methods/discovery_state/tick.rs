@@ -35,15 +35,15 @@ mod tests {
         state.connected.insert(identity::PeerId::from("a"));
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from_secs(0),
+            created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
-        let mut outputs = tick(&mut state, discovery::UnixTime::from_secs(100));
-        outputs.extend(tick(&mut state, discovery::UnixTime::from_secs(101)));
+        let mut outputs = tick(&mut state, discovery::UnixTime::from(100));
+        outputs.extend(tick(&mut state, discovery::UnixTime::from(101)));
         assert_eq!(
             state.last_handshake_at,
-            Some(discovery::UnixTime::from_secs(100))
+            Some(discovery::UnixTime::from(100))
         );
         let measures = outputs
             .iter()

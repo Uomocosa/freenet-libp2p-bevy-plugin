@@ -10,7 +10,8 @@ pub async fn connect_retry(
     target: &Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
 ) -> discovery::freenet::LobbyContractSubscription {
     let wasm = discovery::freenet::LOBBY_CONTRACT_WASM;
-    let mut client = discovery::freenet::Client::connect_socket(&state.host, state.port).await;
+    let mut client =
+        discovery::freenet::Client::from_host_and_port_with_retry(&state.host, state.port).await;
     let mut tries = 0_u32;
     loop {
         tries = tries.saturating_add(1);
@@ -31,7 +32,11 @@ pub async fn connect_retry(
             }
             Err(discovery::Error::Timeout(kind)) => {
                 warn!(target: "discovery", tries = tries, kind = %kind, "{kind} timed out, reconnecting");
-                client = discovery::freenet::Client::connect_socket(&state.host, state.port).await;
+                client = discovery::freenet::Client::from_host_and_port_with_retry(
+                    &state.host,
+                    state.port,
+                )
+                .await;
             }
             Err(discovery::Error::ContractNotFound) => {
                 debug!(target: "discovery", tries = tries, "lobby absent and not in a room, waiting");

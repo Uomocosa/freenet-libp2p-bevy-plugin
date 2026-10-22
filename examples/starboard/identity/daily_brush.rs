@@ -37,19 +37,19 @@ mod tests {
     #[test]
     fn test_usage() {
         let peer = PeerId::from("12D3KooWPeerAlpha");
-        let created_at = UnixTime::from_secs(10_000);
-        let same_day = daily_brush(&peer, created_at, UnixTime::from_secs(10_500));
+        let created_at = UnixTime::from(10_000);
+        let same_day = daily_brush(&peer, created_at, UnixTime::from(10_500));
         assert_eq!(
             same_day,
-            daily_brush(&peer, created_at, UnixTime::from_secs(96_399))
+            daily_brush(&peer, created_at, UnixTime::from(96_399))
         );
     }
 
     #[test]
     fn changes_across_rollover_and_covers_all_shapes_and_colors() {
-        let created_at = UnixTime::from_secs(10_000);
+        let created_at = UnixTime::from(10_000);
         let day_zero = created_at;
-        let day_one = UnixTime::from_secs(
+        let day_one = UnixTime::from(
             created_at
                 .as_secs()
                 .saturating_add(starboard::identity::SECONDS_PER_DAY),

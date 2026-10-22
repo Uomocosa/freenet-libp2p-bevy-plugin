@@ -47,7 +47,7 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
                     id: peer,
                     addrs: Vec::new(),
                 },
-                updated_at: discovery::UnixTime::from_secs(0),
+                updated_at: discovery::UnixTime::from(0),
                 display_name: None,
                 membership: discovery::RoomMembership::Occupant,
             },
@@ -56,7 +56,7 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
     discovery::Status {
         room: Some(discovery::JoinedRoom {
             name: room.clone(),
-            created_at: discovery::UnixTime::from_secs(1),
+            created_at: discovery::UnixTime::from(1),
             phase: discovery::JoinPhase::Ready,
             members: room_members,
         }),

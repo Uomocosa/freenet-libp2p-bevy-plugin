@@ -66,7 +66,7 @@ mod tests {
             identity::RoomName::from("room-a"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 members: BTreeMap::from([(
                     identity::PeerId::from("peer"),
                     discovery::RoomMember {
@@ -74,7 +74,7 @@ mod tests {
                             id: identity::PeerId::from("peer"),
                             addrs: Vec::new(),
                         },
-                        updated_at: discovery::UnixTime::from_secs(1),
+                        updated_at: discovery::UnixTime::from(1),
                         display_name: None,
                         membership: discovery::RoomMembership::Occupant,
                     },

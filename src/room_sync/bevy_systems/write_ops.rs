@@ -27,7 +27,7 @@ pub fn write_ops<Replica: room_sync::RoomState>(
         return;
     };
     let author = me.id.peer_author();
-    let topic = identity::Topic::for_room_sync(game, &joined.name);
+    let topic = identity::Topic::from_room_sync(game, &joined.name);
     for op in ops {
         let meta = room_sync::OpMeta {
             lamport: clock.tick(),
@@ -111,7 +111,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from_secs(0),
+                created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
             }),

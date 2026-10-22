@@ -55,8 +55,8 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let created_at = UnixTime::from_secs(1_000);
-        let now = UnixTime::from_secs(2_000);
+        let created_at = UnixTime::from(1_000);
+        let now = UnixTime::from(2_000);
         let target = starboard::identity::daily_brush(&PeerId::from("seed-0"), created_at, now);
         let mut colliding = Vec::new();
         for index in 0_u32..50_000 {
