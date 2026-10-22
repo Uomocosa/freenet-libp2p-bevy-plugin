@@ -5,6 +5,7 @@ mod args;
 mod journey;
 mod overlay;
 mod ping;
+mod script_runner;
 mod ui;
 
 use bevy::prelude::*;
@@ -33,7 +34,18 @@ async fn main() {
     let username = identity::Username::from(args.username.clone());
     app.insert_resource(shared::status::LocalUser(username.clone()));
     app.insert_resource(ping::IsRoomPingEnabled(args.is_room_ping_enabled));
-    app.insert_resource(shared::intent::Intent::new(args.action.clone()));
+    app.insert_resource(shared::intent::Intent::new(None));
+    app.insert_resource(shared::intent::PendingAction::default());
+    app.init_resource::<ping::RoomMessageSenders>();
+    if let Some(steps) = args.script.clone() {
+        app.insert_resource(script_runner::LobbyScriptRunner::new(steps));
+        app.add_systems(
+            Update,
+            script_runner::run_script
+                .after(discovery::bevy_systems::drain_status)
+                .after(ping::log_room_messages),
+        );
+    }
     let game = args.token.clone().map_or_else(
         || freenet_libp2p_bevy_plugin::game_id!(),
         identity::GameId::from,

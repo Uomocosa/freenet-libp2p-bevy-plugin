@@ -73,7 +73,7 @@ space-in-path `tikv-jemalloc-sys` workaround), with `jobs = 6`.
 
 ```sh
 just build | just clippy | just fmt | just test | just lint | just bevy-lint
-just run          # lobby_room, detached; args pass through (--ui, --action, …)
+just run          # lobby_room, detached; args pass through (--ui, --script, …)
 just demo         # lobby_room with the default UI
 just run-starboard --username <name>   # starboard, detached
 just e2e-discovery | just e2e-join | just e2e-room | just e2e-starboard | just e2e-history

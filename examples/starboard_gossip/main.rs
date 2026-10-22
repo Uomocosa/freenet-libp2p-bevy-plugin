@@ -5,7 +5,6 @@ mod starboard;
 mod shared;
 
 mod args;
-mod join_failure;
 mod parse_stroke;
 mod scaled_timings;
 mod script;
@@ -29,7 +28,6 @@ async fn main() -> bevy::app::AppExit {
         identity::GameId::from,
     );
     let time_scale = time_scale();
-    let target = join_target(&args);
     let mut app = App::new();
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
@@ -44,15 +42,8 @@ async fn main() -> bevy::app::AppExit {
     app.insert_resource(shared::status::LocalUser(identity::Username::from(
         args.username.clone(),
     )));
-    app.insert_resource(shared::intent::Intent::new(args.action.clone()));
+    app.insert_resource(shared::intent::Intent::new(None));
     app.insert_resource(shared::intent::PendingAction::default());
-    app.insert_resource(join_failure::JoinLimits {
-        timeout: std::time::Duration::from_secs(args.join_timeout_secs),
-        grace: std::time::Duration::from_secs(2),
-    });
-    if let Some(room) = target.clone() {
-        app.insert_resource(join_failure::JoinTarget(room));
-    }
     app.add_plugins(plugin::P2PPlugin(
         plugin::Config::<starboard::room::CursorUpdate>::new(
             args::transport_mode(args.transport),
@@ -80,7 +71,7 @@ async fn main() -> bevy::app::AppExit {
         >,
     );
     if let Some(steps) = args.script.clone() {
-        app.insert_resource(script_runner::ScriptRunner::new(steps));
+        app.insert_resource(script_runner::StarboardScriptRunner::new(steps));
         app.add_systems(
             Update,
             script_runner::run_script
@@ -93,9 +84,6 @@ async fn main() -> bevy::app::AppExit {
                     >,
                 ),
         );
-    }
-    if target.is_some() {
-        app.add_systems(Update, join_failure::exit_on_join_failure);
     }
     app.add_systems(
         Update,
@@ -111,25 +99,6 @@ async fn main() -> bevy::app::AppExit {
 
 fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
-}
-
-// needed helper: the room the peer is trying to be in, from its action or its script
-fn join_target(args: &args::Args) -> Option<identity::RoomName> {
-    if let Some(action) = &args.action {
-        return Some(match action {
-            shared::action::Action::Create(room) | shared::action::Action::Join(room) => {
-                room.clone()
-            }
-        });
-    }
-    args.script.as_ref().and_then(|steps| {
-        steps.iter().find_map(|step| match step {
-            script::ScriptStep::CreateRoom(room) | script::ScriptStep::JoinRoom(room) => {
-                Some(room.clone())
-            }
-            _ => None,
-        })
-    })
 }
 
 // needed helper: the run's time scale, from E2E_TIME_SCALE

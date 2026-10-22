@@ -1,8 +1,8 @@
 use clap::{Parser, ValueEnum};
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
-use crate::script::{ScriptStep, parse_script_step};
-use crate::shared::action::Action;
+use crate::script::StarboardScriptStep;
+use crate::shared::script::timed_script_step::{TimedScriptStep, parse_timed_script_step};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum TransportArg {
@@ -16,25 +16,17 @@ pub enum TransportArg {
 pub struct Args {
     #[arg(long)]
     pub username: String,
-    /// The room action, when the peer is not scripted.
-    #[arg(long, conflicts_with = "script")]
-    pub action: Option<Action>,
-    /// The scripted session, a comma-separated list of steps.
+    /// The scripted session, a comma-separated list of `verb[:arg][@Ns]` steps.
     #[arg(
         long,
         value_delimiter = ',',
-        value_parser = parse_script_step,
-        conflicts_with = "action"
+        value_parser = parse_timed_script_step::<StarboardScriptStep>
     )]
-    pub script: Option<Vec<ScriptStep>>,
+    pub script: Option<Vec<TimedScriptStep<StarboardScriptStep>>>,
     #[arg(long)]
     pub token: Option<String>,
     #[arg(long, value_enum, default_value = "both")]
     pub transport: TransportArg,
-    /// How long the peer waits for its room to show up in the lobby. The
-    /// mainnet's contract state can take minutes to reach a cold node.
-    #[arg(long, default_value_t = 300)]
-    pub join_timeout_secs: u64,
 }
 
 #[must_use]
@@ -48,7 +40,8 @@ pub const fn transport_mode(arg: TransportArg) -> TransportMode {
 
 #[cfg(test)]
 mod tests {
-    use super::{ScriptStep, TransportArg, transport_mode};
+    use super::{StarboardScriptStep, TransportArg, transport_mode};
+    use crate::shared::script::shared_script_step::SharedScriptStep;
     use clap::Parser;
     use freenet_libp2p_bevy_plugin::identity;
     use freenet_libp2p_bevy_plugin::p2p::TransportMode;
@@ -67,31 +60,17 @@ mod tests {
             "--username",
             "p1",
             "--script",
-            "create:room-1, wait-secs:20, paint-from-to:10.20-30.102, exit",
+            "create:room-1, wait-join-succeeded:room-1@60s, paint-from-to:10.20-30.102, exit-app",
         ])
         .expect("args");
         let steps = args.script.expect("script");
         assert_eq!(steps.len(), 4);
         assert_eq!(
-            steps.first(),
-            Some(&ScriptStep::CreateRoom(identity::RoomName::from("room-1")))
+            steps.first().map(|timed| &timed.step),
+            Some(&StarboardScriptStep::Shared(SharedScriptStep::CreateRoom(
+                identity::RoomName::from("room-1")
+            )))
         );
-        assert_eq!(steps.last(), Some(&ScriptStep::ExitGame));
-    }
-
-    #[test]
-    fn a_script_and_an_action_cannot_both_be_passed() {
-        let error = super::Args::try_parse_from([
-            "starboard_gossip",
-            "--username",
-            "p1",
-            "--action",
-            "join:room-1",
-            "--script",
-            "join:room-1",
-        ])
-        .expect_err("conflict");
-        assert!(error.to_string().contains("cannot be used with"));
     }
 
     #[test]

@@ -11,6 +11,12 @@ pub struct PingPayload(pub identity::Username);
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Deref)]
 pub struct IsRoomPingEnabled(pub bool);
 
+/// The peers this one has received a room message from, for `wait-room-messages`.
+#[derive(Resource, Debug, Default, Clone, PartialEq, Eq)]
+pub struct RoomMessageSenders {
+    pub peers: std::collections::BTreeSet<identity::PeerId>,
+}
+
 pub fn publish_room_ping(
     time: Res<Time>,
     is_enabled: Res<IsRoomPingEnabled>,
@@ -39,7 +45,10 @@ pub fn publish_room_ping(
     }
 }
 
-pub fn log_room_messages(mut events: ResMut<p2p::Events<PingPayload>>) {
+pub fn log_room_messages(
+    mut events: ResMut<p2p::Events<PingPayload>>,
+    mut senders: ResMut<RoomMessageSenders>,
+) {
     for event in events.take_all() {
         if let p2p::Event::RoomMessage {
             room,
@@ -53,6 +62,7 @@ pub fn log_room_messages(mut events: ResMut<p2p::Events<PingPayload>>) {
                 from.as_str(),
                 payload.as_str()
             );
+            senders.peers.insert(from);
         }
     }
 }
@@ -102,6 +112,7 @@ mod tests {
             from: identity::PeerId::from("peer-b"),
             payload: PingPayload(identity::Username::from("bob")),
         }]));
+        app.init_resource::<super::RoomMessageSenders>();
         app.add_systems(Update, (publish_room_ping, log_room_messages));
         app.world_mut()
             .resource_mut::<Time>()
@@ -111,5 +122,12 @@ mod tests {
         assert_eq!(commands.len(), 1);
         let events = app.world().resource::<p2p::Events<PingPayload>>();
         assert!(events.is_empty());
+        assert_eq!(
+            app.world()
+                .resource::<super::RoomMessageSenders>()
+                .peers
+                .len(),
+            1
+        );
     }
 }

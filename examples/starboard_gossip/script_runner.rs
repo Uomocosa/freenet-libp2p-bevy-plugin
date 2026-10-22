@@ -1,196 +1,142 @@
-use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::{discovery, identity};
+use std::time::Duration;
 
-use crate::script::ScriptStep;
-use crate::shared::action::Action;
+use bevy::prelude::*;
+use freenet_libp2p_bevy_plugin::discovery;
+
+use crate::script::StarboardScriptStep;
+use crate::shared::script::poll_shared_script_step::{SharedStepView, poll_shared_script_step};
+use crate::shared::script::script_runner::{
+    ScriptRunner, StepClock, StepOutcome, app_exit_for_verdict,
+};
+use crate::shared::script::shared_step_effect_sink::SharedStepEffectSink;
 use crate::starboard;
 
-/// How long the game keeps running after it published its quit, so the tombstone lands.
-const QUIT_PUBLISH_GRACE_SECONDS: f32 = 2.0;
+/// How long the canvas must keep one hash before `wait-canvas-stable` is done.
+const CANVAS_STABLE_FOR: Duration = Duration::from_secs(3);
 
-/// The scripted session and how far it has got.
-#[derive(Resource, Debug, Clone)]
-pub struct ScriptRunner {
-    pub steps: Vec<ScriptStep>,
-    pub index: usize,
-    pub waited_secs: f32,
-    pub last_canvas_hash: Option<u64>,
-    pub is_started: bool,
+/// The canvas hash `wait-canvas-stable` is watching, and since when it has held.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CanvasHashSince {
+    pub hash: u64,
+    pub since: Duration,
 }
 
-impl ScriptRunner {
-    #[must_use]
-    pub const fn new(steps: Vec<ScriptStep>) -> Self {
-        Self {
-            steps,
-            index: 0,
-            waited_secs: 0.0,
-            last_canvas_hash: None,
-            is_started: false,
-        }
-    }
-}
+pub type StarboardScriptRunner = ScriptRunner<StarboardScriptStep>;
 
 pub fn run_script(
     time: Res<Time>,
     status: Res<discovery::Status>,
+    join_error: Option<Res<discovery::ui::JoinError>>,
     canvas: Res<starboard::canvas::Canvas>,
     brush: Res<starboard::input::OwnBrush>,
-    mut runner: ResMut<ScriptRunner>,
+    mut runner: ResMut<StarboardScriptRunner>,
     mut draws: MessageWriter<starboard::input::PendingLocalDraw>,
-    mut commands: MessageWriter<discovery::Command>,
-    mut pending_action: ResMut<crate::shared::intent::PendingAction>,
+    mut effects: SharedStepEffectSink,
     mut exits: MessageWriter<AppExit>,
+    mut stable: Local<Option<CanvasHashSince>>,
 ) {
-    let time = time.into_inner();
     let status = status.into_inner();
     let canvas = canvas.into_inner();
-    let brush = brush.into_inner();
-    runner.waited_secs += time.delta_secs();
-    loop {
-        let Some(step) = runner.steps.get(runner.index).cloned() else {
-            return;
-        };
-        let label = step.label();
-        let mut should_exit = false;
-        match step {
-            ScriptStep::CreateRoom(room) => {
-                if !runner.is_started {
-                    pending_action.0 = Some(Action::Create(room.clone()));
-                    runner.is_started = true;
-                }
-                if !is_in_room(status, &room) {
-                    return;
-                }
+    let brush = *brush.into_inner();
+    let view = SharedStepView {
+        status,
+        join_error: join_error
+            .map(Res::into_inner)
+            .and_then(|error| error.as_deref()),
+        room_message_senders: 0,
+    };
+    let verdict = runner.advance(time.into_inner().delta(), |step, clock| match step {
+        StarboardScriptStep::Shared(shared) => {
+            let poll = poll_shared_script_step(shared, clock, &view);
+            if let Some(effect) = poll.effect {
+                effects.apply(effect);
             }
-            ScriptStep::JoinRoom(room) => {
-                if !runner.is_started {
-                    pending_action.0 = Some(Action::Join(room.clone()));
-                    runner.is_started = true;
-                }
-                if !is_in_room(status, &room) {
-                    return;
-                }
-            }
-            ScriptStep::LeaveRoom(room) => {
-                if !runner.is_started {
-                    commands.write(discovery::Command::Leave);
-                    runner.is_started = true;
-                }
-                if is_in_room(status, &room) {
-                    return;
-                }
-            }
-            ScriptStep::WaitForNMembers(count) => {
-                let connected = u32::try_from(connected_members(status)).unwrap_or(u32::MAX);
-                if connected < *count {
-                    return;
-                }
-            }
-            ScriptStep::WaitSecs(duration) => {
-                if runner.waited_secs < duration.as_secs_f32() {
-                    return;
-                }
-            }
-            ScriptStep::WaitConverged(room) => {
-                if !is_in_room(status, &room) {
-                    return;
-                }
-                let hash = starboard::canvas::hash_canvas(canvas);
-                let is_stable = runner.last_canvas_hash == Some(hash);
-                runner.last_canvas_hash = Some(hash);
-                if !is_stable {
-                    return;
-                }
-            }
-            ScriptStep::PaintFromTo(stroke) => {
-                if !runner.is_started {
-                    let action = starboard::canvas::DrawAction::Paint(brush.color);
-                    if !draw_stroke(action, stroke, status, canvas, *brush, &mut draws) {
-                        return;
-                    }
-                    runner.is_started = true;
-                }
-            }
-            ScriptStep::EraseFromTo(stroke) => {
-                if !runner.is_started {
-                    let action = starboard::canvas::DrawAction::Erase;
-                    if !draw_stroke(action, stroke, status, canvas, *brush, &mut draws) {
-                        return;
-                    }
-                    runner.is_started = true;
-                }
-            }
-            ScriptStep::ExitGame => {
-                if !runner.is_started {
-                    commands.write(discovery::Command::Quit);
-                    runner.is_started = true;
-                }
-                if runner.waited_secs < QUIT_PUBLISH_GRACE_SECONDS {
-                    return;
-                }
-                should_exit = true;
+            poll.outcome
+        }
+        StarboardScriptStep::PaintFromTo(stroke) => {
+            let action = starboard::canvas::DrawAction::Paint(brush.color);
+            draw_stroke(action, *stroke, status, brush, &mut draws)
+        }
+        StarboardScriptStep::EraseFromTo(stroke) => draw_stroke(
+            starboard::canvas::DrawAction::Erase,
+            *stroke,
+            status,
+            brush,
+            &mut draws,
+        ),
+        StarboardScriptStep::WaitCanvasNonEmpty => {
+            if canvas.tiles.iter().any(Option::is_some) {
+                StepOutcome::Done
+            } else {
+                StepOutcome::Pending
             }
         }
-        tracing::info!("starboard script done {label}");
-        if should_exit {
-            exits.write(AppExit::Success);
-            return;
+        StarboardScriptStep::WaitCanvasStable => {
+            is_canvas_stable(&mut stable, starboard::canvas::hash_canvas(canvas), clock)
         }
-        runner.index = runner.index.saturating_add(1);
-        runner.is_started = false;
-        runner.waited_secs = 0.0;
-        runner.last_canvas_hash = None;
+    });
+    if let Some(exit) = app_exit_for_verdict(verdict) {
+        exits.write(exit);
     }
 }
 
-// needed helper: draws one scripted stroke, when the peer may draw it
+// needed helper: draws one scripted stroke; drawing outside a room is a script error
 fn draw_stroke(
     action: starboard::canvas::DrawAction,
     stroke: starboard::canvas::Stroke,
     status: &discovery::Status,
-    canvas: &starboard::canvas::Canvas,
     brush: starboard::input::OwnBrush,
     draws: &mut MessageWriter<starboard::input::PendingLocalDraw>,
-) -> bool {
+) -> StepOutcome {
     if !starboard::room::is_in_room(status) {
-        return false;
-    }
-    if matches!(action, starboard::canvas::DrawAction::Erase)
-        && !canvas.tiles.iter().any(Option::is_some)
-    {
-        return false;
+        return StepOutcome::Failed("cannot draw outside a room".to_string());
     }
     draws.write(starboard::input::PendingLocalDraw(
         starboard::input::draw_op(brush, action, stroke),
     ));
-    true
+    StepOutcome::Done
 }
 
-// needed helper: whether the peer is in the named room
-fn is_in_room(status: &discovery::Status, room: &identity::RoomName) -> bool {
-    status
-        .room
-        .as_ref()
-        .is_some_and(|joined| joined.name == *room)
-}
-
-// needed helper: how many peers are connected in the room the peer is in
-fn connected_members(status: &discovery::Status) -> usize {
-    status.connected_members().count()
+// needed helper: whether the canvas hash has held for CANVAS_STABLE_FOR within this step
+fn is_canvas_stable(
+    stable: &mut Option<CanvasHashSince>,
+    hash: u64,
+    clock: StepClock,
+) -> StepOutcome {
+    let held = match *stable {
+        Some(seen) if seen.hash == hash && !clock.is_first_poll => seen,
+        _ => CanvasHashSince {
+            hash,
+            since: clock.elapsed,
+        },
+    };
+    *stable = Some(held);
+    if clock.elapsed.saturating_sub(held.since) >= CANVAS_STABLE_FOR {
+        StepOutcome::Done
+    } else {
+        StepOutcome::Pending
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use bevy::prelude::*;
     use freenet_libp2p_bevy_plugin::discovery;
 
-    use super::{ScriptRunner, run_script};
-    use crate::script::ScriptStep;
+    use super::{StarboardScriptRunner, run_script};
+    use crate::script::StarboardScriptStep;
     use crate::shared::intent::PendingAction;
+    use crate::shared::script::script_runner::ScriptVerdict;
+    use crate::shared::script::timed_script_step::parse_timed_script_step;
     use crate::starboard;
 
-    fn app(steps: Vec<ScriptStep>) -> App {
+    fn app(script: &[&str]) -> App {
+        let steps = script
+            .iter()
+            .map(|raw| parse_timed_script_step::<StarboardScriptStep>(raw).expect("step"))
+            .collect();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.init_resource::<discovery::Status>();
@@ -199,48 +145,49 @@ mod tests {
         app.insert_resource(PendingAction::default());
         app.add_message::<starboard::input::PendingLocalDraw>();
         app.add_message::<discovery::Command>();
-        app.insert_resource(ScriptRunner::new(steps));
+        app.insert_resource(StarboardScriptRunner::new(steps));
         app.add_systems(Update, run_script);
         app
     }
 
     #[test]
     fn test_usage() {
-        let mut app = app(vec![ScriptStep::WaitSecs(std::time::Duration::ZERO)]);
+        let mut app = app(&["sleep:0s"]);
         app.update();
-        assert_eq!(
-            app.world().resource::<ScriptRunner>().index,
-            1,
-            "a zero-second wait is done on the first frame"
-        );
+        assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 1);
+        assert_eq!(app.world().resource::<Messages<AppExit>>().len(), 1);
     }
 
     #[test]
-    fn a_paint_step_waits_for_the_room() {
-        let mut app = app(vec![ScriptStep::PaintFromTo(starboard::canvas::Stroke {
-            from: starboard::canvas::CellPos { x: 10, y: 10 },
-            to: starboard::canvas::CellPos { x: 20, y: 10 },
-        })]);
+    fn painting_outside_a_room_fails_the_script() {
+        let mut app = app(&["paint-from-to:10.10-20.10"]);
         app.update();
-        assert_eq!(app.world().resource::<ScriptRunner>().index, 0);
         assert_eq!(
-            app.world()
-                .resource::<Messages<starboard::input::PendingLocalDraw>>()
-                .len(),
-            0
+            app.world().resource::<StarboardScriptRunner>().verdict,
+            ScriptVerdict::Failed
         );
     }
 
     #[test]
     fn a_join_step_arms_the_intent_with_the_room() {
-        let mut app = app(vec![ScriptStep::JoinRoom(
-            freenet_libp2p_bevy_plugin::identity::RoomName::from("room-1"),
-        )]);
+        let mut app = app(&["join:room-1", "stay"]);
         app.update();
         let pending = app.world().resource::<PendingAction>();
         assert!(matches!(
             pending.0,
             Some(crate::shared::action::Action::Join(_))
         ));
+    }
+
+    #[test]
+    fn a_still_canvas_is_stable_after_the_hold() {
+        let mut app = app(&["wait-canvas-stable@30s"]);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            Duration::from_millis(200),
+        ));
+        for _ in 0..20 {
+            app.update();
+        }
+        assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 1);
     }
 }

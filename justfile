@@ -65,7 +65,7 @@ bench-history:
     cargo nextest run --example starboard_gossip --all-features --run-ignored all -E 'test(history_bench)' -- --nocapture
 
 # Run the lobby_room example detached (no terminal tie-up; only the app window).
-# Extra args toggle ui/action/transport, e.g. `just run --ui custom --action create:room-1`.
+# Extra args toggle ui/script/transport, e.g. `just run --ui custom --script "create:room-1, stay"`.
 run *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail

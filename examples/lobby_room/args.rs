@@ -1,7 +1,8 @@
 use clap::{Parser, ValueEnum};
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
-use crate::shared::action::Action;
+use crate::shared::script::shared_script_step::SharedScriptStep;
+use crate::shared::script::timed_script_step::{TimedScriptStep, parse_timed_script_step};
 
 /// Which lobby UI to run: the plugin's default one or the example's replacement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -22,8 +23,13 @@ pub enum TransportArg {
 pub struct Args {
     #[arg(long)]
     pub username: String,
-    #[arg(long)]
-    pub action: Option<Action>,
+    /// The scripted session, a comma-separated list of `verb[:arg][@Ns]` steps.
+    #[arg(
+        long,
+        value_delimiter = ',',
+        value_parser = parse_timed_script_step::<SharedScriptStep>
+    )]
+    pub script: Option<Vec<TimedScriptStep<SharedScriptStep>>>,
     #[arg(long)]
     pub token: Option<String>,
     #[arg(long, value_enum, default_value = "both")]
