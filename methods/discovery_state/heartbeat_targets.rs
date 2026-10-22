@@ -3,34 +3,37 @@ use discovery::state_machine::{DiscoveryState, HeartbeatTarget};
 
 #[must_use]
 pub fn heartbeat_targets(state: &DiscoveryState) -> Vec<HeartbeatTarget> {
-    let in_room = state.room.iter().map(|room| {
+    let occupants = state.room.iter().map(|room| {
         (
             room.name.clone(),
             room.created_at,
-            discovery::RoomMembership::InRoom,
+            discovery::RoomMembership::Occupant,
         )
     });
-    let holding = state.held_rooms.iter().map(|(name, held)| {
+    let history_holders = state.held_rooms.iter().map(|(name, held)| {
         (
             name.clone(),
             held.created_at,
-            discovery::RoomMembership::HoldingHistory,
+            discovery::RoomMembership::HistoryHolder,
         )
     });
-    let evicted = state
-        .evicted_rooms
-        .iter()
-        .map(|(name, created_at)| (name.clone(), *created_at, discovery::RoomMembership::Quit));
-    in_room
-        .chain(holding)
-        .chain(evicted)
+    let departed = state.evicted_rooms.iter().map(|(name, created_at)| {
+        (
+            name.clone(),
+            *created_at,
+            discovery::RoomMembership::Departed,
+        )
+    });
+    occupants
+        .chain(history_holders)
+        .chain(departed)
         .map(|(room, created_at, membership)| HeartbeatTarget {
             room,
             created_at,
             addrs: state.me.addrs.clone(),
             display_name: state.display_name.clone(),
             membership: if state.is_quitting {
-                discovery::RoomMembership::Quit
+                discovery::RoomMembership::Departed
             } else {
                 membership
             },
@@ -55,7 +58,7 @@ mod tests {
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
             created_at: discovery::UnixTime::from_secs(0),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
         state.held_rooms.insert(
@@ -78,15 +81,15 @@ mod tests {
             vec![
                 (
                     identity::RoomName::from("r"),
-                    discovery::RoomMembership::InRoom
+                    discovery::RoomMembership::Occupant
                 ),
                 (
                     identity::RoomName::from("old"),
-                    discovery::RoomMembership::HoldingHistory
+                    discovery::RoomMembership::HistoryHolder
                 ),
                 (
                     identity::RoomName::from("gone"),
-                    discovery::RoomMembership::Quit
+                    discovery::RoomMembership::Departed
                 ),
             ]
         );
@@ -94,7 +97,7 @@ mod tests {
         assert!(
             heartbeat_targets(&state)
                 .iter()
-                .all(|target| target.membership == discovery::RoomMembership::Quit)
+                .all(|target| target.membership == discovery::RoomMembership::Departed)
         );
     }
 }

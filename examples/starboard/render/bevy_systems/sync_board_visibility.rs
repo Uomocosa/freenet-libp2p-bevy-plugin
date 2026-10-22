@@ -30,7 +30,7 @@ mod tests {
     use super::sync_board_visibility;
     use crate::starboard;
 
-    fn status_with(phase: discovery::RoomPhase) -> discovery::Status {
+    fn status_with(phase: discovery::JoinPhase) -> discovery::Status {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn test_usage() {
         assert_eq!(
-            visibility_after(status_with(discovery::RoomPhase::Ready)),
+            visibility_after(status_with(discovery::JoinPhase::Ready)),
             Visibility::Visible
         );
         assert_eq!(
@@ -77,7 +77,7 @@ mod tests {
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
             }],
             is_lobby_attached: true,
-            ..status_with(discovery::RoomPhase::Ready)
+            ..status_with(discovery::JoinPhase::Ready)
         };
         status.lobby.insert(
             identity::RoomName::from("alpha"),

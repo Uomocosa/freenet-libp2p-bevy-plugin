@@ -2,12 +2,19 @@ use freenet_stdlib::client_api::{ClientRequest, HostResponse, NodeQuery, QueryRe
 
 use crate::discovery;
 use crate::identity;
+use discovery::freenet::basic::constants;
 
 pub async fn connected_peers(
     state: &mut discovery::freenet::Client,
 ) -> Result<Vec<identity::FreenetPeer>, discovery::Error> {
     state.send(&ClientRequest::NodeQueries(NodeQuery::ConnectedPeers))?;
-    match state.recv_response().await? {
+    let reply = discovery::freenet::RequestTimeout(constants::REQUEST_TIMEOUT)
+        .within(
+            discovery::FreenetRequestKind::QueryPeers,
+            state.recv_response(),
+        )
+        .await?;
+    match reply {
         HostResponse::QueryResponse(QueryResponse::ConnectedPeers { peers }) => Ok(peers
             .into_iter()
             .map(|(peer, addr)| identity::FreenetPeer {

@@ -17,7 +17,7 @@ pub fn handshake(state: &DiscoveryState) -> Handshake {
         .iter()
         .map(|(peer, member)| identity::Peer {
             id: peer.clone(),
-            addrs: member.room_member.peer.addrs.clone(),
+            addrs: member.peer.addrs.clone(),
         })
         .collect();
     Handshake {

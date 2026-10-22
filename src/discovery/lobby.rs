@@ -36,7 +36,7 @@ impl Lobby {
         self.retain(|_, room| {
             room.members
                 .values()
-                .any(|room_member| room_member.membership != discovery::RoomMembership::Quit)
+                .any(|room_member| room_member.membership != discovery::RoomMembership::Departed)
         });
     }
     pub fn evict_oldest_rooms_until_lobby_fits_capacity(&mut self, capacity: usize) {
@@ -69,7 +69,7 @@ mod tests {
             },
             updated_at: discovery::UnixTime::from_secs(1),
             display_name: None,
-            membership: discovery::RoomMembership::InRoom,
+            membership: discovery::RoomMembership::Occupant,
         };
         let incoming = discovery::Lobby::from([(
             identity::RoomName::from("room-a"),

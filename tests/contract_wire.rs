@@ -15,7 +15,7 @@ fn plugin_lobby() -> discovery::Lobby {
                 },
                 updated_at: discovery::UnixTime::from_secs(7),
                 display_name: name.map(identity::Username::from),
-                membership: discovery::RoomMembership::InRoom,
+                membership: discovery::RoomMembership::Occupant,
             },
         );
     }

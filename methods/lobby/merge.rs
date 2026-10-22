@@ -29,7 +29,7 @@ mod tests {
                 },
                 updated_at,
                 display_name: None,
-                membership: discovery::RoomMembership::InRoom,
+                membership: discovery::RoomMembership::Occupant,
             },
         );
         discovery::LobbyRoom {
@@ -39,20 +39,20 @@ mod tests {
         }
     }
 
-    fn quit_room(updated_at: discovery::UnixTime) -> discovery::LobbyRoom {
+    fn departed_room(updated_at: discovery::UnixTime) -> discovery::LobbyRoom {
         let mut record = record("peer", updated_at);
         for room_member in record.members.values_mut() {
-            room_member.membership = discovery::RoomMembership::Quit;
+            room_member.membership = discovery::RoomMembership::Departed;
         }
         record
     }
 
     #[test]
-    fn drops_a_room_when_every_member_quit_in_either_direction() {
+    fn drops_a_room_when_every_member_is_departed_in_either_merge_order() {
         let room = identity::RoomName::from("room-a");
         let live = record("peer", discovery::UnixTime::from_secs(5));
-        let quit = quit_room(discovery::UnixTime::from_secs(9));
-        let pairs = [(live.clone(), quit.clone()), (quit, live)];
+        let departed = departed_room(discovery::UnixTime::from_secs(9));
+        let pairs = [(live.clone(), departed.clone()), (departed, live)];
         for (base_room, incoming_room) in pairs {
             let mut base = discovery::Lobby::from([(room.clone(), base_room)]);
             merge(

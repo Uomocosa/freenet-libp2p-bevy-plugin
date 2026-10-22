@@ -12,7 +12,7 @@ pub struct RequestTimeout(pub Duration);
 impl RequestTimeout {
     pub async fn within<T>(
         &self,
-        kind: discovery::LobbyRequestKind,
+        kind: discovery::FreenetRequestKind,
         request: impl Future<Output = Result<T, discovery::Error>>,
     ) -> Result<T, discovery::Error> {
         tokio::time::timeout(**self, request)

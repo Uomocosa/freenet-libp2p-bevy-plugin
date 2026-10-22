@@ -21,17 +21,9 @@ pub fn drive<Replica: room_sync::RoomState>(
     let command_sender = command_sender.map(Res::into_inner);
     let net_events = net_events.into_inner();
     let game = game.into_inner();
-    let members: Vec<identity::PeerId> = discovery_status
-        .as_ref()
-        .and_then(|status| status.room.as_ref())
-        .map_or_else(Vec::new, |joined| {
-            joined
-                .members
-                .iter()
-                .filter(|(_, member)| member.status == discovery::LinkStatus::Connected)
-                .map(|(peer, _)| peer.clone())
-                .collect()
-        });
+    let members: Vec<identity::PeerId> = discovery_status.map_or_else(Vec::new, |status| {
+        status.connected_members().cloned().collect()
+    });
     let mut inputs: Vec<room_sync::state_machine::Input<Replica::Op>> = Vec::new();
     if let Some(mut room_events) = room_events {
         for event in room_events.read() {
@@ -145,7 +137,8 @@ fn room_prefix_and_lobby_status(
             let Some(record) = status.lobby.get(room_name) else {
                 let is_the_contract_still_publishing_the_room =
                     status.room.as_ref().is_some_and(|joined| {
-                        joined.name == *room_name && joined.phase == discovery::RoomPhase::Joining
+                        joined.name == *room_name
+                            && matches!(joined.phase, discovery::JoinPhase::Joining { .. })
                     });
                 return room_sync::state_machine::LobbyRoomStatus {
                     is_room_alive_in_lobby: is_the_contract_still_publishing_the_room,
@@ -165,7 +158,7 @@ fn room_prefix_and_lobby_status(
                 .members
                 .iter()
                 .filter(|(_, room_member)| {
-                    room_member.membership != discovery::RoomMembership::Quit
+                    room_member.membership != discovery::RoomMembership::Departed
                         && is_fresh(room_member)
                 })
                 .collect();
@@ -181,7 +174,7 @@ fn room_prefix_and_lobby_status(
             );
             let has_other_history_holder = live_members.iter().any(|(peer, room_member)| {
                 let is_other = self_peer_id != Some(*peer);
-                is_other && room_member.membership == discovery::RoomMembership::HoldingHistory
+                is_other && room_member.membership == discovery::RoomMembership::HistoryHolder
             });
             room_sync::state_machine::LobbyRoomStatus {
                 is_room_alive_in_lobby: live_count > 0,
@@ -591,28 +584,28 @@ mod tests {
                 },
             );
         }
+        let connected: std::collections::BTreeSet<identity::PeerId> =
+            connected_members.iter().cloned().collect();
         discovery::Status {
             lobby,
+            connected,
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
                 created_at,
-                phase: discovery::RoomPhase::Ready,
+                phase: discovery::JoinPhase::Ready,
                 members: connected_members
                     .into_iter()
                     .map(|peer| {
                         (
                             peer.clone(),
-                            discovery::Member {
-                                room_member: discovery::RoomMember {
-                                    peer: identity::Peer {
-                                        id: peer,
-                                        addrs: Vec::new(),
-                                    },
-                                    updated_at: created_at,
-                                    display_name: None,
-                                    membership: discovery::RoomMembership::InRoom,
+                            discovery::RoomMember {
+                                peer: identity::Peer {
+                                    id: peer,
+                                    addrs: Vec::new(),
                                 },
-                                status: discovery::LinkStatus::Connected,
+                                updated_at: created_at,
+                                display_name: None,
+                                membership: discovery::RoomMembership::Occupant,
                             },
                         )
                     })
@@ -628,7 +621,7 @@ mod tests {
     fn status(room: &identity::RoomName, members: Vec<identity::PeerId>) -> discovery::Status {
         let lobby_members = members
             .iter()
-            .map(|peer| (peer.clone(), discovery::RoomMembership::InRoom))
+            .map(|peer| (peer.clone(), discovery::RoomMembership::Occupant))
             .collect();
         status_with_created_at(
             room,
@@ -870,14 +863,14 @@ mod tests {
 
         let gen1 = discovery::UnixTime::from_secs(10);
         let lobby_ab = BTreeMap::from([
-            (a.id.clone(), discovery::RoomMembership::InRoom),
-            (b.id.clone(), discovery::RoomMembership::InRoom),
+            (a.id.clone(), discovery::RoomMembership::Occupant),
+            (b.id.clone(), discovery::RoomMembership::Occupant),
         ]);
         peer_a.insert_resource(status_with_created_at(
             &room,
             gen1,
             Vec::new(),
-            BTreeMap::from([(a.id.clone(), discovery::RoomMembership::InRoom)]),
+            BTreeMap::from([(a.id.clone(), discovery::RoomMembership::Occupant)]),
         ));
         peer_a
             .world_mut()
@@ -927,8 +920,8 @@ mod tests {
         connect_and_seed_kad(&mut peer_c, &b);
 
         let holders = BTreeMap::from([
-            (a.id.clone(), discovery::RoomMembership::HoldingHistory),
-            (b.id.clone(), discovery::RoomMembership::HoldingHistory),
+            (a.id.clone(), discovery::RoomMembership::HistoryHolder),
+            (b.id.clone(), discovery::RoomMembership::HistoryHolder),
         ]);
         peer_c.insert_resource(status_with_created_at(&room, gen1, Vec::new(), holders));
         peer_c
@@ -960,7 +953,7 @@ mod tests {
             &room,
             gen2,
             Vec::new(),
-            BTreeMap::from([(d.id, discovery::RoomMembership::InRoom)]),
+            BTreeMap::from([(d.id, discovery::RoomMembership::Occupant)]),
         ));
         peer_d
             .world_mut()
@@ -1002,7 +995,9 @@ mod tests {
             BTreeMap::new(),
         );
         if let Some(joined) = status.room.as_mut() {
-            joined.phase = discovery::RoomPhase::Joining;
+            joined.phase = discovery::JoinPhase::Joining {
+                since: discovery::UnixTime::from_secs(0),
+            };
         }
         creator.insert_resource(status);
         creator
@@ -1069,7 +1064,7 @@ mod tests {
             &room,
             discovery::UnixTime::from_secs(2),
             Vec::new(),
-            BTreeMap::from([(holder_id, discovery::RoomMembership::HoldingHistory)]),
+            BTreeMap::from([(holder_id, discovery::RoomMembership::HistoryHolder)]),
         ));
         mid_joiner
             .world_mut()

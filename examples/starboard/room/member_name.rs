@@ -6,7 +6,7 @@ pub fn member_name(status: &discovery::Status, peer: &identity::PeerId) -> Strin
         .room
         .as_ref()
         .and_then(|room| room.members.get(peer))
-        .and_then(|member| member.room_member.display_name.as_ref())
+        .and_then(|member| member.display_name.as_ref())
         .map_or_else(|| peer.as_str().to_string(), ToString::to_string)
 }
 
@@ -22,24 +22,21 @@ mod tests {
         let mut members = discovery::Members::new();
         members.insert(
             peer.clone(),
-            discovery::Member {
-                room_member: discovery::RoomMember {
-                    peer: identity::Peer {
-                        id: peer.clone(),
-                        addrs: Vec::new(),
-                    },
-                    updated_at: discovery::UnixTime::from_secs(0),
-                    display_name: Some(identity::Username::from("ada")),
-                    membership: discovery::RoomMembership::InRoom,
+            discovery::RoomMember {
+                peer: identity::Peer {
+                    id: peer.clone(),
+                    addrs: Vec::new(),
                 },
-                status: discovery::LinkStatus::Connected,
+                updated_at: discovery::UnixTime::from_secs(0),
+                display_name: Some(identity::Username::from("ada")),
+                membership: discovery::RoomMembership::Occupant,
             },
         );
         let status = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: discovery::UnixTime::from_secs(0),
-                phase: discovery::RoomPhase::Ready,
+                phase: discovery::JoinPhase::Ready,
                 members,
             }),
             ..discovery::Status::default()

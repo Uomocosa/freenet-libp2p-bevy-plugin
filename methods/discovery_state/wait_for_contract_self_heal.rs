@@ -5,17 +5,18 @@ pub fn wait_for_contract_self_heal(
     state: &mut DiscoveryState,
     now: discovery::UnixTime,
 ) -> Vec<Output> {
-    let Some(since) = state.joining_since else {
-        return Vec::new();
-    };
     let Some(room) = state.room.as_ref() else {
         return Vec::new();
     };
+    let discovery::JoinPhase::Joining { since } = room.phase else {
+        return Vec::new();
+    };
     let name = room.name.clone();
+    let created_at = room.created_at;
     let healed = state
         .lobby
         .get(&name)
-        .is_some_and(|record| record.created_at == room.created_at);
+        .is_some_and(|record| record.created_at == created_at);
     let timed_out = now.elapsed_since(since) >= discovery::state_machine::JOIN_HEAL_TIMEOUT;
     if !healed && !timed_out {
         return Vec::new();
@@ -23,9 +24,8 @@ pub fn wait_for_contract_self_heal(
     if !healed {
         tracing::warn!(target: "discovery", room = %name.as_str(), "join self-heal timed out; proceeding");
     }
-    state.joining_since = None;
     if let Some(room) = state.room.as_mut() {
-        room.phase = discovery::RoomPhase::Ready;
+        room.phase = discovery::JoinPhase::Ready;
     }
     vec![Output::Notify(discovery::Event::RoomReady(name))]
 }
@@ -47,10 +47,11 @@ mod tests {
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
             created_at: discovery::UnixTime::from_secs(created_at),
-            phase: discovery::RoomPhase::Joining,
+            phase: discovery::JoinPhase::Joining {
+                since: discovery::UnixTime::from_secs(0),
+            },
             members: discovery::Members::new(),
         });
-        state.joining_since = Some(discovery::UnixTime::from_secs(0));
         state
     }
 
@@ -65,7 +66,7 @@ mod tests {
         );
     }
 
-    fn phase(state: &DiscoveryState) -> Option<discovery::RoomPhase> {
+    fn phase(state: &DiscoveryState) -> Option<discovery::JoinPhase> {
         state.room.as_ref().map(|room| room.phase)
     }
 
@@ -76,7 +77,10 @@ mod tests {
             wait_for_contract_self_heal(&mut waiting, discovery::UnixTime::from_secs(1)),
             Vec::new()
         );
-        assert_eq!(phase(&waiting), Some(discovery::RoomPhase::Joining));
+        assert!(matches!(
+            phase(&waiting),
+            Some(discovery::JoinPhase::Joining { .. })
+        ));
 
         let mut healed = state_in(100);
         with_record(&mut healed, 100);
@@ -87,14 +91,12 @@ mod tests {
                 identity::RoomName::from("r")
             ))]
         );
-        assert_eq!(phase(&healed), Some(discovery::RoomPhase::Ready));
-        assert!(healed.joining_since.is_none());
+        assert_eq!(phase(&healed), Some(discovery::JoinPhase::Ready));
     }
 
     #[test]
     fn times_out_and_proceeds() {
         let mut state = state_in(100);
-        state.joining_since = Some(discovery::UnixTime::from_secs(0));
         let outputs = wait_for_contract_self_heal(
             &mut state,
             discovery::UnixTime::from_secs(discovery::state_machine::JOIN_HEAL_TIMEOUT.as_secs()),
@@ -105,18 +107,20 @@ mod tests {
                 identity::RoomName::from("r")
             ))]
         );
-        assert_eq!(phase(&state), Some(discovery::RoomPhase::Ready));
+        assert_eq!(phase(&state), Some(discovery::JoinPhase::Ready));
     }
 
     #[test]
     fn does_nothing_without_a_pending_join() {
         let mut state = state_in(100);
         with_record(&mut state, 100);
-        state.joining_since = None;
+        if let Some(room) = state.room.as_mut() {
+            room.phase = discovery::JoinPhase::Ready;
+        }
         assert_eq!(
             wait_for_contract_self_heal(&mut state, discovery::UnixTime::from_secs(1)),
             Vec::new()
         );
-        assert_eq!(phase(&state), Some(discovery::RoomPhase::Joining));
+        assert_eq!(phase(&state), Some(discovery::JoinPhase::Ready));
     }
 }

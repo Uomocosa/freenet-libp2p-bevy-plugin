@@ -68,7 +68,7 @@ mod tests {
                         },
                         updated_at: discovery::UnixTime::from_secs(1),
                         display_name: None,
-                        membership: discovery::RoomMembership::InRoom,
+                        membership: discovery::RoomMembership::Occupant,
                     },
                 )]),
             },

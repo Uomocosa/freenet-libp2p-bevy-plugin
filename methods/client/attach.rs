@@ -25,7 +25,7 @@ pub async fn attach(
     let started = std::time::Instant::now();
     let first = discovery::freenet::RequestTimeout(FETCH_TIMEOUT)
         .within(
-            discovery::LobbyRequestKind::FetchLobby,
+            discovery::FreenetRequestKind::FetchLobby,
             state.fetch_and_subscribe(instance_id),
         )
         .await;
@@ -47,14 +47,14 @@ pub async fn attach(
             let container = ContractContainer::from(ContractWasmAPIVersion::V1(wrapped));
             discovery::freenet::RequestTimeout(DEPLOY_TIMEOUT)
                 .within(
-                    discovery::LobbyRequestKind::DeployLobby,
+                    discovery::FreenetRequestKind::DeployLobby,
                     deploy_contract(state, container, initial_lobby),
                 )
                 .await
                 .inspect_err(|e| warn!(target: "discovery", error = %e, "lobby deploy failed"))?;
             discovery::freenet::RequestTimeout(FETCH_TIMEOUT)
                 .within(
-                    discovery::LobbyRequestKind::FetchLobby,
+                    discovery::FreenetRequestKind::FetchLobby,
                     state.fetch_and_subscribe(instance_id),
                 )
                 .await?

@@ -103,7 +103,7 @@ fn sync_visibility(status: Res<discovery::Status>, mut views: Query<&mut Node, W
             status
                 .room
                 .as_ref()
-                .is_some_and(|room| room.phase == discovery::RoomPhase::Ready),
+                .is_some_and(|room| room.phase == discovery::JoinPhase::Ready),
         );
     }
 }
@@ -122,11 +122,7 @@ fn sync_room_bar(
     let Some(room) = status.room.as_ref() else {
         return;
     };
-    let connected = room
-        .members
-        .values()
-        .filter(|member| member.status == discovery::LinkStatus::Connected)
-        .count();
+    let connected = status.connected_members().count();
     **title = Text::new(format!(
         "Current room: {}   |   you: {}",
         room.name.as_str(),
@@ -141,7 +137,7 @@ fn sync_room_bar(
         .despawn_children()
         .with_children(|rows| {
             for (peer, member) in &room.members {
-                let dot = match member.status {
+                let dot = match status.link_status(peer) {
                     discovery::LinkStatus::Connected => CONNECTED_COLOR,
                     discovery::LinkStatus::Lost => LOST_COLOR,
                 };
@@ -166,7 +162,7 @@ fn sync_room_bar(
                         ),
                         (Text::new(peer_label(peer, member)), TextLayout::no_wrap(),),
                         (
-                            Text::new(status_word(member.status)),
+                            Text::new(status_word(status.link_status(peer))),
                             TextColor(DIM_COLOR),
                             TextLayout::no_wrap(),
                         ),
@@ -192,9 +188,8 @@ const fn display_for(is_shown: bool) -> Display {
 }
 
 // needed helper: prefer the peer's chosen name, else a short id
-fn peer_label(peer: &identity::PeerId, member: &discovery::Member) -> String {
+fn peer_label(peer: &identity::PeerId, member: &discovery::RoomMember) -> String {
     member
-        .room_member
         .display_name
         .as_ref()
         .map_or_else(|| short_peer(peer.as_str()), ToString::to_string)
@@ -227,7 +222,7 @@ mod tests {
         world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("alpha"),
             created_at: discovery::UnixTime::from_secs(0),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
     }
@@ -256,24 +251,21 @@ mod tests {
         ] {
             members.insert(
                 identity::PeerId::from(peer),
-                discovery::Member {
-                    room_member: discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from(peer),
-                            addrs: Vec::new(),
-                        },
-                        updated_at: discovery::UnixTime::from_secs(0),
-                        display_name: name.map(identity::Username::from),
-                        membership: discovery::RoomMembership::InRoom,
+                discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: identity::PeerId::from(peer),
+                        addrs: Vec::new(),
                     },
-                    status,
+                    updated_at: discovery::UnixTime::from_secs(0),
+                    display_name: name.map(identity::Username::from),
+                    membership: discovery::RoomMembership::Occupant,
                 },
             );
         }
         status.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("gamma"),
             created_at: discovery::UnixTime::from_secs(0),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members,
         });
     }

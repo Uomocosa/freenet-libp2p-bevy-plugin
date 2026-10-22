@@ -5,7 +5,7 @@ use crate::discovery;
 pub fn drop_dead(lobby: &mut discovery::Lobby, now: discovery::UnixTime, ttl: Duration) {
     for record in lobby.values_mut() {
         record.members.retain(|_, room_member| {
-            room_member.membership != discovery::RoomMembership::Quit
+            room_member.membership != discovery::RoomMembership::Departed
                 && now.elapsed_since(room_member.updated_at) <= ttl
         });
     }
@@ -30,7 +30,7 @@ mod tests {
             },
             updated_at,
             display_name: None,
-            membership: discovery::RoomMembership::InRoom,
+            membership: discovery::RoomMembership::Occupant,
         }
     }
 
@@ -80,14 +80,14 @@ mod tests {
     }
 
     #[test]
-    fn drops_quit_and_expired_holders() {
+    fn drops_departed_and_expired_holders() {
         let now = discovery::UnixTime::from_secs(100);
         let ttl = Duration::from_secs(90);
         let cases = [
-            (discovery::RoomMembership::InRoom, 50, 1),
-            (discovery::RoomMembership::HoldingHistory, 50, 1),
-            (discovery::RoomMembership::HoldingHistory, 5, 0),
-            (discovery::RoomMembership::Quit, 99, 0),
+            (discovery::RoomMembership::Occupant, 50, 1),
+            (discovery::RoomMembership::HistoryHolder, 50, 1),
+            (discovery::RoomMembership::HistoryHolder, 5, 0),
+            (discovery::RoomMembership::Departed, 99, 0),
         ];
         for (membership, updated_at, rooms_left) in cases {
             let mut lobby = discovery::Lobby::from([(

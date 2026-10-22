@@ -14,16 +14,10 @@ pub struct RoomMember {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
-pub struct Member {
-    pub room_member: RoomMember,
-    pub status: discovery::LinkStatus,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct JoinedRoom {
     pub name: identity::RoomName,
     pub created_at: discovery::UnixTime,
-    pub phase: discovery::RoomPhase,
+    pub phase: discovery::JoinPhase,
     pub members: discovery::Members,
 }
 

@@ -82,7 +82,7 @@ mod tests {
     }
 
     #[test]
-    fn evicted_history_publishes_quit_and_removes_records() {
+    fn evicted_history_publishes_departed_and_removes_records() {
         let room = identity::RoomName::from("r");
         let mut state = state_holding(&room);
         let prefix =
@@ -98,6 +98,6 @@ mod tests {
         assert!(state.held_rooms.is_empty());
         let targets = state.heartbeat_targets();
         assert_eq!(targets.len(), 1);
-        assert_eq!(targets[0].membership, discovery::RoomMembership::Quit);
+        assert_eq!(targets[0].membership, discovery::RoomMembership::Departed);
     }
 }

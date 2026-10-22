@@ -177,12 +177,7 @@ fn is_in_room(status: &discovery::Status, room: &identity::RoomName) -> bool {
 
 // needed helper: how many peers are connected in the room the peer is in
 fn connected_members(status: &discovery::Status) -> usize {
-    status.room.as_ref().map_or(0, |room| {
-        room.members
-            .values()
-            .filter(|member| member.status == discovery::LinkStatus::Connected)
-            .count()
-    })
+    status.connected_members().count()
 }
 
 #[cfg(test)]

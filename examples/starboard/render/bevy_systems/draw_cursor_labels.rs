@@ -53,17 +53,14 @@ mod tests {
         for (peer, name) in peers {
             members.insert(
                 identity::PeerId::from(*peer),
-                discovery::Member {
-                    room_member: discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from(*peer),
-                            addrs: Vec::new(),
-                        },
-                        updated_at: discovery::UnixTime::from_secs(0),
-                        display_name: Some(identity::Username::from(*name)),
-                        membership: discovery::RoomMembership::InRoom,
+                discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: identity::PeerId::from(*peer),
+                        addrs: Vec::new(),
                     },
-                    status: discovery::LinkStatus::Connected,
+                    updated_at: discovery::UnixTime::from_secs(0),
+                    display_name: Some(identity::Username::from(*name)),
+                    membership: discovery::RoomMembership::Occupant,
                 },
             );
         }
@@ -71,7 +68,7 @@ mod tests {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: discovery::UnixTime::from_secs(0),
-                phase: discovery::RoomPhase::Ready,
+                phase: discovery::JoinPhase::Ready,
                 members,
             }),
             ..discovery::Status::default()

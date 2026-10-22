@@ -75,7 +75,7 @@ fn drop_rooms_where_every_member_quit(lobby: &mut Lobby) {
     lobby.retain(|_, room| {
         room.members
             .values()
-            .any(|room_member| room_member.membership != RoomMembership::Quit)
+            .any(|room_member| room_member.membership != RoomMembership::Departed)
     });
 }
 
@@ -212,7 +212,7 @@ mod tests {
                 },
                 updated_at,
                 display_name: None,
-                membership: RoomMembership::InRoom,
+                membership: RoomMembership::Occupant,
             },
         );
         Room {
@@ -233,7 +233,7 @@ mod tests {
                 },
                 updated_at,
                 display_name: None,
-                membership: RoomMembership::InRoom,
+                membership: RoomMembership::Occupant,
             },
         );
         Room {
@@ -243,10 +243,10 @@ mod tests {
         }
     }
 
-    fn quit_room(updated_at: UnixTime) -> Room {
+    fn departed_room(updated_at: UnixTime) -> Room {
         let mut record = room_at(updated_at);
         for heartbeat in record.members.values_mut() {
-            heartbeat.membership = RoomMembership::Quit;
+            heartbeat.membership = RoomMembership::Departed;
         }
         record
     }
@@ -342,39 +342,39 @@ mod tests {
     }
 
     #[test]
-    fn quit_tombstone_wins_over_older_heartbeat() {
+    fn departed_tombstone_wins_over_older_heartbeat() {
         let params = Parameters::from(Vec::new());
         let name = RoomName("room-a".to_string());
         let live = room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1));
-        let mut quit = room("peer", UnixTime::from_secs(9), UnixTime::from_secs(1));
-        for heartbeat in quit.members.values_mut() {
-            heartbeat.membership = RoomMembership::Quit;
+        let mut departed = room("peer", UnixTime::from_secs(9), UnixTime::from_secs(1));
+        for heartbeat in departed.members.values_mut() {
+            heartbeat.membership = RoomMembership::Departed;
         }
         let base = Lobby::from([(name.clone(), live)]);
-        let incoming = Lobby::from([(name.clone(), quit)]);
+        let incoming = Lobby::from([(name.clone(), departed)]);
         let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&incoming).unwrap()));
         let merged = LobbyContract::update_state(params, state_of(&base), vec![update]).unwrap();
         let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
         assert!(
             !decoded.contains_key(&name),
-            "the quit tombstone must win over the older live heartbeat"
+            "the departed tombstone must win over the older live heartbeat"
         );
     }
 
     #[test]
-    fn all_quit_room_is_dropped_in_either_merge_order() {
+    fn all_departed_room_is_dropped_in_either_merge_order() {
         let params = Parameters::from(Vec::new());
         let name = RoomName("room-a".to_string());
         let live = room_at(UnixTime::from_secs(5));
-        let quit = quit_room(UnixTime::from_secs(9));
-        let pairs = [(live.clone(), quit.clone()), (quit, live)];
+        let departed = departed_room(UnixTime::from_secs(9));
+        let pairs = [(live.clone(), departed.clone()), (departed, live)];
         for (base_room, incoming_room) in pairs {
             let base = Lobby::from([(name.clone(), base_room)]);
             let incoming = Lobby::from([(name.clone(), incoming_room)]);
             let merged = apply(&params, &base, &incoming);
             assert!(
                 !merged.contains_key(&name),
-                "an all-quit room must not survive the merge"
+                "an all-departed room must not survive the merge"
             );
         }
     }
@@ -383,7 +383,7 @@ mod tests {
     fn stale_live_heartbeat_resurrects_a_dropped_room() {
         let params = Parameters::from(Vec::new());
         let name = RoomName("room-a".to_string());
-        let dead = Lobby::from([(name.clone(), quit_room(UnixTime::from_secs(9)))]);
+        let dead = Lobby::from([(name.clone(), departed_room(UnixTime::from_secs(9)))]);
         let dropped = apply(&params, &Lobby::new(), &dead);
         assert!(!dropped.contains_key(&name));
         let stale = Lobby::from([(name.clone(), room_at(UnixTime::from_secs(5)))]);
@@ -392,14 +392,14 @@ mod tests {
     }
 
     #[test]
-    fn all_quit_room_never_displaces_a_live_room() {
+    fn all_departed_room_never_displaces_a_live_room() {
         let params = Parameters::from(Vec::new());
         let base = lobby_with_rooms(MAX_ROOMS, |index| {
             UnixTime::from_secs(u64::try_from(index).unwrap_or_default().saturating_add(1))
         });
         let dead = Lobby::from([(
             RoomName("z-dead".to_string()),
-            quit_room(UnixTime::from_secs(1_000)),
+            departed_room(UnixTime::from_secs(1_000)),
         )]);
         let merged = apply(&params, &base, &dead);
         assert_eq!(merged.len(), MAX_ROOMS);

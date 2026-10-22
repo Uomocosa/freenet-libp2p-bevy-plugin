@@ -31,11 +31,7 @@ pub fn publish_room_ping(
         return;
     }
     *accumulator = 0.0;
-    let is_connected_in_room = status.room.as_ref().is_some_and(|room| {
-        room.members
-            .values()
-            .any(|member| member.status == discovery::LinkStatus::Connected)
-    });
+    let is_connected_in_room = status.connected_members().next().is_some();
     if is_connected_in_room {
         commands.push(p2p::Command::PublishInJoinedRoom {
             payload: PingPayload(user.0.clone()),
@@ -80,26 +76,24 @@ mod tests {
         let mut members = discovery::Members::new();
         members.insert(
             identity::PeerId::from("peer-b"),
-            discovery::Member {
-                room_member: discovery::RoomMember {
-                    peer: identity::Peer {
-                        id: identity::PeerId::from("peer-b"),
-                        addrs: Vec::new(),
-                    },
-                    updated_at: discovery::UnixTime::from_secs(0),
-                    display_name: Some(identity::Username::from("bob")),
-                    membership: discovery::RoomMembership::InRoom,
+            discovery::RoomMember {
+                peer: identity::Peer {
+                    id: identity::PeerId::from("peer-b"),
+                    addrs: Vec::new(),
                 },
-                status: discovery::LinkStatus::Connected,
+                updated_at: discovery::UnixTime::from_secs(0),
+                display_name: Some(identity::Username::from("bob")),
+                membership: discovery::RoomMembership::Occupant,
             },
         );
         app.insert_resource(discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: discovery::UnixTime::from_secs(0),
-                phase: discovery::RoomPhase::Ready,
+                phase: discovery::JoinPhase::Ready,
                 members,
             }),
+            connected: [identity::PeerId::from("peer-b")].into_iter().collect(),
             ..discovery::Status::default()
         });
         app.insert_resource(p2p::Commands::<PingPayload>::default());

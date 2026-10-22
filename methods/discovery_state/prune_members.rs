@@ -14,7 +14,7 @@ pub fn prune_members(state: &mut DiscoveryState, now: discovery::UnixTime) -> Ve
     };
     let before = room.members.len();
     room.members.retain(|peer, member| {
-        connected.contains(peer) || now.elapsed_since(member.room_member.updated_at) <= grace
+        connected.contains(peer) || now.elapsed_since(member.updated_at) <= grace
     });
     if room.members.len() == before {
         Vec::new()
@@ -40,24 +40,21 @@ mod tests {
         for peer in ["live", "gone"] {
             members.insert(
                 identity::PeerId::from(peer),
-                discovery::Member {
-                    room_member: discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from(peer),
-                            addrs: Vec::new(),
-                        },
-                        updated_at: discovery::UnixTime::from_secs(0),
-                        display_name: None,
-                        membership: discovery::RoomMembership::InRoom,
+                discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: identity::PeerId::from(peer),
+                        addrs: Vec::new(),
                     },
-                    status: discovery::LinkStatus::Lost,
+                    updated_at: discovery::UnixTime::from_secs(0),
+                    display_name: None,
+                    membership: discovery::RoomMembership::Occupant,
                 },
             );
         }
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
             created_at: discovery::UnixTime::from_secs(0),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members,
         });
         state.connected.insert(identity::PeerId::from("live"));

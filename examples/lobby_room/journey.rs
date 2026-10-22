@@ -132,7 +132,7 @@ mod tests {
                     status.room = Some(discovery::JoinedRoom {
                         name: name.clone(),
                         created_at: discovery::UnixTime::from_secs(0),
-                        phase: discovery::RoomPhase::Ready,
+                        phase: discovery::JoinPhase::Ready,
                         members: discovery::Members::new(),
                     });
                 }
@@ -188,17 +188,14 @@ mod tests {
         };
         room.members.insert(
             identity::PeerId::from(*peer),
-            discovery::Member {
-                room_member: discovery::RoomMember {
-                    peer: identity::Peer {
-                        id: identity::PeerId::from(*peer),
-                        addrs: Vec::new(),
-                    },
-                    updated_at: discovery::UnixTime::from_secs(0),
-                    display_name: Some(identity::Username::from(*name)),
-                    membership: discovery::RoomMembership::InRoom,
+            discovery::RoomMember {
+                peer: identity::Peer {
+                    id: identity::PeerId::from(*peer),
+                    addrs: Vec::new(),
                 },
-                status: discovery::LinkStatus::Connected,
+                updated_at: discovery::UnixTime::from_secs(0),
+                display_name: Some(identity::Username::from(*name)),
+                membership: discovery::RoomMembership::Occupant,
             },
         );
     }
@@ -219,7 +216,7 @@ mod tests {
         world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from(JOIN_ROOM),
             created_at: discovery::UnixTime::from_secs(0),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
         for index in 0..PEERS.len() {

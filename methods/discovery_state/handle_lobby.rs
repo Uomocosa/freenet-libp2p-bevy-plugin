@@ -36,7 +36,7 @@ mod tests {
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
             created_at: discovery::UnixTime::from_secs(0),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
         let mut members = BTreeMap::new();
@@ -50,7 +50,7 @@ mod tests {
                     },
                     updated_at: discovery::UnixTime::from_secs(3),
                     display_name: None,
-                    membership: discovery::RoomMembership::InRoom,
+                    membership: discovery::RoomMembership::Occupant,
                 },
             );
         }

@@ -17,8 +17,8 @@ pub fn pick_screen(
         Screen::JoinFailed
     } else {
         match (phase, current) {
-            (Some(discovery::RoomPhase::Ready), _) => Screen::InRoom,
-            (Some(discovery::RoomPhase::Joining), _) => Screen::JoiningRoom,
+            (Some(discovery::JoinPhase::Ready), _) => Screen::InRoom,
+            (Some(discovery::JoinPhase::Joining { .. }), _) => Screen::JoiningRoom,
             (None, Screen::Connecting) if !status.is_lobby_attached => Screen::Connecting,
             (None, _) => Screen::Lobby,
         }
@@ -74,7 +74,9 @@ mod tests {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: discovery::UnixTime::from_secs(0),
-                phase: discovery::RoomPhase::Joining,
+                phase: discovery::JoinPhase::Joining {
+                    since: discovery::UnixTime::from_secs(0),
+                },
                 members: discovery::Members::new(),
             }),
             ..ready.clone()
@@ -84,7 +86,7 @@ mod tests {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: discovery::UnixTime::from_secs(0),
-                phase: discovery::RoomPhase::Ready,
+                phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
             }),
             ..ready

@@ -42,9 +42,10 @@ mod tests {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("r"),
                 created_at: discovery::UnixTime::from_secs(0),
-                phase: discovery::RoomPhase::Ready,
+                phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
             }),
+            connected: std::collections::BTreeSet::new(),
             freenet_peers: Vec::new(),
             is_lobby_attached: true,
             self_peer_id: None,

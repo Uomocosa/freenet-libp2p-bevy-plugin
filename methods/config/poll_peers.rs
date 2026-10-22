@@ -2,7 +2,6 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::discovery;
 use crate::identity;
-use discovery::freenet::basic::constants;
 
 pub async fn poll_peers(
     state: &discovery::freenet::Config,
@@ -12,9 +11,7 @@ pub async fn poll_peers(
     let mut interval = tokio::time::interval(discovery::TICK);
     loop {
         interval.tick().await;
-        let reply =
-            tokio::time::timeout(constants::REQUEST_TIMEOUT, client.connected_peers()).await;
-        if let Ok(Ok(peers)) = reply
+        if let Ok(peers) = client.connected_peers().await
             && peers_tx.send(peers).is_err()
         {
             return;

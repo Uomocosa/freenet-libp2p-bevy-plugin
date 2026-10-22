@@ -37,21 +37,19 @@ pub fn node_with(game: &identity::GameId, history: Option<room_sync::HistoryConf
 }
 
 pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) -> discovery::Status {
+    let connected = members.iter().cloned().collect();
     let mut room_members = discovery::Members::new();
     for peer in members {
         room_members.insert(
             peer.clone(),
-            discovery::Member {
-                room_member: discovery::RoomMember {
-                    peer: identity::Peer {
-                        id: peer,
-                        addrs: Vec::new(),
-                    },
-                    updated_at: discovery::UnixTime::from_secs(0),
-                    display_name: None,
-                    membership: discovery::RoomMembership::InRoom,
+            discovery::RoomMember {
+                peer: identity::Peer {
+                    id: peer,
+                    addrs: Vec::new(),
                 },
-                status: discovery::LinkStatus::Connected,
+                updated_at: discovery::UnixTime::from_secs(0),
+                display_name: None,
+                membership: discovery::RoomMembership::Occupant,
             },
         );
     }
@@ -59,9 +57,10 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
         room: Some(discovery::JoinedRoom {
             name: room.clone(),
             created_at: discovery::UnixTime::from_secs(1),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members: room_members,
         }),
+        connected,
         ..discovery::Status::default()
     }
 }

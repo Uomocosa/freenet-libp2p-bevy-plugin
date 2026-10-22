@@ -8,7 +8,7 @@ pub async fn wait_until_ring_ready(
     budget: Duration,
 ) -> Result<(), discovery::Error> {
     let tick = Duration::from_secs(1);
-    let mut waited = Duration::ZERO;
+    let started = std::time::Instant::now();
     loop {
         let peers = state.connected_peers().await?;
         let addrs: Vec<String> = peers.iter().map(|p| p.addr.to_string()).collect();
@@ -18,10 +18,11 @@ pub async fn wait_until_ring_ready(
                 target: "discovery",
                 "lobby freenet transport connected peers={} waited_ms={}",
                 peers.len(),
-                waited.as_millis()
+                started.elapsed().as_millis()
             );
             return Ok(());
         }
+        let waited = started.elapsed();
         if waited >= budget {
             tracing::warn!(
                 target: "discovery",
@@ -34,7 +35,6 @@ pub async fn wait_until_ring_ready(
             return Ok(());
         }
         tokio::time::sleep(tick).await;
-        waited = waited.saturating_add(tick);
     }
 }
 

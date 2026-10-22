@@ -56,7 +56,7 @@ mod tests {
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
                 created_at: discovery::UnixTime::from_secs(0),
-                phase: discovery::RoomPhase::Ready,
+                phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
             }),
             ..Default::default()
@@ -83,7 +83,7 @@ mod tests {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
                 created_at: discovery::UnixTime::from_secs(0),
-                phase: discovery::RoomPhase::Ready,
+                phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
             }),
             ..Default::default()
@@ -122,7 +122,7 @@ mod tests {
         world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("beta"),
             created_at: discovery::UnixTime::from_secs(0),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
     }

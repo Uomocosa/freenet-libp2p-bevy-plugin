@@ -38,7 +38,9 @@ mod tests {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
                 created_at: discovery::UnixTime::from_secs(0),
-                phase: discovery::RoomPhase::Joining,
+                phase: discovery::JoinPhase::Joining {
+                    since: discovery::UnixTime::from_secs(0),
+                },
                 members: discovery::Members::new(),
             }),
             ..Default::default()

@@ -27,17 +27,14 @@ pub fn handle_handshake(
     let Some(room) = state.room.as_mut() else {
         return Vec::new();
     };
-    let member = discovery::Member {
-        room_member: discovery::RoomMember {
-            peer: identity::Peer {
-                id: from.clone(),
-                addrs: handshake.addrs,
-            },
-            updated_at: now,
-            display_name: Some(handshake.display_name),
-            membership: discovery::RoomMembership::InRoom,
+    let member = discovery::RoomMember {
+        peer: identity::Peer {
+            id: from.clone(),
+            addrs: handshake.addrs,
         },
-        status: discovery::LinkStatus::Connected,
+        updated_at: now,
+        display_name: Some(handshake.display_name),
+        membership: discovery::RoomMembership::Occupant,
     };
     let added = room.members.insert(from.clone(), member).is_none();
     if !added {
@@ -85,7 +82,7 @@ mod tests {
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
             created_at: discovery::UnixTime::from_secs(0),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
         state
@@ -139,11 +136,10 @@ mod tests {
             &data,
             discovery::UnixTime::from_secs(1),
         );
-        let status = state
+        let is_member = state
             .room
             .as_ref()
-            .and_then(|room| room.members.get(&joiner))
-            .map(|member| member.status);
-        assert_eq!(status, Some(discovery::LinkStatus::Connected));
+            .is_some_and(|room| room.members.contains_key(&joiner));
+        assert!(is_member);
     }
 }

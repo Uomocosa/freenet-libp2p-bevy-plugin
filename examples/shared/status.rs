@@ -13,11 +13,7 @@ pub fn log_mesh(status: Res<discovery::Status>, mut last: Local<Option<(String, 
     let Some(room) = status.room.as_ref() else {
         return;
     };
-    let connected = room
-        .members
-        .values()
-        .filter(|member| member.status == discovery::LinkStatus::Connected)
-        .count();
+    let connected = status.connected_members().count();
     let now = (room.name.as_str().to_string(), connected);
     if last.as_ref() == Some(&now) {
         return;
@@ -46,12 +42,7 @@ pub fn log_tick(time: Res<Time>, status: Res<discovery::Status>, mut accumulator
         .as_ref()
         .map_or_else(|| "none".to_string(), |room| room.name.as_str().to_string());
     let members = status.room.as_ref().map_or(0, |room| room.members.len());
-    let connected = status.room.as_ref().map_or(0, |room| {
-        room.members
-            .values()
-            .filter(|member| member.status == discovery::LinkStatus::Connected)
-            .count()
-    });
+    let connected = status.connected_members().count();
     let freenet_peers = status.freenet_peers.len();
     tracing::info!(
         "lobby tick rooms={rooms} room={room} members={members} connected={connected} freenet_peers={freenet_peers}"

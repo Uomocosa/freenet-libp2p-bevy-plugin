@@ -15,7 +15,6 @@ pub struct DiscoveryState {
     pub candidates: BTreeMap<identity::PeerId, discovery::state_machine::Candidate>,
     pub last_dialed_at: BTreeMap<identity::PeerId, discovery::UnixTime>,
     pub last_handshake_at: Option<discovery::UnixTime>,
-    pub joining_since: Option<discovery::UnixTime>,
     pub freenet_peers: Vec<identity::FreenetPeer>,
     pub is_lobby_attached: bool,
     pub display_name: identity::Username,
@@ -38,7 +37,6 @@ impl DiscoveryState {
             candidates: BTreeMap::new(),
             last_dialed_at: BTreeMap::new(),
             last_handshake_at: None,
-            joining_since: None,
             freenet_peers: Vec::new(),
             is_lobby_attached: false,
             display_name: identity::Username(String::new()),
@@ -141,7 +139,7 @@ impl DiscoveryState {
             }
             p2p::NetEvent::PeerDisconnected(peer) => {
                 self.connected.remove(&peer);
-                mark_lost(self, &peer, now)
+                refresh_grace(self, &peer, now)
             }
             p2p::NetEvent::PeerExchange { from, data } => {
                 self.handle_handshake(&from, &data, now)
@@ -162,6 +160,7 @@ impl DiscoveryState {
         discovery::Status {
             lobby: self.lobby.clone(),
             room: self.room.clone(),
+            connected: self.connected.clone(),
             freenet_peers: self.freenet_peers.clone(),
             is_lobby_attached: self.is_lobby_attached,
             self_peer_id: Some(self.me.id.clone()),
@@ -189,7 +188,7 @@ impl DiscoveryState {
     }
 }
 
-// needed helper: leaves, then marks every held room so the next publish is a Quit tombstone
+// needed helper: leaves, then marks every held room so the next publish is a Departed tombstone
 fn quit(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output> {
     let outputs = leave(state, now);
     state.is_quitting = true;
@@ -212,10 +211,9 @@ fn join(
     state.room = Some(discovery::JoinedRoom {
         name: room.clone(),
         created_at,
-        phase: discovery::RoomPhase::Joining,
+        phase: discovery::JoinPhase::Joining { since: now },
         members: discovery::Members::new(),
     });
-    state.joining_since = Some(now);
     outputs.extend(state.collect_room_peers_from_lobby());
     outputs.extend(state.broadcast_handshake());
     outputs.extend(state.dial_candidates(now));
@@ -236,7 +234,6 @@ fn leave(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output> {
             left_at: now,
         },
     );
-    state.joining_since = None;
     state.candidates.clear();
     state.last_dialed_at.clear();
     let mut outputs = state.broadcast_handshake();
@@ -244,8 +241,8 @@ fn leave(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output> {
     outputs
 }
 
-// needed helper: keeps a dropped member for the grace window, marked not connected
-fn mark_lost(
+// needed helper: keeps a dropped member visible for the whole grace window
+fn refresh_grace(
     state: &mut DiscoveryState,
     peer: &identity::PeerId,
     now: discovery::UnixTime,
@@ -257,8 +254,7 @@ fn mark_lost(
     else {
         return Vec::new();
     };
-    member.status = discovery::LinkStatus::Lost;
-    member.room_member.updated_at = now;
+    member.updated_at = now;
     vec![Output::Notify(discovery::Event::MembersChanged)]
 }
 

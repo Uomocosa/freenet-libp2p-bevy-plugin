@@ -33,7 +33,9 @@ mod tests {
         state.room = Some(discovery::JoinedRoom {
             name: room.clone(),
             created_at: discovery::UnixTime::from_secs(500),
-            phase: discovery::RoomPhase::Joining,
+            phase: discovery::JoinPhase::Joining {
+                since: discovery::UnixTime::from_secs(0),
+            },
             members: discovery::Members::new(),
         });
         state.lobby.insert(
@@ -60,7 +62,9 @@ mod tests {
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
             created_at: discovery::UnixTime::from_secs(500),
-            phase: discovery::RoomPhase::Joining,
+            phase: discovery::JoinPhase::Joining {
+                since: discovery::UnixTime::from_secs(0),
+            },
             members: discovery::Members::new(),
         });
         align_room_created_at(&mut state);

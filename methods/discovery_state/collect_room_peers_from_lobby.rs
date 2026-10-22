@@ -17,7 +17,7 @@ pub fn collect_room_peers_from_lobby(state: &mut DiscoveryState) -> Vec<Output> 
         .filter(|(peer, room_member)| {
             **peer != state.me.id
                 && !room_member.peer.addrs.is_empty()
-                && room_member.membership != discovery::RoomMembership::Quit
+                && room_member.membership != discovery::RoomMembership::Departed
         })
         .map(|(peer, room_member)| (peer.clone(), room_member.clone()))
         .collect();
@@ -29,7 +29,7 @@ pub fn collect_room_peers_from_lobby(state: &mut DiscoveryState) -> Vec<Output> 
                 addrs: room_member.peer.addrs.clone(),
             },
         )));
-        if room_member.membership != discovery::RoomMembership::InRoom {
+        if room_member.membership != discovery::RoomMembership::Occupant {
             continue;
         }
         let newer = state
@@ -69,7 +69,7 @@ mod tests {
         state.room = Some(discovery::JoinedRoom {
             name: room.clone(),
             created_at: discovery::UnixTime::from_secs(0),
-            phase: discovery::RoomPhase::Ready,
+            phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
         });
         let in_room = discovery::RoomMember {
@@ -79,7 +79,7 @@ mod tests {
             },
             updated_at: discovery::UnixTime::from_secs(5),
             display_name: None,
-            membership: discovery::RoomMembership::InRoom,
+            membership: discovery::RoomMembership::Occupant,
         };
         let holder = discovery::RoomMember {
             peer: identity::Peer {
@@ -88,7 +88,7 @@ mod tests {
             },
             updated_at: discovery::UnixTime::from_secs(5),
             display_name: None,
-            membership: discovery::RoomMembership::HoldingHistory,
+            membership: discovery::RoomMembership::HistoryHolder,
         };
         let members = BTreeMap::from([
             (identity::PeerId::from("me"), in_room.clone()),
