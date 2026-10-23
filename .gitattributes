@@ -1,1 +1,2 @@
 Cargo.toml filter=lele-pins
+Cargo.lock filter=lele-pins
