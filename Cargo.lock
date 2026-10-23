@@ -521,8 +521,8 @@ dependencies = [
 
 [[package]]
 name = "atomic-delegate-macros"
-version = "0.0.3"
-source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.3#d46fae11c7b7fde212f47d5d5a05ac9f31487dcb"
+version = "0.0.5"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.5#f8ca47e418bedbbab13bc12e071574133965d34b"
 dependencies = [
  "lele-snake-case",
  "proc-macro2",
@@ -3920,8 +3920,8 @@ dependencies = [
 
 [[package]]
 name = "freenet-contract-harness"
-version = "0.0.2"
-source = "git+https://github.com/Uomocosa/freenet-contract-harness?tag=v0.0.2#cd0e58bac7a85bafcf579b1816f4baf350c32081"
+version = "0.0.4"
+source = "git+https://github.com/Uomocosa/freenet-contract-harness?tag=v0.0.4#9d0f94a6739aa4e3f0c315d932d597597eba2902"
 dependencies = [
  "bincode",
  "freenet-stdlib",
@@ -3930,7 +3930,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-plugin"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "async-trait",
  "atomic-delegate-macros",
@@ -5702,8 +5702,8 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "lele-bevy-preview"
-version = "0.0.8"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.8#d9b653bd80e8e3ce0f39b45e152573ada573a5f5"
+version = "0.0.9"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.9#3e2e813d83b39ecdbc8864548e7a102962ca25e1"
 dependencies = [
  "atomic-delegate-macros",
  "bevy",
@@ -5719,8 +5719,8 @@ dependencies = [
 
 [[package]]
 name = "lele-snake-case"
-version = "0.0.3"
-source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.3#d46fae11c7b7fde212f47d5d5a05ac9f31487dcb"
+version = "0.0.5"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.5#f8ca47e418bedbbab13bc12e071574133965d34b"
 
 [[package]]
 name = "libappindicator"
@@ -9472,8 +9472,8 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 
 [[package]]
 name = "telegram-bot-helper"
-version = "0.0.8"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.8#d9b653bd80e8e3ce0f39b45e152573ada573a5f5"
+version = "0.0.9"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.9#3e2e813d83b39ecdbc8864548e7a102962ca25e1"
 dependencies = [
  "atomic-delegate-macros",
  "chrono",
@@ -9487,8 +9487,8 @@ dependencies = [
 
 [[package]]
 name = "telegram-bot-helper-macros"
-version = "0.0.8"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.8#d9b653bd80e8e3ce0f39b45e152573ada573a5f5"
+version = "0.0.9"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.9#3e2e813d83b39ecdbc8864548e7a102962ca25e1"
 dependencies = [
  "proc-macro2",
  "quote",

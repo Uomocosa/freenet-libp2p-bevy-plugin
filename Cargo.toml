@@ -1,6 +1,6 @@
 [package]
 name = "freenet-libp2p-bevy-plugin"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2024"
 description = "Generic P2PBevyPlugin (Freenet discovery + libp2p Kademlia history) — Freenet lobby contract"
 license = "MIT OR Apache-2.0"
@@ -75,7 +75,7 @@ module_inception = "allow"
 missing_errors_doc = "allow"
 
 [dependencies]
-atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.3" }
+atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.5" }
 bevy = { version = "=0.19.1", default-features = false, features = ["2d", "ui"] }
 derive_more = { version = "=2.1.1", features = ["deref", "deref_mut", "display", "from"] }
 libp2p = { version = "=0.56.0", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
@@ -106,12 +106,12 @@ default_ui = ["discovery"]
 e2e = ["discovery", "default_ui"]
 
 [dev-dependencies]
-telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.8" }
-lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.8" }
+telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.9" }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.9" }
 freenet = "=0.2.132"
 tempfile = "=3.27.0"
 freenet-stdlib = { version = "=0.8.5", features = ["contract"] }
-freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.2" }
+freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.4" }
 lobby_contract = { path = "contract/lobby" }
 
 # Early-phase profile: optimise for compile time and peak RAM, not runtime speed.
