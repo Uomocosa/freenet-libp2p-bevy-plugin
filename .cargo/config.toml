@@ -1,5 +1,5 @@
 # Bound the job count for the heavy bevy/freenet cold builds. The target dir is
 # set in the justfile (CARGO_TARGET_DIR) so it stays portable.
 [build]
-jobs = 6
+jobs = 1
 
