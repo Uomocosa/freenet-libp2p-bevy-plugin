@@ -111,7 +111,7 @@ lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", t
 freenet = "=0.2.132"
 tempfile = "=3.27.0"
 freenet-stdlib = { version = "=0.8.5", features = ["contract"] }
-freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.1" }
+freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.2" }
 lobby_contract = { path = "contract/lobby" }
 
 # Early-phase profile: optimise for compile time and peak RAM, not runtime speed.

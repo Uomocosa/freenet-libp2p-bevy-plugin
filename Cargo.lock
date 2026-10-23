@@ -3920,8 +3920,8 @@ dependencies = [
 
 [[package]]
 name = "freenet-contract-harness"
-version = "0.0.1"
-source = "git+https://github.com/Uomocosa/freenet-contract-harness?tag=v0.0.1#05ac57025fc2e6e76ae9841f5fba086039e2966c"
+version = "0.0.2"
+source = "git+https://github.com/Uomocosa/freenet-contract-harness?tag=v0.0.2#cd0e58bac7a85bafcf579b1816f4baf350c32081"
 dependencies = [
  "bincode",
  "freenet-stdlib",
