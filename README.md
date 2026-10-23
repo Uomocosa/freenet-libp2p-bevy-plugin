@@ -49,6 +49,27 @@ Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
   anti-entropy repair. Run it with `just run-starboard --username <name>`; see
   [`examples/starboard/README.md`](examples/starboard/README.md).
 
+## Dependencies and releases
+
+This crate depends on three sibling repositories at release tags
+(`atomic-delegate-macros` from `lele-rust-linter`; `telegram-bot-helper` and
+`lele-bevy-preview` from `telegram-bot-helper`; `freenet-contract-harness`):
+
+    lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.8" }
+
+A git content filter (`lele-pins`) rewrites those pins to sibling `path =`
+dependencies in your working tree, so an edit in a dependency is picked up by the
+next `cargo build` here with no release and no command. Install it once per
+machine:
+
+    cd ../lele-release && just setup
+
+Never hand-edit a pin. From the fleet root, `just release <patch|minor|major>`
+bumps every changed repo, re-pins its dependents, tags `vX.Y.Z` and pushes; see
+`lele-release/README.md` for `status`, `--only`/`--exclude` and `--dry-run`. A
+plain clone without the filter resolves the committed tags, which is exactly what
+CI sees.
+
 ## Developing this crate (examples, previews, e2e)
 
 ```sh
