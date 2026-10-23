@@ -41,6 +41,8 @@ impl UnixTime {
 mod tests {
     use std::time::Duration;
 
+    use rstest::rstest;
+
     use super::UnixTime;
 
     #[test]
@@ -51,6 +53,17 @@ mod tests {
             Duration::from_secs(15)
         );
         assert!(UnixTime::now() > UnixTime::from(1_700_000_000));
+    }
+
+    #[rstest]
+    #[case::normal(25, 10, 15)]
+    #[case::saturates_on_reversed(10, 25, 0)]
+    #[case::zero(0, 0, 0)]
+    fn elapsed_since_is_saturating(#[case] now: u64, #[case] earlier: u64, #[case] expected: u64) {
+        assert_eq!(
+            UnixTime::from(now).elapsed_since(UnixTime::from(earlier)),
+            Duration::from_secs(expected)
+        );
     }
 
     #[test]
