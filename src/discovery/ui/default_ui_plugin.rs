@@ -110,23 +110,23 @@ mod tests {
     #[test]
     fn default_ui_plugin_ui_scene_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        lele_bevy_preview::run(
-            &lele_bevy_preview::scene::Scene {
-                name: String::from("default_ui_plugin"),
-                kind: lele_bevy_preview::scene::Kind::Plugin,
-                build: preview_build,
-                states: vec![
-                    lele_bevy_preview::scene::State {
-                        label: String::from("lobby with two rooms"),
-                        apply: preview_noop,
-                    },
-                    lele_bevy_preview::scene::State {
-                        label: String::from("all hovered"),
-                        apply: hover_all,
-                    },
-                ],
-                timeline: None,
-            },
+        lele_bevy_preview::scene::Scene {
+            name: String::from("default_ui_plugin"),
+            kind: lele_bevy_preview::scene::Kind::Plugin,
+            build: preview_build,
+            states: vec![
+                lele_bevy_preview::scene::State {
+                    label: String::from("lobby with two rooms"),
+                    apply: preview_noop,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("all hovered"),
+                    apply: hover_all,
+                },
+            ],
+            timeline: None,
+        }
+        .run(
             &lele_bevy_preview::preview::Config {
                 out_dir: out,
                 ..Default::default()

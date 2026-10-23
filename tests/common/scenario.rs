@@ -2,8 +2,6 @@ use std::path::{Path, PathBuf};
 use std::process::Child;
 use std::time::{Duration, Instant};
 
-use telegram_bot_helper::send_video_best_effort;
-
 use super::{
     TerminalGuard, build_game, cleanup_stale, finish_record, history_write_bytes, last_canvas,
     log_contains, marker_times, read_head, require_x11, speed_clip, start_record, tile,
@@ -787,7 +785,13 @@ async fn send_clip(clip: Option<&Path>, caption: &str) {
     };
     let clip = clip.to_path_buf();
     let caption = caption.to_string();
-    let _ = tokio::task::spawn_blocking(move || send_video_best_effort(&clip, &caption)).await;
+    let _ = tokio::task::spawn_blocking(move || {
+        telegram_bot_helper::TelegramBot::send_video_best_effort(
+            &clip,
+            &telegram_bot_helper::Caption::from(caption.as_str()),
+        );
+    })
+    .await;
 }
 
 fn early_report(scenario: &Scenario, detail: String) -> Report {

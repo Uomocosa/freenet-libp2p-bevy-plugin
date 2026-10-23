@@ -108,7 +108,7 @@ mod tests {
 
     fn spawn_swatch(mut commands: Commands) {
         let root = commands
-            .spawn(lele_bevy_preview::scene::centered_root())
+            .spawn(lele_bevy_preview::scene::Scene::centered_root())
             .id();
         commands.spawn((
             ChildOf(root),
@@ -168,7 +168,8 @@ mod tests {
             fps: 30,
             apply: preview_noop,
         };
-        lele_bevy_preview::run(&scene(Some(timeline)), &config(), env!("CARGO_PKG_NAME"))
+        scene(Some(timeline))
+            .run(&config(), env!("CARGO_PKG_NAME"))
             .expect("preview");
     }
 }

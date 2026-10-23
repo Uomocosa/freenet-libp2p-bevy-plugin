@@ -309,11 +309,15 @@ mod tests {
     fn overlay_ui_png_preview() {
         let _markers: Option<(RoomBar, PeerCard, RoomView)> = None;
         let _labels: Option<(RoomTitle, PeerCount, PeerList)> = None;
-        lele_bevy_preview::run(&scene(None), &config(), env!("CARGO_PKG_NAME")).expect("preview");
+        scene(None)
+            .run(&config(), env!("CARGO_PKG_NAME"))
+            .expect("preview");
     }
 
     #[test]
     fn overlay_ui_scene_preview() {
-        lele_bevy_preview::run(&scene(None), &config(), env!("CARGO_PKG_NAME")).expect("preview");
+        scene(None)
+            .run(&config(), env!("CARGO_PKG_NAME"))
+            .expect("preview");
     }
 }

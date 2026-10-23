@@ -92,7 +92,7 @@ mod tests {
 
     fn spawn_rows(mut commands: Commands) {
         let root = commands
-            .spawn(lele_bevy_preview::scene::centered_root())
+            .spawn(lele_bevy_preview::scene::Scene::centered_root())
             .id();
         for name in ["alpha", "beta"] {
             commands.spawn((
@@ -130,23 +130,23 @@ mod tests {
     #[test]
     fn highlight_current_room_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        lele_bevy_preview::run(
-            &lele_bevy_preview::scene::Scene {
-                name: String::from("highlight_current_room"),
-                kind: lele_bevy_preview::scene::Kind::System,
-                build: preview_build,
-                states: vec![
-                    lele_bevy_preview::scene::State {
-                        label: String::from("alpha current"),
-                        apply: preview_noop,
-                    },
-                    lele_bevy_preview::scene::State {
-                        label: String::from("beta current"),
-                        apply: pick_beta,
-                    },
-                ],
-                timeline: None,
-            },
+        lele_bevy_preview::scene::Scene {
+            name: String::from("highlight_current_room"),
+            kind: lele_bevy_preview::scene::Kind::System,
+            build: preview_build,
+            states: vec![
+                lele_bevy_preview::scene::State {
+                    label: String::from("alpha current"),
+                    apply: preview_noop,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("beta current"),
+                    apply: pick_beta,
+                },
+            ],
+            timeline: None,
+        }
+        .run(
             &lele_bevy_preview::preview::Config {
                 out_dir: out,
                 ..Default::default()

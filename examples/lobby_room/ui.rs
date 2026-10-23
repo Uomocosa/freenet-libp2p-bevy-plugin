@@ -277,13 +277,15 @@ mod tests {
     #[test]
     fn lobby_ui_png_preview() {
         let _markers: Option<(NameField, NewRoomButton, RoomColumn, JoinButton)> = None;
-        lele_bevy_preview::run(&scene("lobby_ui", None), &config(), env!("CARGO_PKG_NAME"))
+        scene("lobby_ui", None)
+            .run(&config(), env!("CARGO_PKG_NAME"))
             .expect("preview");
     }
 
     #[test]
     fn lobby_ui_scene_preview() {
-        lele_bevy_preview::run(&scene("lobby_ui", None), &config(), env!("CARGO_PKG_NAME"))
+        scene("lobby_ui", None)
+            .run(&config(), env!("CARGO_PKG_NAME"))
             .expect("preview");
     }
 
@@ -295,11 +297,8 @@ mod tests {
             fps: 12,
             apply: add_room,
         };
-        lele_bevy_preview::run(
-            &scene("lobby_ui", Some(timeline)),
-            &config(),
-            env!("CARGO_PKG_NAME"),
-        )
-        .expect("preview");
+        scene("lobby_ui", Some(timeline))
+            .run(&config(), env!("CARGO_PKG_NAME"))
+            .expect("preview");
     }
 }

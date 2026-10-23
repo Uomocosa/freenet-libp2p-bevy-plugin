@@ -274,7 +274,9 @@ mod tests {
 
     #[test]
     fn lobby_journey_ui_png_preview() {
-        lele_bevy_preview::run(&scene(None), &config(), env!("CARGO_PKG_NAME")).expect("preview");
+        scene(None)
+            .run(&config(), env!("CARGO_PKG_NAME"))
+            .expect("preview");
     }
 
     #[test]
@@ -285,7 +287,8 @@ mod tests {
             fps: JOURNEY_FPS,
             apply: start_journey,
         };
-        lele_bevy_preview::run(&scene(Some(timeline)), &config(), env!("CARGO_PKG_NAME"))
+        scene(Some(timeline))
+            .run(&config(), env!("CARGO_PKG_NAME"))
             .expect("preview");
     }
 }

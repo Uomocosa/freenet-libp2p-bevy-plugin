@@ -78,17 +78,17 @@ mod tests {
     #[test]
     fn spawn_connecting_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        lele_bevy_preview::run(
-            &lele_bevy_preview::scene::Scene {
-                name: String::from("spawn_connecting"),
-                kind: lele_bevy_preview::scene::Kind::System,
-                build: preview_build,
-                states: vec![lele_bevy_preview::scene::State {
-                    label: String::from("connecting"),
-                    apply: preview_noop,
-                }],
-                timeline: None,
-            },
+        lele_bevy_preview::scene::Scene {
+            name: String::from("spawn_connecting"),
+            kind: lele_bevy_preview::scene::Kind::System,
+            build: preview_build,
+            states: vec![lele_bevy_preview::scene::State {
+                label: String::from("connecting"),
+                apply: preview_noop,
+            }],
+            timeline: None,
+        }
+        .run(
             &lele_bevy_preview::preview::Config {
                 out_dir: out,
                 ..Default::default()

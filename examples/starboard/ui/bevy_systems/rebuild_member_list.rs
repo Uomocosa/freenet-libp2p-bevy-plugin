@@ -180,7 +180,9 @@ mod tests {
 
     #[test]
     fn rebuild_member_list_ui_png_preview() {
-        lele_bevy_preview::run(&scene(), &config(), env!("CARGO_PKG_NAME")).expect("preview");
+        scene()
+            .run(&config(), env!("CARGO_PKG_NAME"))
+            .expect("preview");
     }
 
     #[test]

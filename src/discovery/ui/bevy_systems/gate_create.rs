@@ -94,7 +94,7 @@ mod tests {
     fn spawn_button(mut commands: Commands) {
         commands.spawn((discovery::ui::RoomNameInput, EditableText::new("")));
         let root = commands
-            .spawn(lele_bevy_preview::scene::centered_root())
+            .spawn(lele_bevy_preview::scene::Scene::centered_root())
             .id();
         commands.spawn((
             ChildOf(root),
@@ -127,23 +127,23 @@ mod tests {
     #[test]
     fn gate_create_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        lele_bevy_preview::run(
-            &lele_bevy_preview::scene::Scene {
-                name: String::from("gate_create"),
-                kind: lele_bevy_preview::scene::Kind::System,
-                build: preview_build,
-                states: vec![
-                    lele_bevy_preview::scene::State {
-                        label: String::from("blank name"),
-                        apply: preview_noop,
-                    },
-                    lele_bevy_preview::scene::State {
-                        label: String::from("typed name"),
-                        apply: type_name,
-                    },
-                ],
-                timeline: None,
-            },
+        lele_bevy_preview::scene::Scene {
+            name: String::from("gate_create"),
+            kind: lele_bevy_preview::scene::Kind::System,
+            build: preview_build,
+            states: vec![
+                lele_bevy_preview::scene::State {
+                    label: String::from("blank name"),
+                    apply: preview_noop,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("typed name"),
+                    apply: type_name,
+                },
+            ],
+            timeline: None,
+        }
+        .run(
             &lele_bevy_preview::preview::Config {
                 out_dir: out,
                 ..Default::default()

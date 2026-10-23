@@ -106,8 +106,8 @@ default_ui = ["discovery"]
 e2e = ["discovery", "default_ui"]
 
 [dev-dependencies]
-telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.1" }
-lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.6" }
+telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.7" }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.7" }
 freenet = "=0.2.132"
 tempfile = "=3.27.0"
 freenet-stdlib = { version = "=0.8.5", features = ["contract"] }

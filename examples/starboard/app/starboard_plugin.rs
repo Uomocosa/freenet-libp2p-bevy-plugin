@@ -154,12 +154,16 @@ mod tests {
 
     #[test]
     fn board_ui_png_preview() {
-        lele_bevy_preview::run(&scene(), &config(), env!("CARGO_PKG_NAME")).expect("preview");
+        scene()
+            .run(&config(), env!("CARGO_PKG_NAME"))
+            .expect("preview");
     }
 
     #[test]
     fn board_ui_scene_preview() {
-        lele_bevy_preview::run(&scene(), &config(), env!("CARGO_PKG_NAME")).expect("preview");
+        scene()
+            .run(&config(), env!("CARGO_PKG_NAME"))
+            .expect("preview");
     }
 
     const CONVERGE_BUDGET: std::time::Duration = std::time::Duration::from_secs(10);
