@@ -1,6 +1,6 @@
 [package]
 name = "freenet-libp2p-bevy-plugin"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 description = "Generic P2PBevyPlugin (Freenet discovery + libp2p Kademlia history) — Freenet lobby contract"
 license = "MIT OR Apache-2.0"

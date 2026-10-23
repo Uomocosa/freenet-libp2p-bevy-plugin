@@ -3930,7 +3930,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-plugin"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "async-trait",
  "atomic-delegate-macros",
