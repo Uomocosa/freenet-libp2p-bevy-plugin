@@ -43,7 +43,7 @@ pub async fn connect_retry(
                 tokio::time::sleep(constants::MISSING_RETRY).await;
             }
             Err(e) => {
-                warn!(target: "discovery", tries = tries, error = %e, "lobby attach failed, retrying");
+                warn!(target: "discovery", tries = tries, error = ?e, "lobby attach failed, retrying");
                 tokio::time::sleep(constants::CONNECT_RETRY).await;
             }
         }

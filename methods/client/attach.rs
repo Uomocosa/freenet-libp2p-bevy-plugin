@@ -35,7 +35,7 @@ pub async fn attach(
             info!(target: "discovery", elapsed_ms, rooms = lobby.len(), "lobby fetch found");
         }
         Err(e) => {
-            warn!(target: "discovery", elapsed_ms, error = %e, "lobby fetch failed");
+            warn!(target: "discovery", elapsed_ms, error = ?e, "lobby fetch failed");
         }
     }
     let lobby = match first {
@@ -51,7 +51,7 @@ pub async fn attach(
                     deploy_contract(state, container, initial_lobby),
                 )
                 .await
-                .inspect_err(|e| warn!(target: "discovery", error = %e, "lobby deploy failed"))?;
+                .inspect_err(|e| warn!(target: "discovery", error = ?e, "lobby deploy failed"))?;
             discovery::freenet::RequestTimeout(FETCH_TIMEOUT)
                 .within(
                     discovery::FreenetRequestKind::FetchLobby,

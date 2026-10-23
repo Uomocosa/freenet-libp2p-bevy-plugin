@@ -84,7 +84,7 @@ impl Client {
                 Err(e) => {
                     tracing::warn!(
                         target: "discovery",
-                        error = %e,
+                        error = ?e,
                         "freenet websocket connect failed, retrying"
                     );
                     tokio::time::sleep(constants::CONNECT_RETRY).await;

@@ -10,20 +10,20 @@ pub enum Error {
     Timeout(discovery::FreenetRequestKind),
     #[error("disconnected")]
     Disconnected,
-    #[error("websocket error: {0}")]
-    WebSocket(String),
-    #[error("serialization error: {0}")]
-    Serialization(String),
-    #[error("http error: {0}")]
-    Http(String),
-    #[error("io error: {0}")]
-    Io(String),
+    #[error("websocket error")]
+    WebSocket(#[source] Box<tokio_tungstenite::tungstenite::Error>),
+    #[error("serialization error")]
+    Serialization(#[from] bincode::Error),
+    #[error("http error")]
+    Http(#[from] http::Error),
+    #[error("io error")]
+    Io(#[from] std::io::Error),
     #[error("channel send error")]
     ChannelSend,
     #[error("contract not found")]
     ContractNotFound,
-    #[error("freenet stdlib error: {0}")]
-    Client(String),
+    #[error("freenet stdlib error")]
+    Client(#[from] freenet_stdlib::client_api::ClientError),
     #[error("unexpected response: {0}")]
     UnexpectedResponse(String),
     #[error("room size must be non-zero")]
@@ -32,26 +32,7 @@ pub enum Error {
 
 #[rustfmt::skip]
 impl From<tokio_tungstenite::tungstenite::Error> for Error {
-    fn from(e: tokio_tungstenite::tungstenite::Error) -> Self { Self::WebSocket(e.to_string()) }
+    fn from(error: tokio_tungstenite::tungstenite::Error) -> Self { Self::WebSocket(Box::new(error)) }
 }
 
-#[rustfmt::skip]
-impl From<bincode::Error> for Error {
-    fn from(e: bincode::Error) -> Self { Self::Serialization(e.to_string()) }
-}
-
-#[rustfmt::skip]
-impl From<http::Error> for Error {
-    fn from(e: http::Error) -> Self { Self::Http(e.to_string()) }
-}
-
-#[rustfmt::skip]
-impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Self { Self::Io(e.to_string()) }
-}
-
-#[rustfmt::skip]
-impl From<freenet_stdlib::client_api::ClientError> for Error {
-    fn from(e: freenet_stdlib::client_api::ClientError) -> Self { Self::Client(e.to_string()) }
-}
 // no test_usage necessary

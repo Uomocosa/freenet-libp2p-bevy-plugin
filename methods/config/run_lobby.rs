@@ -79,7 +79,7 @@ pub async fn run_lobby(
                         tracing::info!(target: "discovery", ?room, "lobby heartbeat published");
                     }
                     Err(e) => {
-                        tracing::warn!(target: "discovery", ?room, error = %e, "lobby heartbeat publish failed");
+                        tracing::warn!(target: "discovery", ?room, error = ?e, "lobby heartbeat publish failed");
                     }
                 }
             }
