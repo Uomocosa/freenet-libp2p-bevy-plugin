@@ -521,8 +521,8 @@ dependencies = [
 
 [[package]]
 name = "atomic-delegate-macros"
-version = "0.0.2"
-source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.2#f1e70036ff60ff7f34e03a4e304686f411a43512"
+version = "0.0.3"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.3#d46fae11c7b7fde212f47d5d5a05ac9f31487dcb"
 dependencies = [
  "lele-snake-case",
  "proc-macro2",
@@ -5702,8 +5702,8 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "lele-bevy-preview"
-version = "0.0.7"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.7#4b659a06c63ddf3c8af252b03c910d8b24888ba0"
+version = "0.0.8"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.8#d9b653bd80e8e3ce0f39b45e152573ada573a5f5"
 dependencies = [
  "atomic-delegate-macros",
  "bevy",
@@ -5719,8 +5719,8 @@ dependencies = [
 
 [[package]]
 name = "lele-snake-case"
-version = "0.0.2"
-source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.2#f1e70036ff60ff7f34e03a4e304686f411a43512"
+version = "0.0.3"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.3#d46fae11c7b7fde212f47d5d5a05ac9f31487dcb"
 
 [[package]]
 name = "libappindicator"
@@ -9472,8 +9472,8 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 
 [[package]]
 name = "telegram-bot-helper"
-version = "0.0.7"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.7#4b659a06c63ddf3c8af252b03c910d8b24888ba0"
+version = "0.0.8"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.8#d9b653bd80e8e3ce0f39b45e152573ada573a5f5"
 dependencies = [
  "atomic-delegate-macros",
  "chrono",
@@ -9487,8 +9487,8 @@ dependencies = [
 
 [[package]]
 name = "telegram-bot-helper-macros"
-version = "0.0.7"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.7#4b659a06c63ddf3c8af252b03c910d8b24888ba0"
+version = "0.0.8"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.8#d9b653bd80e8e3ce0f39b45e152573ada573a5f5"
 dependencies = [
  "proc-macro2",
  "quote",
