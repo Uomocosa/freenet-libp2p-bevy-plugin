@@ -47,38 +47,25 @@ pub fn poll_p2p_events<Payload: p2p::Message>(
     }
     if let Some(ready) = ready {
         for event in &drained {
-            publish_ready(&ready, event);
+            match event {
+                p2p::Event::Net(p2p::NetEvent::Ready(me)) => {
+                    ready.ready_tx.send_replace(Some(me.clone()));
+                }
+                p2p::Event::Net(p2p::NetEvent::ObservedAddr(addr)) => {
+                    ready.observed_tx.send_replace(Some(vec![addr.clone()]));
+                }
+                _ => {}
+            }
         }
     }
     if let Some(net_events) = net_events {
         for event in &drained {
-            if let Some(net_event) = net_event_of(event) {
-                net_events.send(net_event);
+            if let p2p::Event::Net(net_event) = event {
+                net_events.send(net_event.clone());
             }
         }
     }
     events.extend(drained);
-}
-
-// needed helper: updates the latest-value ready/observed watch channels
-fn publish_ready<Payload: p2p::Message>(ready: &p2p::ReadyChannel, event: &p2p::Event<Payload>) {
-    match event {
-        p2p::Event::Net(p2p::NetEvent::Ready(me)) => {
-            ready.ready_tx.send_replace(Some(me.clone()));
-        }
-        p2p::Event::Net(p2p::NetEvent::ObservedAddr(addr)) => {
-            ready.observed_tx.send_replace(Some(vec![addr.clone()]));
-        }
-        _ => {}
-    }
-}
-
-// needed helper: maps the non-generic subset of events onto the net event channel
-fn net_event_of<Payload: p2p::Message>(event: &p2p::Event<Payload>) -> Option<p2p::NetEvent> {
-    match event {
-        p2p::Event::Net(net_event) => Some(net_event.clone()),
-        _ => None,
-    }
 }
 
 #[cfg(test)]

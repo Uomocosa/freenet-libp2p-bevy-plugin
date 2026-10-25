@@ -6,40 +6,10 @@ pub fn handle_kademlia_query_result<Payload: p2p::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     result: kad::QueryResult,
 ) {
-    let Some(event) = history_event(result) else {
+    let Some(event) = p2p::SwarmLoopState::<Payload>::history_event(result) else {
         return;
     };
     state.event_tx.send(p2p::Event::Net(event)).ok();
-}
-
-// needed helper: maps one kad query result to its history event, if it is about a history key
-fn history_event(result: kad::QueryResult) -> Option<p2p::NetEvent> {
-    match result {
-        kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))) => {
-            let record = peer_record.record;
-            Some(p2p::NetEvent::HistoryRecordFound {
-                id: p2p::RoomHistoryRecordKind::parse_history_record_key(&record.key)?,
-                value: record.value,
-            })
-        }
-        kad::QueryResult::GetRecord(Err(
-            kad::GetRecordError::NotFound { key, .. }
-            | kad::GetRecordError::QuorumFailed { key, .. }
-            | kad::GetRecordError::Timeout { key },
-        )) => Some(p2p::NetEvent::HistoryRecordNotFound {
-            id: p2p::RoomHistoryRecordKind::parse_history_record_key(&key)?,
-        }),
-        kad::QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
-            Some(p2p::NetEvent::HistoryRecordStored {
-                id: p2p::RoomHistoryRecordKind::parse_history_record_key(&key)?,
-            })
-        }
-        kad::QueryResult::PutRecord(Err(error)) => Some(p2p::NetEvent::HistoryRecordPutFailed {
-            id: p2p::RoomHistoryRecordKind::parse_history_record_key(error.key())?,
-            reason: error.to_string(),
-        }),
-        _ => None,
-    }
 }
 
 #[cfg(test)]

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use freenet_stdlib::client_api::{ClientRequest, ContractRequest, ContractResponse, HostResponse};
 use freenet_stdlib::prelude::*;
 use tracing::{info, warn};
 
@@ -48,7 +47,7 @@ pub async fn attach(
             discovery::freenet::RequestTimeout(DEPLOY_TIMEOUT)
                 .within(
                     discovery::FreenetRequestKind::DeployLobby,
-                    deploy_contract(state, container, initial_lobby),
+                    state.deploy_contract(container, initial_lobby),
                 )
                 .await
                 .inspect_err(|e| warn!(target: "discovery", error = ?e, "lobby deploy failed"))?;
@@ -70,33 +69,6 @@ pub async fn attach(
         peers.len()
     );
     Ok((key, lobby))
-}
-
-// needed helper: puts the lobby contract seeded with our own heartbeat and waits for the ack
-async fn deploy_contract(
-    client: &mut discovery::freenet::Client,
-    contract: ContractContainer,
-    initial_lobby: &discovery::Lobby,
-) -> Result<(), discovery::Error> {
-    let put = ContractRequest::Put {
-        contract,
-        state: WrappedState::new(bincode::serialize(initial_lobby)?),
-        related_contracts: RelatedContracts::default(),
-        subscribe: true,
-        blocking_subscribe: false,
-    };
-    client.send(&ClientRequest::ContractOp(put))?;
-    match client.next_reply().await? {
-        HostResponse::ContractResponse(
-            ContractResponse::PutResponse { key }
-            | ContractResponse::SubscribeResponse { key, .. }
-            | ContractResponse::UpdateResponse { key, .. },
-        ) => {
-            info!(target: "discovery", key = %key, "discovery: lobby contract deployed");
-            Ok(())
-        }
-        other => Err(discovery::Error::UnexpectedResponse(format!("{other:?}"))),
-    }
 }
 
 #[cfg(test)]

@@ -2,8 +2,6 @@ use bevy::prelude::Reflect;
 use derive_more::{Deref, Display, From};
 use serde::{Deserialize, Serialize};
 
-use crate::identity;
-
 #[derive(
     Debug,
     Clone,
@@ -28,18 +26,21 @@ impl PeerAddr {
     pub fn dialable(addrs: Vec<Self>) -> Vec<Self> {
         addrs
             .into_iter()
-            .filter(|addr| !is_unspecified(addr))
+            .filter(|addr| !addr.is_unspecified())
             .collect()
     }
 }
 
-// needed helper: a multiaddr offering 0.0.0.0 cannot be dialled
-fn is_unspecified(addr: &identity::PeerAddr) -> bool {
-    addr.parse::<libp2p::Multiaddr>().is_ok_and(|multiaddr| {
-        multiaddr.iter().any(|protocol| {
-                matches!(protocol, libp2p::multiaddr::Protocol::Ip4(ip) if ip.is_unspecified())
-            })
-    })
+#[rustfmt::skip]
+impl PeerAddr {
+    #[must_use]
+    pub(crate) fn is_unspecified(&self) -> bool {
+        self.parse::<libp2p::Multiaddr>().is_ok_and(|multiaddr| {
+            multiaddr.iter().any(|protocol| {
+                    matches!(protocol, libp2p::multiaddr::Protocol::Ip4(ip) if ip.is_unspecified())
+                })
+        })
+    }
 }
 
 #[cfg(test)]

@@ -11,18 +11,18 @@ pub struct NetEventChannel {
     pub tx: broadcast::Sender<p2p::NetEvent>,
 }
 
-#[rustfmt::skip]
-impl NetEventChannel {
-    #[must_use]
-    pub fn subscribe(&self) -> broadcast::Receiver<p2p::NetEvent> { self.tx.subscribe() }
-    pub fn send(&self, event: p2p::NetEvent) { self.tx.send(event).ok(); }
-}
-
 impl Default for NetEventChannel {
     fn default() -> Self {
         let (tx, _) = broadcast::channel(NET_EVENT_CAPACITY);
         Self { tx }
     }
+}
+
+#[rustfmt::skip]
+impl NetEventChannel {
+    #[must_use]
+    pub fn subscribe(&self) -> broadcast::Receiver<p2p::NetEvent> { self.tx.subscribe() }
+    pub fn send(&self, event: p2p::NetEvent) { self.tx.send(event).ok(); }
 }
 
 #[cfg(test)]

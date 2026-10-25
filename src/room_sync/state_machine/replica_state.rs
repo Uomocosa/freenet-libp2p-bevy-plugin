@@ -44,6 +44,7 @@ impl<Op> Default for ReplicaState<Op> {
 #[atomic_delegates]
 impl<Op> ReplicaState<Op> {
     pub fn fetch_next(&mut self) -> Vec<room_sync::state_machine::Output<Op>> {}
+    pub fn finish_member_fetch(&mut self) -> Vec<room_sync::state_machine::Output<Op>> {}
     pub fn handle_failed(
         &mut self,
         from: &identity::PeerId,
@@ -181,7 +182,7 @@ impl<Op> ReplicaState<Op> {
                     return self.handle_history_record_not_found(id);
                 };
                 self.kademlia_history.pending_fetch = None;
-                complete_history_fetch(self, prefix, manifest, bytes)
+                self.complete_history_fetch(prefix, manifest, bytes)
             }
         }
     }
@@ -247,32 +248,30 @@ impl<Op> ReplicaState<Op> {
             ),
         }
     }
-}
-
-// needed helper: emits the phase-appropriate output once all chunks of a Kademlia snapshot are verified
-fn complete_history_fetch<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-    prefix: p2p::HistoryKeyPrefix,
-    manifest: p2p::HistoryManifest,
-    bytes: Vec<u8>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
-    match state.phase {
-        room_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
-            state.phase = room_sync::state_machine::Phase::Ready;
-            let mut outputs = vec![room_sync::state_machine::Output::Merge { bytes }];
-            for (meta, op) in state.buffered_ops.drain(..) {
-                outputs.push(room_sync::state_machine::Output::Apply { meta, op });
+    pub(crate) fn complete_history_fetch(
+        &mut self,
+        prefix: p2p::HistoryKeyPrefix,
+        manifest: p2p::HistoryManifest,
+        bytes: Vec<u8>,
+    ) -> Vec<room_sync::state_machine::Output<Op>> {
+        match self.phase {
+            room_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
+                self.phase = room_sync::state_machine::Phase::Ready;
+                let mut outputs = vec![room_sync::state_machine::Output::Merge { bytes }];
+                for (meta, op) in self.buffered_ops.drain(..) {
+                    outputs.push(room_sync::state_machine::Output::Apply { meta, op });
+                }
+                outputs
             }
-            outputs
+            room_sync::state_machine::Phase::Ready => {
+                vec![room_sync::state_machine::Output::MergeAndWriteHistory {
+                    prefix,
+                    stored_manifest: Some(manifest),
+                    stored_snapshot: Some(bytes),
+                }]
+            }
+            _ => Vec::new(),
         }
-        room_sync::state_machine::Phase::Ready => {
-            vec![room_sync::state_machine::Output::MergeAndWriteHistory {
-                prefix,
-                stored_manifest: Some(manifest),
-                stored_snapshot: Some(bytes),
-            }]
-        }
-        _ => Vec::new(),
     }
 }
 

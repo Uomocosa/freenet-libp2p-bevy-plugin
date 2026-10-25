@@ -1,20 +1,5 @@
 use crate::room_sync;
 
-// needed helper: no member left to answer; fall back to Kademlia or accept what we already have
-fn finish_member_fetch<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
-    if state.kademlia_history.is_enabled {
-        return state.start_kademlia_history_fetch();
-    }
-    state.phase = room_sync::state_machine::Phase::Ready;
-    let mut outputs = Vec::new();
-    for (meta, op) in state.buffered_ops.drain(..) {
-        outputs.push(room_sync::state_machine::Output::Apply { meta, op });
-    }
-    outputs
-}
-
 pub fn retry_fetch<Op>(
     state: &mut room_sync::state_machine::ReplicaState<Op>,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
@@ -29,10 +14,10 @@ pub fn retry_fetch<Op>(
         state.member_snapshot.current_source.clone(),
         state.room.clone(),
     ) else {
-        return finish_member_fetch(state);
+        return state.finish_member_fetch();
     };
     if state.member_snapshot.total_parts == 0 {
-        return finish_member_fetch(state);
+        return state.finish_member_fetch();
     }
     let part = (0..state.member_snapshot.total_parts)
         .find(|index| !state.member_snapshot.received_parts.contains_key(index))

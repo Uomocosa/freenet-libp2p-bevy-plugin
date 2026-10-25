@@ -1,9 +1,6 @@
-use tokio::sync::mpsc::UnboundedSender;
-
 use crate::discovery;
 use crate::identity;
-use crate::p2p;
-use discovery::state_machine::{DiscoveryState, Input, Output};
+use discovery::state_machine::{DiscoveryState, Input};
 
 pub async fn run(
     config: &discovery::Config,
@@ -60,7 +57,7 @@ pub async fn run(
             _ = interval.tick() => Input::Tick,
         };
         let outputs = state.update(input, discovery::UnixTime::now());
-        flush(outputs, &net.commands, &events);
+        discovery::Config::flush(outputs, &net.commands, &events);
         let target = state.heartbeat_targets();
         target_tx.send_if_modified(|current| {
             let changed = *current != target;
@@ -70,24 +67,6 @@ pub async fn run(
             changed
         });
         let _ = statuses.send(state.status());
-    }
-}
-
-// needed helper: performs the outputs of one update
-fn flush(
-    outputs: Vec<Output>,
-    net: &UnboundedSender<p2p::NetCommand>,
-    events: &UnboundedSender<discovery::Event>,
-) {
-    for output in outputs {
-        match output {
-            Output::Notify(event) => {
-                let _ = events.send(event);
-            }
-            Output::NetCommand(command) => {
-                let _ = net.send(command);
-            }
-        }
     }
 }
 

@@ -15,15 +15,16 @@ impl Plugin {
     }
 }
 
-#[atomic_delegates]
-impl Plugin {
-    pub fn build_plugin(&self, app: &mut App) {}
-}
-
 #[rustfmt::skip]
 impl bevy::prelude::Plugin for Plugin {
     fn build(&self, app: &mut App) {
         self.build_plugin(app);
     }
+}
+
+#[atomic_delegates]
+impl Plugin {
+    pub fn build_plugin(&self, app: &mut App) {}
+    pub(crate) fn net_link(app: &App) -> Option<discovery::libp2p::NetLink> {}
 }
 // no test_usage necessary

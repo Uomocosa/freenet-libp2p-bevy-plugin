@@ -23,7 +23,11 @@ pub mod replica_slice_index;
 pub mod replica_state;
 pub mod room_history_record_kind;
 pub mod runner_config;
+#[cfg(feature = "discovery")]
+pub mod status;
 pub mod swarm_loop_state;
 pub mod sync_plugin;
+#[cfg(feature = "discovery")]
+pub mod sync_state;
 pub mod topic;
 pub mod transport_mode;

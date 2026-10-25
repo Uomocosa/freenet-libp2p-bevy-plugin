@@ -521,8 +521,8 @@ dependencies = [
 
 [[package]]
 name = "atomic-delegate-macros"
-version = "0.0.6"
-source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.6#f3b2170c4676d0f9950fc16c8582441d0b34439d"
+version = "0.0.7"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.7#177341a077d08105c946e5121768f9fd57b213ec"
 dependencies = [
  "lele-snake-case",
  "proc-macro2",
@@ -5726,8 +5726,8 @@ dependencies = [
 
 [[package]]
 name = "lele-snake-case"
-version = "0.0.6"
-source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.6#f3b2170c4676d0f9950fc16c8582441d0b34439d"
+version = "0.0.7"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.7#177341a077d08105c946e5121768f9fd57b213ec"
 
 [[package]]
 name = "libappindicator"

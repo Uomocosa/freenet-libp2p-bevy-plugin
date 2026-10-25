@@ -56,6 +56,7 @@ impl DiscoveryState {
     pub fn broadcast_handshake(&self) -> Vec<Output> {}
     pub fn collect_room_peers_from_lobby(&mut self) -> Vec<Output> {}
     pub fn dial_candidates(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
+    pub fn drop_member(&mut self, peer: &identity::PeerId) -> Vec<Output> {}
     pub fn drop_oldest_history(
         &mut self,
         bytes_by_prefix: &BTreeMap<p2p::HistoryKeyPrefix, p2p::HistoryByteCount>,
@@ -83,6 +84,8 @@ impl DiscoveryState {
     }
     pub fn handshake(&self) -> Handshake {}
     pub fn heartbeat_targets(&self) -> Vec<HeartbeatTarget> {}
+    pub fn join(&mut self, room: identity::RoomName, now: discovery::UnixTime) -> Vec<Output> {}
+    pub fn leave(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
     pub fn prune_members(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
     pub fn send_handshake(&self, peer: &identity::PeerId) -> Vec<Output> {}
     pub fn tick(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
@@ -120,11 +123,11 @@ impl DiscoveryState {
                     tracing::error!(target: "discovery", "discovery rejected: empty room name");
                     Vec::new()
                 } else {
-                    join(self, room, now)
+                    self.join(room, now)
                 }
             }
-            discovery::Command::Leave => leave(self, now),
-            discovery::Command::Quit => quit(self, now),
+            discovery::Command::Leave => self.leave(now),
+            discovery::Command::Quit => self.quit(now),
         }
     }
     pub fn handle_net_event(
@@ -139,7 +142,7 @@ impl DiscoveryState {
             }
             p2p::NetEvent::PeerDisconnected(peer) => {
                 self.connected.remove(&peer);
-                refresh_grace(self, &peer, now)
+                self.refresh_grace(&peer, now)
             }
             p2p::NetEvent::PeerExchange { from, data } => {
                 self.handle_handshake(&from, &data, now)
@@ -186,76 +189,26 @@ impl DiscoveryState {
             Input::Tick => self.tick(now),
         }
     }
-}
-
-// needed helper: leaves, then marks every held room so the next publish is a Departed tombstone
-fn quit(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output> {
-    let outputs = leave(state, now);
-    state.is_quitting = true;
-    outputs
-}
-
-// needed helper: enters a room, says handshake to every live link and dials the lobby seeds
-fn join(
-    state: &mut DiscoveryState,
-    room: identity::RoomName,
-    now: discovery::UnixTime,
-) -> Vec<Output> {
-    let mut outputs = leave(state, now);
-    state.held_rooms.remove(&room);
-    state.evicted_rooms.remove(&room);
-    let created_at = state
-        .lobby
-        .get(&room)
-        .map_or(now, |record| record.created_at);
-    state.room = Some(discovery::JoinedRoom {
-        name: room.clone(),
-        created_at,
-        phase: discovery::JoinPhase::Joining { since: now },
-        members: discovery::Members::new(),
-    });
-    outputs.extend(state.collect_room_peers_from_lobby());
-    outputs.extend(state.broadcast_handshake());
-    outputs.extend(state.dial_candidates(now));
-    tracing::info!(target: "discovery", room = %room.as_str(), "discovery joined room");
-    outputs.push(Output::Notify(discovery::Event::Joined(room)));
-    outputs
-}
-
-// needed helper: leaves the current room and tells every live link
-fn leave(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output> {
-    let Some(room) = state.room.take() else {
-        return Vec::new();
-    };
-    state.held_rooms.insert(
-        room.name.clone(),
-        discovery::state_machine::HeldRoomHistory {
-            created_at: room.created_at,
-            left_at: now,
-        },
-    );
-    state.candidates.clear();
-    state.last_dialed_at.clear();
-    let mut outputs = state.broadcast_handshake();
-    outputs.push(Output::Notify(discovery::Event::Left(room.name)));
-    outputs
-}
-
-// needed helper: keeps a dropped member visible for the whole grace window
-fn refresh_grace(
-    state: &mut DiscoveryState,
-    peer: &identity::PeerId,
-    now: discovery::UnixTime,
-) -> Vec<Output> {
-    let Some(member) = state
-        .room
-        .as_mut()
-        .and_then(|room| room.members.get_mut(peer))
-    else {
-        return Vec::new();
-    };
-    member.updated_at = now;
-    vec![Output::Notify(discovery::Event::MembersChanged)]
+    pub(crate) fn quit(&mut self, now: discovery::UnixTime) -> Vec<Output> {
+        let outputs = self.leave(now);
+        self.is_quitting = true;
+        outputs
+    }
+    pub(crate) fn refresh_grace(
+        &mut self,
+        peer: &identity::PeerId,
+        now: discovery::UnixTime,
+    ) -> Vec<Output> {
+        let Some(member) = self
+            .room
+            .as_mut()
+            .and_then(|room| room.members.get_mut(peer))
+        else {
+            return Vec::new();
+        };
+        member.updated_at = now;
+        vec![Output::Notify(discovery::Event::MembersChanged)]
+    }
 }
 
 #[cfg(test)]

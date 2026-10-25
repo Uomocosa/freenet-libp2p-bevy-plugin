@@ -31,6 +31,12 @@ impl RoomHistoryRecordKind {
             )),
         }
     }
+    #[must_use] pub(crate) const fn record_prefix(&self) -> &p2p::HistoryKeyPrefix {
+        match self {
+            Self::Manifest(prefix) => prefix,
+            Self::Chunk(chunk_id) => &chunk_id.prefix,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -3,8 +3,12 @@ use std::time::Duration;
 use atomic_delegate_macros::atomic_delegates;
 use freenet_stdlib::client_api::ClientError;
 use freenet_stdlib::client_api::ClientRequest;
+use freenet_stdlib::client_api::ContractRequest;
 use freenet_stdlib::client_api::ContractResponse;
 use freenet_stdlib::client_api::HostResponse;
+use freenet_stdlib::prelude::ContractContainer;
+use freenet_stdlib::prelude::RelatedContracts;
+use freenet_stdlib::prelude::WrappedState;
 use freenet_stdlib::prelude::{ContractInstanceId, ContractKey};
 use tokio_tungstenite::tungstenite::Message;
 
@@ -17,8 +21,27 @@ pub struct Client {
     pub(crate) read: tokio::sync::mpsc::UnboundedReceiver<Result<HostResponse, ClientError>>,
 }
 
+impl Client {
+    pub async fn from_host_and_port_with_retry(host: &str, port: u16) -> Self {
+        loop {
+            match Self::try_from_host_and_port(host, port).await {
+                Ok(client) => return client,
+                Err(e) => {
+                    tracing::warn!(
+                        target: "discovery",
+                        error = ?e,
+                        "freenet websocket connect failed, retrying"
+                    );
+                    tokio::time::sleep(constants::CONNECT_RETRY).await;
+                }
+            }
+        }
+    }
+}
+
 #[atomic_delegates]
 impl Client {
+    pub async fn try_from_host_and_port(host: &str, port: u16) -> Result<Self, discovery::Error> {}
     pub async fn attach(
         &mut self,
         contract_wasm: &[u8],
@@ -42,7 +65,6 @@ impl Client {
         instance_id: ContractInstanceId,
     ) -> Result<discovery::Lobby, discovery::Error> {
     }
-    pub async fn try_from_host_and_port(host: &str, port: u16) -> Result<Self, discovery::Error> {}
     pub fn send(&self, request: &ClientRequest<'_>) -> Result<(), discovery::Error> {}
 }
 
@@ -67,29 +89,37 @@ impl Client {
         }
     }
 
-    async fn recv(&mut self) -> Result<HostResponse, discovery::Error> {
+    pub(crate) async fn deploy_contract(
+        &mut self,
+        contract: ContractContainer,
+        initial_lobby: &discovery::Lobby,
+    ) -> Result<(), discovery::Error> {
+        let put = ContractRequest::Put {
+            contract,
+            state: WrappedState::new(bincode::serialize(initial_lobby)?),
+            related_contracts: RelatedContracts::default(),
+            subscribe: true,
+            blocking_subscribe: false,
+        };
+        self.send(&ClientRequest::ContractOp(put))?;
+        match self.next_reply().await? {
+            HostResponse::ContractResponse(
+                ContractResponse::PutResponse { key }
+                | ContractResponse::SubscribeResponse { key, .. }
+                | ContractResponse::UpdateResponse { key, .. },
+            ) => {
+                tracing::info!(target: "discovery", key = %key, "discovery: lobby contract deployed");
+                Ok(())
+            }
+            other => Err(discovery::Error::UnexpectedResponse(format!("{other:?}"))),
+        }
+    }
+
+    pub(crate) async fn recv(&mut self) -> Result<HostResponse, discovery::Error> {
         match self.read.recv().await {
             Some(Ok(response)) => Ok(response),
             Some(Err(e)) => Err(discovery::Error::from(e)),
             None => Err(discovery::Error::Disconnected),
-        }
-    }
-}
-
-impl Client {
-    pub async fn from_host_and_port_with_retry(host: &str, port: u16) -> Self {
-        loop {
-            match Self::try_from_host_and_port(host, port).await {
-                Ok(client) => return client,
-                Err(e) => {
-                    tracing::warn!(
-                        target: "discovery",
-                        error = ?e,
-                        "freenet websocket connect failed, retrying"
-                    );
-                    tokio::time::sleep(constants::CONNECT_RETRY).await;
-                }
-            }
         }
     }
 }

@@ -1,4 +1,5 @@
 mod fetch_next;
+mod finish_member_fetch;
 mod handle_failed;
 mod handle_fetch;
 mod handle_history_record_not_found;
@@ -15,6 +16,7 @@ mod start_history_write_check;
 mod start_kademlia_history_fetch;
 mod tick;
 pub use fetch_next::fetch_next;
+pub use finish_member_fetch::finish_member_fetch;
 pub use handle_failed::handle_failed;
 pub use handle_fetch::handle_fetch;
 pub use handle_history_record_not_found::handle_history_record_not_found;

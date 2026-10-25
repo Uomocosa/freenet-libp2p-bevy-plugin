@@ -22,14 +22,6 @@ impl Lobby {
     pub fn drop_dead(&mut self, now: discovery::UnixTime, ttl: Duration) {}
 }
 
-fn newest_room_member(room: &discovery::LobbyRoom) -> discovery::UnixTime {
-    room.members
-        .values()
-        .map(|room_member| room_member.updated_at)
-        .max()
-        .unwrap_or_else(|| discovery::UnixTime::from(0))
-}
-
 #[rustfmt::skip]
 impl Lobby {
     pub fn drop_rooms_where_every_member_quit(&mut self) {
@@ -43,7 +35,7 @@ impl Lobby {
         while self.len() > capacity {
             let oldest = self
                 .iter()
-                .min_by_key(|(name, room)| (newest_room_member(room), name.as_str()))
+                .min_by_key(|(name, room)| (room.newest_room_member(), name.as_str()))
                 .map(|(name, _)| name.clone());
             let Some(oldest) = oldest else {
                 break;
@@ -89,5 +81,3 @@ mod tests {
         assert!(lobby.is_empty());
     }
 }
-
-// needed helper: the most recent member update of one room

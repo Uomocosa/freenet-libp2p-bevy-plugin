@@ -14,7 +14,6 @@ type CreateButtonParts<'a> = (
     Option<&'a Children>,
 );
 
-// needed helper: keeps the Create button clickable only while the room name is non-empty
 pub fn gate_create(
     input: Single<&EditableText, With<RoomNameInput>>,
     button: Single<CreateButtonParts, With<CreateRoomButton>>,

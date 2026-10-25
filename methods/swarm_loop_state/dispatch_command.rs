@@ -1,4 +1,3 @@
-use crate::identity;
 use crate::p2p;
 
 pub fn dispatch_command<Payload: p2p::Message>(
@@ -20,75 +19,14 @@ pub fn dispatch_command<Payload: p2p::Message>(
             }
         }
         Some(p2p::Command::PublishInJoinedRoom { payload }) => {
-            publish_joined(state, config, &payload);
+            state.publish_joined(config, &payload);
         }
         Some(p2p::Command::PublishToSpecificRoom { room, payload }) => {
-            publish_room(state, config, &room, &payload);
+            state.publish_room(config, &room, &payload);
         }
         None => return false,
     }
     true
-}
-
-// needed helper: publishes to the joined room, or reports that there is none
-fn publish_joined<Payload: p2p::Message>(
-    state: &mut p2p::SwarmLoopState<Payload>,
-    config: &p2p::GossipsubConfig,
-    payload: &Payload,
-) {
-    let Some(room) = state.subscriptions.joined.clone() else {
-        state
-            .event_tx
-            .send(p2p::Event::Error(
-                "room publish: no joined room".to_string(),
-            ))
-            .ok();
-        return;
-    };
-    publish_room(state, config, &room, payload);
-}
-
-// needed helper: serializes one room publish and reports every rejection
-fn publish_room<Payload: p2p::Message>(
-    state: &mut p2p::SwarmLoopState<Payload>,
-    config: &p2p::GossipsubConfig,
-    room: &identity::RoomName,
-    payload: &Payload,
-) {
-    let Ok(data) = bincode::serialize(payload) else {
-        state
-            .event_tx
-            .send(p2p::Event::Error(format!(
-                "room publish {}: encode failed",
-                room.as_str()
-            )))
-            .ok();
-        return;
-    };
-    if data.len() > config.max_transmit_size {
-        state
-            .event_tx
-            .send(p2p::Event::Error(format!(
-                "room publish {}: payload {} bytes exceeds limit {}",
-                room.as_str(),
-                data.len(),
-                config.max_transmit_size
-            )))
-            .ok();
-        return;
-    }
-    let topic = libp2p::gossipsub::IdentTopic::new(
-        identity::Topic::from_room(&state.subscriptions.game, room).as_str(),
-    );
-    if let Err(error) = state.swarm.behaviour_mut().gossipsub.publish(topic, data) {
-        state
-            .event_tx
-            .send(p2p::Event::Error(format!(
-                "room publish {}: {error}",
-                room.as_str()
-            )))
-            .ok();
-    }
 }
 
 #[cfg(test)]

@@ -5,6 +5,18 @@ use libp2p::StreamProtocol;
 #[from(forward)]
 pub struct GameId(pub String);
 
+impl GameId {
+    #[must_use]
+    pub fn new_game_id() -> Self {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or_default();
+        let digest = blake3::hash(format!("{nanos}-{}", std::process::id()).as_bytes());
+        Self(digest.to_hex().as_str().chars().take(16).collect())
+    }
+}
+
 #[rustfmt::skip]
 impl GameId {
     #[must_use]

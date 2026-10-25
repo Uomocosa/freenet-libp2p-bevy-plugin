@@ -11,11 +11,9 @@ pub struct FreenetPeer {
     pub addr: SocketAddr,
 }
 
+#[rustfmt::skip]
 impl FreenetPeer {
-    #[must_use]
-    pub const fn is_ring_ready(peers: &[Self]) -> bool {
-        !peers.is_empty()
-    }
+    #[must_use] pub const fn is_ring_ready(peers: &[Self]) -> bool { !peers.is_empty() }
 }
 
 #[cfg(test)]

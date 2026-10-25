@@ -23,7 +23,16 @@ impl<Replica: room_sync::RoomState> SyncPlugin<Replica> {
             marker: PhantomData,
         }
     }
+}
 
+#[rustfmt::skip]
+impl<Replica: room_sync::RoomState> bevy::prelude::Plugin for SyncPlugin<Replica> {
+    fn build(&self, app: &mut App) {
+        self.build_plugin(app);
+    }
+}
+
+impl<Replica: room_sync::RoomState> SyncPlugin<Replica> {
     #[must_use]
     pub const fn with_anti_entropy_config(
         mut self,
@@ -43,13 +52,6 @@ impl<Replica: room_sync::RoomState> SyncPlugin<Replica> {
 #[atomic_delegates]
 impl<Replica: room_sync::RoomState> SyncPlugin<Replica> {
     pub fn build_plugin(&self, app: &mut App) {}
-}
-
-#[rustfmt::skip]
-impl<Replica: room_sync::RoomState> bevy::prelude::Plugin for SyncPlugin<Replica> {
-    fn build(&self, app: &mut App) {
-        self.build_plugin(app);
-    }
 }
 
 // no test_usage necessary

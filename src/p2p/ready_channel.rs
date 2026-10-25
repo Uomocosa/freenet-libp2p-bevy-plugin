@@ -12,21 +12,6 @@ pub struct ReadyChannel {
     pub observed_rx: Receiver<Option<Vec<identity::PeerAddr>>>,
 }
 
-#[rustfmt::skip]
-impl ReadyChannel {
-    #[must_use]
-    pub fn subscribe(&self) -> (Receiver<Option<Peer>>, Receiver<Option<Vec<identity::PeerAddr>>>) {
-        (self.ready_rx.clone(), self.observed_rx.clone())
-    }
-}
-
-impl ReadyChannel {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 impl Default for ReadyChannel {
     fn default() -> Self {
         let (ready_tx, ready_rx) = watch::channel(None);
@@ -37,6 +22,21 @@ impl Default for ReadyChannel {
             observed_tx,
             observed_rx,
         }
+    }
+}
+
+impl ReadyChannel {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+#[rustfmt::skip]
+impl ReadyChannel {
+    #[must_use]
+    pub fn subscribe(&self) -> (Receiver<Option<Peer>>, Receiver<Option<Vec<identity::PeerAddr>>>) {
+        (self.ready_rx.clone(), self.observed_rx.clone())
     }
 }
 

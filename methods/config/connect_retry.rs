@@ -2,7 +2,6 @@ use tokio::sync::watch::Receiver;
 use tracing::{debug, warn};
 
 use crate::discovery;
-use crate::identity;
 use discovery::freenet::basic::constants;
 
 pub async fn connect_retry(
@@ -16,7 +15,11 @@ pub async fn connect_retry(
     loop {
         tries = tries.saturating_add(1);
         let current = target.borrow().clone();
-        let seed = initial_lobby(&state.me, state.discovery.room_size, current.first());
+        let seed = discovery::freenet::Config::initial_lobby(
+            &state.me,
+            state.discovery.room_size,
+            current.first(),
+        );
         let result = client
             .attach(
                 wasm,
@@ -48,35 +51,6 @@ pub async fn connect_retry(
             }
         }
     }
-}
-
-// needed helper: seeds a fresh lobby with our own heartbeat so readers never see it empty
-fn initial_lobby(
-    me: &identity::PeerId,
-    room_size: discovery::RoomSize,
-    target: Option<&discovery::state_machine::HeartbeatTarget>,
-) -> discovery::Lobby {
-    let Some(target) = target else {
-        return discovery::Lobby::default();
-    };
-    let room_member = discovery::RoomMember {
-        peer: identity::Peer {
-            id: me.clone(),
-            addrs: target.addrs.clone(),
-        },
-        updated_at: discovery::UnixTime::now(),
-        display_name: Some(target.display_name.clone()),
-        membership: target.membership,
-    };
-    let members = std::collections::BTreeMap::from([(me.clone(), room_member)]);
-    discovery::Lobby::from([(
-        target.room.clone(),
-        discovery::LobbyRoom {
-            room_size,
-            created_at: target.created_at,
-            members,
-        },
-    )])
 }
 
 #[cfg(test)]

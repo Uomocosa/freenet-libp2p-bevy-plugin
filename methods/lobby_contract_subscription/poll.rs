@@ -22,20 +22,10 @@ pub async fn poll(
             state: bytes, ..
         }) = reply
         {
-            absorb_bytes(state, bytes.as_ref())?;
+            state.absorb_bytes(bytes.as_ref())?;
         }
     }
     Ok(state.lobby.clone())
-}
-
-// needed helper: merges raw lobby bytes into the cached lobby
-fn absorb_bytes(
-    subscription: &mut discovery::freenet::LobbyContractSubscription,
-    bytes: &[u8],
-) -> Result<(), discovery::Error> {
-    let incoming: discovery::Lobby = bincode::deserialize(bytes)?;
-    subscription.lobby.merge(incoming);
-    Ok(())
 }
 
 #[cfg(test)]

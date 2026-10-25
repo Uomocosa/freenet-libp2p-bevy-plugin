@@ -26,4 +26,12 @@ impl LobbyContractSubscription {
     pub async fn refresh(&mut self) -> Result<discovery::Lobby, discovery::Error> {}
 }
 
+impl LobbyContractSubscription {
+    pub(crate) fn absorb_bytes(&mut self, bytes: &[u8]) -> Result<(), discovery::Error> {
+        let incoming: discovery::Lobby = bincode::deserialize(bytes)?;
+        self.lobby.merge(incoming);
+        Ok(())
+    }
+}
+
 // no test_usage necessary

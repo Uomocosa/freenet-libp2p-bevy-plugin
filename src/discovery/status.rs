@@ -1,10 +1,13 @@
 use std::collections::BTreeSet;
 use std::time::Duration;
 
+use atomic_delegate_macros::atomic_delegates;
 use bevy::prelude::Resource;
 
 use crate::discovery;
 use crate::identity;
+use crate::p2p;
+use crate::room_sync;
 
 #[derive(Resource, Debug, Clone, PartialEq, Eq)]
 pub struct Status {
@@ -47,6 +50,19 @@ impl Status {
         self.connected
             .iter()
             .filter(move |peer| room.is_some_and(|room| room.members.contains_key(*peer)))
+    }
+}
+
+#[atomic_delegates]
+impl Status {
+    pub(crate) fn room_prefix_and_lobby_status(
+        status: Option<&Self>,
+        game: &identity::GameId,
+        room_name: &identity::RoomName,
+    ) -> (
+        p2p::HistoryKeyPrefix,
+        room_sync::state_machine::LobbyRoomStatus,
+    ) {
     }
 }
 

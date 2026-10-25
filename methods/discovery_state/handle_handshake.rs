@@ -13,7 +13,7 @@ pub fn handle_handshake(
     };
     let my_room = state.room.as_ref().map(|room| room.name.clone());
     if handshake.room.is_none() || handshake.room != my_room {
-        return drop_member(state, from);
+        return state.drop_member(from);
     }
     let mut peers = handshake.peers;
     peers.push(identity::Peer {
@@ -50,20 +50,6 @@ pub fn handle_handshake(
     let mut outputs = vec![Output::Notify(discovery::Event::MembersChanged)];
     outputs.extend(state.send_handshake(from));
     outputs
-}
-
-// needed helper: removes a peer that left our room or switched to another one
-fn drop_member(state: &mut DiscoveryState, peer: &identity::PeerId) -> Vec<Output> {
-    let removed = state
-        .room
-        .as_mut()
-        .and_then(|room| room.members.remove(peer))
-        .is_some();
-    if !removed {
-        return Vec::new();
-    }
-    tracing::info!(target: "discovery", peer = %peer.as_str(), "discovery member left");
-    vec![Output::Notify(discovery::Event::MembersChanged)]
 }
 
 #[cfg(test)]

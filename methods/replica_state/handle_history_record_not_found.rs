@@ -1,19 +1,11 @@
 use crate::p2p;
 use crate::room_sync;
 
-// needed helper: extracts the history key prefix from a manifest or chunk record id
-const fn record_prefix(id: &p2p::RoomHistoryRecordKind) -> &p2p::HistoryKeyPrefix {
-    match id {
-        p2p::RoomHistoryRecordKind::Manifest(prefix) => prefix,
-        p2p::RoomHistoryRecordKind::Chunk(chunk_id) => &chunk_id.prefix,
-    }
-}
-
 pub fn handle_history_record_not_found<Op>(
     state: &mut room_sync::state_machine::ReplicaState<Op>,
     id: &p2p::RoomHistoryRecordKind,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
-    let prefix = record_prefix(id).clone();
+    let prefix = id.record_prefix().clone();
     if state
         .kademlia_history
         .pending_fetch

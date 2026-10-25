@@ -67,6 +67,13 @@ impl<Payload: p2p::Message> SwarmLoopState<Payload> {
         &mut self,
     ) -> BTreeMap<p2p::HistoryKeyPrefix, p2p::HistoryByteCount> {
     }
+    pub fn publish_room(
+        &mut self,
+        config: &p2p::GossipsubConfig,
+        room: &identity::RoomName,
+        payload: &Payload,
+    ) {
+    }
     pub fn put_history_record(
         &mut self,
         id: &p2p::RoomHistoryRecordKind,
@@ -203,8 +210,8 @@ pub fn handle_gossipsub(&mut self, gossip_event: gossipsub::Event) {
             message_id,
             message,
         } => {
-            log_gossip_in(self, &propagation_source, &message_id, &message);
-            forward_gossip(self, propagation_source, message);
+            self.log_gossip_in(&propagation_source, &message_id, &message);
+            self.forward_gossip(propagation_source, message);
         }
         gossipsub::Event::Subscribed { peer_id, topic } => {
             tracing::debug!(target: "p2p", peer = %peer_id, topic = %topic, "p2p gossip subscribed");
@@ -408,7 +415,7 @@ pub fn note_connection(&mut self, event: SwarmEvent<p2p::behaviour::BehaviourEve
             num_established,
             ..
         } => {
-            log_established(&peer_id, connection_id, &endpoint);
+            Self::log_established(&peer_id, connection_id, &endpoint);
             if num_established.get() == 1 {
                 self.event_tx
                     .send(p2p::Event::Net(p2p::NetEvent::PeerConnected(
@@ -425,8 +432,7 @@ pub fn note_connection(&mut self, event: SwarmEvent<p2p::behaviour::BehaviourEve
             cause,
             ..
         } => {
-            log_closed(
-                self,
+            self.log_closed(
                 &peer_id,
                 connection_id,
                 &endpoint,
@@ -459,18 +465,52 @@ pub fn note_dial_failure(&mut self, peer_id: Option<libp2p::PeerId>, error: &lib
         }
     }
 }
+pub(crate) fn history_event(result: kad::QueryResult) -> Option<p2p::NetEvent> {
+    match result {
+        kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))) => {
+            let record = peer_record.record;
+            Some(p2p::NetEvent::HistoryRecordFound {
+                id: p2p::RoomHistoryRecordKind::parse_history_record_key(&record.key)?,
+                value: record.value,
+            })
+        }
+        kad::QueryResult::GetRecord(Err(
+            kad::GetRecordError::NotFound { key, .. }
+            | kad::GetRecordError::QuorumFailed { key, .. }
+            | kad::GetRecordError::Timeout { key },
+        )) => Some(p2p::NetEvent::HistoryRecordNotFound {
+            id: p2p::RoomHistoryRecordKind::parse_history_record_key(&key)?,
+        }),
+        kad::QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
+            Some(p2p::NetEvent::HistoryRecordStored {
+                id: p2p::RoomHistoryRecordKind::parse_history_record_key(&key)?,
+            })
+        }
+        kad::QueryResult::PutRecord(Err(error)) => Some(p2p::NetEvent::HistoryRecordPutFailed {
+            id: p2p::RoomHistoryRecordKind::parse_history_record_key(error.key())?,
+            reason: error.to_string(),
+        }),
+        _ => None,
+    }
 }
-
-// no test_usage necessary
-
-// needed helper: samples gossip mesh depth for one inbound message
-fn log_gossip_in<Payload: p2p::Message>(
-    state: &p2p::SwarmLoopState<Payload>,
+pub(crate) fn publish_joined(&mut self, config: &p2p::GossipsubConfig, payload: &Payload) {
+    let Some(room) = self.subscriptions.joined.clone() else {
+        self.event_tx
+            .send(p2p::Event::Error(
+                "room publish: no joined room".to_string(),
+            ))
+            .ok();
+        return;
+    };
+    self.publish_room(config, &room, payload);
+}
+pub(crate) fn log_gossip_in(
+    &self,
     propagation_source: &libp2p::PeerId,
     message_id: &libp2p::gossipsub::MessageId,
     message: &gossipsub::Message,
 ) {
-    let mesh = state
+    let mesh = self
         .swarm
         .behaviour()
         .gossipsub
@@ -485,17 +525,14 @@ fn log_gossip_in<Payload: p2p::Message>(
         "p2p gossip received"
     );
 }
-
-// needed helper: converts a gossipsub wire message into a Bevy event
-fn forward_gossip<Payload: p2p::Message>(
-    state: &p2p::SwarmLoopState<Payload>,
+pub(crate) fn forward_gossip(
+    &self,
     propagation_source: libp2p::PeerId,
     message: gossipsub::Message,
 ) {
     let from = identity::PeerId(message.source.unwrap_or(propagation_source).to_string());
-    let Some(room) = state.subscriptions.room(&message.topic) else {
-        state
-            .event_tx
+    let Some(room) = self.subscriptions.room(&message.topic) else {
+        self.event_tx
             .send(p2p::Event::Net(p2p::NetEvent::Gossip {
                 topic: identity::Topic(message.topic.to_string()),
                 from,
@@ -506,8 +543,7 @@ fn forward_gossip<Payload: p2p::Message>(
     };
     match bincode::deserialize::<Payload>(&message.data) {
         Ok(payload) => {
-            state
-                .event_tx
+            self.event_tx
                 .send(p2p::Event::RoomMessage {
                     room: room.clone(),
                     from,
@@ -516,8 +552,7 @@ fn forward_gossip<Payload: p2p::Message>(
                 .ok();
         }
         Err(error) => {
-            state
-                .event_tx
+            self.event_tx
                 .send(p2p::Event::Error(format!(
                     "room payload decode failed: {error}"
                 )))
@@ -525,17 +560,7 @@ fn forward_gossip<Payload: p2p::Message>(
         }
     }
 }
-
-// no test_usage necessary
-
-// no test_usage necessary
-
-// no test_usage necessary
-
-// no test_usage necessary
-
-// needed helper: records one established connection with its endpoint
-fn log_established(
+pub(crate) fn log_established(
     peer_id: &libp2p::PeerId,
     connection_id: libp2p::swarm::ConnectionId,
     endpoint: &libp2p::core::ConnectedPoint,
@@ -549,10 +574,8 @@ fn log_established(
         "p2p connection established"
     );
 }
-
-// needed helper: records one closed connection and whether the peer stays up
-fn log_closed<Payload: p2p::Message>(
-    state: &p2p::SwarmLoopState<Payload>,
+pub(crate) fn log_closed(
+    &self,
     peer_id: &libp2p::PeerId,
     connection_id: libp2p::swarm::ConnectionId,
     endpoint: &libp2p::core::ConnectedPoint,
@@ -566,7 +589,7 @@ fn log_closed<Payload: p2p::Message>(
             connection = %connection_id,
             address = %endpoint.get_remote_address(),
             dialer = endpoint.is_dialer(),
-            still_connected = state.swarm.is_connected(peer_id),
+            still_connected = self.swarm.is_connected(peer_id),
             remaining,
             reason = %reason,
             "p2p connection closed",
@@ -578,12 +601,21 @@ fn log_closed<Payload: p2p::Message>(
             connection = %connection_id,
             address = %endpoint.get_remote_address(),
             dialer = endpoint.is_dialer(),
-            still_connected = state.swarm.is_connected(peer_id),
+            still_connected = self.swarm.is_connected(peer_id),
             remaining,
             "p2p connection closed",
         );
     }
 }
+}
+
+// no test_usage necessary
+
+// no test_usage necessary
+
+// no test_usage necessary
+
+// no test_usage necessary
 
 // no test_usage necessary
 

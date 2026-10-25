@@ -40,27 +40,13 @@ pub fn spawn_leave_prompt(mut commands: Commands) {
                         ..default()
                     },
                     children![
-                        answer_button(LeaveYesButton, "Yes", YES_COLOR),
-                        answer_button(LeaveNoButton, "No", BUTTON_COLOR),
+                        LeavePrompt::answer_button(LeaveYesButton, "Yes", YES_COLOR),
+                        LeavePrompt::answer_button(LeaveNoButton, "No", BUTTON_COLOR),
                     ],
                 ),
             ],
         )],
     ));
-}
-
-// needed helper: Yes and No differ only in marker, label and color
-fn answer_button(marker: impl Component, label: &str, color: Color) -> impl Bundle {
-    (
-        marker,
-        Button,
-        Node {
-            padding: UiRect::axes(Val::Px(18.0), Val::Px(6.0)),
-            ..default()
-        },
-        BackgroundColor(color),
-        children![Text::new(label)],
-    )
 }
 
 #[cfg(test)]

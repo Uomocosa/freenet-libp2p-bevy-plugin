@@ -4,12 +4,6 @@ use bevy::prelude::App;
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DefaultUiPlugin;
 
-#[atomic_delegates]
-impl DefaultUiPlugin {
-    pub fn build_plugin(&self, app: &mut App) {}
-    pub fn finish_plugin(&self, app: &mut App) {}
-}
-
 #[rustfmt::skip]
 impl bevy::prelude::Plugin for DefaultUiPlugin {
     fn build(&self, app: &mut App) {
@@ -18,6 +12,12 @@ impl bevy::prelude::Plugin for DefaultUiPlugin {
     fn finish(&self, app: &mut App) {
         self.finish_plugin(app);
     }
+}
+
+#[atomic_delegates]
+impl DefaultUiPlugin {
+    pub fn build_plugin(&self, app: &mut App) {}
+    pub fn finish_plugin(&self, app: &mut App) {}
 }
 
 #[cfg(test)]

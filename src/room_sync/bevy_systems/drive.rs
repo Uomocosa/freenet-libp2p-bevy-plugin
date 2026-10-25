@@ -32,8 +32,11 @@ pub fn drive<Replica: room_sync::RoomState>(
                     pending.push(p2p::NetCommand::Subscribe {
                         topic: identity::Topic::from_room_sync(game, room_name),
                     });
-                    let (prefix, lobby_status) =
-                        room_prefix_and_lobby_status(discovery_status, game, room_name);
+                    let (prefix, lobby_status) = discovery::Status::room_prefix_and_lobby_status(
+                        discovery_status,
+                        game,
+                        room_name,
+                    );
                     inputs.push(room_sync::state_machine::Input::Joined {
                         room: room_name.clone(),
                         prefix,
@@ -65,7 +68,11 @@ pub fn drive<Replica: room_sync::RoomState>(
                 discovery::Event::MembersChanged | discovery::Event::LobbyChanged => {
                     if let Some(room_name) = state.room.clone() {
                         let (prefix, lobby_status) =
-                            room_prefix_and_lobby_status(discovery_status, game, &room_name);
+                            discovery::Status::room_prefix_and_lobby_status(
+                                discovery_status,
+                                game,
+                                &room_name,
+                            );
                         inputs.push(room_sync::state_machine::Input::Members {
                             members: members.clone(),
                             prefix,
@@ -78,7 +85,9 @@ pub fn drive<Replica: room_sync::RoomState>(
         }
     }
     for event in net_events.drain() {
-        if let Some(input) = net_event_to_input(&event, &state, &mut clock, game, &*room) {
+        if let Some(input) = room_sync::bevy_systems::SyncState::<Replica::Op>::net_event_to_input(
+            &event, &state, &mut clock, game, &*room,
+        ) {
             inputs.push(input);
         }
     }
@@ -86,7 +95,7 @@ pub fn drive<Replica: room_sync::RoomState>(
     let record_ttl = state.kademlia_history.record_ttl;
     for input in inputs {
         for output in state.update(input) {
-            perform(
+            room_sync::bevy_systems::SyncState::<Replica::Op>::perform(
                 output,
                 &mut *room,
                 *clock,
@@ -98,325 +107,6 @@ pub fn drive<Replica: room_sync::RoomState>(
                 game,
             );
         }
-    }
-}
-
-// needed helper: derives the Kademlia history key prefix and lobby liveness for a room from discovery Status
-fn room_prefix_and_lobby_status(
-    status: Option<&discovery::Status>,
-    game: &identity::GameId,
-    room_name: &identity::RoomName,
-) -> (
-    p2p::HistoryKeyPrefix,
-    room_sync::state_machine::LobbyRoomStatus,
-) {
-    let created_at = status
-        .and_then(|status| {
-            status
-                .lobby
-                .get(room_name)
-                .map(|record| record.created_at)
-                .or_else(|| {
-                    status
-                        .room
-                        .as_ref()
-                        .filter(|joined| &joined.name == room_name)
-                        .map(|joined| joined.created_at)
-                })
-        })
-        .unwrap_or_else(|| discovery::UnixTime::from(0));
-    let prefix = p2p::HistoryKeyPrefix::new(game, room_name, created_at);
-    let lobby_status = status.map_or(
-        room_sync::state_machine::LobbyRoomStatus {
-            is_room_alive_in_lobby: true,
-            has_other_lobby_holders: false,
-        },
-        |status| {
-            let self_peer_id = status.self_peer_id.as_ref();
-            let ttl = status.lease_ttl;
-            let Some(record) = status.lobby.get(room_name) else {
-                let is_the_contract_still_publishing_the_room =
-                    status.room.as_ref().is_some_and(|joined| {
-                        joined.name == *room_name
-                            && matches!(joined.phase, discovery::JoinPhase::Joining { .. })
-                    });
-                return room_sync::state_machine::LobbyRoomStatus {
-                    is_room_alive_in_lobby: is_the_contract_still_publishing_the_room,
-                    has_other_lobby_holders: false,
-                };
-            };
-            let now = record
-                .members
-                .values()
-                .map(|room_member| room_member.updated_at)
-                .max()
-                .unwrap_or_else(|| discovery::UnixTime::from(0));
-            let is_fresh = |room_member: &discovery::RoomMember| {
-                now.elapsed_since(room_member.updated_at) <= ttl
-            };
-            let live_members: Vec<(&identity::PeerId, &discovery::RoomMember)> = record
-                .members
-                .iter()
-                .filter(|(_, room_member)| {
-                    room_member.membership != discovery::RoomMembership::Departed
-                        && is_fresh(room_member)
-                })
-                .collect();
-            let live_count = live_members.len();
-            let other_live_count = self_peer_id.map_or_else(
-                || live_count.saturating_sub(1),
-                |self_id| {
-                    live_members
-                        .iter()
-                        .filter(|(peer, _)| *peer != self_id)
-                        .count()
-                },
-            );
-            let has_other_history_holder = live_members.iter().any(|(peer, room_member)| {
-                let is_other = self_peer_id != Some(*peer);
-                is_other && room_member.membership == discovery::RoomMembership::HistoryHolder
-            });
-            room_sync::state_machine::LobbyRoomStatus {
-                is_room_alive_in_lobby: live_count > 0,
-                has_other_lobby_holders: other_live_count > 0 || has_other_history_holder,
-            }
-        },
-    );
-    (prefix, lobby_status)
-}
-
-// needed helper: one net event as a reducer input, if it concerns this room
-fn net_event_to_input<Replica: room_sync::RoomState>(
-    event: &p2p::NetEvent,
-    state: &room_sync::bevy_systems::SyncState<Replica::Op>,
-    clock: &mut room_sync::LamportClock,
-    game: &identity::GameId,
-    replica: &Replica,
-) -> Option<room_sync::state_machine::Input<Replica::Op>> {
-    match event {
-        p2p::NetEvent::Gossip { topic, from, data } => {
-            let expected = state
-                .room
-                .as_ref()
-                .map(|room| identity::Topic::from_room_sync(game, room));
-            if expected.as_ref() != Some(topic) {
-                return None;
-            }
-            let message =
-                bincode::deserialize::<room_sync::ReplicaSyncTopicMessage<Replica::Op>>(data)
-                    .ok()?;
-            match message {
-                room_sync::ReplicaSyncTopicMessage::ApplyThisOp { room, meta, op } => {
-                    clock.observe(meta.lamport);
-                    Some(room_sync::state_machine::Input::Remote { room, meta, op })
-                }
-                room_sync::ReplicaSyncTopicMessage::CompareSliceContentHashes {
-                    hashes, ..
-                } => Some(room_sync::state_machine::Input::RemoteSliceContentHashes {
-                    from: from.clone(),
-                    local: replica.slice_content_hashes(),
-                    remote: hashes,
-                }),
-            }
-        }
-        p2p::NetEvent::SnapshotPart {
-            room,
-            part,
-            total,
-            data,
-            ..
-        } => Some(
-            room_sync::state_machine::Input::SnapshotPartReceivedFromRoomMember {
-                room: room.clone(),
-                part: *part,
-                total: *total,
-                data: data.clone(),
-            },
-        ),
-        p2p::NetEvent::SnapshotMissing { .. } => Some(room_sync::state_machine::Input::Tick),
-        p2p::NetEvent::SnapshotFailed { from } => {
-            Some(room_sync::state_machine::Input::RequestToRoomMemberFailed { from: from.clone() })
-        }
-        p2p::NetEvent::HistoryRecordFound { id, value } => {
-            Some(room_sync::state_machine::Input::HistoryRecordFound {
-                id: id.clone(),
-                value: value.clone(),
-            })
-        }
-        p2p::NetEvent::HistoryRecordNotFound { id } => {
-            Some(room_sync::state_machine::Input::HistoryRecordNotFound { id: id.clone() })
-        }
-        p2p::NetEvent::ReplicaSliceRequest {
-            id, room, index, ..
-        } => Some(room_sync::state_machine::Input::ReplicaSliceRequested {
-            id: *id,
-            room: room.clone(),
-            index: *index,
-        }),
-        p2p::NetEvent::ReplicaSlice {
-            from,
-            room,
-            index,
-            data,
-        } => Some(room_sync::state_machine::Input::ReplicaSliceReceived {
-            from: from.clone(),
-            room: room.clone(),
-            index: *index,
-            data: data.clone(),
-        }),
-        p2p::NetEvent::SnapshotRequest { id, room, part, .. } => Some(
-            room_sync::state_machine::Input::SnapshotPartRequestedByRoomMember {
-                id: *id,
-                room: room.clone(),
-                part: *part,
-            },
-        ),
-        _ => None,
-    }
-}
-
-// needed helper: executes one reducer output
-fn perform<Replica: room_sync::RoomState>(
-    output: room_sync::state_machine::Output<Replica::Op>,
-    room: &mut Replica,
-    clock: room_sync::LamportClock,
-    per_room_bytes: p2p::HistoryByteCount,
-    record_ttl: std::time::Duration,
-    pending: &mut p2p::PendingNetCommands,
-    command_sender: Option<&discovery::CommandSender>,
-    join_error: &mut Option<ResMut<discovery::ui::JoinError>>,
-    game: &identity::GameId,
-) {
-    use p2p::NetCommand;
-    use room_sync::state_machine::Output;
-    match output {
-        Output::FetchSnapshotPartFromRoomMember { peer, room, part } => {
-            pending.push(NetCommand::FetchSnapshot {
-                peer_id: peer,
-                room,
-                part,
-            });
-        }
-        Output::SendSnapshotPartToRoomMember {
-            id,
-            room: name,
-            part,
-        } => {
-            pending.push(NetCommand::RespondSnapshot {
-                id,
-                frame: snapshot_frame(room, name, part),
-            });
-        }
-        Output::Merge { bytes } => {
-            if let Ok(snapshot) = bincode::deserialize::<Replica::Snapshot>(&bytes) {
-                room.merge(snapshot);
-            }
-        }
-        Output::Apply { meta, op } => room.apply(meta, &op),
-        Output::GetHistoryRecord { id } => pending.push(NetCommand::GetHistoryRecord { id }),
-        Output::MergeAndWriteHistory {
-            prefix,
-            stored_manifest,
-            stored_snapshot,
-        } => {
-            pending.extend(p2p::NetCommand::merge_and_write_history_records(
-                room,
-                &prefix,
-                stored_manifest.as_ref(),
-                stored_snapshot.as_deref(),
-                u64::from(*clock),
-                per_room_bytes,
-                record_ttl,
-            ));
-        }
-        Output::RoomGone { room } => {
-            if let Some(err) = join_error {
-                ***err = Some(format!(
-                    "Room {} no longer exists (all players left)",
-                    room.as_str()
-                ));
-            }
-            if let Some(sender) = command_sender {
-                sender.send(discovery::Command::Leave).ok();
-            }
-        }
-        Output::HistoryUnavailable { room: _ } => {
-            if let Some(err) = join_error {
-                ***err = Some(String::from("Couldn't get room history"));
-            }
-            if let Some(sender) = command_sender {
-                sender.send(discovery::Command::Leave).ok();
-            }
-        }
-        Output::PublishSliceContentHashes { room, hashes } => {
-            let msg =
-                room_sync::ReplicaSyncTopicMessage::<Replica::Op>::CompareSliceContentHashes {
-                    room: room.clone(),
-                    hashes,
-                };
-            if let Ok(data) = bincode::serialize(&msg) {
-                pending.push(NetCommand::Publish {
-                    topic: identity::Topic::from_room_sync(game, &room),
-                    data,
-                });
-            }
-        }
-        Output::FetchReplicaSlice { peer, room, index } => {
-            pending.push(NetCommand::FetchReplicaSlice {
-                peer_id: peer,
-                room,
-                index,
-            });
-        }
-        Output::SendReplicaSlice {
-            id,
-            room: name,
-            index,
-        } => {
-            let frame = bincode::serialize(&room.slice_snapshot(index)).map_or_else(
-                |_| p2p::SnapshotResponse::Missing { room: name.clone() },
-                |data| p2p::SnapshotResponse::ReplicaSlice {
-                    room: name.clone(),
-                    index,
-                    data,
-                },
-            );
-            pending.push(NetCommand::RespondSnapshot { id, frame });
-        }
-    }
-}
-
-// needed helper: splits one snapshot payload into the fixed-size wire parts
-fn split_parts(bytes: &[u8], part_bytes: usize) -> Vec<Vec<u8>> {
-    if bytes.is_empty() {
-        return vec![Vec::new()];
-    }
-    let width = part_bytes.max(1);
-    bytes.chunks(width).map(<[u8]>::to_vec).collect()
-}
-
-// needed helper: one snapshot part, or Missing when the index is out of range
-fn snapshot_frame<Replica: room_sync::RoomState>(
-    room: &Replica,
-    room_name: identity::RoomName,
-    part: u32,
-) -> p2p::SnapshotResponse {
-    let Ok(bytes) = bincode::serialize(&room.snapshot()) else {
-        return p2p::SnapshotResponse::Missing { room: room_name };
-    };
-    let parts = split_parts(&bytes, room_sync::PART_BYTES);
-    let total = u32::try_from(parts.len()).unwrap_or(u32::MAX);
-    let data = usize::try_from(part)
-        .ok()
-        .and_then(|index| parts.get(index).cloned());
-    match data {
-        Some(data) => p2p::SnapshotResponse::Part {
-            room: room_name,
-            part,
-            total,
-            data,
-        },
-        None => p2p::SnapshotResponse::Missing { room: room_name },
     }
 }
 

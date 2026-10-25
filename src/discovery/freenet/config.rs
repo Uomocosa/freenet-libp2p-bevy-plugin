@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use atomic_delegate_macros::atomic_delegates;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::Receiver;
@@ -28,6 +30,19 @@ impl Config {
         &self,
         target: &Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
     ) -> discovery::freenet::LobbyContractSubscription {
+    }
+    pub(crate) fn initial_lobby(
+        me: &identity::PeerId,
+        room_size: discovery::RoomSize,
+        target: Option<&discovery::state_machine::HeartbeatTarget>,
+    ) -> discovery::Lobby {
+    }
+}
+
+#[rustfmt::skip]
+impl Config {
+    pub(crate) fn is_due(last: Option<Instant>, now: Instant, every: Duration) -> bool {
+        last.is_none_or(|last| now.duration_since(last) >= every)
     }
 }
 

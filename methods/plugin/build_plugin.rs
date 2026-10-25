@@ -4,7 +4,6 @@ use bevy::prelude::*;
 use tracing::error;
 
 use crate::discovery;
-use crate::p2p;
 
 pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.init_resource::<discovery::Status>();
@@ -27,7 +26,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.insert_resource(discovery::EventReceiver(Mutex::new(Some(event_rx))));
     app.insert_resource(discovery::CommandSender(command_tx));
 
-    let Some(net) = net_link(app) else {
+    let Some(net) = discovery::Plugin::net_link(app) else {
         error!(target: "discovery", "discovery: p2p resources missing, discovery disabled");
         return;
     };
@@ -51,21 +50,6 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     };
     let config = (**plugin).clone();
     tokio::spawn(async move { config.run(endpoint, channels).await });
-}
-
-fn net_link(app: &App) -> Option<discovery::libp2p::NetLink> {
-    let events = app
-        .world()
-        .get_resource::<p2p::NetEventChannel>()?
-        .subscribe();
-    let commands = (**app.world().get_resource::<p2p::NetCommandSender>()?).clone();
-    let (ready, observed) = app.world().get_resource::<p2p::ReadyChannel>()?.subscribe();
-    Some(discovery::libp2p::NetLink {
-        commands,
-        events,
-        ready,
-        observed,
-    })
 }
 
 #[cfg(test)]

@@ -37,9 +37,6 @@ pub struct DoorPanel;
 pub struct DoorLabel;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
-pub struct LeavePrompt;
-
-#[derive(Component, Debug, Default, Clone, Copy)]
 pub struct LeaveYesButton;
 
 #[derive(Component, Debug, Default, Clone, Copy)]

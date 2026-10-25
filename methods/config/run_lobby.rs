@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::Receiver;
@@ -30,11 +30,11 @@ pub async fn run_lobby(
         }
         let now = Instant::now();
         let mut lobby = subscription.poll().await.ok();
-        if is_due(last_bridge, now, constants::RESUBSCRIBE) {
+        if discovery::freenet::Config::is_due(last_bridge, now, constants::RESUBSCRIBE) {
             let _ = subscription.bridge_subscription();
             last_bridge = Some(now);
         }
-        if is_due(last_refresh, now, constants::LOBBY_REFRESH) {
+        if discovery::freenet::Config::is_due(last_refresh, now, constants::LOBBY_REFRESH) {
             let timeout = constants::REQUEST_TIMEOUT;
             let refresh = subscription.refresh();
             if let Ok(Ok(fresh)) = tokio::time::timeout(timeout, refresh).await {
@@ -52,7 +52,7 @@ pub async fn run_lobby(
             }
         }
         let current = target.borrow_and_update().clone();
-        if is_due(
+        if discovery::freenet::Config::is_due(
             last_publish,
             now,
             state.discovery.lease.interval_between_heartbeats,
@@ -86,11 +86,6 @@ pub async fn run_lobby(
             last_publish = Some(now);
         }
     }
-}
-
-// needed helper: true when `every` has elapsed since `last` (or it never ran)
-fn is_due(last: Option<Instant>, now: Instant, every: Duration) -> bool {
-    last.is_none_or(|last| now.duration_since(last) >= every)
 }
 
 #[cfg(test)]
