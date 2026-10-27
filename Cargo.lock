@@ -3923,6 +3923,7 @@ name = "freenet-contract-harness"
 version = "0.0.5"
 source = "git+https://github.com/Uomocosa/freenet-contract-harness?tag=v0.0.5#ea48e02f864fd49b993ff1b48ee09495624cc5dd"
 dependencies = [
+ "atomic-delegate-macros",
  "bincode",
  "freenet-stdlib",
  "serde",
