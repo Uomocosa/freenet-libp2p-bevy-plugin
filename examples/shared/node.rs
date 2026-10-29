@@ -1,12 +1,27 @@
 use std::net::{IpAddr, Ipv4Addr, TcpListener, UdpSocket};
+use std::path::PathBuf;
 
 use freenet::config::{ConfigArgs, ConfigPathsArgs, NetworkArgs, WebsocketApiConfig};
 use freenet::local_node::{NodeConfig, OperationMode};
 use freenet::run_network_node;
 use freenet::server::serve_client_api_with_listener;
 
-pub async fn bootstrap_node() -> Result<(tempfile::TempDir, u16), String> {
-    let tmp = tempfile::tempdir().map_err(|e| e.to_string())?;
+use super::freenet_node_dir::FreenetNodeDir;
+
+pub async fn start_embedded_freenet_node(
+    freenet_node_dir: Option<PathBuf>,
+) -> Result<(FreenetNodeDir, u16), String> {
+    let node_dir = if let Some(path) = freenet_node_dir {
+        std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+        FreenetNodeDir::Kept(path)
+    } else {
+        let tmp = tempfile::tempdir().map_err(|e| e.to_string())?;
+        FreenetNodeDir::Temporary(tmp)
+    };
+    let base = match &node_dir {
+        FreenetNodeDir::Temporary(tmp) => tmp.path().to_path_buf(),
+        FreenetNodeDir::Kept(path) => path.clone(),
+    };
     let listener =
         TcpListener::bind((IpAddr::V4(Ipv4Addr::LOCALHOST), 0)).map_err(|e| e.to_string())?;
     let ws_port = listener.local_addr().map_err(|e| e.to_string())?.port();
@@ -26,9 +41,9 @@ pub async fn bootstrap_node() -> Result<(tempfile::TempDir, u16), String> {
             ..Default::default()
         },
         config_paths: ConfigPathsArgs {
-            config_dir: Some(tmp.path().to_path_buf()),
-            data_dir: Some(tmp.path().to_path_buf()),
-            log_dir: Some(tmp.path().to_path_buf()),
+            config_dir: Some(base.clone()),
+            data_dir: Some(base.clone()),
+            log_dir: Some(base.clone()),
         },
         ..Default::default()
     };
@@ -44,7 +59,7 @@ pub async fn bootstrap_node() -> Result<(tempfile::TempDir, u16), String> {
         }
     });
     tracing::info!("lobby freenet node started ws_port={ws_port}");
-    Ok((tmp, ws_port))
+    Ok((node_dir, ws_port))
 }
 
 // needed helper: allocates a free UDP port so parallel instances never collide

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Parser, ValueEnum};
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
@@ -27,6 +29,9 @@ pub struct Args {
     pub token: Option<String>,
     #[arg(long, value_enum, default_value = "both")]
     pub transport: TransportArg,
+    /// Folder the embedded Freenet node keeps its config, data and logs in (default: a temp dir).
+    #[arg(long)]
+    pub freenet_node_dir: Option<PathBuf>,
 }
 
 #[must_use]

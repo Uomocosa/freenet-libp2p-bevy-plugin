@@ -16,7 +16,7 @@ use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin};
 async fn main() -> bevy::app::AppExit {
     let args = args::Args::parse();
     init_tracing();
-    let Ok((_node_guard, ws_port)) = shared::node::bootstrap_node().await else {
+    let Ok((_node_guard, ws_port)) = shared::node::start_embedded_freenet_node(None).await else {
         eprintln!("failed to start embedded freenet node");
         return bevy::app::AppExit::error();
     };

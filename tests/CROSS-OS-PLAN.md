@@ -17,7 +17,7 @@ host our own relay — that would defeat the purpose of Freenet.
 |---|---|---|
 | X1 | Binary name | `starboard_gossip` example → `starboard` (`starboard.exe` on Windows). |
 | X2 | Shipped artifact | Build once on Windows; upload `starboard.exe` + the Freenet node + the checker as one bundle. Later runs reuse it via `bundle_run_id` — no cargo invocation. |
-| X3 | Freenet shipping | The node ships with the game; the user never installs/starts Freenet by hand. (Open: bundled `freenet.exe` sidecar — recommended — vs in-process node.) |
+| X3 | Freenet shipping | Decided: in-process node (`freenet` crate, `examples/shared` `start_embedded_freenet_node`); `--freenet-node-dir` keeps its config/data/logs. |
 | X4 | NAT | No relay of our own. The report separates **Freenet layer** (joined network, saw room/members) from **libp2p layer** (direct connection, how). |
 | X5 | History | Kademlia room history (Part C, `examples/starboard/PLAN_HISTORY.md`) lands **before** S4. A player who joined a room and did not quit the game holds and serves its history. |
 | X6 | Room deletion | When the last holder quits (clean or not), the room dies and disappears from the lobby. Holders refresh a lease in the lobby contract every 30 s; room dead after 90 s with no fresh lease (both × `E2E_TIME_SCALE`). |
@@ -83,7 +83,7 @@ Jobs:
 - [x] 2. Part C — Kademlia history + holder leases + room deletion, with its local test layers
       (unit → headless multi-App → local e2e S4a/S4b/S4c). All green on Linux first
       (2026-10-29: fast 398 passed; S4a/S4b/S4c PASS on mainnet, finding 7 fixed).
-3. Ship Freenet with the game (X3).
+- [x] 3. Ship Freenet with the game (X3) (2026-10-29: in-process node; --freenet-node-dir).
 4. Step script, `result.json`, checker, two-layer connectivity report.
 5. S1–S7 green on Linux alone.
 6. `ci-min` profile + Windows build-and-bundle job.
@@ -93,8 +93,7 @@ Jobs:
 
 ## 7. Open
 
-- X3: sidecar `freenet.exe` (recommended) vs in-process node.
-- Does the current setup use Freenet's public gateways? The 5G test must run against the public
-  network.
+- ~~X3: sidecar `freenet.exe` (recommended) vs in-process node.~~
+- Does the current setup use Freenet's public gateways? The 5G test must run against the public network. Yes: `skip_load_from_network = false` loads https://freenet.org/keys/gateways.toml (freenet 0.2.132 config.rs:80).
 - Verify Freenet's current NAT-traversal behaviour (gateways, UDP hole punching, symmetric
   CGNAT) against up-to-date sources before step 8.

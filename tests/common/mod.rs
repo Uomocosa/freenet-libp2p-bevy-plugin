@@ -10,6 +10,9 @@ pub use cleanup_stale::cleanup_stale;
 mod finish_record;
 pub use finish_record::finish_record;
 
+mod freenet_node_dir_arg;
+pub use freenet_node_dir_arg::freenet_node_dir_arg;
+
 mod log_parse;
 pub use log_parse::{
     CanvasTick, Tick, canvas_ticks, history_write_bytes, last_canvas, last_tick, log_contains,

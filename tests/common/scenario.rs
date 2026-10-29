@@ -604,6 +604,11 @@ fn spawn_peer(
         args.push(ui.clone());
     }
     args.extend(scenario.extra_args.iter().cloned());
+    if scenario.bin == "starboard" {
+        let [flag, dir] = super::freenet_node_dir_arg(&env.dir, &username);
+        args.push(flag);
+        args.push(dir);
+    }
     super::spawn_app::spawn_app(&env.bin, &args, &username, &log, scenario.window_prefix)
 }
 
