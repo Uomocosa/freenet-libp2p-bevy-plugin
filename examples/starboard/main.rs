@@ -6,6 +6,7 @@ mod shared;
 
 mod args;
 mod parse_stroke;
+mod result;
 mod scaled_timings;
 mod script;
 mod script_runner;
@@ -13,7 +14,7 @@ mod status;
 
 use bevy::prelude::*;
 use clap::Parser;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, room_sync};
+use freenet_libp2p_bevy_plugin::{discovery, e2e_report, identity, p2p, plugin, room_sync};
 
 #[tokio::main]
 async fn main() -> bevy::app::AppExit {
@@ -96,6 +97,20 @@ async fn main() -> bevy::app::AppExit {
             status::log_canvas_hash,
         ),
     );
+    if let Some(path) = args.result_json.clone() {
+        app.insert_resource(e2e_report::PeerRunResult {
+            username: args.username.clone(),
+            ..e2e_report::PeerRunResult::default()
+        });
+        app.insert_resource(result::ResultJsonPath(path));
+        app.add_systems(
+            Update,
+            result::record_peer_run_result
+                .after(script_runner::run_script)
+                .run_if(resource_exists::<script_runner::StarboardScriptRunner>),
+        );
+        app.add_systems(Last, result::write_peer_run_result);
+    }
     app.run()
 }
 

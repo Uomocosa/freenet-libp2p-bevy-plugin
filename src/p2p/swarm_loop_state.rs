@@ -416,6 +416,15 @@ pub fn note_connection(&mut self, event: SwarmEvent<p2p::behaviour::BehaviourEve
             ..
         } => {
             Self::log_established(&peer_id, connection_id, &endpoint);
+            let kind = p2p::ConnectionKind::from(endpoint.get_remote_address());
+            self.event_tx
+                .send(p2p::Event::Net(
+                    p2p::NetEvent::Libp2pConnectionEstablished {
+                        peer_id: identity::PeerId(peer_id.to_string()),
+                        kind,
+                    },
+                ))
+                .ok();
             if num_established.get() == 1 {
                 self.event_tx
                     .send(p2p::Event::Net(p2p::NetEvent::PeerConnected(

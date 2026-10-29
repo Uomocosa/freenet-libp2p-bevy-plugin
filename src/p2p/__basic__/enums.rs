@@ -12,6 +12,10 @@ pub enum NetEvent {
     ObservedAddr(identity::PeerAddr),
     PeerConnected(identity::PeerId),
     PeerDisconnected(identity::PeerId),
+    Libp2pConnectionEstablished {
+        peer_id: identity::PeerId,
+        kind: p2p::ConnectionKind,
+    },
     DialFailed {
         peer_id: identity::PeerId,
         reason: String,

@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
+use freenet_libp2p_bevy_plugin::e2e_report::StepTiming;
+
 use crate::shared::script::timed_script_step::TimedScriptStep;
 
 /// The exit code of a peer whose script failed: a wait missed its deadline or a step failed.
@@ -39,6 +41,7 @@ pub struct ScriptRunner<Step> {
     pub step_elapsed: Duration,
     pub is_first_poll: bool,
     pub verdict: ScriptVerdict,
+    pub finished_step_timings: Vec<StepTiming>,
 }
 
 impl<Step: Clone> ScriptRunner<Step> {
@@ -50,6 +53,7 @@ impl<Step: Clone> ScriptRunner<Step> {
             step_elapsed: Duration::ZERO,
             is_first_poll: true,
             verdict: ScriptVerdict::Running,
+            finished_step_timings: Vec::new(),
         }
     }
 
@@ -79,6 +83,11 @@ impl<Step: Clone> ScriptRunner<Step> {
             match poll_step(&timed.step, clock) {
                 StepOutcome::Done => {
                     tracing::info!("script step done step={position} {}", timed.raw);
+                    self.finished_step_timings.push(StepTiming {
+                        raw: timed.raw.clone(),
+                        secs: self.step_elapsed.as_secs_f64(),
+                        failure: None,
+                    });
                     self.index = self.index.saturating_add(1);
                     self.step_elapsed = Duration::ZERO;
                     self.is_first_poll = true;
@@ -102,6 +111,11 @@ impl<Step: Clone> ScriptRunner<Step> {
     // needed helper: logs the failed step once and stops the script
     fn fail(&mut self, position: &str, raw: &str, reason: &str) -> ScriptVerdict {
         tracing::error!("script failed step={position} {raw} reason={reason}");
+        self.finished_step_timings.push(StepTiming {
+            raw: raw.to_string(),
+            secs: self.step_elapsed.as_secs_f64(),
+            failure: Some(reason.to_string()),
+        });
         self.verdict = ScriptVerdict::Failed;
         self.verdict
     }
@@ -140,6 +154,13 @@ mod tests {
         let verdict = runner.advance(Duration::ZERO, |_, _| StepOutcome::Done);
         assert_eq!(verdict, ScriptVerdict::Finished);
         assert_eq!(app_exit_for_verdict(verdict), Some(AppExit::Success));
+        assert_eq!(runner.finished_step_timings.len(), 2);
+        assert!(
+            runner
+                .finished_step_timings
+                .iter()
+                .all(|timing| timing.failure.is_none())
+        );
     }
 
     #[test]
@@ -180,6 +201,25 @@ mod tests {
         assert_eq!(
             seen,
             vec![(0, Duration::from_secs(9), true), (1, Duration::ZERO, true),]
+        );
+    }
+
+    #[test]
+    fn finished_steps_record_their_timings() {
+        let mut runner = ScriptRunner::new(vec![timed(0, None), timed(1, None)]);
+        runner.advance(Duration::from_secs(2), |step, _| {
+            if *step == 0 {
+                StepOutcome::Done
+            } else {
+                StepOutcome::Failed("boom".to_string())
+            }
+        });
+        assert_eq!(runner.finished_step_timings.len(), 2);
+        assert_eq!(runner.finished_step_timings[0].raw, "step-0");
+        assert!(runner.finished_step_timings[0].failure.is_none());
+        assert_eq!(
+            runner.finished_step_timings[1].failure.as_deref(),
+            Some("boom")
         );
     }
 }

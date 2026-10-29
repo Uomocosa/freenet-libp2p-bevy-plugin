@@ -3,10 +3,13 @@ pub mod chunked_snapshot;
 pub mod client;
 #[cfg(feature = "discovery")]
 pub mod config;
+pub mod connection_kind;
 #[cfg(all(feature = "discovery", feature = "default_ui"))]
 pub mod default_ui_plugin;
 #[cfg(feature = "discovery")]
 pub mod discovery_state;
+#[cfg(feature = "e2e")]
+pub mod expectation_result;
 #[cfg(feature = "discovery")]
 pub mod lobby;
 #[cfg(feature = "discovery")]
@@ -23,6 +26,8 @@ pub mod replica_slice_index;
 pub mod replica_state;
 pub mod room_history_record_kind;
 pub mod runner_config;
+#[cfg(feature = "e2e")]
+pub mod scenario_expectation;
 #[cfg(feature = "discovery")]
 pub mod status;
 pub mod swarm_loop_state;

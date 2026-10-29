@@ -489,7 +489,11 @@ pub async fn run_scenario(scenario: Scenario) -> Report {
         .filter_map(|peer| peer.guard.take())
         .collect();
     release(windows);
-    let caption = build_caption(&scenario, &env, &peers, &checks);
+    let mut caption = build_caption(&scenario, &env, &peers, &checks);
+    if scenario.bin == "starboard" {
+        caption.push('\n');
+        caption.push_str(&peer_run_expectation_tables(&scenario, &env));
+    }
     eprintln!("{caption}");
     send_clip(clip.as_deref(), &caption).await;
     Report {
@@ -608,6 +612,9 @@ fn spawn_peer(
         let [flag, dir] = super::freenet_node_dir_arg(&env.dir, &username);
         args.push(flag);
         args.push(dir);
+        let [flag, file] = super::result_json_arg(&env.dir, &username);
+        args.push(flag);
+        args.push(file);
     }
     super::spawn_app::spawn_app(&env.bin, &args, &username, &log, scenario.window_prefix)
 }
@@ -717,6 +724,36 @@ fn release(windows: Vec<TerminalGuard>) {
     } else {
         std::mem::forget(windows);
     }
+}
+
+// needed helper: the result.json expectation tables for starboard scenarios
+fn peer_run_expectation_tables(scenario: &Scenario, env: &Env) -> String {
+    use std::collections::{BTreeMap, BTreeSet};
+    let mut may_crash = BTreeSet::new();
+    for (index, run) in scenario.peers.iter().enumerate() {
+        if script_ending(&run.script) == ScriptEnding::CrashApp {
+            may_crash.insert(format!("p{}", index.saturating_add(1)));
+        }
+    }
+    let expectation = freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
+        canvas_converges: true,
+        min_members: 1,
+        may_crash,
+    };
+    let mut results: BTreeMap<
+        String,
+        Option<freenet_libp2p_bevy_plugin::e2e_report::PeerRunResult>,
+    > = BTreeMap::new();
+    for index in 0..scenario.peers.len() {
+        let username = format!("p{}", index.saturating_add(1));
+        let path = env.dir.join(&username).join("result.json");
+        let parsed = std::fs::read(&path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok());
+        results.insert(username, parsed);
+    }
+    let rows = expectation.check_peer_run_results(&results);
+    freenet_libp2p_bevy_plugin::e2e_report::ExpectationResult::render_markdown_tables(&rows)
 }
 
 fn build_caption(

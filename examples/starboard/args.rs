@@ -32,6 +32,9 @@ pub struct Args {
     /// Folder the embedded Freenet node keeps its config, data and logs in (default: a temp dir).
     #[arg(long)]
     pub freenet_node_dir: Option<PathBuf>,
+    /// Where to write this peer's result.json on exit (default: not written).
+    #[arg(long)]
+    pub result_json: Option<PathBuf>,
 }
 
 #[must_use]

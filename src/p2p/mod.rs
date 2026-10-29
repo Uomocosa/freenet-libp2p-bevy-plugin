@@ -19,6 +19,9 @@ pub use chunked_snapshot::ChunkedSnapshot;
 pub mod transport_mode;
 pub use transport_mode::TransportMode;
 
+pub mod connection_kind;
+pub use connection_kind::ConnectionKind;
+
 pub mod mdns_mode;
 pub use mdns_mode::MdnsMode;
 
