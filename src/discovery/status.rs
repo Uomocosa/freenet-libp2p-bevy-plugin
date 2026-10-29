@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::time::Duration;
 
 use atomic_delegate_macros::atomic_delegates;
 use bevy::prelude::Resource;
@@ -9,7 +8,7 @@ use crate::identity;
 use crate::p2p;
 use crate::room_sync;
 
-#[derive(Resource, Debug, Clone, PartialEq, Eq)]
+#[derive(Resource, Debug, Clone, Default, PartialEq, Eq)]
 pub struct Status {
     pub lobby: discovery::Lobby,
     pub room: Option<discovery::JoinedRoom>,
@@ -17,21 +16,6 @@ pub struct Status {
     pub freenet_peers: Vec<identity::FreenetPeer>,
     pub is_lobby_attached: bool,
     pub self_peer_id: Option<identity::PeerId>,
-    pub lease_ttl: Duration,
-}
-
-impl Default for Status {
-    fn default() -> Self {
-        Self {
-            lobby: discovery::Lobby::default(),
-            room: None,
-            connected: BTreeSet::new(),
-            freenet_peers: Vec::new(),
-            is_lobby_attached: false,
-            self_peer_id: None,
-            lease_ttl: discovery::HolderHeartbeatIntervals::default().ttl,
-        }
-    }
 }
 
 #[rustfmt::skip]

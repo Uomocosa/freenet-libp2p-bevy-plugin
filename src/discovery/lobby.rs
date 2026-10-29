@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::time::Duration;
 
 use atomic_delegate_macros::atomic_delegates;
 use bevy::prelude::Reflect;
@@ -19,7 +18,16 @@ pub struct Lobby(pub BTreeMap<identity::RoomName, discovery::LobbyRoom>);
 
 impl Lobby {
     pub fn merge(&mut self, incoming: Self) {}
-    pub fn drop_dead(&mut self, now: discovery::UnixTime, ttl: Duration) {}
+    pub fn drop_members_whose_lease_lapsed(
+        &mut self,
+        observed: &BTreeMap<
+            (identity::RoomName, identity::PeerId),
+            discovery::state_machine::ObservedLobbyHeartbeat,
+        >,
+        now: discovery::UnixTime,
+        limits: discovery::LobbyLeaseLimits,
+    ) {
+    }
 }
 
 #[rustfmt::skip]
@@ -74,9 +82,14 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.merge(incoming);
         assert_eq!(lobby.len(), 1);
-        lobby.drop_dead(
-            discovery::UnixTime::from(500),
-            discovery::HolderHeartbeatIntervals::default().ttl,
+        let lease = discovery::HolderHeartbeatIntervals::default();
+        lobby.drop_members_whose_lease_lapsed(
+            &BTreeMap::new(),
+            discovery::UnixTime::from(1000),
+            discovery::LobbyLeaseLimits {
+                lease_ttl: lease.ttl,
+                remote_clock_skew_margin: lease.remote_clock_skew_margin,
+            },
         );
         assert!(lobby.is_empty());
     }

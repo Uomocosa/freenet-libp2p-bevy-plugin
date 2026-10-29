@@ -22,7 +22,10 @@ pub async fn run(
     };
     let mut state = DiscoveryState::new(me.clone());
     state.display_name = config.display_name.clone();
-    state.lease_ttl = config.lease.ttl;
+    state.lease_limits = discovery::LobbyLeaseLimits {
+        lease_ttl: config.lease.ttl,
+        remote_clock_skew_margin: config.lease.remote_clock_skew_margin,
+    };
     state.game = config.game.clone();
     state.history_size_limits = config.history_size_limits;
     let (target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());

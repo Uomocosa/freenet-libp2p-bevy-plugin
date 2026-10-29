@@ -38,6 +38,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
+            entry: discovery::RoomEntry::Created,
         });
         let outputs = leave(&mut state, discovery::UnixTime::from(2));
         assert!(state.room.is_none());

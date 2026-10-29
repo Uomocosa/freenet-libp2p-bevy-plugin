@@ -240,29 +240,28 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
 
 ## Step H4 — Enable in starboard + e2e
 
-- [ ] Turn on `history` in starboard; local e2e (see `tests/CROSS-OS-PLAN.md`):
+- [x] Turn on `history` in starboard; local e2e (see `tests/CROSS-OS-PLAN.md`):
       S4a all leave but stay → board restored ✅; S4b all quit → room gone, join error +
       known exit code ✅; S4c last holder killed while a peer is joining → error screen
-      ❌ **NOT RUN** — the joiner accepts an empty board instead of failing (the
-      fallback cannot tell a dead holder from a new room; see the findings).
+      ✅ (finding 7 fixed below).
 - [x] Measure record sizes and put/get latency; write them below.
 - [x] Decide whether `history` becomes default-on.
 
 ### What was done (Step H4)
 
 **Files added (product):**
-- `examples/starboard_gossip/script.rs` — the `--script` vocabulary: `ScriptStep`
+- `examples/starboard/script.rs` — the `--script` vocabulary: `ScriptStep`
   (`CreateRoom`, `JoinRoom`, `LeaveRoom`, `WaitForNMembers`, `WaitSecs`,
   `WaitConverged`, `PaintFromTo`, `EraseFromTo`, `ExitGame`), `MemberCount`, and
   `parse_script_step`.
-- `examples/starboard_gossip/parse_stroke.rs` — `parse_stroke`: `10.20-30.102` → a
+- `examples/starboard/parse_stroke.rs` — `parse_stroke`: `10.20-30.102` → a
   `Stroke`, with an error that names the offending part.
-- `examples/starboard_gossip/script_runner.rs` — `ScriptRunner` + `run_script`: walks
+- `examples/starboard/script_runner.rs` — `ScriptRunner` + `run_script`: walks
   the step list and logs `starboard script done <step>` per step.
-- `examples/starboard_gossip/join_failure.rs` — `JoinTarget`, `JoinLimits`,
+- `examples/starboard/join_failure.rs` — `JoinTarget`, `JoinLimits`,
   `JOIN_FAILED_EXIT_CODE = 2`, and `exit_on_join_failure`: the watchdog that turns a
   failed join into one known exit code.
-- `examples/starboard_gossip/scaled_timings.rs` — `scaled_lease_timings`,
+- `examples/starboard/scaled_timings.rs` — `scaled_lease_timings`,
   `scaled_history_config`: the lease and history timings × `E2E_TIME_SCALE`.
 - `examples/starboard/bench/history_bench.rs` — `HistoryBoard`, `HistoryReport`,
   `measure_history`, `history_markdown` + the ignored `history_bench` test.
@@ -277,11 +276,11 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
   yet, and the history fallback used to call that "all players left" — which made the
   **creator fail its own join** (the new room is not in the contract for a few
   seconds). New test: `a_room_the_contract_has_not_confirmed_yet_is_not_gone`.
-- `examples/starboard_gossip/main.rs` — the history is on
+- `examples/starboard/main.rs` — the history is on
   (`with_history_config(Some(...))`), the lease and history timings are scaled, the
   script runner runs before the lobby intent, the join watchdog is registered, and
   `main` returns `AppExit` so a failed join exits with code 2.
-- `examples/starboard_gossip/args.rs` — `--script` is now a comma-separated list of
+- `examples/starboard/args.rs` — `--script` is now a comma-separated list of
   steps (`value_delimiter = ','`), `--script` and `--action` are exclusive
   (`conflicts_with`), and `--join-timeout-secs` (default 300) bounds the wait for
   the room to show up in the lobby.
@@ -328,7 +327,7 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
 | `exit` | — | publish `Quit`, then end the game |
 
 **Public API added:** `room_sync` — unchanged (only a log line). `examples/starboard` —
-`canvas::Stroke`. `examples/starboard_gossip` — `ScriptStep`, `MemberCount`,
+`canvas::Stroke`. `examples/starboard` — `ScriptStep`, `MemberCount`,
 `parse_script_step`, `parse_stroke`, `ScriptRunner`, `run_script`, `JoinTarget`,
 `JoinLimits`, `JOIN_FAILED_EXIT_CODE`, `exit_on_join_failure`, `scaled_lease_timings`,
 `scaled_history_config`. `tests/common` — `ScenarioFlow`, `PeerSpec`, `PeerRole`,
@@ -404,6 +403,14 @@ board's record is 333 KB in 6 chunks of ≤ 60 KB — far below HD9's 64 MB per-
    written yet can therefore be told "couldn't get room history". Left as it is (the
    fallback only runs when no live member can serve the board), and recorded here for
    the next step.
+   **2026-10-29, partly fixed:** a joiner that reached the fallback before its first
+   member connected (S4a run `…-1793275900`: member connected 34 ms after the join,
+   the three misses failed it 100 ms later) ignored that member. `handle_members` now
+   asks a member that connects during the Kademlia fetch for the board
+   (`a_member_connecting_during_the_kademlia_fetch_is_asked_for_the_board`).
+   **Still open:** a joiner that can reach *no* live member still gives up after three
+   fast misses; the real fix is a time-based deadline in room sync (matters for the 5G
+   run, where the direct libp2p link may fail).
 5. **The mainnet's contract state lags a cold node by minutes.** A late joiner read
    an *empty* lobby for 2 min 27 s before the room appeared in it — the contract's
    subscription had not caught up with the node's cold start. Two consequences: the
@@ -429,9 +436,38 @@ board's record is 333 KB in 6 chunks of ≤ 60 KB — far below HD9's 64 MB per-
    lease (dead) can be told apart from one that is still connecting. Neither is
    exposed to the room sync today, so S4c is **NOT RUN** (the scenario is in the
    tree and fails with this reason).
+   **FIXED 2026-10-29:** `room_prefix_and_lobby_status` now uses `UnixTime::now()`
+   (not the max heartbeat) for freshness, so a lone expired holder is dead
+   (`is_room_alive_in_lobby = false` → `RoomGone`); `self_peer_id`/`lease_ttl` ride
+   on `discovery::Status` (populated from `ReadyChannel`/holder lease config), and
+   an unknown self counts every live member as other (never subtracts one). New fast
+   tests: `expired_holder_alone_means_the_room_is_gone`,
+   `fresh_holder_means_wait_for_history`, and headless-App
+   `expired_holder_alone_is_gone_not_empty`. S4c now passes (see the table).
+   **SUPERSEDED 2026-10-29 (observation/hybrid rule):** lease expiry is a hybrid of
+   "observed by this peer" and "remote timestamp far too old", lives only in
+   discovery, and is re-checked on every `Tick`. A lobby member is dead if (a)
+   `Departed`, or (b) `now - first_seen_locally_at > lease_ttl`, or (c)
+   `now.elapsed_since(remote updated_at) > lease_ttl + remote_clock_skew_margin`
+   (margin default 10 min, scaled by `E2E_TIME_SCALE`). `DiscoveryState` records
+   `observed_lobby_heartbeats` on every `handle_lobby` and prunes on both
+   `handle_lobby` and `tick`; the tick prune keeps observations (only `record`
+   cleans against the raw incoming lobby) so a dropped member the contract still
+   carries stays dropped instead of flapping back for another lease;
+   `room_prefix_and_lobby_status` keeps no clock and
+   counts every non-`Departed` member as live. The S4c headless-App test now builds
+   its `Status` from a real `DiscoveryState` (`handle_lobby` then `tick` past the
+   lease) instead of hand-injecting an expired heartbeat.
+   **FOLLOW-UP 2026-10-29 (created-vs-joined rule, S4b):** a joiner's own heartbeat
+   in the lobby no longer counts as "room alive". `JoinedRoom` carries
+   `entry: RoomEntry::{Created, Joined}` (set from `Command::Create`/`Join`);
+   with `entry == Joined`, `is_room_alive_in_lobby` requires at least one live
+   member other than self (own entry does not count), so a joiner whose lobby
+   holds only itself reports `RoomGone` instead of accepting an empty board.
+   With `entry == Created` the own entry still counts (new room, empty board OK).
 
 **Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test`
-(**326 passed**, 11 skipped), `just lint`, `just bevy-lint`, `just bench-history`.
+(**398 passed**, 11 skipped), `just lint`, `just bevy-lint`, `just bench-history`.
 
 **e2e (`just e2e-history`, one machine, Freenet mainnet, dev profile):**
 
@@ -439,7 +475,7 @@ board's record is 333 KB in 6 chunks of ≤ 60 KB — far below HD9's 64 MB per-
 |---|---|---|
 | S4a — the holders left the room, a late joiner restores the board | ✅ | `wrote=true left=true late_joined=true restored=true`; the late joiner's canvas hash equals the holders' (`18418444412079406693`) |
 | S4b — every player quit the game, a later joiner finds the room gone | ✅ | `quit=true late_joined=true join_failed=true`: the joiner reported `Room <name> no longer exists (all players left)` and exited with code 2 |
-| S4c — the last holder is killed while a peer is joining | ❌ | the joiner accepted an empty board instead of showing the error screen (finding 7) |
+| S4c — the last holder is killed while a peer is joining | ✅ | 2026-10-29: `p1 crashed=true`, `p2 wait-join-failed done, exit 0`; the joiner saw the error screen instead of an empty board (finding 7 fixed) |
 
 The runs are slow by nature: the mainnet's contract state reaches a cold node in
 seconds to minutes (measured: 26 s for the first batch, 27 s for the discovery, and

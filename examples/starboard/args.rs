@@ -12,7 +12,7 @@ pub enum TransportArg {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "starboard_gossip")]
+#[command(name = "starboard")]
 pub struct Args {
     #[arg(long)]
     pub username: String,
@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn a_script_is_a_comma_separated_list_of_steps() {
         let args = super::Args::try_parse_from([
-            "starboard_gossip",
+            "starboard",
             "--username",
             "p1",
             "--script",
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn a_bad_step_is_rejected_with_the_reason() {
         let error = super::Args::try_parse_from([
-            "starboard_gossip",
+            "starboard",
             "--username",
             "p1",
             "--script",

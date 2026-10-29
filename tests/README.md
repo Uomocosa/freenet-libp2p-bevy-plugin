@@ -1,7 +1,7 @@
 # Discovery e2e tests
 
 Real, visual, `#[ignore]`d end-to-end tests for the Freenet room lobby + libp2p mesh.
-They spawn real `lobby_room` (or `starboard_gossip`) windows (one embedded Freenet node
+They spawn real `lobby_room` (or `starboard`) windows (one embedded Freenet node
 each), record the screen, and send the clip to Telegram.
 
 ## Run

@@ -71,6 +71,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
+            entry: discovery::RoomEntry::Created,
         });
         let in_room = discovery::RoomMember {
             peer: identity::Peer {

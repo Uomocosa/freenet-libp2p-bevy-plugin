@@ -78,6 +78,7 @@ mod tests {
                     since: discovery::UnixTime::from(0),
                 },
                 members: discovery::Members::new(),
+                entry: discovery::RoomEntry::Created,
             }),
             ..ready.clone()
         };
@@ -88,6 +89,7 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
+                entry: discovery::RoomEntry::Created,
             }),
             ..ready
         };

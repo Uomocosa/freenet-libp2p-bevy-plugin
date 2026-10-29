@@ -15,8 +15,8 @@ path = "examples/lobby_room/main.rs"
 required-features = ["e2e"]
 
 [[example]]
-name = "starboard_gossip"
-path = "examples/starboard_gossip/main.rs"
+name = "starboard"
+path = "examples/starboard/main.rs"
 required-features = ["e2e"]
 
 [[test]]

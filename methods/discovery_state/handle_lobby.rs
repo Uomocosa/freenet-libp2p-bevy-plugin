@@ -6,7 +6,12 @@ pub fn handle_lobby(
     mut lobby: discovery::Lobby,
     now: discovery::UnixTime,
 ) -> Vec<Output> {
-    lobby.drop_dead(now, state.lease_ttl);
+    state.record_lobby_heartbeats(&lobby, now);
+    lobby.drop_members_whose_lease_lapsed(
+        &state.observed_lobby_heartbeats,
+        now,
+        state.lease_limits,
+    );
     if lobby == state.lobby {
         return Vec::new();
     }
@@ -38,6 +43,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
+            entry: discovery::RoomEntry::Created,
         });
         let mut members = BTreeMap::new();
         for peer in ["me", "a"] {

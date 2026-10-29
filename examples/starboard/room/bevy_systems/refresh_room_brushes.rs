@@ -66,6 +66,7 @@ mod tests {
                 created_at: discovery::UnixTime::from(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
+                entry: discovery::RoomEntry::Created,
             }),
             ..discovery::Status::default()
         }

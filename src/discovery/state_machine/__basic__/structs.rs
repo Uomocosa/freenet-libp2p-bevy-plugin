@@ -26,6 +26,12 @@ pub struct HeldRoomHistory {
     pub left_at: discovery::UnixTime,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ObservedLobbyHeartbeat {
+    pub remote_updated_at: discovery::UnixTime,
+    pub first_seen_locally_at: discovery::UnixTime,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
     pub addrs: Vec<identity::PeerAddr>,

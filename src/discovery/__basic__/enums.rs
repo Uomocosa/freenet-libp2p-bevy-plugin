@@ -34,3 +34,9 @@ pub enum RoomMembership {
     HistoryHolder,
     Departed,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum RoomEntry {
+    Created,
+    Joined,
+}

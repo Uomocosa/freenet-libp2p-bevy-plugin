@@ -3,7 +3,7 @@ use discovery::state_machine::{DiscoveryState, Output};
 
 #[must_use]
 pub fn prune_members(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output> {
-    let ttl = state.lease_ttl;
+    let ttl = state.lease_limits.lease_ttl;
     let grace = discovery::state_machine::MEMBER_GRACE;
     state
         .candidates
@@ -56,6 +56,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members,
+            entry: discovery::RoomEntry::Created,
         });
         state.connected.insert(identity::PeerId::from("live"));
         let _ = prune_members(&mut state, discovery::UnixTime::from(100));

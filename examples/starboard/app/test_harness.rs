@@ -59,6 +59,7 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
             created_at: discovery::UnixTime::from(1),
             phase: discovery::JoinPhase::Ready,
             members: room_members,
+            entry: discovery::RoomEntry::Created,
         }),
         connected,
         ..discovery::Status::default()

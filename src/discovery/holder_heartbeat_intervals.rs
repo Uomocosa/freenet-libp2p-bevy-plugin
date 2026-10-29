@@ -4,6 +4,7 @@ use std::time::Duration;
 pub struct HolderHeartbeatIntervals {
     pub interval_between_heartbeats: Duration,
     pub ttl: Duration,
+    pub remote_clock_skew_margin: Duration,
 }
 
 impl Default for HolderHeartbeatIntervals {
@@ -11,6 +12,7 @@ impl Default for HolderHeartbeatIntervals {
         Self {
             interval_between_heartbeats: Duration::from_secs(30),
             ttl: Duration::from_secs(90),
+            remote_clock_skew_margin: Duration::from_secs(600),
         }
     }
 }

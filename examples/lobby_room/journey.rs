@@ -134,6 +134,7 @@ mod tests {
                         created_at: discovery::UnixTime::from(0),
                         phase: discovery::JoinPhase::Ready,
                         members: discovery::Members::new(),
+                        entry: discovery::RoomEntry::Created,
                     });
                 }
                 discovery::Command::Leave => status.room = None,
@@ -218,6 +219,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
+            entry: discovery::RoomEntry::Created,
         });
         for index in 0..PEERS.len() {
             add_peer(world, index);

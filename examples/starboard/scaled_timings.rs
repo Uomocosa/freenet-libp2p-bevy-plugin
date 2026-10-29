@@ -10,6 +10,7 @@ pub fn scaled_lease_timings(time_scale: f64) -> discovery::HolderHeartbeatInterv
     discovery::HolderHeartbeatIntervals {
         interval_between_heartbeats: scaled(Duration::from_secs(30), time_scale),
         ttl: scaled(Duration::from_secs(90), time_scale),
+        remote_clock_skew_margin: scaled(Duration::from_secs(600), time_scale),
     }
 }
 
@@ -47,6 +48,7 @@ mod tests {
         let lease = scaled_lease_timings(1.0);
         assert_eq!(lease.interval_between_heartbeats, Duration::from_secs(30));
         assert_eq!(lease.ttl, Duration::from_secs(90));
+        assert_eq!(lease.remote_clock_skew_margin, Duration::from_secs(600));
         let history = scaled_history_config(1.0);
         assert_eq!(history.write_interval, Duration::from_secs(30));
         assert_eq!(history.record_ttl, Duration::from_secs(600));
@@ -56,6 +58,7 @@ mod tests {
     fn a_scale_of_two_doubles_the_timings() {
         let lease = scaled_lease_timings(2.0);
         assert_eq!(lease.ttl, Duration::from_secs(180));
+        assert_eq!(lease.remote_clock_skew_margin, Duration::from_secs(1200));
         let history = scaled_history_config(2.0);
         assert_eq!(history.write_interval, Duration::from_secs(60));
         assert_eq!(history.record_ttl, Duration::from_secs(1200));
@@ -65,5 +68,6 @@ mod tests {
     fn a_scale_of_zero_never_waits() {
         let lease = scaled_lease_timings(0.0);
         assert_eq!(lease.ttl, Duration::ZERO);
+        assert_eq!(lease.remote_clock_skew_margin, Duration::ZERO);
     }
 }

@@ -5,6 +5,7 @@ use discovery::state_machine::{DiscoveryState, Output};
 pub fn join(
     state: &mut DiscoveryState,
     room: identity::RoomName,
+    entry: discovery::RoomEntry,
     now: discovery::UnixTime,
 ) -> Vec<Output> {
     let mut outputs = state.leave(now);
@@ -19,6 +20,7 @@ pub fn join(
         created_at,
         phase: discovery::JoinPhase::Joining { since: now },
         members: discovery::Members::new(),
+        entry,
     });
     outputs.extend(state.collect_room_peers_from_lobby());
     outputs.extend(state.broadcast_handshake());
@@ -44,6 +46,7 @@ mod tests {
         let outputs = join(
             &mut state,
             identity::RoomName::from("r"),
+            discovery::RoomEntry::Joined,
             discovery::UnixTime::from(1),
         );
         assert!(state.room.is_some());

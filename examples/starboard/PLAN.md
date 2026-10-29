@@ -88,7 +88,7 @@ first**. Loading a skill is cheap; skipping one is a correctness bug.
 | D12 | Persistence | Phase 1: in-memory only + snapshot from a live member on join. Phase 2 (separate plan `PLAN_HISTORY.md`): Kademlia distributed history so late joiners get the board even if no member answers. |
 | D13 | Room size target | 8 peers per room. Benchmarks at 2 and 8 in-process peers, report p50/p99. |
 | D14 | Testing bar | Every plugin addition: (1) pure unit tests for reducers/merge, (2) headless in-process two(+)-`App`/two-swarm test, (3) one e2e test in the style of `tests/lobby_room_*.rs`. Starboard final acceptance: e2e where peer A paints, peer B's canvas hash converges to A's. |
-| D15 | Example layout | `examples/starboard/` = shared code (as a module tree, included via `#[path]`), plus one thin bin `examples/starboard_gossip/main.rs`. `just bench-starboard` benchmarks it, writes `examples/starboard/BENCH.md`. |
+| D15 | Example layout | `examples/starboard/` = shared code (as a module tree, included via `#[path]`), plus one thin bin `examples/starboard/main.rs`. `just bench-starboard` benchmarks it, writes `examples/starboard/BENCH.md`. |
 
 ---
 
@@ -763,7 +763,7 @@ examples/starboard/            # shared module tree, NOT itself an [[example]]
   mod.rs                       # pub mod canvas; identity; input; render; sync; ui; app;
   PLAN.md  PLAN_HISTORY.md  BENCH.md
   canvas/  identity/  input/  render/  sync/  ui/  app/
-examples/starboard_gossip/main.rs   # #[path = "../starboard/mod.rs"] mod starboard;
+examples/starboard/main.rs   # #[path = "mod.rs"] mod starboard;
 ```
 
 Register it in `Cargo.toml` as an `[[example]]` with `required-features = ["e2e"]`.
@@ -784,7 +784,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 ### What was done (Step B1)
 
 **Files added:**
-- `examples/starboard_gossip/main.rs` — thin binary mounting `#[path = "../starboard/mod.rs"] mod starboard;` and registered in `Cargo.toml` as `[[example]] name = "starboard_gossip"` (`required-features = ["e2e"]`) so `just build`, `just clippy`, and `just test` compile and run the `starboard` unit tests in every gate.
+- `examples/starboard/main.rs` — thin binary mounting `#[path = "mod.rs"] mod starboard;` and registered in `Cargo.toml` as `[[example]] name = "starboard"` (`required-features = ["e2e"]`) so `just build`, `just clippy`, and `just test` compile and run the `starboard` unit tests in every gate.
 - `examples/starboard/mod.rs` — `pub mod identity;`.
 - `examples/starboard/identity/mod.rs` — exposes `basic` (`__basic__/mod.rs`), `Shape`, `PaletteColor`, `DailyBrush`, `SECONDS_PER_DAY`, `SHAPES`, `PALETTE`, `COMBINATION_COUNT`, `brush_at`, `day_index`, `daily_brush`, and `room_brushes`.
 - `examples/starboard/identity/__basic__/{mod,constants,enums,newtypes,structs}.rs`:
@@ -799,7 +799,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 - `examples/starboard/identity/daily_brush.rs` — `daily_brush(peer_id, created_at, now) -> DailyBrush` (`blake3(peer_id ‖ created_at ‖ day)` mod `COMBINATION_COUNT`).
 - `examples/starboard/identity/room_brushes.rs` — `room_brushes(members, created_at, now) -> BTreeMap<PeerId, DailyBrush>` (sorts members by `PeerId` and steps colliding members to the next free combination of 72).
 
-**Tests added (`cargo nextest run --example starboard_gossip --all-features`):**
+**Tests added (`cargo nextest run --example starboard --all-features`):**
 - `day_index::tests::test_usage` — boundary checks (`now < created_at`, `0`, `86_399`, `86_400`, `172_800`).
 - `brush_at::tests::test_usage` — all 72 slots yield 72 distinct `DailyBrush` values and wrap at `COMBINATION_COUNT`.
 - `daily_brush::tests::{test_usage, changes_across_rollover_and_covers_all_shapes_and_colors}` — deterministic within the same day; changes across `created_at + SECONDS_PER_DAY` (>9 000 / 10 000 fake peers change); all 6 shapes and all 12 palette colors hit across 10 000 fake peers.
@@ -809,7 +809,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 
 **Deviations / decisions:**
 - Named the `(Shape, PaletteColor)` pair `DailyBrush { pub shape, pub color }` and renamed `daily_identity` → `daily_brush`, `room_identities` → `room_brushes`, plus `brush_at(slot: usize)` (user decision; avoids positional tuple access).
-- Registered `[[example]] name = "starboard_gossip"` now so `starboard` modules are compiled and tested by `just test` / `just clippy` from Step B1 onward.
+- Registered `[[example]] name = "starboard"` now so `starboard` modules are compiled and tested by `just test` / `just clippy` from Step B1 onward.
 
 ---
 
@@ -848,7 +848,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 **Files changed:**
 - `Cargo.toml` — added `zstd = "=0.13.3"` (already present in `Cargo.lock`).
 - `examples/starboard/mod.rs` — added `pub mod canvas;`.
-- `examples/starboard_gossip/main.rs` — exercises `starboard::canvas` exports so binary builds have zero dead-code warnings before Step B5.
+- `examples/starboard/main.rs` — exercises `starboard::canvas` exports so binary builds have zero dead-code warnings before Step B5.
 
 **Measured snapshot sizes (`canvas::tests::snapshot_sizes_for_1k_and_10k_random_strokes`, `zstd` level 3):**
 
@@ -890,7 +890,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 - `examples/starboard/canvas/__basic__/constants.rs` — added `BASE_BRUSH_RADIUS`, `DEFAULT_SIZE_INDEX`, `SIZE_PERCENTS`, `BRUSH_RADII`.
 - `examples/starboard/canvas/canvas.rs` — replaced `apply_segment` in `Canvas::apply` with `starboard::canvas::rasterize(op)`.
 - `examples/starboard/canvas/mod.rs` — re-exported `BASE_BRUSH_RADIUS`, `BRUSH_RADII`, `DEFAULT_SIZE_INDEX`, `SIZE_PERCENTS`, `brush_radius`, `is_inside_shape`, `rasterize`.
-- `examples/starboard_gossip/main.rs` — referenced `rasterize`, `DEFAULT_SIZE_INDEX`, `SIZE_PERCENTS`.
+- `examples/starboard/main.rs` — referenced `rasterize`, `DEFAULT_SIZE_INDEX`, `SIZE_PERCENTS`.
 
 **Updated snapshot sizes with full shape rasterizer (`canvas::tests::snapshot_sizes_for_1k_and_10k_random_strokes`, `size_index = 5` (`radius = 16`), `zstd` level 3):**
 
@@ -899,7 +899,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 | `1,000` | `1,013` | `8,298,496` (7.91 MiB) | `7,883,120` (7.52 MiB) | `193,011` (188.5 KiB) | `40.8×` |
 | `10,000` | `1,024` | `8,388,608` (8.00 MiB) | `8,317,692` (7.93 MiB) | `233,050` (227.6 KiB) | `35.7×` |
 
-**Tests added (`cargo nextest run --example starboard_gossip --all-features`):**
+**Tests added (`cargo nextest run --example starboard --all-features`):**
 - `brush_radius::tests::test_usage` — checks `size_index = 0` (`1`), `DEFAULT_SIZE_INDEX = 5` (`16`), `size_index = 8` (`32`), out-of-range clamping, and agreement with `(BASE_BRUSH_RADIUS * SIZE_PERCENTS[i] / 100).max(1)`.
 - `is_inside_shape::tests::{test_usage, small_rasters_match_expected_silhouettes}` — center/bounds invariants across all 6 shapes and exact ASCII raster snapshots for `Square`, `Diamond`, `Circle`, `Triangle`, `Hexagon`, and 5-point `Star`.
 - `rasterize::tests::{test_usage, segment_has_no_gaps_and_clips_at_canvas_borders}` — `size_index = 0` (`0.1`) covers `>= 1` cell for all 6 shapes; horizontal segment `[20, 20] -> [120, 20]` has zero gaps along its centerline; strokes at `(0, 0) -> (1023, 0)` with max brush radius clip cleanly inside `0..CANVAS_SIDE`.
@@ -973,7 +973,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 Update systems. It spawns **no** camera: the bin and the preview harness own it.
 
 **Files changed:** `examples/starboard/mod.rs` (adds `app`, `input`, `render`);
-`examples/starboard_gossip/main.rs` (the dead-code stub also names
+`examples/starboard/main.rs` (the dead-code stub also names
 `starboard::app::StarboardPlugin`, as with the other modules, until B5 wires it).
 
 **Public API added:** `render::{CanvasView, BoardSprite, BrushOutlineSprite,
@@ -982,7 +982,7 @@ repaint_dirty_tiles}`; `input::{OwnBrush, LatestPaintedCell, PendingLocalDraw,
 cell_under_cursor, next_size_index, draw_op}`; `app::StarboardPlugin`. No breaking changes
 to the plugin crate.
 
-**Tests added (`cargo nextest run --example starboard_gossip --all-features`, 48 tests; the
+**Tests added (`cargo nextest run --example starboard --all-features`, 48 tests; the
 full `just test` run is 213 passed, 4 skipped):** `canvas_view` (wide/tall/zero windows),
 `palette_rgba`, `paint_tile` (buffer bounds, background), `repaint_dirty_tiles` (count,
 drains), `brush_outline` (ring at radius 1 for all 6 shapes, interior transparent),
@@ -1052,7 +1052,7 @@ brush_over_the_board}.png`, `starboard_spawn_board__empty_board.png`,
       render other peers' cursors as their shape+color outline; side panel with members
       (shape icon + color + display name). Remove cursors of peers that left.
 - [x] Daily rollover recomputed every second from `created_at`.
-- [x] Bin `starboard_gossip` + `just run-starboard`.
+- [x] Bin `starboard` + `just run-starboard`.
 - [x] Headless in-process test: 2 Apps, A paints scripted strokes, B canvas hash equals A's.
 
 ### What was done (Step B5)
@@ -1091,8 +1091,8 @@ sync_board_visibility,spawn_board}.rs`, `render/__basic__/components.rs`
 (`RemoteCursorSprite`), `input/__basic__/resources.rs` (`CursorCell`),
 `render/mod.rs`, `input/mod.rs`, `starboard/mod.rs`.
 
-**Files added (bin):** `examples/starboard_gossip/{args.rs,status.rs}`;
-`examples/starboard_gossip/main.rs` is now the real app (window + camera + embedded Freenet
+**Files added (bin):** `examples/starboard/{args.rs,status.rs}`;
+`examples/starboard/main.rs` is now the real app (window + camera + embedded Freenet
 node + `discovery::Plugins` + `P2PPlugin<CursorUpdate>` + `SyncPlugin<Canvas>` +
 `StarboardPlugin`, `--username`, `--token`, `--transport`). `status::log_canvas_hash` prints
 `starboard canvas room=… hash=… cursor=… color=… size=…%` once a second (B7's oracle).
@@ -1200,7 +1200,7 @@ bench_markdown, repaint_cost, run_scenario, BENCH_* , STROKE_*, REPAINT_*}`;
 SETTLE, MAX_ROUNDS}`. All of it is example-side and `#[cfg(test)]`-only except the fixture
 module; the plugin crate is untouched.
 
-**How it runs:** `just bench-starboard` = `cargo nextest run --example starboard_gossip
+**How it runs:** `just bench-starboard` = `cargo nextest run --example starboard
 --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture`. The scenario
 dials every pair (full mesh, so the gossipsub sender is the author), joins all peers to one
 room with the full member set, paints 2 s of warm-up (excluded), then 20 s at one stroke per
@@ -1279,7 +1279,7 @@ CPU tile repaint (one pass over a fully painted 4 MiB canvas): 1 tile `<1 ms`, 3
 ## Step B7 — Starboard e2e acceptance
 
 - [x] `tests/starboard_e2e.rs` (`#[ignore]`, `e2e`), reusing `tests/common/`: 3 real
-      `starboard_gossip` windows meet via Freenet lobby only (HARD RULE), join one
+      `starboard` windows meet via Freenet lobby only (HARD RULE), join one
       room; peer A paints scripted strokes (via a test-only `--script` arg), peer B
       erases some; all peers log canvas hash; assert all hashes equal within timeout.
       Record + send the clip like the other e2e tests. `just e2e-starboard`.
@@ -1289,18 +1289,18 @@ CPU tile repaint (one pass over a fully painted 4 MiB canvas): 1 tile `<1 ms`, 3
 ### What was done (Step B7)
 
 **Files added:** `examples/shared/{action,intent,status}.rs` (moved out of
-`examples/lobby_room/`), `examples/starboard_gossip/stroke_script.rs`,
+`examples/lobby_room/`), `examples/starboard/stroke_script.rs`,
 `tests/starboard_e2e.rs`.
 
 **Files changed:** `examples/lobby_room/{args,main,overlay,ping,journey}.rs` (use the shared
 modules; `intent.rs`/`status.rs` deleted), `examples/shared/mod.rs`,
-`examples/starboard_gossip/{args,main,status}.rs`, `tests/common/{build_game,cleanup_stale,
+`examples/starboard/{args,main,status}.rs`, `tests/common/{build_game,cleanup_stale,
 log_parse,mod,scenario,spawn_app}.rs`, `Cargo.toml` (`[[test]] starboard_e2e`), `justfile`
 (`e2e-starboard`), `tests/README.md`.
 
 **Public API added:** `shared::{action::Action, intent::{Intent, script_input, log_joined},
 status::{LocalUser, log_tick, log_mesh}}` (relocated, not new);
-`starboard_gossip::{args::ScriptArg, stroke_script::{StrokeScript, run_stroke_script}}`;
+`starboard::{args::ScriptArg, stroke_script::{StrokeScript, run_stroke_script}}`;
 harness `{CanvasTick, canvas_ticks, last_canvas}`, `Scenario::{bin, window_prefix,
 ui: Option, scripts, late_join}`, `Scenario::{starboard, starboard_late_join}`,
 `CANVAS_BUDGET_SECS`. `build_game(example)` and `spawn_app(.., window_prefix)` changed shape.

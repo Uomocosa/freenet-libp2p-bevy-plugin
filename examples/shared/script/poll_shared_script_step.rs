@@ -78,15 +78,9 @@ pub fn poll_shared_script_step(
                 effect: None,
             },
         ),
+        // discovery's Ready only means the room is listed; a joiner still waiting for history
+        // can fail later, so a wrong success shows up as the step's deadline
         SharedScriptStep::WaitJoinFailed(name) => {
-            if is_ready_in(name) {
-                return SharedStepPoll {
-                    outcome: StepOutcome::Failed(format!(
-                        "joined {name}, expected the join to fail"
-                    )),
-                    effect: None,
-                };
-            }
             done_when(join_failure_reason(view, name).is_some())
         }
         SharedScriptStep::WaitLeft(name) => done_when(!is_in(name)),

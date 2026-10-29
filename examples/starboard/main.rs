@@ -1,4 +1,4 @@
-#[path = "../starboard/mod.rs"]
+#[path = "mod.rs"]
 mod starboard;
 
 #[path = "../shared/mod.rs"]

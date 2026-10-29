@@ -224,6 +224,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
+            entry: discovery::RoomEntry::Created,
         });
     }
 
@@ -267,6 +268,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members,
+            entry: discovery::RoomEntry::Created,
         });
     }
 

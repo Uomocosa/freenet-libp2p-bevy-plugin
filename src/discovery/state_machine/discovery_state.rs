@@ -1,9 +1,8 @@
 use crate::discovery;
 use crate::identity;
 use crate::p2p;
-use discovery::state_machine::{Handshake, HeartbeatTarget, Input, Output};
+use discovery::state_machine::{Handshake, HeartbeatTarget, Input, ObservedLobbyHeartbeat, Output};
 use std::collections::{BTreeMap, BTreeSet};
-use std::time::Duration;
 
 use atomic_delegate_macros::atomic_delegates;
 
@@ -22,13 +21,16 @@ pub struct DiscoveryState {
     pub held_rooms: BTreeMap<identity::RoomName, discovery::state_machine::HeldRoomHistory>,
     pub evicted_rooms: BTreeMap<identity::RoomName, discovery::UnixTime>,
     pub history_size_limits: discovery::HistorySizeLimits,
-    pub lease_ttl: Duration,
+    pub lease_limits: discovery::LobbyLeaseLimits,
+    pub observed_lobby_heartbeats:
+        BTreeMap<(identity::RoomName, identity::PeerId), ObservedLobbyHeartbeat>,
     pub is_quitting: bool,
 }
 
 impl DiscoveryState {
     #[must_use]
     pub fn new(me: identity::Peer) -> Self {
+        let lease = discovery::HolderHeartbeatIntervals::default();
         Self {
             me,
             lobby: discovery::Lobby(BTreeMap::new()),
@@ -44,7 +46,11 @@ impl DiscoveryState {
             held_rooms: BTreeMap::new(),
             evicted_rooms: BTreeMap::new(),
             history_size_limits: discovery::HistorySizeLimits::default(),
-            lease_ttl: discovery::HolderHeartbeatIntervals::default().ttl,
+            lease_limits: discovery::LobbyLeaseLimits {
+                lease_ttl: lease.ttl,
+                remote_clock_skew_margin: lease.remote_clock_skew_margin,
+            },
+            observed_lobby_heartbeats: BTreeMap::new(),
             is_quitting: false,
         }
     }
@@ -56,6 +62,11 @@ impl DiscoveryState {
     pub fn broadcast_handshake(&self) -> Vec<Output> {}
     pub fn collect_room_peers_from_lobby(&mut self) -> Vec<Output> {}
     pub fn dial_candidates(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
+    pub fn drop_lobby_members_whose_lease_lapsed(
+        &mut self,
+        now: discovery::UnixTime,
+    ) -> Vec<Output> {
+    }
     pub fn drop_member(&mut self, peer: &identity::PeerId) -> Vec<Output> {}
     pub fn drop_oldest_history(
         &mut self,
@@ -84,9 +95,16 @@ impl DiscoveryState {
     }
     pub fn handshake(&self) -> Handshake {}
     pub fn heartbeat_targets(&self) -> Vec<HeartbeatTarget> {}
-    pub fn join(&mut self, room: identity::RoomName, now: discovery::UnixTime) -> Vec<Output> {}
+    pub fn join(
+        &mut self,
+        room: identity::RoomName,
+        entry: discovery::RoomEntry,
+        now: discovery::UnixTime,
+    ) -> Vec<Output> {
+    }
     pub fn leave(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
     pub fn prune_members(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
+    pub fn record_lobby_heartbeats(&mut self, lobby: &discovery::Lobby, now: discovery::UnixTime) {}
     pub fn send_handshake(&self, peer: &identity::PeerId) -> Vec<Output> {}
     pub fn tick(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
     pub fn wait_for_contract_self_heal(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
@@ -117,17 +135,17 @@ impl DiscoveryState {
         command: discovery::Command,
         now: discovery::UnixTime,
     ) -> Vec<Output> {
-        match command {
-            discovery::Command::Create(room) | discovery::Command::Join(room) => {
-                if room.as_str().trim().is_empty() {
-                    tracing::error!(target: "discovery", "discovery rejected: empty room name");
-                    Vec::new()
-                } else {
-                    self.join(room, now)
-                }
-            }
-            discovery::Command::Leave => self.leave(now),
-            discovery::Command::Quit => self.quit(now),
+        let (room, entry) = match command {
+            discovery::Command::Create(room) => (room, discovery::RoomEntry::Created),
+            discovery::Command::Join(room) => (room, discovery::RoomEntry::Joined),
+            discovery::Command::Leave => return self.leave(now),
+            discovery::Command::Quit => return self.quit(now),
+        };
+        if room.as_str().trim().is_empty() {
+            tracing::error!(target: "discovery", "discovery rejected: empty room name");
+            Vec::new()
+        } else {
+            self.join(room, entry, now)
         }
     }
     pub fn handle_net_event(
@@ -167,7 +185,6 @@ impl DiscoveryState {
             freenet_peers: self.freenet_peers.clone(),
             is_lobby_attached: self.is_lobby_attached,
             self_peer_id: Some(self.me.id.clone()),
-            lease_ttl: self.lease_ttl,
         }
     }
     pub fn update(&mut self, input: Input, now: discovery::UnixTime) -> Vec<Output> {

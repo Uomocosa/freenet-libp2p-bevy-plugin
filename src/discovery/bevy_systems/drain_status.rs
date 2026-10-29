@@ -44,12 +44,12 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
+                entry: discovery::RoomEntry::Created,
             }),
             connected: std::collections::BTreeSet::new(),
             freenet_peers: Vec::new(),
             is_lobby_attached: true,
             self_peer_id: None,
-            lease_ttl: discovery::HolderHeartbeatIntervals::default().ttl,
         };
         tx.send(status.clone()).ok();
         app.update();

@@ -12,11 +12,11 @@ See the root [`README.md`](../../README.md) for the plugin API and its defaults.
 just run-starboard --username alice
 ```
 
-The recipe builds the `starboard_gossip` example and starts it detached; its log is
+The recipe builds the `starboard` example and starts it detached; its log is
 `.local-run/starboard.log`. Direct equivalent:
 
 ```sh
-cargo run --features e2e --example starboard_gossip -- --username alice
+cargo run --features e2e --example starboard -- --username alice
 ```
 
 The app starts an embedded Freenet node and opens the plugin's default lobby UI:
@@ -45,7 +45,7 @@ The `--script` steps are `create:<room>`, `join:<room>`, `leave:<room>`,
 not make sense is rejected on the command line with the reason:
 
 ```
-$ starboard_gossip --username p1 --script "paint-from-to:10.20-9999.5"
+$ starboard --username p1 --script "paint-from-to:10.20-9999.5"
 error: invalid value 'paint-from-to:10.20-9999.5' for '--script [<...>...]':
        cell '9999.5' is outside the canvas (0..1024)
 ```

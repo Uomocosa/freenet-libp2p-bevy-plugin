@@ -35,7 +35,7 @@ e2e-join:
 e2e-room:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test room_messaging --all-features --run-ignored all -- --nocapture
 
-# Real, visual e2e: needs X + the freenet network + 3 starboard_gossip windows.
+# Real, visual e2e: needs X + the freenet network + 3 starboard windows.
 e2e-starboard:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test starboard_e2e --all-features --run-ignored all -- --nocapture
 
@@ -48,21 +48,21 @@ e2e-history:
 run-starboard *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build --features e2e --example starboard_gossip
+    cargo build --features e2e --example starboard
     mkdir -p .local-run
     log=.local-run/starboard.log
-    setsid "$CARGO_TARGET_DIR/debug/examples/starboard_gossip" {{ ARGS }} >"$log" 2>&1 &
+    setsid "$CARGO_TARGET_DIR/debug/examples/starboard" {{ ARGS }} >"$log" 2>&1 &
     echo "starboard running detached — log: $log"
 
 # Headless starboard benchmark (no window): 2 and 8 in-process peers, 60 strokes/s each,
 # 20 s measured per scenario; overwrites examples/starboard/BENCH.md.
 bench-starboard:
-    cargo nextest run --example starboard_gossip --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture
+    cargo nextest run --example starboard --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture
 
 # Headless history measurement (no window): one room's Kademlia history size and
 # put/get latency; overwrites examples/starboard/HISTORY.md.
 bench-history:
-    cargo nextest run --example starboard_gossip --all-features --run-ignored all -E 'test(history_bench)' -- --nocapture
+    cargo nextest run --example starboard --all-features --run-ignored all -E 'test(history_bench)' -- --nocapture
 
 # Run the lobby_room example detached (no terminal tie-up; only the app window).
 # Extra args toggle ui/script/transport, e.g. `just run --ui custom --script "create:room-1, stay"`.

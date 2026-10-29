@@ -240,7 +240,8 @@ impl Scenario {
         }
     }
 
-    /// S4c: the only holder crashes while the joiner is joining.
+    /// S4c: the only holder crashes as the joiner starts; the joiner must report the room gone
+    /// once the dead holder's lease lapses, never accept an empty board.
     #[must_use]
     pub fn starboard_history_holder_killed(peers: usize) -> Self {
         let holder = format!(
@@ -254,7 +255,8 @@ impl Scenario {
         }
         runs.push(PeerRun {
             script: "join:{room}, wait-join-failed:{room}@420s, exit-app".to_string(),
-            start: after(0, last_step_matching(&holder, "wait-canvas-stable")),
+            // the step before `crash-app`, which aborts without ever reporting done
+            start: after(0, last_step_matching(&holder, "sleep")),
         });
         Self {
             name: "starboard_history_holder_killed".to_string(),
@@ -278,10 +280,10 @@ impl Scenario {
         }
     }
 
-    // needed helper: the fields every starboard_gossip scenario shares
+    // needed helper: the fields every starboard scenario shares
     fn starboard_base() -> Self {
         Self {
-            bin: "starboard_gossip",
+            bin: "starboard",
             window_prefix: "starboard",
             ..Self::lobby()
         }
@@ -899,7 +901,7 @@ mod tests {
 
     /// The harness writes the script, the example parses it. The shape of every
     /// stroke step is pinned here, and the parser is pinned on the same shape in
-    /// `examples/starboard_gossip/script.rs`.
+    /// `examples/starboard/script.rs`.
     #[test]
     fn every_scripted_stroke_names_two_cells() {
         for script in [paint_script(), erase_script()] {

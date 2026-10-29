@@ -13,6 +13,7 @@ pub fn tick(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output>
         state.last_handshake_at = Some(now);
     }
     outputs.extend(state.prune_members(now));
+    outputs.extend(state.drop_lobby_members_whose_lease_lapsed(now));
     outputs.extend(state.wait_for_contract_self_heal(now));
     outputs.push(Output::NetCommand(p2p::NetCommand::MeasureHistoryStore));
     outputs
@@ -38,6 +39,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
+            entry: discovery::RoomEntry::Created,
         });
         let mut outputs = tick(&mut state, discovery::UnixTime::from(100));
         outputs.extend(tick(&mut state, discovery::UnixTime::from(101)));

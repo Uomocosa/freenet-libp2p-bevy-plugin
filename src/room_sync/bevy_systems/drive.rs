@@ -300,11 +300,11 @@ mod tests {
                         )
                     })
                     .collect(),
+                entry: discovery::RoomEntry::Created,
             }),
             freenet_peers: Vec::new(),
             is_lobby_attached: true,
             self_peer_id: None,
-            lease_ttl: discovery::HolderHeartbeatIntervals::default().ttl,
         }
     }
 
@@ -313,7 +313,7 @@ mod tests {
             .iter()
             .map(|peer| (peer.clone(), discovery::RoomMembership::Occupant))
             .collect();
-        status_with_created_at(room, discovery::UnixTime::from(1), members, lobby_members)
+        status_with_created_at(room, discovery::UnixTime::now(), members, lobby_members)
     }
 
     fn join(app: &mut App, room: &identity::RoomName, members: Vec<identity::PeerId>) {
@@ -546,7 +546,7 @@ mod tests {
             .subscribe();
         connect_and_seed_kad(&mut peer_b, &a);
 
-        let gen1 = discovery::UnixTime::from(10);
+        let gen1 = discovery::UnixTime::now();
         let lobby_ab = BTreeMap::from([
             (a.id.clone(), discovery::RoomMembership::Occupant),
             (b.id.clone(), discovery::RoomMembership::Occupant),
@@ -633,13 +633,15 @@ mod tests {
         let history = Some(room_sync::HistoryConfig::default());
         let mut peer_d = node_with(&game, None, history);
         let d = wait_ready(&mut peer_d);
-        let gen2 = discovery::UnixTime::from(20);
-        peer_d.insert_resource(status_with_created_at(
+        let generation = discovery::UnixTime::now();
+        let mut status = status_with_created_at(
             &room,
-            gen2,
+            generation,
             Vec::new(),
-            BTreeMap::from([(d.id, discovery::RoomMembership::Occupant)]),
-        ));
+            BTreeMap::from([(d.id.clone(), discovery::RoomMembership::Occupant)]),
+        );
+        status.self_peer_id = Some(d.id.clone());
+        peer_d.insert_resource(status);
         peer_d
             .world_mut()
             .resource_mut::<Messages<discovery::Event>>()
@@ -704,6 +706,158 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn expired_holder_alone_is_gone_not_empty() {
+        let game = identity::GameId::from("game-s4c");
+        let room = identity::RoomName::from("room-s4c");
+        let history = Some(room_sync::HistoryConfig {
+            write_interval: Duration::from_secs(30),
+            record_ttl: Duration::from_secs(90),
+            per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
+            max_fetch_retries: 3,
+        });
+        let mut joiner = node_with(&game, None, history);
+        let joiner_peer = wait_ready(&mut joiner);
+        let seen_at = discovery::UnixTime::from(100);
+        let lobby = discovery::Lobby::from([(
+            room.clone(),
+            discovery::LobbyRoom {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: discovery::UnixTime::from(0),
+                members: BTreeMap::from([(
+                    identity::PeerId::from("dead-holder"),
+                    discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: identity::PeerId::from("dead-holder"),
+                            addrs: Vec::new(),
+                        },
+                        updated_at: seen_at,
+                        display_name: None,
+                        membership: discovery::RoomMembership::HistoryHolder,
+                    },
+                )]),
+            },
+        )]);
+        let mut pruned = discovery::state_machine::DiscoveryState::new(joiner_peer);
+        pruned.handle_lobby(lobby, seen_at);
+        pruned.tick(discovery::UnixTime::from(500));
+        assert!(pruned.lobby.is_empty());
+        joiner.insert_resource(pruned.status());
+        joiner
+            .world_mut()
+            .resource_mut::<Messages<discovery::Event>>()
+            .write(discovery::Event::Joined(room.clone()));
+
+        let mut saw_room_gone = false;
+        for _ in 0..MAX_ROUNDS {
+            joiner.update();
+            if joiner
+                .world()
+                .resource::<discovery::ui::JoinError>()
+                .as_deref()
+                == Some("Room room-s4c no longer exists (all players left)")
+            {
+                saw_room_gone = true;
+                break;
+            }
+            if joiner
+                .world()
+                .resource::<room_sync::bevy_systems::SyncState<Op>>()
+                .phase
+                == room_sync::state_machine::Phase::Ready
+                && joiner.world().resource::<Map>().entries.is_empty()
+            {
+                panic!("S4c joiner accepted an empty board instead of reporting the room gone");
+            }
+            tokio::time::sleep(SETTLE).await;
+        }
+        assert!(
+            saw_room_gone,
+            "expired holder alone must report the room gone, not an empty board"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn joiner_whose_lobby_holds_only_itself_sees_the_room_as_gone() {
+        let game = identity::GameId::from("game-s4j");
+        let room = identity::RoomName::from("room-s4j");
+        let history = Some(room_sync::HistoryConfig {
+            write_interval: Duration::from_secs(30),
+            record_ttl: Duration::from_secs(90),
+            per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
+            max_fetch_retries: 3,
+        });
+        let mut joiner = node_with(&game, None, history);
+        let joiner_peer = wait_ready(&mut joiner);
+        let seen_at = discovery::UnixTime::from(10);
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
+            room.clone(),
+            discovery::LobbyRoom {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: discovery::UnixTime::from(0),
+                members: BTreeMap::from([(
+                    joiner_peer.id.clone(),
+                    discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: joiner_peer.id.clone(),
+                            addrs: Vec::new(),
+                        },
+                        updated_at: seen_at,
+                        display_name: None,
+                        membership: discovery::RoomMembership::Occupant,
+                    },
+                )]),
+            },
+        );
+        joiner.insert_resource(discovery::Status {
+            lobby,
+            room: Some(discovery::JoinedRoom {
+                name: room.clone(),
+                created_at: discovery::UnixTime::from(0),
+                phase: discovery::JoinPhase::Ready,
+                members: discovery::Members::new(),
+                entry: discovery::RoomEntry::Joined,
+            }),
+            connected: std::collections::BTreeSet::new(),
+            freenet_peers: Vec::new(),
+            is_lobby_attached: true,
+            self_peer_id: Some(joiner_peer.id),
+        });
+        joiner
+            .world_mut()
+            .resource_mut::<Messages<discovery::Event>>()
+            .write(discovery::Event::Joined(room.clone()));
+
+        let mut saw_room_gone = false;
+        for _ in 0..MAX_ROUNDS {
+            joiner.update();
+            if joiner
+                .world()
+                .resource::<discovery::ui::JoinError>()
+                .as_deref()
+                == Some("Room room-s4j no longer exists (all players left)")
+            {
+                saw_room_gone = true;
+                break;
+            }
+            if joiner
+                .world()
+                .resource::<room_sync::bevy_systems::SyncState<Op>>()
+                .phase
+                == room_sync::state_machine::Phase::Ready
+                && joiner.world().resource::<Map>().entries.is_empty()
+            {
+                panic!("S4b joiner accepted an empty board instead of reporting the room gone");
+            }
+            tokio::time::sleep(SETTLE).await;
+        }
+        assert!(
+            saw_room_gone,
+            "joiner alone in its lobby must report the room gone, not an empty board"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn dead_room_and_mid_fetch_quit_emit_room_gone() {
         let game = identity::GameId::from("game-gone");
         let room = identity::RoomName::from("room-gone");
@@ -745,9 +899,10 @@ mod tests {
         let mut mid_joiner = node_with(&game, None, history);
         wait_ready(&mut mid_joiner);
         let holder_id = identity::PeerId::from("holder");
+        let generation = discovery::UnixTime::now();
         mid_joiner.insert_resource(status_with_created_at(
             &room,
-            discovery::UnixTime::from(2),
+            generation,
             Vec::new(),
             BTreeMap::from([(holder_id, discovery::RoomMembership::HistoryHolder)]),
         ));
@@ -766,7 +921,7 @@ mod tests {
 
         mid_joiner.insert_resource(status_with_created_at(
             &room,
-            discovery::UnixTime::from(2),
+            generation,
             Vec::new(),
             BTreeMap::new(),
         ));

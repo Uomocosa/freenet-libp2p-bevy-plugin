@@ -78,9 +78,11 @@ Jobs:
 
 ## 6. Order of work
 
-1. Rename the example to `starboard`.
-2. Part C — Kademlia history + holder leases + room deletion, with its local test layers
-   (unit → headless multi-App → local e2e S4a/S4b/S4c). All green on Linux first.
+- [x] 1. Rename the example to `starboard` (2026-10-29: `examples/starboard_gossip/*` →
+      `examples/starboard/`, `[[example]] name = "starboard"`, `cargo build --example starboard` green).
+- [x] 2. Part C — Kademlia history + holder leases + room deletion, with its local test layers
+      (unit → headless multi-App → local e2e S4a/S4b/S4c). All green on Linux first
+      (2026-10-29: fast 398 passed; S4a/S4b/S4c PASS on mainnet, finding 7 fixed).
 3. Ship Freenet with the game (X3).
 4. Step script, `result.json`, checker, two-layer connectivity report.
 5. S1–S7 green on Linux alone.
