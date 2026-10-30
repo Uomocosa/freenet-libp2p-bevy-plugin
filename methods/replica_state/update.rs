@@ -6,6 +6,8 @@ pub fn update<Op>(
     now: room_sync::ElapsedSinceAppStart,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
     let mut outputs = state.dispatch_input(input);
+    let expired = state.expire_overdue_requests(now);
+    outputs.extend(expired);
     let settled = state.settle_waiting_phase(&outputs);
     outputs.extend(settled);
     state.record_request_send_times(&outputs, now);

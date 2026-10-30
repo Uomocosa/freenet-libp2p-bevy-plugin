@@ -352,6 +352,45 @@ impl<Op> ReplicaState<Op> {
             _ => Vec::new(),
         }
     }
+    pub(crate) fn expire_overdue_history_record_requests(
+        &mut self,
+        now: room_sync::ElapsedSinceAppStart,
+    ) -> Vec<room_sync::state_machine::Output<Op>> {
+        let Some(prefix) = self
+            .kademlia_history
+            .pending_fetch
+            .as_ref()
+            .filter(|pending| {
+                pending.records_requested_at.is_some_and(|at| {
+                    (*now).saturating_sub(*at) >= room_sync::HISTORY_RECORD_REPLY_TIMEOUT
+                })
+            })
+            .map(|pending| pending.prefix.clone())
+        else {
+            return Vec::new();
+        };
+        tracing::debug!(target: "room_sync", "history record request expired");
+        self.handle_history_record_not_found(&p2p::RoomHistoryRecordKind::Manifest(prefix))
+    }
+}
+
+#[atomic_delegates]
+impl<Op> ReplicaState<Op> {
+    pub(crate) fn expire_overdue_snapshot_part_request(
+        &mut self,
+        now: room_sync::ElapsedSinceAppStart,
+    ) -> Vec<room_sync::state_machine::Output<Op>> {
+    }
+    pub(crate) fn expire_overdue_replica_slice_requests(
+        &mut self,
+        now: room_sync::ElapsedSinceAppStart,
+    ) -> Vec<room_sync::state_machine::Output<Op>> {
+    }
+    pub(crate) fn expire_overdue_requests(
+        &mut self,
+        now: room_sync::ElapsedSinceAppStart,
+    ) -> Vec<room_sync::state_machine::Output<Op>> {
+    }
 }
 
 #[cfg(test)]
@@ -974,5 +1013,43 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn at_secs(secs: u64) -> room_sync::ElapsedSinceAppStart {
+        room_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
+    }
+
+    fn other_room_remote() -> Input<u8> {
+        Input::Remote {
+            room: identity::RoomName::from("other"),
+            meta: meta(1),
+            op: 1u8,
+        }
+    }
+
+    #[test]
+    fn an_overdue_history_record_request_retries_or_fails() {
+        let mut state = ReplicaState::<u8>::default();
+        let room = identity::RoomName::from("r");
+        let prefix_value = prefix();
+        state.room = Some(room);
+        state.phase = Phase::FetchingHistoryFromKademlia;
+        state.kademlia_history.is_enabled = true;
+        state.kademlia_history.prefix = Some(prefix_value.clone());
+        state.kademlia_history.lobby_status = alive_status();
+        state.kademlia_history.fetch_retries = 0;
+        state.kademlia_history.pending_fetch = Some(PendingHistoryFetch {
+            prefix: prefix_value.clone(),
+            manifest: None,
+            received_chunks: BTreeMap::new(),
+            records_requested_at: Some(at_secs(0)),
+        });
+        let outputs = state.update(other_room_remote(), at_secs(71));
+        assert_eq!(
+            outputs,
+            vec![Output::GetHistoryRecord {
+                id: p2p::RoomHistoryRecordKind::Manifest(prefix_value),
+            }]
+        );
     }
 }

@@ -1,3 +1,6 @@
+mod expire_overdue_replica_slice_requests;
+mod expire_overdue_requests;
+mod expire_overdue_snapshot_part_request;
 mod fetch_next;
 mod finish_member_fetch;
 mod handle_failed;
@@ -16,6 +19,9 @@ mod retry_fetch;
 mod start_history_write_check;
 mod start_kademlia_history_fetch;
 mod update;
+pub use expire_overdue_replica_slice_requests::expire_overdue_replica_slice_requests;
+pub use expire_overdue_requests::expire_overdue_requests;
+pub use expire_overdue_snapshot_part_request::expire_overdue_snapshot_part_request;
 pub use fetch_next::fetch_next;
 pub use finish_member_fetch::finish_member_fetch;
 pub use handle_failed::handle_failed;

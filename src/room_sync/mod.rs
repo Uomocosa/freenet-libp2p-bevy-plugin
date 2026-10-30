@@ -2,7 +2,10 @@
 pub mod basic;
 
 pub use basic::aliases::ReplicaSliceContentHashes;
+pub use basic::constants::HISTORY_RECORD_REPLY_TIMEOUT;
 pub use basic::constants::PART_BYTES;
+pub use basic::constants::REPLICA_SLICE_REPLY_TIMEOUT;
+pub use basic::constants::SNAPSHOT_PART_REPLY_TIMEOUT;
 pub use basic::enums::ReplicaSyncTopicMessage;
 pub use basic::messages::ReplicaInputFromTimer;
 pub use basic::newtypes::ElapsedSinceAppStart;
