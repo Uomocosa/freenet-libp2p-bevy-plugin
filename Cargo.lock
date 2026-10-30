@@ -182,7 +182,7 @@ dependencies = [
  "ndk-context",
  "ndk-sys",
  "num_enum",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -208,9 +208,9 @@ dependencies = [
 
 [[package]]
 name = "anstream"
-version = "0.6.21"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43d5b281e737544384e969a5ccad3f1cdd24b48086a0fc1b2a5262a26b8f4f4a"
+checksum = "824a212faf96e9acacdbd09febd34438f8f711fb84e09a8916013cd7815ca28d"
 dependencies = [
  "anstyle",
  "anstyle-parse",
@@ -229,9 +229,9 @@ checksum = "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000"
 
 [[package]]
 name = "anstyle-parse"
-version = "0.2.7"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e7644824f0aa2c7b9384579234ef10eb7efb6a0deb83f9630a49594dd9c15c2"
+checksum = "52ce7f38b242319f7cabaa6813055467063ecdc9d355bbb4ce0c68908cd8130e"
 dependencies = [
  "utf8parse",
 ]
@@ -347,7 +347,7 @@ dependencies = [
  "nom 7.1.3",
  "num-traits",
  "rusticata-macros",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "time",
 ]
 
@@ -474,13 +474,13 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.89"
+version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
+checksum = "82f6aeea286b8eb4dd3431a1be1b59d290ace00f5bfd8e2a159bc2a05e2c1667"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.7",
 ]
 
 [[package]]
@@ -717,7 +717,7 @@ dependencies = [
  "ron",
  "serde",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "thread_local",
  "tracing",
  "uuid",
@@ -772,7 +772,7 @@ dependencies = [
  "ctrlc",
  "downcast-rs 2.0.2",
  "log",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "variadics_please",
  "wasm-bindgen",
  "web-sys",
@@ -813,7 +813,7 @@ dependencies = [
  "ron",
  "serde",
  "stackfuture",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "uuid",
  "wasm-bindgen",
@@ -855,7 +855,7 @@ dependencies = [
  "downcast-rs 2.0.2",
  "serde",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "wgpu-types",
 ]
 
@@ -887,7 +887,7 @@ dependencies = [
  "derive_more",
  "encase",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "wgpu-types",
 ]
 
@@ -1005,7 +1005,7 @@ dependencies = [
  "serde",
  "slotmap",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "variadics_please",
 ]
 
@@ -1088,7 +1088,7 @@ dependencies = [
  "bevy_platform",
  "bevy_time",
  "gilrs",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
 ]
 
@@ -1176,7 +1176,7 @@ dependencies = [
  "image",
  "rectangle-pack",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "wgpu-types",
 ]
@@ -1195,7 +1195,7 @@ dependencies = [
  "derive_more",
  "log",
  "smol_str",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -1212,7 +1212,7 @@ dependencies = [
  "bevy_reflect",
  "bevy_window",
  "log",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -1345,7 +1345,7 @@ dependencies = [
  "bevy_utils",
  "encase",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "variadics_please",
  "wgpu-types",
@@ -1378,7 +1378,7 @@ dependencies = [
  "rand 0.10.3",
  "rand_distr 0.6.0",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "variadics_please",
 ]
 
@@ -1405,7 +1405,7 @@ dependencies = [
  "glam",
  "half",
  "hexasphere",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "wgpu-types",
 ]
@@ -1453,7 +1453,7 @@ dependencies = [
  "offset-allocator",
  "smallvec",
  "static_assertions",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "wgpu-types",
 ]
@@ -1525,7 +1525,7 @@ dependencies = [
  "bevy_shader",
  "bevy_utils",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
 ]
 
@@ -1558,7 +1558,7 @@ dependencies = [
  "serde",
  "smallvec",
  "smol_str",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "uuid",
  "variadics_please",
  "wgpu-types",
@@ -1623,7 +1623,7 @@ dependencies = [
  "offset-allocator",
  "send_wrapper",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "variadics_please",
  "wasm-bindgen",
  "weak-table",
@@ -1660,7 +1660,7 @@ dependencies = [
  "bevy_scene_macros",
  "bevy_utils",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "variadics_please",
 ]
@@ -1691,7 +1691,7 @@ dependencies = [
  "naga",
  "naga_oil",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "wgpu-naga-bridge",
  "wgpu-types",
@@ -1826,7 +1826,7 @@ dependencies = [
  "smol_str",
  "swash",
  "sys-locale",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "wgpu-types",
 ]
@@ -1860,7 +1860,7 @@ dependencies = [
  "bevy_utils",
  "derive_more",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -1896,7 +1896,7 @@ dependencies = [
  "smallvec",
  "swash",
  "taffy",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "uuid",
 ]
@@ -2041,7 +2041,7 @@ dependencies = [
  "derive_more",
  "ron",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "uuid",
 ]
 
@@ -2111,17 +2111,16 @@ dependencies = [
 
 [[package]]
 name = "blake3"
-version = "1.8.3"
+version = "1.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2468ef7d57b3fb7e16b576e8377cdbde2320c60e1491e961d11da40fc4f02a2d"
+checksum = "6d9e454fc11f76977dc803893aff6304ed33d6a26efae8696573bea74baa27ae"
 dependencies = [
- "arrayref",
  "arrayvec",
  "cc",
  "cfg-if",
  "constant_time_eq",
- "cpufeatures 0.2.17",
- "digest 0.10.7",
+ "cpufeatures 0.3.1",
+ "digest 0.11.3",
 ]
 
 [[package]]
@@ -2422,9 +2421,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.39"
+version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd60e63e9be68e5fb56422e397cf9baddded06dae1d2e523401542383bc72a9f"
+checksum = "aa8876b300ab35ba921adea3dfd70157a46249b33f95c9084ae5709785478946"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -2432,9 +2431,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.39"
+version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89cc6392a1f72bbeb820d71f32108f61fdaf18bc526e1d23954168a67759ef51"
+checksum = "ec0797fb7aeb1406c84efac526901f7ec3ead2124f946b494e72879d4b54704d"
 dependencies = [
  "anstream",
  "anstyle",
@@ -2444,21 +2443,21 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.5.32"
+version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09176aae279615badda0765c0c0b3f6ed53f4709118af73cf4655d85d1530cd7"
+checksum = "f9c751b79415d4e559e3d1fcf128e09e720eb673a06d26cf6f392d37d75b66e0"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.7",
 ]
 
 [[package]]
 name = "clap_lex"
-version = "0.7.7"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
+checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "clipboard-win"
@@ -2481,7 +2480,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fa961b519f0b462e3a3b4a34b64d119eeaca1d59af726fe450bbba07a9fc0a1"
 dependencies = [
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3172,7 +3171,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10d60334b3b2e7c9d91ef8150abfb6fa4c1c39ebbcf4a81c2e346aad939fee3e"
 dependencies = [
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3511,7 +3510,7 @@ checksum = "b1acbc46b960480c4959213714511e22f9a2e0d361520693bcf5057b5924f53e"
 dependencies = [
  "const_panic",
  "encase_derive",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3891,7 +3890,7 @@ dependencies = [
  "tao",
  "tar",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tikv-jemallocator",
  "tokio",
  "tokio-stream",
@@ -3954,12 +3953,12 @@ dependencies = [
  "serde_json",
  "telegram-bot-helper",
  "tempfile",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-tungstenite 0.27.0",
  "tracing",
  "tracing-subscriber",
- "zstd",
+ "zstd 0.14.3",
 ]
 
 [[package]]
@@ -3994,7 +3993,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "serde_with",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-tungstenite 0.27.0",
  "tracing",
@@ -4014,9 +4013,9 @@ dependencies = [
 
 [[package]]
 name = "futures"
-version = "0.3.32"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b147ee9d1f6d097cef9ce628cd2ee62288d963e16fb287bd9286455b241382d"
+checksum = "9a31d2a3fbaaeb2af2368bbdd904aa8e812d3c04a1ee10d3171f52d556e5d0a3"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -4055,9 +4054,9 @@ checksum = "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e"
 
 [[package]]
 name = "futures-executor"
-version = "0.3.32"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baf29c38818342a3b26b5b923639e7b1f4a61fc5e76102d4b1981c6dc7a7579d"
+checksum = "031b47cf1a3c6cc8bc2fc76cd437f521619387907d469316e7c0bc278f1f5432"
 dependencies = [
  "futures-core",
  "futures-task",
@@ -4085,13 +4084,13 @@ dependencies = [
 
 [[package]]
 name = "futures-macro"
-version = "0.3.32"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e835b70203e41293343137df5c0664546da5745f82ec9b84d40be8336958447b"
+checksum = "9fb9654ba8355388abeb8dcb4fc62f511300867002afc858860463bdd9fe0c44"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.7",
 ]
 
 [[package]]
@@ -4125,9 +4124,9 @@ checksum = "af43fadb8a98512d547e37b4e92e0ced13e205c061b87b4623eff01d918d6968"
 
 [[package]]
 name = "futures-util"
-version = "0.3.32"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "389ca41296e6190b48053de0321d02a77f32f8a5d2461dd38762c0593805c6d6"
+checksum = "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc"
 dependencies = [
  "futures-channel",
  "futures-core",
@@ -4492,7 +4491,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "log",
  "presser",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "windows 0.62.2",
 ]
 
@@ -4805,7 +4804,7 @@ dependencies = [
  "jni 0.22.4",
  "rand 0.10.3",
  "rustls",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tinyvec",
  "tokio",
  "tokio-rustls",
@@ -4832,7 +4831,7 @@ dependencies = [
  "rand 0.9.5",
  "ring",
  "socket2 0.5.10",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tinyvec",
  "tokio",
  "tracing",
@@ -4853,7 +4852,7 @@ dependencies = [
  "prefix-trie",
  "rand 0.10.3",
  "ring",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tinyvec",
  "tracing",
  "url",
@@ -4875,7 +4874,7 @@ dependencies = [
  "rand 0.9.5",
  "resolv-conf",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
 ]
@@ -4902,7 +4901,7 @@ dependencies = [
  "rustls",
  "smallvec",
  "system-configuration",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tokio",
  "tokio-rustls",
  "tracing",
@@ -4967,9 +4966,9 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "1.4.1"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8be7462df143984c4598a256ef469b251d7d7f9e271135073e78fc535414f3d0"
+checksum = "918d3568bebf352712bc2ef3d46a8bcf1a75b373be6539de198e9105cbbf9ce0"
 dependencies = [
  "bytes",
  "itoa",
@@ -5568,7 +5567,7 @@ dependencies = [
  "jni-sys 0.4.1",
  "log",
  "simd_cesu8",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "walkdir",
  "windows-link 0.2.1",
 ]
@@ -5722,7 +5721,7 @@ dependencies = [
  "serde",
  "serde_json",
  "telegram-bot-helper",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
 ]
 
@@ -5821,7 +5820,7 @@ dependencies = [
  "multiaddr",
  "pin-project",
  "rw-stream-sink",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -5865,7 +5864,7 @@ dependencies = [
  "quick-protobuf",
  "rand 0.8.8",
  "rw-stream-sink",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "unsigned-varint 0.8.0",
  "web-time",
@@ -5888,7 +5887,7 @@ dependencies = [
  "libp2p-swarm",
  "quick-protobuf",
  "quick-protobuf-codec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "web-time",
 ]
@@ -5956,7 +5955,7 @@ dependencies = [
  "quick-protobuf",
  "quick-protobuf-codec",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
 ]
 
@@ -5973,7 +5972,7 @@ dependencies = [
  "prost",
  "rand 0.8.8",
  "sha2 0.10.9",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "zeroize",
 ]
@@ -5999,7 +5998,7 @@ dependencies = [
  "rand 0.8.8",
  "sha2 0.10.9",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "uint",
  "web-time",
@@ -6062,7 +6061,7 @@ dependencies = [
  "rand 0.8.8",
  "snow",
  "static_assertions",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "x25519-dalek 2.0.1",
  "zeroize",
@@ -6102,7 +6101,7 @@ dependencies = [
  "ring",
  "rustls",
  "socket2 0.5.10",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
 ]
@@ -6126,7 +6125,7 @@ dependencies = [
  "quick-protobuf-codec",
  "rand 0.8.8",
  "static_assertions",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "web-time",
 ]
@@ -6211,7 +6210,7 @@ dependencies = [
  "ring",
  "rustls",
  "rustls-webpki",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "x509-parser",
  "yasna",
 ]
@@ -6240,7 +6239,7 @@ dependencies = [
  "either",
  "futures",
  "libp2p-core",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "yamux 0.12.1",
  "yamux 0.13.10",
@@ -6326,7 +6325,7 @@ dependencies = [
  "freenet-macros",
  "freenet-stdlib",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -6544,7 +6543,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "once_cell",
  "png",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "windows-sys 0.61.2",
 ]
 
@@ -6632,7 +6631,7 @@ dependencies = [
  "pp-rs",
  "rustc-hash 1.1.0",
  "spirv",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "unicode-ident",
 ]
 
@@ -6648,7 +6647,7 @@ dependencies = [
  "naga",
  "regex",
  "rustc-hash 1.1.0",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
  "unicode-ident",
 ]
@@ -6716,7 +6715,7 @@ dependencies = [
  "log",
  "netlink-packet-core",
  "netlink-sys",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -7374,7 +7373,7 @@ dependencies = [
  "futures-sink",
  "js-sys",
  "pin-project-lite",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tracing",
 ]
 
@@ -7544,7 +7543,7 @@ dependencies = [
  "eytzinger-interpolation",
  "ordered-float 3.9.2",
  "serde",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -8022,7 +8021,7 @@ dependencies = [
  "rustc-hash 2.1.3",
  "rustls",
  "socket2 0.6.5",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tokio",
  "tracing",
  "web-time",
@@ -8045,7 +8044,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "slab",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tinyvec",
  "tracing",
  "web-time",
@@ -8335,7 +8334,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60dc65c0ff1a7ae1294b0c67b9f14baf70b644404010370171787bfac1038fc0"
 dependencies = [
  "libredox",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -9526,7 +9525,7 @@ dependencies = [
  "reqwest",
  "serde_json",
  "telegram-bot-helper-macros",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -9581,11 +9580,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.18"
+version = "2.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
+checksum = "09e52cb86a36cede5cb101bf8908837b3e4c6e5e59fe7fd85c23fb56200d189e"
 dependencies = [
- "thiserror-impl 2.0.18",
+ "thiserror-impl 2.0.21",
 ]
 
 [[package]]
@@ -9601,13 +9600,13 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.18"
+version = "2.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
+checksum = "fe5197923287db20a58125f0bc85c062f7f2c892de97b18c356f9efb14b28524"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.7",
 ]
 
 [[package]]
@@ -9714,9 +9713,9 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokio"
-version = "1.52.3"
+version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
  "bytes",
  "libc",
@@ -10023,7 +10022,7 @@ checksum = "050686193eb999b4bb3bc2acfa891a13da00f79734704c4b8b4ef1a10b368a3c"
 dependencies = [
  "crossbeam-channel",
  "symlink",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "time",
  "tracing-subscriber",
 ]
@@ -10131,7 +10130,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "once_cell",
  "png",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "windows-sys 0.61.2",
 ]
 
@@ -10171,7 +10170,7 @@ dependencies = [
  "log",
  "rand 0.9.5",
  "sha1",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "utf-8",
 ]
 
@@ -10188,7 +10187,7 @@ dependencies = [
  "log",
  "rand 0.9.5",
  "sha1",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -10678,7 +10677,7 @@ dependencies = [
  "toml 0.9.12+spec-1.1.0",
  "wasmtime-environ",
  "windows-sys 0.61.2",
- "zstd",
+ "zstd 0.13.3",
 ]
 
 [[package]]
@@ -10733,7 +10732,7 @@ dependencies = [
  "pulley-interpreter",
  "smallvec",
  "target-lexicon 0.13.5",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "wasmparser 0.252.0",
  "wasmtime-environ",
  "wasmtime-internal-core",
@@ -11082,7 +11081,7 @@ version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "381336cfffd772377d291702245447a5251a2ffa5bad679c99e61bc48bacbf9c"
 dependencies = [
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "windows 0.61.3",
  "windows-core 0.61.2",
 ]
@@ -11139,7 +11138,7 @@ dependencies = [
  "raw-window-handle",
  "rustc-hash 1.1.0",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "wgpu-core-deps-apple",
  "wgpu-core-deps-wasm",
  "wgpu-core-deps-windows-linux-android",
@@ -11218,7 +11217,7 @@ dependencies = [
  "raw-window-metal",
  "renderdoc-sys",
  "smallvec",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "wasm-bindgen",
  "wayland-sys",
  "web-sys",
@@ -11871,7 +11870,7 @@ dependencies = [
  "log",
  "os_pipe",
  "rustix 1.1.5",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "tree_magic_mini",
  "wayland-backend",
  "wayland-client",
@@ -11917,7 +11916,7 @@ dependencies = [
  "sha2 0.10.9",
  "soup3",
  "tao-macros",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "url",
  "webkit2gtk",
  "webkit2gtk-sys",
@@ -12005,7 +12004,7 @@ dependencies = [
  "nom 7.1.3",
  "oid-registry",
  "rusticata-macros",
- "thiserror 2.0.18",
+ "thiserror 2.0.21",
  "time",
 ]
 
@@ -12285,7 +12284,16 @@ version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a"
 dependencies = [
- "zstd-safe",
+ "zstd-safe 7.3.0",
+]
+
+[[package]]
+name = "zstd"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db3ae9bf90af6e40197bef767eeefc46ad6397420fe873830bd85e5fbbfb3c70"
+dependencies = [
+ "zstd-safe 8.2.0",
 ]
 
 [[package]]
@@ -12298,10 +12306,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "zstd-sys"
-version = "2.1.1+zstd.1.5.7"
+name = "zstd-safe"
+version = "8.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aeec9eaf2dffbbd09201e23bd0ffcbaa33bb8e9266a10734fd7ed90a85eca078"
+checksum = "ded520f16b29e1a9b771c722221b2b0a0398c2316d9bb3c42b458a5414d7434b"
+dependencies = [
+ "zstd-sys",
+]
+
+[[package]]
+name = "zstd-sys"
+version = "2.1.2+zstd.1.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "481ada9c543b2323cbb7bbdbb5249177fbf0188ed959ed2c15e4b22421c84ed3"
 dependencies = [
  "cc",
  "pkg-config",
