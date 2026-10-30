@@ -54,7 +54,7 @@ pub async fn start_embedded_freenet_node(
         .await
         .map_err(|e| e.to_string())?;
     tokio::spawn(async move {
-        if let Err(e) = run_network_node(node).await {
+        if let Err(e) = Box::pin(run_network_node(node)).await {
             tracing::error!(error = %e, "embedded freenet node exited");
         }
     });
