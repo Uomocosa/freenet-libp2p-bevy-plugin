@@ -95,8 +95,15 @@ impl<Op> SyncState<Op> {
             p2p::NetEvent::SnapshotMissing { .. } => {
                 Some(room_sync::state_machine::Input::SnapshotMissingFromRoomMember)
             }
-            p2p::NetEvent::SnapshotFailed { from } => {
-                Some(room_sync::state_machine::Input::RequestToRoomMemberFailed { from: from.clone() })
+            p2p::NetEvent::RoomSyncRequestFailed { from, request } => {
+                match request {
+                    p2p::SnapshotRequest::Fetch { .. } => {
+                        Some(room_sync::state_machine::Input::RequestToRoomMemberFailed { from: from.clone() })
+                    }
+                    p2p::SnapshotRequest::FetchReplicaSlice { index, .. } => {
+                        Some(room_sync::state_machine::Input::ReplicaSliceRequestFailed { from: from.clone(), index: *index })
+                    }
+                }
             }
             p2p::NetEvent::HistoryRecordFound { id, value } => {
                 Some(room_sync::state_machine::Input::HistoryRecordFound {

@@ -4,6 +4,8 @@ use bevy::prelude::Resource;
 use derive_more::Deref;
 use tokio::sync::broadcast;
 
+use atomic_delegate_macros::atomic_delegates;
+
 use crate::p2p;
 
 #[derive(Resource, Deref)]
@@ -11,12 +13,9 @@ pub struct NetEvents {
     pub receiver: Mutex<broadcast::Receiver<p2p::NetEvent>>,
 }
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl NetEvents {
-    pub fn drain(&self) -> Vec<p2p::NetEvent> {
-        let Ok(mut receiver) = self.receiver.lock() else { return Vec::new(); };
-        std::iter::from_fn(|| receiver.try_recv().ok()).collect()
-    }
+    pub fn drain(&self) -> Vec<p2p::NetEvent> {}
 }
 
 // no test_usage necessary

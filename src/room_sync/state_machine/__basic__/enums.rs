@@ -72,6 +72,10 @@ pub enum Input<Op> {
         index: room_sync::ReplicaSliceIndex,
         data: Vec<u8>,
     },
+    ReplicaSliceRequestFailed {
+        from: identity::PeerId,
+        index: room_sync::ReplicaSliceIndex,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

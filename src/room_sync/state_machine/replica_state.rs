@@ -45,11 +45,6 @@ impl<Op> Default for ReplicaState<Op> {
 impl<Op> ReplicaState<Op> {
     pub fn fetch_next(&mut self) -> Vec<room_sync::state_machine::Output<Op>> {}
     pub fn finish_member_fetch(&mut self) -> Vec<room_sync::state_machine::Output<Op>> {}
-    pub fn handle_failed(
-        &mut self,
-        from: &identity::PeerId,
-    ) -> Vec<room_sync::state_machine::Output<Op>> {
-    }
     pub fn handle_fetch(
         &self,
         id: p2p::ReplyId,
@@ -97,6 +92,12 @@ impl<Op> ReplicaState<Op> {
         room: &identity::RoomName,
         index: room_sync::ReplicaSliceIndex,
         data: Vec<u8>,
+    ) -> Vec<room_sync::state_machine::Output<Op>> {
+    }
+    pub fn handle_replica_slice_request_failed(
+        &mut self,
+        from: &identity::PeerId,
+        index: room_sync::ReplicaSliceIndex,
     ) -> Vec<room_sync::state_machine::Output<Op>> {
     }
     pub fn handle_replica_slice_requested(
@@ -223,8 +224,8 @@ impl<Op> ReplicaState<Op> {
             room_sync::state_machine::Input::SnapshotMissingFromRoomMember => {
                 self.handle_snapshot_missing()
             }
-            room_sync::state_machine::Input::RequestToRoomMemberFailed { from } => {
-                self.handle_failed(&from)
+            room_sync::state_machine::Input::RequestToRoomMemberFailed { .. } => {
+                self.retry_fetch()
             }
             room_sync::state_machine::Input::HistoryWriteTimerFired => {
                 self.start_history_write_check()
@@ -254,6 +255,9 @@ impl<Op> ReplicaState<Op> {
                 data,
             } => self.handle_replica_slice_received(&from, &room, index, data,
             ),
+            room_sync::state_machine::Input::ReplicaSliceRequestFailed { from, index } => {
+                self.handle_replica_slice_request_failed(&from, index)
+            }
         }
     }
     pub(crate) fn complete_history_fetch(
@@ -774,7 +778,40 @@ mod tests {
     }
 
     #[test]
-    fn failure_frees_every_fetch_to_that_peer() {
+    fn a_replica_slice_failure_frees_only_that_slice() {
+        let room = identity::RoomName::from("r");
+        let peer = identity::PeerId::from("a");
+        let mut state = ready_state(&room);
+        state.slice_anti_entropy.max_fetches_per_peer = 2;
+        let remote = hashes(&[(0, 1), (1, 1)]);
+        state.update(
+            Input::RemoteSliceContentHashes {
+                from: peer.clone(),
+                local: Vec::new(),
+                remote: remote.clone(),
+            },
+            now(),
+        );
+        state.update(
+            Input::ReplicaSliceRequestFailed {
+                from: peer.clone(),
+                index: room_sync::ReplicaSliceIndex(0),
+            },
+            now(),
+        );
+        let refetch = state.update(
+            Input::RemoteSliceContentHashes {
+                from: peer,
+                local: Vec::new(),
+                remote,
+            },
+            now(),
+        );
+        assert_eq!(fetched_indices(&refetch), vec![0]);
+    }
+
+    #[test]
+    fn a_snapshot_failure_keeps_replica_slice_fetches() {
         let room = identity::RoomName::from("r");
         let peer = identity::PeerId::from("a");
         let mut state = ready_state(&room);
@@ -799,7 +836,7 @@ mod tests {
             },
             now(),
         );
-        assert_eq!(fetched_indices(&refetch), vec![0]);
+        assert_eq!(fetched_indices(&refetch), Vec::<u32>::new());
     }
 
     #[test]

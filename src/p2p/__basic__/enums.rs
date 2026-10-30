@@ -66,8 +66,9 @@ pub enum NetEvent {
         from: identity::PeerId,
         room: identity::RoomName,
     },
-    SnapshotFailed {
+    RoomSyncRequestFailed {
         from: identity::PeerId,
+        request: p2p::SnapshotRequest,
     },
     ReplicaSliceRequest {
         id: p2p::ReplyId,

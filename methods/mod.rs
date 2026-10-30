@@ -16,6 +16,8 @@ pub mod lobby;
 pub mod lobby_contract_subscription;
 pub mod member_snapshot_fetch_state;
 pub mod net_command;
+#[cfg(feature = "discovery")]
+pub mod net_events;
 pub mod p2p_plugin;
 pub mod peer;
 pub mod peer_id;
