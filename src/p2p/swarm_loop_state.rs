@@ -303,6 +303,7 @@ pub fn handle_room_sync(&mut self, peer: &libp2p::PeerId, message: request_respo
             }
         }
         request_response::Message::Response { response, .. } => {
+            tracing::debug!(target: "p2p", peer = %peer, "snapshot response received");
             let from = identity::PeerId(peer.to_string());
             let event = match response {
                 p2p::SnapshotResponse::Part {

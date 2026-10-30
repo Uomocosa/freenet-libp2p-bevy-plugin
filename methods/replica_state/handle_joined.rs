@@ -27,7 +27,9 @@ pub fn handle_joined<Op>(
     state.kademlia_history.fetch_retries = 0;
     state.kademlia_history.pending_fetch = None;
     let next = state.fetch_next();
-    if !next.is_empty() {
+    let is_fetching_snapshot = !next.is_empty();
+    tracing::debug!(target: "room_sync", "snapshot joined room={:?} members={:?} is_fetching_snapshot={} history_enabled={}", state.room, state.member_snapshot.members, is_fetching_snapshot, state.kademlia_history.is_enabled);
+    if is_fetching_snapshot {
         return next;
     }
     state.finish_member_fetch()

@@ -8,6 +8,7 @@ pub fn handle_snapshot<Op>(
     total: u32,
     data: Vec<u8>,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
+    tracing::debug!(target: "room_sync", "snapshot part received part={} total={} phase={:?}", part, total, state.phase);
     if state.phase != room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember
         || state.room.as_ref() != Some(&room)
         || total == 0

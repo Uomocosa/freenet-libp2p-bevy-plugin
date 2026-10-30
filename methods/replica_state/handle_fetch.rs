@@ -9,6 +9,7 @@ pub fn handle_fetch<Op>(
     room: identity::RoomName,
     part: u32,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
+    tracing::debug!(target: "room_sync", "snapshot fetch requested room={:?} part={}", room, part);
     if state.room.is_none() {
         return Vec::new();
     }
