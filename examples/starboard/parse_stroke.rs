@@ -19,8 +19,13 @@ pub fn parse_stroke(raw: &str) -> Result<starboard::canvas::Stroke, String> {
     })
 }
 
-// needed helper: one `x.y` cell, inside the canvas
-fn parse_cell(raw: &str) -> Result<starboard::canvas::CellPos, String> {
+/// Parses one `x.y` cell, e.g. `10.20`, inside the canvas.
+///
+/// # Errors
+///
+/// Returns a message naming the offending part when the text is not one `x.y`
+/// cell, or when the cell is not a number or lies outside the canvas.
+pub fn parse_cell(raw: &str) -> Result<starboard::canvas::CellPos, String> {
     let Some((x, y)) = raw.split_once('.') else {
         return Err(format!("expected a cell like 10.20, got '{raw}'"));
     };

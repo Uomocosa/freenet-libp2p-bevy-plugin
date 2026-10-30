@@ -74,6 +74,13 @@ pub fn run_script(
         StarboardScriptStep::WaitCanvasStable => {
             is_canvas_stable(&mut stable, starboard::canvas::hash_canvas(canvas), clock)
         }
+        StarboardScriptStep::WaitCellPainted(pos) => {
+            if starboard::canvas::read_cell(canvas, *pos).color.is_some() {
+                StepOutcome::Done
+            } else {
+                StepOutcome::Pending
+            }
+        }
     });
     if let Some(exit) = app_exit_for_verdict(verdict) {
         exits.write(exit);
@@ -177,6 +184,25 @@ mod tests {
             pending.0,
             Some(crate::shared::action::Action::Join(_))
         ));
+    }
+
+    #[test]
+    fn a_cell_wait_is_done_once_the_cell_is_painted() {
+        let mut app = app(&["wait-cell-painted:10.20@30s"]);
+        app.update();
+        assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 0);
+        let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
+        let _ = starboard::canvas::write_cell(
+            &mut canvas,
+            starboard::canvas::CellPos { x: 10, y: 20 },
+            starboard::canvas::Cell {
+                lamport: 1,
+                author: 1,
+                color: Some(starboard::input::OwnBrush::default().color),
+            },
+        );
+        app.update();
+        assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 1);
     }
 
     #[test]

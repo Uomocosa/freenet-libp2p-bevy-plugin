@@ -311,6 +311,8 @@ impl Scenario {
     }
 
     /// S3: p2 leaves, p1 paints over its cells, p2 rejoins and converges to the new hash.
+    /// Every other peer is a bystander that sees the leave and the rejoin: it paints a mark
+    /// before it watches for the leave, and p2 leaves only after it sees every mark.
     #[must_use]
     pub fn starboard_leave_rejoin(peers: usize) -> Self {
         let paint = paint_script();
@@ -320,17 +322,28 @@ impl Scenario {
             wait-members:{peers}@300s, wait-canvas-stable@60s, sleep:10s, exit-app",
             create_and_enter()
         );
+        let bystanders: Vec<u16> = (2..peers)
+            .map(|index| u16::try_from(index).unwrap_or(0))
+            .collect();
+        let bystander_marks = bystanders.iter().fold(String::new(), |mut marks, index| {
+            marks.push_str("wait-cell-painted:");
+            marks.push_str(&bystander_mark_cell(*index));
+            marks.push_str("@120s, ");
+            marks
+        });
         let p2 = format!(
-            "{}, wait-members:{peers}@300s, wait-canvas-nonempty@120s, leave:{{room}}, \
+            "{}, wait-members:{peers}@300s, wait-cell-painted:{LEAVE_REJOIN_PAINTER_CELL}@120s, \
+            {bystander_marks}leave:{{room}}, \
             wait-left:{{room}}@30s, sleep:20s, join:{{room}}, \
             wait-join-succeeded:{{room}}@180s, wait-members:{peers}@300s, \
             wait-canvas-stable@60s, sleep:10s, exit-app",
             join_and_enter()
         );
         let mut runs = vec![now(p1), now(p2)];
-        for _ in 2..peers {
+        for index in bystanders {
+            let mark = bystander_mark_cell(index);
             runs.push(now(format!(
-                "{}, wait-members:{peers}@300s, wait-canvas-nonempty@120s, \
+                "{}, wait-members:{peers}@300s, paint-from-to:{mark}-{mark}, \
                 wait-members-are-strictly-less-than:{peers}@120s, wait-members:{peers}@300s, \
                 wait-canvas-stable@60s, sleep:10s, exit-app",
                 late_join_and_enter()
@@ -549,6 +562,18 @@ fn last_step_matching(script: &str, verb: &str) -> usize {
         .iter()
         .rposition(|step| step.starts_with(verb))
         .map_or(steps.len(), |index| index.saturating_add(1))
+}
+
+/// A cell of p1's first scripted stroke: once p2 sees it painted, p1 is already
+/// watching for p2's leave.
+const LEAVE_REJOIN_PAINTER_CELL: &str = "200.300";
+
+/// The cell bystander `index` paints right before it starts watching for p2's
+/// leave; p2 leaves only after it sees every bystander's mark. Far from the
+/// scripted strokes, one row per bystander.
+fn bystander_mark_cell(index: u16) -> String {
+    let y = 600_u16.saturating_add(index.saturating_mul(20));
+    format!("620.{y}")
 }
 
 /// The strokes the painter draws, as the script spells them.

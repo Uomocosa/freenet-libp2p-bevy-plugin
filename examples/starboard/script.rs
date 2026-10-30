@@ -1,4 +1,4 @@
-use crate::parse_stroke::parse_stroke;
+use crate::parse_stroke::{parse_cell, parse_stroke};
 use crate::shared::script::shared_script_step::SharedScriptStep;
 use crate::shared::script::timed_script_step::ScriptStepGrammar;
 use crate::starboard;
@@ -11,6 +11,7 @@ pub enum StarboardScriptStep {
     EraseFromTo(starboard::canvas::Stroke),
     WaitCanvasNonEmpty,
     WaitCanvasStable,
+    WaitCellPainted(starboard::canvas::CellPos),
 }
 
 impl ScriptStepGrammar for StarboardScriptStep {
@@ -18,7 +19,7 @@ impl ScriptStepGrammar for StarboardScriptStep {
         wait-join-succeeded, wait-join-failed, wait-left, wait-members, \
         wait-members-are-strictly-less-than, wait-members-are-less-or-equal-to, wait-room-messages, \
         sleep, exit-app, crash-app, stay, paint-from-to, erase-from-to, wait-canvas-nonempty, \
-        wait-canvas-stable";
+        wait-canvas-stable, wait-cell-painted";
 
     fn parse_verb(verb: &str, arg: &str) -> Option<Result<Self, String>> {
         match verb {
@@ -26,6 +27,7 @@ impl ScriptStepGrammar for StarboardScriptStep {
             "erase-from-to" => Some(parse_stroke(arg).map(Self::EraseFromTo)),
             "wait-canvas-nonempty" => Some(Ok(Self::WaitCanvasNonEmpty)),
             "wait-canvas-stable" => Some(Ok(Self::WaitCanvasStable)),
+            "wait-cell-painted" => Some(parse_cell(arg).map(Self::WaitCellPainted)),
             _ => SharedScriptStep::parse_verb(verb, arg).map(|step| step.map(Self::Shared)),
         }
     }
@@ -33,7 +35,7 @@ impl ScriptStepGrammar for StarboardScriptStep {
     fn is_wait(&self) -> bool {
         match self {
             Self::Shared(step) => step.is_wait(),
-            Self::WaitCanvasNonEmpty | Self::WaitCanvasStable => true,
+            Self::WaitCanvasNonEmpty | Self::WaitCanvasStable | Self::WaitCellPainted(_) => true,
             Self::PaintFromTo(_) | Self::EraseFromTo(_) => false,
         }
     }
@@ -78,6 +80,18 @@ mod tests {
     #[test]
     fn canvas_waits_need_a_deadline() {
         assert!(step("wait-canvas-nonempty").is_err());
+        assert!(step("wait-cell-painted:10.20").is_err());
+    }
+
+    #[test]
+    fn a_cell_wait_parses_its_cell() {
+        assert_eq!(
+            step("wait-cell-painted:10.20@60s"),
+            Ok(StarboardScriptStep::WaitCellPainted(
+                starboard::canvas::CellPos { x: 10, y: 20 }
+            ))
+        );
+        assert!(step("wait-cell-painted:9999.5@60s").is_err());
     }
 
     #[test]
