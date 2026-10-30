@@ -21,6 +21,7 @@ impl Args {
         let mut canvas_converges = false;
         let mut min_members = 0;
         let mut may_crash = BTreeSet::new();
+        let mut join_must_fail = BTreeSet::new();
         for raw in &self.expect {
             if raw == "converge" {
                 canvas_converges = true;
@@ -34,9 +35,14 @@ impl Args {
                     return Err(format!("bad --expect '{raw}'; want may-crash:<user>"));
                 }
                 may_crash.insert(user.to_string());
+            } else if let Some(user) = raw.strip_prefix("join-must-fail:") {
+                if user.is_empty() {
+                    return Err(format!("bad --expect '{raw}'; want join-must-fail:<user>"));
+                }
+                join_must_fail.insert(user.to_string());
             } else {
                 return Err(format!(
-                    "bad --expect '{raw}'; want converge, min-members:N or may-crash:<user>"
+                    "bad --expect '{raw}'; want converge, min-members:N, may-crash:<user> or join-must-fail:<user>"
                 ));
             }
         }
@@ -44,6 +50,7 @@ impl Args {
             canvas_converges,
             min_members,
             may_crash,
+            join_must_fail,
         })
     }
 
@@ -123,12 +130,15 @@ mod tests {
             "min-members:1",
             "--expect",
             "may-crash:p3",
+            "--expect",
+            "join-must-fail:p4",
         ])
         .expect("args");
         let expectation = args.expectation().expect("expectation");
         assert!(expectation.canvas_converges);
         assert_eq!(expectation.min_members, 1);
         assert!(expectation.may_crash.contains("p3"));
+        assert!(expectation.join_must_fail.contains("p4"));
     }
 
     #[test]

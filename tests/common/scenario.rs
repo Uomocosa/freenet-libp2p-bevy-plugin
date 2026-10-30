@@ -34,6 +34,7 @@ pub enum PeerStart {
 pub struct PeerRun {
     pub script: String,
     pub start: PeerStart,
+    pub token_override: Option<String>,
 }
 
 /// A check over every peer's log, run once all the scripts finished. `Ok` carries the detail.
@@ -50,6 +51,7 @@ pub struct Scenario {
     pub peers: Vec<PeerRun>,
     pub cap: Duration,
     pub on_finish: Option<OnFinish>,
+    pub expectation: Option<freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation>,
 }
 
 impl Scenario {
@@ -58,13 +60,13 @@ impl Scenario {
     pub fn discover_only(peers: usize) -> Self {
         let mut runs = vec![now(format!("{}, stay", create_and_enter()))];
         for _ in 1..peers {
-            runs.push(now("wait-lobby-room:{room}@180s, exit-app".to_string()));
+            runs.push(now("wait-lobby-room:{room}@420s, exit-app".to_string()));
         }
         Self {
             name: "lobby_room_discovery".to_string(),
             ui: Some("custom".to_string()),
             peers: runs,
-            cap: Duration::from_mins(5),
+            cap: Duration::from_mins(10),
             ..Self::lobby()
         }
     }
@@ -72,12 +74,12 @@ impl Scenario {
     /// Every peer ends up in one fully meshed room.
     #[must_use]
     pub fn join(peers: usize) -> Self {
-        let meshed = format!("wait-members:{peers}@180s, sleep:5s, exit-app");
+        let meshed = format!("wait-members:{peers}@420s, sleep:5s, exit-app");
         Self {
             name: "lobby_room_join".to_string(),
             ui: Some("default".to_string()),
             peers: room_roster(peers, &meshed),
-            cap: Duration::from_mins(7),
+            cap: Duration::from_mins(12),
             on_finish: Some(did_mesh_converge_within_budget),
             ..Self::lobby()
         }
@@ -88,14 +90,14 @@ impl Scenario {
     pub fn room_messaging(peers: usize) -> Self {
         let others = peers.saturating_sub(1);
         let tail = format!(
-            "wait-members:{peers}@180s, wait-room-messages:{others}@60s, sleep:5s, exit-app"
+            "wait-members:{peers}@420s, wait-room-messages:{others}@60s, sleep:5s, exit-app"
         );
         Self {
             name: "room_messaging".to_string(),
             ui: Some("default".to_string()),
             extra_args: vec!["--room-ping".to_string()],
             peers: room_roster(peers, &tail),
-            cap: Duration::from_mins(8),
+            cap: Duration::from_mins(13),
             on_finish: Some(did_mesh_converge_within_budget),
             ..Self::lobby()
         }
@@ -104,7 +106,7 @@ impl Scenario {
     /// p1 paints, p2 erases some of it, the rest only watch; every canvas ends the same.
     #[must_use]
     pub fn starboard(peers: usize) -> Self {
-        let members = format!("wait-members:{peers}@180s");
+        let members = format!("wait-members:{peers}@420s");
         let end = "wait-canvas-stable@60s, sleep:10s, exit-app";
         let mut runs = vec![
             now(format!(
@@ -127,8 +129,9 @@ impl Scenario {
         Self {
             name: "starboard_e2e".to_string(),
             peers: runs,
-            cap: Duration::from_mins(10),
-            on_finish: Some(do_all_canvases_agree),
+            cap: Duration::from_mins(15),
+            on_finish: None,
+            expectation: Some(starboard_expectation(peers, &[])),
             ..Self::starboard_base()
         }
     }
@@ -138,7 +141,7 @@ impl Scenario {
     #[must_use]
     pub fn starboard_late_join(peers: usize) -> Self {
         let first = peers.saturating_sub(1);
-        let members = format!("wait-members:{first}@180s");
+        let members = format!("wait-members:{first}@420s");
         let end = format!("wait-canvas-stable@60s, wait-members:{peers}@420s, sleep:10s, exit-app");
         let painter = format!(
             "{}, {members}, {}, {end}",
@@ -158,12 +161,14 @@ impl Scenario {
                 late_join_and_enter()
             ),
             start: after(0, last_step_matching(&painter, "paint-from-to")),
+            token_override: None,
         });
         Self {
             name: "starboard_late_join".to_string(),
             peers: runs,
-            cap: Duration::from_mins(15),
-            on_finish: Some(do_all_canvases_agree),
+            cap: Duration::from_mins(20),
+            on_finish: None,
+            expectation: Some(starboard_expectation(peers, &[])),
             ..Self::starboard_base()
         }
     }
@@ -173,7 +178,7 @@ impl Scenario {
     #[must_use]
     pub fn starboard_history_restore(peers: usize) -> Self {
         let holders = peers.saturating_sub(1).max(2);
-        let members = format!("wait-members:{holders}@180s");
+        let members = format!("wait-members:{holders}@420s");
         let leave = "sleep:45s, leave:{room}, wait-left:{room}@30s, exit-app";
         let mut runs = vec![now(format!(
             "{}, {members}, {}, wait-canvas-stable@60s, {leave}",
@@ -196,12 +201,21 @@ impl Scenario {
                 holders.saturating_sub(1),
                 last_step_matching(&holder, "wait-left"),
             ),
+            token_override: None,
         });
         Self {
             name: "starboard_history_restore".to_string(),
             peers: runs,
-            cap: Duration::from_mins(20),
+            cap: Duration::from_mins(25),
             on_finish: Some(was_history_written_and_restored),
+            expectation: Some(
+                freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
+                    canvas_converges: true,
+                    min_members: 1,
+                    may_crash: std::collections::BTreeSet::new(),
+                    join_must_fail: std::collections::BTreeSet::new(),
+                },
+            ),
             ..Self::starboard_base()
         }
     }
@@ -210,7 +224,7 @@ impl Scenario {
     /// finds the room gone.
     #[must_use]
     pub fn starboard_history_room_gone(peers: usize) -> Self {
-        let members = "wait-members:2@180s";
+        let members = "wait-members:2@420s";
         let quit = "wait-canvas-stable@60s, sleep:45s, exit-app";
         let painter = format!(
             "{}, {members}, {}, {quit}",
@@ -226,16 +240,31 @@ impl Scenario {
             )),
         ];
         for _ in 2..peers.saturating_sub(1) {
-            runs.push(now("wait-lobby-room:{room}@180s, stay".to_string()));
+            runs.push(now("wait-lobby-room:{room}@420s, stay".to_string()));
         }
         runs.push(PeerRun {
             script: "join:{room}, wait-join-failed:{room}@420s, exit-app".to_string(),
             start: after(0, step_count(&painter)),
+            token_override: None,
         });
+        let last = format!("p{}", runs.len());
+        let mut may_crash = std::collections::BTreeSet::new();
+        for index in 2..runs.len().saturating_sub(1) {
+            may_crash.insert(format!("p{}", index.saturating_add(1)));
+        }
         Self {
             name: "starboard_history_room_gone".to_string(),
             peers: runs,
-            cap: Duration::from_mins(20),
+            cap: Duration::from_mins(25),
+            on_finish: None,
+            expectation: Some(
+                freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
+                    canvas_converges: false,
+                    min_members: 1,
+                    may_crash,
+                    join_must_fail: std::iter::once(last).collect(),
+                },
+            ),
             ..Self::starboard_base()
         }
     }
@@ -251,17 +280,176 @@ impl Scenario {
         );
         let mut runs = vec![now(holder.clone())];
         for _ in 1..peers.saturating_sub(1) {
-            runs.push(now("wait-lobby-room:{room}@180s, stay".to_string()));
+            runs.push(now("wait-lobby-room:{room}@420s, stay".to_string()));
         }
         runs.push(PeerRun {
             script: "join:{room}, wait-join-failed:{room}@420s, exit-app".to_string(),
             // the step before `crash-app`, which aborts without ever reporting done
             start: after(0, last_step_matching(&holder, "sleep")),
+            token_override: None,
         });
+        let last = format!("p{}", runs.len());
+        let mut may_crash = std::collections::BTreeSet::from(["p1".to_string()]);
+        for index in 1..runs.len().saturating_sub(1) {
+            may_crash.insert(format!("p{}", index.saturating_add(1)));
+        }
         Self {
             name: "starboard_history_holder_killed".to_string(),
             peers: runs,
+            cap: Duration::from_mins(20),
+            on_finish: None,
+            expectation: Some(
+                freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
+                    canvas_converges: false,
+                    min_members: 1,
+                    may_crash,
+                    join_must_fail: std::iter::once(last).collect(),
+                },
+            ),
+            ..Self::starboard_base()
+        }
+    }
+
+    /// S3: p2 leaves, p1 paints over its cells, p2 rejoins and converges to the new hash.
+    #[must_use]
+    pub fn starboard_leave_rejoin(peers: usize) -> Self {
+        let paint = paint_script();
+        let p1 = format!(
+            "{}, wait-members:{peers}@300s, {paint}, \
+            wait-members-are-strictly-less-than:{peers}@120s, {paint}, \
+            wait-members:{peers}@300s, wait-canvas-stable@60s, sleep:10s, exit-app",
+            create_and_enter()
+        );
+        let p2 = format!(
+            "{}, wait-members:{peers}@300s, wait-canvas-nonempty@120s, leave:{{room}}, \
+            wait-left:{{room}}@30s, sleep:20s, join:{{room}}, \
+            wait-join-succeeded:{{room}}@180s, wait-members:{peers}@300s, \
+            wait-canvas-stable@60s, sleep:10s, exit-app",
+            join_and_enter()
+        );
+        let mut runs = vec![now(p1), now(p2)];
+        for _ in 2..peers {
+            runs.push(now(format!(
+                "{}, wait-members:{peers}@300s, wait-canvas-nonempty@120s, \
+                wait-members-are-strictly-less-than:{peers}@120s, wait-members:{peers}@300s, \
+                wait-canvas-stable@60s, sleep:10s, exit-app",
+                late_join_and_enter()
+            )));
+        }
+        Self {
+            name: "starboard_leave_rejoin".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(20),
+            on_finish: None,
+            expectation: Some(starboard_expectation(peers, &[])),
+            ..Self::starboard_base()
+        }
+    }
+
+    /// S5: every peer paints the same strokes at the same time; the board still converges.
+    #[must_use]
+    pub fn starboard_simultaneous_paint(peers: usize) -> Self {
+        let members = format!("wait-members:{peers}@420s");
+        let paint = paint_script();
+        let end = "wait-canvas-stable@60s, sleep:10s, exit-app";
+        let p1 = format!("{}, {members}, {paint}, {end}", create_and_enter());
+        let p2 = format!("{}, {members}, {paint}, {end}", join_and_enter());
+        let mut runs = vec![now(p1), now(p2)];
+        for _ in 2..peers {
+            runs.push(now(format!(
+                "{}, {members}, wait-canvas-nonempty@120s, {end}",
+                join_and_enter()
+            )));
+        }
+        Self {
+            name: "starboard_simultaneous_paint".to_string(),
+            peers: runs,
             cap: Duration::from_mins(15),
+            on_finish: None,
+            expectation: Some(starboard_expectation(peers, &[])),
+            ..Self::starboard_base()
+        }
+    }
+
+    /// S6: the last peer crashes; the survivors drop it and keep converging.
+    #[must_use]
+    pub fn starboard_peer_killed(peers: usize) -> Self {
+        let survivors_end = "wait-canvas-stable@60s, sleep:10s, exit-app";
+        let members = format!("wait-members:{peers}@420s");
+        let back = format!(
+            "wait-members-are-less-or-equal-to:{}@180s",
+            peers.saturating_sub(1)
+        );
+        let mut runs = Vec::new();
+        runs.push(now(format!(
+            "{}, {}, {members}, wait-canvas-nonempty@120s, {back}, {}, {survivors_end}",
+            create_and_enter(),
+            paint_script(),
+            erase_script()
+        )));
+        for _ in 1..peers.saturating_sub(1) {
+            runs.push(now(format!(
+                "{}, {members}, wait-canvas-nonempty@120s, {back}, {survivors_end}",
+                join_and_enter()
+            )));
+        }
+        runs.push(PeerRun {
+            script: format!(
+                "{}, wait-canvas-nonempty@120s, sleep:5s, crash-app",
+                join_and_enter()
+            ),
+            start: PeerStart::Now,
+            token_override: None,
+        });
+        let crashed = format!("p{peers}");
+        Self {
+            name: "starboard_peer_killed".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(20),
+            on_finish: None,
+            expectation: Some(starboard_expectation(peers, &[crashed])),
+            ..Self::starboard_base()
+        }
+    }
+
+    /// S7: a bad token and a missing room both fail to join.
+    #[must_use]
+    pub fn starboard_bad_token(peers: usize) -> Self {
+        let mut runs = vec![now(format!("{}, sleep:240s, exit-app", create_and_enter()))];
+        runs.push(PeerRun {
+            script: "join:{room}, wait-join-failed:{room}@420s, exit-app".to_string(),
+            start: after(0, 2),
+            token_override: Some("lobby-e2e/bad-token".to_string()),
+        });
+        runs.push(PeerRun {
+            script: "join:no-such-room-{room}, wait-join-failed:no-such-room-{room}@420s, exit-app"
+                .to_string(),
+            start: after(0, 2),
+            token_override: None,
+        });
+        for _ in 3..peers {
+            runs.push(now("wait-lobby-room:{room}@420s, stay".to_string()));
+        }
+        let mut may_crash = std::collections::BTreeSet::new();
+        for index in 3..peers {
+            may_crash.insert(format!("p{}", index.saturating_add(1)));
+        }
+        Self {
+            name: "starboard_bad_token".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(25),
+            on_finish: None,
+            expectation: Some(
+                freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
+                    canvas_converges: false,
+                    min_members: 0,
+                    may_crash,
+                    join_must_fail: std::collections::BTreeSet::from([
+                        "p2".to_string(),
+                        "p3".to_string(),
+                    ]),
+                },
+            ),
             ..Self::starboard_base()
         }
     }
@@ -277,6 +465,7 @@ impl Scenario {
             peers: Vec::new(),
             cap: Duration::from_mins(5),
             on_finish: None,
+            expectation: None,
         }
     }
 
@@ -295,6 +484,7 @@ const fn now(script: String) -> PeerRun {
     PeerRun {
         script,
         start: PeerStart::Now,
+        token_override: None,
     }
 }
 
@@ -308,9 +498,11 @@ fn create_and_enter() -> String {
     "create:{room}, wait-join-succeeded:{room}@180s".to_string()
 }
 
-/// A first-batch joiner's opening: see the room, join it, be in it.
+/// A first-batch joiner's opening: see the room, join it, be in it. Cold Freenet
+/// nodes take minutes for the first lobby read, so first-batch joiners use the
+/// same budget as late joiners.
 fn join_and_enter() -> String {
-    "wait-lobby-room:{room}@180s, join:{room}, wait-join-succeeded:{room}@180s".to_string()
+    late_join_and_enter()
 }
 
 /// A late joiner's opening: a cold node can take minutes to read the lobby.
@@ -325,6 +517,19 @@ fn room_roster(peers: usize, tail: &str) -> Vec<PeerRun> {
         runs.push(now(format!("{}, {tail}", join_and_enter())));
     }
     runs
+}
+
+// needed helper: the checker expectation for converging starboard scenarios
+fn starboard_expectation(
+    peers: usize,
+    may_crash: &[String],
+) -> freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
+    freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
+        canvas_converges: true,
+        min_members: peers,
+        may_crash: may_crash.iter().cloned().collect(),
+        join_must_fail: std::collections::BTreeSet::new(),
+    }
 }
 
 /// The steps of a script, trimmed.
@@ -483,6 +688,15 @@ pub async fn run_scenario(scenario: Scenario) -> Report {
             detail: result.unwrap_or_else(|detail| detail),
         });
     }
+    let extra_tables = scenario
+        .expectation
+        .as_ref()
+        .map_or_else(String::new, |expectation| {
+            let (mut extra_checks, tables) =
+                check_peer_run_results_of_run(expectation, &env, scenario.peers.len());
+            checks.append(&mut extra_checks);
+            tables
+        });
     let clip = stop_recording(env.recording.take(), &env.raw, &env.clip);
     let windows: Vec<TerminalGuard> = peers
         .iter_mut()
@@ -490,9 +704,9 @@ pub async fn run_scenario(scenario: Scenario) -> Report {
         .collect();
     release(windows);
     let mut caption = build_caption(&scenario, &env, &peers, &checks);
-    if scenario.bin == "starboard" {
+    if !extra_tables.is_empty() {
         caption.push('\n');
-        caption.push_str(&peer_run_expectation_tables(&scenario, &env));
+        caption.push_str(&extra_tables);
     }
     eprintln!("{caption}");
     send_clip(clip.as_deref(), &caption).await;
@@ -593,11 +807,15 @@ fn spawn_peer(
 ) -> Result<TerminalGuard, String> {
     let username = format!("p{}", index.saturating_add(1));
     let log = env.dir.join(format!("instance-{username}.log"));
+    let token = run
+        .token_override
+        .clone()
+        .unwrap_or_else(|| env.token.clone());
     let mut args = vec![
         "--username".to_string(),
         username.clone(),
         "--token".to_string(),
-        env.token.clone(),
+        token,
         "--transport".to_string(),
         env.transport.clone(),
         "--script".to_string(),
@@ -726,26 +944,19 @@ fn release(windows: Vec<TerminalGuard>) {
     }
 }
 
-// needed helper: the result.json expectation tables for starboard scenarios
-fn peer_run_expectation_tables(scenario: &Scenario, env: &Env) -> String {
-    use std::collections::{BTreeMap, BTreeSet};
-    let mut may_crash = BTreeSet::new();
-    for (index, run) in scenario.peers.iter().enumerate() {
-        if script_ending(&run.script) == ScriptEnding::CrashApp {
-            may_crash.insert(format!("p{}", index.saturating_add(1)));
-        }
-    }
-    let expectation = freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
-        canvas_converges: true,
-        min_members: 1,
-        may_crash,
-    };
+// needed helper: the result.json checker rows for one run, as Checks plus markdown tables
+fn check_peer_run_results_of_run(
+    expectation: &freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation,
+    env: &Env,
+    peer_count: usize,
+) -> (Vec<Check>, String) {
+    use std::collections::BTreeMap;
     let mut results: BTreeMap<
         String,
         Option<freenet_libp2p_bevy_plugin::e2e_report::PeerRunResult>,
     > = BTreeMap::new();
-    for index in 0..scenario.peers.len() {
-        let username = format!("p{}", index.saturating_add(1));
+    for index in 1..=peer_count {
+        let username = format!("p{index}");
         let path = env.dir.join(&username).join("result.json");
         let parsed = std::fs::read(&path)
             .ok()
@@ -753,7 +964,24 @@ fn peer_run_expectation_tables(scenario: &Scenario, env: &Env) -> String {
         results.insert(username, parsed);
     }
     let rows = expectation.check_peer_run_results(&results);
-    freenet_libp2p_bevy_plugin::e2e_report::ExpectationResult::render_markdown_tables(&rows)
+    let checks = rows
+        .iter()
+        .map(|row| {
+            let layer = match row.layer {
+                freenet_libp2p_bevy_plugin::e2e_report::CheckLayer::Scenario => "scenario",
+                freenet_libp2p_bevy_plugin::e2e_report::CheckLayer::Freenet => "freenet",
+                freenet_libp2p_bevy_plugin::e2e_report::CheckLayer::Libp2p => "libp2p",
+            };
+            Check {
+                name: format!("{layer} {}", row.name),
+                ok: row.pass,
+                detail: format!("expected {} | actual {}", row.expected, row.actual),
+            }
+        })
+        .collect();
+    let tables =
+        freenet_libp2p_bevy_plugin::e2e_report::ExpectationResult::render_markdown_tables(&rows);
+    (checks, tables)
 }
 
 fn build_caption(
@@ -892,27 +1120,6 @@ fn did_mesh_converge_within_budget(logs: &[PathBuf]) -> Result<String, String> {
     }
 }
 
-/// `on_finish`: every peer's last logged canvas has the same hash, and it is not empty.
-fn do_all_canvases_agree(logs: &[PathBuf]) -> Result<String, String> {
-    let canvases: Vec<Option<(u64, usize)>> = logs
-        .iter()
-        .map(|log| last_canvas(log).map(|tick| (tick.hash, tick.tiles)))
-        .collect();
-    let detail = format!("last canvas (hash, tiles) per peer: {canvases:?}");
-    let first = canvases.first().copied().flatten();
-    let does_every_peer_agree = first.is_some_and(|(hash, tiles)| {
-        tiles > 0
-            && canvases
-                .iter()
-                .all(|canvas| canvas.is_some_and(|(other, _)| other == hash))
-    });
-    if does_every_peer_agree {
-        Ok(detail)
-    } else {
-        Err(detail)
-    }
-}
-
 /// `on_finish` (S4a): a holder wrote the room history, and the late joiner (the last peer)
 /// ended on the painter's canvas.
 fn was_history_written_and_restored(logs: &[PathBuf]) -> Result<String, String> {
@@ -972,7 +1179,11 @@ mod tests {
             Scenario::starboard_late_join(4),
             Scenario::starboard_history_restore(3),
             Scenario::starboard_history_room_gone(4),
-            Scenario::starboard_history_holder_killed(2),
+            Scenario::starboard_history_holder_killed(3),
+            Scenario::starboard_leave_rejoin(3),
+            Scenario::starboard_simultaneous_paint(2),
+            Scenario::starboard_peer_killed(3),
+            Scenario::starboard_bad_token(3),
         ];
         for scenario in scenarios {
             for run in &scenario.peers {

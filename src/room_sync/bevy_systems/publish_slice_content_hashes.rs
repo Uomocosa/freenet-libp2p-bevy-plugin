@@ -26,6 +26,7 @@ pub fn publish_slice_content_hashes<Replica: room_sync::RoomState>(
         else {
             continue;
         };
+        tracing::debug!(target: "room_sync", "anti-entropy publish room={room} slices={}", hashes.len());
         let message =
             room_sync::ReplicaSyncTopicMessage::<Replica::Op>::CompareSliceContentHashes {
                 room: room.clone(),

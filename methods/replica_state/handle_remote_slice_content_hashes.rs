@@ -8,9 +8,11 @@ pub fn handle_remote_slice_content_hashes<Op>(
     remote: &room_sync::ReplicaSliceContentHashes,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
     if state.phase != room_sync::state_machine::Phase::Ready {
+        tracing::debug!(target: "room_sync", "anti-entropy ignored phase={:?} reason=remote-hashes-not-ready", state.phase);
         return Vec::new();
     }
     let Some(room) = state.room.clone() else {
+        tracing::debug!(target: "room_sync", "anti-entropy ignored phase={:?} reason=remote-hashes-no-room", state.phase);
         return Vec::new();
     };
     let max_fetches = state.slice_anti_entropy.max_fetches_per_peer;
@@ -32,6 +34,7 @@ pub fn handle_remote_slice_content_hashes<Op>(
             });
         }
     }
+    tracing::debug!(target: "room_sync", "anti-entropy compare fetches={}", outputs.len());
     outputs
 }
 

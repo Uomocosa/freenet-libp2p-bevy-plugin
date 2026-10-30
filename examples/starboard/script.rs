@@ -15,7 +15,8 @@ pub enum StarboardScriptStep {
 
 impl ScriptStepGrammar for StarboardScriptStep {
     const STEP_NAMES: &'static str = "create, join, leave, wait-lobby-room, \
-        wait-join-succeeded, wait-join-failed, wait-left, wait-members, wait-room-messages, \
+        wait-join-succeeded, wait-join-failed, wait-left, wait-members, \
+        wait-members-are-strictly-less-than, wait-members-are-less-or-equal-to, wait-room-messages, \
         sleep, exit-app, crash-app, stay, paint-from-to, erase-from-to, wait-canvas-nonempty, \
         wait-canvas-stable";
 
@@ -95,5 +96,25 @@ mod tests {
         let steps: Result<Vec<StarboardScriptStep>, String> =
             script.split(", ").map(step).collect();
         assert_eq!(steps.map(|steps| steps.len()), Ok(8));
+    }
+
+    #[test]
+    fn bounded_member_waits_parse_in_starboard_scripts() {
+        assert_eq!(
+            step("wait-members-are-strictly-less-than:2@60s"),
+            Ok(StarboardScriptStep::Shared(
+                SharedScriptStep::WaitMembersAreStrictlyLessThan(
+                    crate::shared::script::shared_script_step::MemberCount(2)
+                )
+            ))
+        );
+        assert_eq!(
+            step("wait-members-are-less-or-equal-to:1@60s"),
+            Ok(StarboardScriptStep::Shared(
+                SharedScriptStep::WaitMembersAreLessOrEqualTo(
+                    crate::shared::script::shared_script_step::MemberCount(1)
+                )
+            ))
+        );
     }
 }

@@ -9,6 +9,7 @@ pub struct ScenarioExpectation {
     pub canvas_converges: bool,
     pub min_members: usize,
     pub may_crash: BTreeSet<String>,
+    pub join_must_fail: BTreeSet<String>,
 }
 
 #[atomic_delegates]
@@ -17,6 +18,36 @@ impl ScenarioExpectation {
         &self,
         results: &std::collections::BTreeMap<String, Option<e2e_report::PeerRunResult>>,
     ) -> Vec<e2e_report::ExpectationResult> {
+    }
+}
+
+#[atomic_delegates]
+impl ScenarioExpectation {
+    pub(crate) fn scenario_rows(
+        &self,
+        username: &str,
+        result: &e2e_report::PeerRunResult,
+    ) -> Vec<e2e_report::ExpectationResult> {
+    }
+
+    pub(crate) fn freenet_rows(
+        &self,
+        username: &str,
+        result: &e2e_report::PeerRunResult,
+    ) -> Vec<e2e_report::ExpectationResult> {
+    }
+
+    pub(crate) fn libp2p_rows(
+        &self,
+        username: &str,
+        result: &e2e_report::PeerRunResult,
+    ) -> Vec<e2e_report::ExpectationResult> {
+    }
+
+    pub(crate) fn canvas_row(
+        &self,
+        results: &std::collections::BTreeMap<String, Option<e2e_report::PeerRunResult>>,
+    ) -> Option<e2e_report::ExpectationResult> {
     }
 }
 
@@ -34,6 +65,7 @@ mod tests {
             canvas_converges: true,
             min_members: 1,
             may_crash: BTreeSet::new(),
+            join_must_fail: BTreeSet::new(),
         }
     }
 

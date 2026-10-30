@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use crate::e2e_report;
-use crate::p2p;
 
 #[must_use]
 pub fn check_peer_run_results(
@@ -20,85 +19,12 @@ pub fn check_peer_run_results(
             });
             continue;
         };
-        out.push(e2e_report::ExpectationResult {
-            layer: e2e_report::CheckLayer::Scenario,
-            name: format!("{username} members"),
-            expected: format!("at least {} members seen", expectation.min_members),
-            actual: format!("{} members seen", result.members_seen.len()),
-            pass: result.members_seen.len() >= expectation.min_members,
-        });
-        if !expectation.may_crash.contains(username) {
-            let actual = result.error.as_ref().map_or_else(
-                || format!("exit {}", result.exit_code),
-                |error| format!("exit {} error {error}", result.exit_code),
-            );
-            out.push(e2e_report::ExpectationResult {
-                layer: e2e_report::CheckLayer::Scenario,
-                name: format!("{username} exit"),
-                expected: "exit 0 with no error".to_string(),
-                actual,
-                pass: result.exit_code == 0 && result.error.is_none(),
-            });
-        }
-        let seen = result.freenet.freenet_peers_seen;
-        let freenet_actual = result.freenet.lobby_attached_after_secs.map_or_else(
-            || format!("never attached, {seen} freenet peers seen"),
-            |secs| format!("attached after {secs:.1}s with {seen} freenet peers"),
-        );
-        out.push(e2e_report::ExpectationResult {
-            layer: e2e_report::CheckLayer::Freenet,
-            name: format!("{username} lobby attached"),
-            expected: "lobby attached".to_string(),
-            actual: freenet_actual,
-            pass: result.freenet.lobby_attached_after_secs.is_some(),
-        });
-        for (remote, kinds) in &result.connection_kinds {
-            out.push(e2e_report::ExpectationResult {
-                layer: e2e_report::CheckLayer::Libp2p,
-                name: format!("{username} -> {} connection", remote.as_str()),
-                expected: "connection kind observed".to_string(),
-                actual: p2p::ConnectionKind::render_history(kinds),
-                pass: true,
-            });
-        }
+        out.extend(expectation.scenario_rows(username, result));
+        out.extend(expectation.freenet_rows(username, result));
+        out.extend(expectation.libp2p_rows(username, result));
     }
-    if expectation.canvas_converges {
-        let surviving: Vec<(&String, &e2e_report::PeerRunResult)> = results
-            .iter()
-            .filter_map(|(username, maybe)| maybe.as_ref().map(|result| (username, result)))
-            .collect();
-        let first = surviving.first().and_then(|(_, result)| {
-            if result.tiles > 0 {
-                result.canvas_hash
-            } else {
-                None
-            }
-        });
-        let pass = first.is_some()
-            && surviving
-                .iter()
-                .all(|(_, result)| result.tiles > 0 && result.canvas_hash == first);
-        let actual = if surviving.is_empty() {
-            "no surviving results".to_string()
-        } else {
-            surviving
-                .iter()
-                .map(|(username, result)| {
-                    let hash = result
-                        .canvas_hash
-                        .map_or_else(|| "none".to_string(), |hash| hash.to_string());
-                    format!("{username}: {hash} ({} tiles)", result.tiles)
-                })
-                .collect::<Vec<String>>()
-                .join(", ")
-        };
-        out.push(e2e_report::ExpectationResult {
-            layer: e2e_report::CheckLayer::Scenario,
-            name: "canvas converged".to_string(),
-            expected: "same non-empty hash on all surviving peers".to_string(),
-            actual,
-            pass,
-        });
+    if let Some(row) = expectation.canvas_row(results) {
+        out.push(row);
     }
     out
 }
@@ -117,6 +43,7 @@ mod tests {
             canvas_converges: true,
             min_members: 1,
             may_crash: BTreeSet::new(),
+            join_must_fail: BTreeSet::new(),
         }
     }
 

@@ -88,6 +88,14 @@ pub fn poll_shared_script_step(
             let members = view.status.connected_members().count().saturating_add(1);
             done_when(u32::try_from(members).unwrap_or(u32::MAX) >= **count)
         }
+        SharedScriptStep::WaitMembersAreStrictlyLessThan(count) => {
+            let members = view.status.connected_members().count().saturating_add(1);
+            done_when(u32::try_from(members).unwrap_or(u32::MAX) < **count)
+        }
+        SharedScriptStep::WaitMembersAreLessOrEqualTo(count) => {
+            let members = view.status.connected_members().count().saturating_add(1);
+            done_when(u32::try_from(members).unwrap_or(u32::MAX) <= **count)
+        }
         SharedScriptStep::WaitRoomMessages(count) => {
             done_when(u32::try_from(view.room_message_senders).unwrap_or(u32::MAX) >= **count)
         }
@@ -217,5 +225,43 @@ mod tests {
         let last = poll_shared_script_step(&SharedScriptStep::ExitApp, later, &view(&status));
         assert_eq!(last.effect, None);
         assert_eq!(last.outcome, StepOutcome::Done);
+    }
+
+    #[test]
+    fn strictly_less_member_wait_completes_below_the_bound() {
+        use crate::shared::script::shared_script_step::MemberCount;
+        let status = discovery::Status::default();
+        let alone = view(&status);
+        let done = poll_shared_script_step(
+            &SharedScriptStep::WaitMembersAreStrictlyLessThan(MemberCount(2)),
+            FIRST,
+            &alone,
+        );
+        assert_eq!(done.outcome, StepOutcome::Done);
+        let pending = poll_shared_script_step(
+            &SharedScriptStep::WaitMembersAreStrictlyLessThan(MemberCount(1)),
+            FIRST,
+            &alone,
+        );
+        assert_eq!(pending.outcome, StepOutcome::Pending);
+    }
+
+    #[test]
+    fn less_or_equal_member_wait_completes_at_the_bound() {
+        use crate::shared::script::shared_script_step::MemberCount;
+        let status = discovery::Status::default();
+        let alone = view(&status);
+        let done = poll_shared_script_step(
+            &SharedScriptStep::WaitMembersAreLessOrEqualTo(MemberCount(1)),
+            FIRST,
+            &alone,
+        );
+        assert_eq!(done.outcome, StepOutcome::Done);
+        let pending = poll_shared_script_step(
+            &SharedScriptStep::WaitMembersAreLessOrEqualTo(MemberCount(0)),
+            FIRST,
+            &alone,
+        );
+        assert_eq!(pending.outcome, StepOutcome::Pending);
     }
 }

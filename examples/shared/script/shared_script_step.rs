@@ -24,6 +24,8 @@ pub enum SharedScriptStep {
     WaitJoinFailed(identity::RoomName),
     WaitLeft(identity::RoomName),
     WaitMembers(MemberCount),
+    WaitMembersAreStrictlyLessThan(MemberCount),
+    WaitMembersAreLessOrEqualTo(MemberCount),
     WaitRoomMessages(SenderCount),
     Sleep(Duration),
     ExitApp,
@@ -33,7 +35,8 @@ pub enum SharedScriptStep {
 
 impl ScriptStepGrammar for SharedScriptStep {
     const STEP_NAMES: &'static str = "create, join, leave, wait-lobby-room, \
-        wait-join-succeeded, wait-join-failed, wait-left, wait-members, wait-room-messages, \
+        wait-join-succeeded, wait-join-failed, wait-left, wait-members, \
+        wait-members-are-strictly-less-than, wait-members-are-less-or-equal-to, wait-room-messages, \
         sleep, exit-app, crash-app, stay";
 
     fn parse_verb(verb: &str, arg: &str) -> Option<Result<Self, String>> {
@@ -47,6 +50,12 @@ impl ScriptStepGrammar for SharedScriptStep {
             "wait-join-failed" => room().map(Self::WaitJoinFailed),
             "wait-left" => room().map(Self::WaitLeft),
             "wait-members" => count(verb, arg).map(|n| Self::WaitMembers(MemberCount(n))),
+            "wait-members-are-strictly-less-than" => {
+                count(verb, arg).map(|n| Self::WaitMembersAreStrictlyLessThan(MemberCount(n)))
+            }
+            "wait-members-are-less-or-equal-to" => {
+                count(verb, arg).map(|n| Self::WaitMembersAreLessOrEqualTo(MemberCount(n)))
+            }
             "wait-room-messages" => {
                 count(verb, arg).map(|n| Self::WaitRoomMessages(SenderCount(n)))
             }
@@ -66,6 +75,8 @@ impl ScriptStepGrammar for SharedScriptStep {
                 | Self::WaitJoinFailed(_)
                 | Self::WaitLeft(_)
                 | Self::WaitMembers(_)
+                | Self::WaitMembersAreStrictlyLessThan(_)
+                | Self::WaitMembersAreLessOrEqualTo(_)
                 | Self::WaitRoomMessages(_)
         )
     }
@@ -133,5 +144,24 @@ mod tests {
     #[test]
     fn sleep_is_not_a_wait() {
         assert!(step("sleep:5s@10s").is_err());
+    }
+
+    #[test]
+    fn bounded_member_waits_parse_like_wait_members() {
+        assert_eq!(
+            step("wait-members-are-strictly-less-than:2@60s"),
+            Ok(SharedScriptStep::WaitMembersAreStrictlyLessThan(
+                MemberCount(2)
+            ))
+        );
+        assert_eq!(
+            step("wait-members-are-less-or-equal-to:1@60s"),
+            Ok(SharedScriptStep::WaitMembersAreLessOrEqualTo(MemberCount(
+                1
+            )))
+        );
+        assert!(step("wait-members-are-strictly-less-than:2").is_err());
+        assert!(step("wait-members-are-less-or-equal-to:1").is_err());
+        assert!(step("wait-members-are-strictly-less-than:x@60s").is_err());
     }
 }

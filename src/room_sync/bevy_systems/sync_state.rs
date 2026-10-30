@@ -68,11 +68,14 @@ impl<Op> SyncState<Op> {
                     }
                     room_sync::ReplicaSyncTopicMessage::CompareSliceContentHashes {
                         hashes, ..
-                    } => Some(room_sync::state_machine::Input::RemoteSliceContentHashes {
-                        from: from.clone(),
-                        local: replica.slice_content_hashes(),
-                        remote: hashes,
-                    }),
+                    } => {
+                        tracing::debug!(target: "room_sync", "anti-entropy compare from={from} remote_slices={}", hashes.len());
+                        Some(room_sync::state_machine::Input::RemoteSliceContentHashes {
+                            from: from.clone(),
+                            local: replica.slice_content_hashes(),
+                            remote: hashes,
+                        })
+                    }
                 }
             }
             p2p::NetEvent::SnapshotPart {
@@ -114,12 +117,15 @@ impl<Op> SyncState<Op> {
                 room,
                 index,
                 data,
-            } => Some(room_sync::state_machine::Input::ReplicaSliceReceived {
-                from: from.clone(),
-                room: room.clone(),
-                index: *index,
-                data: data.clone(),
-            }),
+            } => {
+                tracing::debug!(target: "room_sync", "anti-entropy slice from={from} index={} bytes={}", **index, data.len());
+                Some(room_sync::state_machine::Input::ReplicaSliceReceived {
+                    from: from.clone(),
+                    room: room.clone(),
+                    index: *index,
+                    data: data.clone(),
+                })
+            }
             p2p::NetEvent::SnapshotRequest { id, room, part, .. } => Some(
                 room_sync::state_machine::Input::SnapshotPartRequestedByRoomMember {
                     id: *id,

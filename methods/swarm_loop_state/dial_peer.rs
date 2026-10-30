@@ -17,6 +17,7 @@ pub fn dial_peer<Payload: p2p::Message>(
         let opts = DialOpts::peer_id(libp2p_id)
             .condition(condition)
             .addresses(multiaddrs)
+            .override_dial_concurrency_factor(p2p::DIAL_CONCURRENCY_FACTOR)
             .build();
         if let Err(e) = state.swarm.dial(opts) {
             state

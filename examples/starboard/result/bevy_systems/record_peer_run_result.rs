@@ -46,6 +46,9 @@ pub fn record_peer_run_result(
         for peer in room.members.keys() {
             result.members_seen.insert(peer.clone());
         }
+        if let Some(me) = status.self_peer_id.as_ref() {
+            result.members_seen.insert(me.clone());
+        }
     }
     if status.is_lobby_attached && result.freenet.lobby_attached_after_secs.is_none() {
         result.freenet.lobby_attached_after_secs = Some(time.elapsed_secs_f64());
@@ -154,5 +157,41 @@ mod tests {
             .freenet
             .lobby_attached_after_secs;
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn members_seen_counts_self_with_room_members() {
+        let mut app = app();
+        let me = identity::PeerId::from("me");
+        let other = identity::PeerId::from("peer-a");
+        let mut members = discovery::Members::new();
+        members.insert(
+            other.clone(),
+            discovery::RoomMember {
+                peer: identity::Peer {
+                    id: other.clone(),
+                    addrs: Vec::new(),
+                },
+                display_name: None,
+                updated_at: discovery::UnixTime::from(0),
+                membership: discovery::RoomMembership::Occupant,
+            },
+        );
+        {
+            let mut status = app.world_mut().resource_mut::<discovery::Status>();
+            status.room = Some(discovery::JoinedRoom {
+                name: identity::RoomName::from("room-1"),
+                created_at: discovery::UnixTime::from(1),
+                phase: discovery::JoinPhase::Ready,
+                members,
+                entry: discovery::RoomEntry::Joined,
+            });
+            status.self_peer_id = Some(me.clone());
+        }
+        app.update();
+        let result = app.world().resource::<e2e_report::PeerRunResult>();
+        assert!(result.members_seen.contains(&me));
+        assert!(result.members_seen.contains(&other));
+        assert_eq!(result.members_seen.len(), 2);
     }
 }

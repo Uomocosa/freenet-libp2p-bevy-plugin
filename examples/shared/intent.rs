@@ -22,8 +22,11 @@ use crate::shared::action::Action;
 /// [`MouseButtonInput`]) and the click is retried, after a cooldown, until the
 /// room is actually joined — the cooldown avoids toggling back out, since a
 /// second press on the joined room is a `Leave`.
-/// The action the intent should drive next. A scripted session writes it when
-/// it wants to create a room, join one, or join one again after a leave.
+/// The action the intent should drive next, one scripted step at a time.
+/// A scripted session writes it when it wants to create a room, join one, or
+/// join one again after a leave. `script_input` takes it (`take()`) and always
+/// re-arms the intent, even for a repeated `Join`, so a rejoin after a leave
+/// clicks again.
 #[derive(Resource, Default, Debug, Clone)]
 pub struct PendingAction(pub Option<Action>);
 
@@ -81,7 +84,7 @@ const MAX_CLICKS: u32 = 60;
 
 pub fn script_input<F, C, J>(
     mut intent: ResMut<Intent>,
-    pending: Option<Res<PendingAction>>,
+    mut pending: Option<ResMut<PendingAction>>,
     status: Res<discovery::Status>,
     mut windows: Query<(Entity, &mut Window), With<PrimaryWindow>>,
     fields: Query<Entity, With<F>>,
@@ -95,8 +98,8 @@ pub fn script_input<F, C, J>(
     C: Component,
     J: Component + Deref<Target = identity::RoomName>,
 {
-    if let Some(pending) = pending {
-        arm_with_pending(&mut intent, Some(&pending));
+    if let Some(pending) = pending.as_mut() {
+        arm_with_pending(&mut intent, pending);
     }
     let Some(action) = intent.action.clone() else {
         return;
@@ -197,12 +200,10 @@ pub fn script_input<F, C, J>(
     }
 }
 
-// needed helper: arms the intent with the wanted action when it changed
-fn arm_with_pending(intent: &mut Intent, pending: Option<&PendingAction>) {
-    let Some(action) = pending.and_then(|pending| pending.0.clone()) else {
-        return;
-    };
-    if intent.action.as_ref() != Some(&action) {
+// needed helper: arms the intent with the pending action, consuming it so a repeated
+// Join re-arms the intent and clicks again
+fn arm_with_pending(intent: &mut Intent, pending: &mut PendingAction) {
+    if let Some(action) = pending.0.take() {
         intent.arm_with_action(action);
     }
 }
@@ -220,5 +221,40 @@ pub fn log_joined(intent: Res<Intent>, mut events: MessageReader<discovery::Even
                 None => {}
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use freenet_libp2p_bevy_plugin::identity;
+
+    use super::{Intent, PendingAction, arm_with_pending};
+    use crate::shared::action::Action;
+
+    fn join(room: &str) -> Action {
+        Action::Join(identity::RoomName::from(room))
+    }
+
+    #[test]
+    fn test_usage() {
+        let mut intent = Intent::new(None);
+        let mut pending = PendingAction(Some(join("room-1")));
+        arm_with_pending(&mut intent, &mut pending);
+        assert!(pending.0.is_none());
+    }
+
+    #[test]
+    fn a_repeated_join_re_arms_the_intent_and_empties_pending() {
+        let mut intent = Intent::new(None);
+        let mut pending = PendingAction(Some(join("room-1")));
+        arm_with_pending(&mut intent, &mut pending);
+        assert!(pending.0.is_none());
+        intent.step = super::Step::Done;
+        intent.clicks = 3;
+        pending.0 = Some(join("room-1"));
+        arm_with_pending(&mut intent, &mut pending);
+        assert!(pending.0.is_none());
+        assert_eq!(intent.step, super::Step::Type);
+        assert_eq!(intent.clicks, 0);
     }
 }

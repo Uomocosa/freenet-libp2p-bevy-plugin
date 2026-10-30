@@ -106,11 +106,7 @@ pub fn dial_mdns_peers(&mut self, peers: Vec<(libp2p::PeerId, libp2p::Multiaddr)
 pub fn dispatch_net_command(&mut self, command: p2p::NetCommand) {
     match command {
         p2p::NetCommand::Dial(peer) => {
-            self.dial_peer(
-                &peer.id,
-                &peer.addrs,
-                PeerCondition::DisconnectedAndNotDialing,
-            );
+            self.dial_peer(&peer.id, &peer.addrs, PeerCondition::DisconnectedAndNotDialing);
         }
         p2p::NetCommand::ReserveRelay { relay_addr } => {
             if let Ok(addr) = relay_addr.parse::<libp2p::Multiaddr>() {
@@ -179,14 +175,19 @@ pub fn dispatch_net_command(&mut self, command: p2p::NetCommand) {
         }
         p2p::NetCommand::RespondSnapshot { id, frame } => {
             if let Some(channel) = self.snapshot_replies.remove(id) {
-                let _ = self.swarm
-                    .behaviour_mut()
-                    .room_sync
-                    .send_response(channel, frame);
+                let _ = self.swarm.behaviour_mut().room_sync.send_response(channel, frame);
             }
         }
         p2p::NetCommand::Publish { topic, data } => {
             let topic = gossipsub::IdentTopic::new(topic.as_str());
+            let subscribed_peers = self
+                .swarm
+                .behaviour()
+                .gossipsub
+                .all_peers()
+                .filter(|(_, topics)| topics.iter().any(|subscribed| **subscribed == topic.hash()))
+                .count();
+            tracing::debug!(target: "p2p", topic = %topic, subscribed_peers, "p2p gossip publish");
             if let Err(error) = self.swarm.behaviour_mut().gossipsub.publish(topic, data) {
                 self.event_tx
                     .send(p2p::Event::Error(format!("gossip publish: {error}")))

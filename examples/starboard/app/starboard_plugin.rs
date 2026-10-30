@@ -245,4 +245,112 @@ mod tests {
             tokio::time::sleep(test_harness::SETTLE).await;
         }
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn two_apps_painting_the_same_cells_right_after_joining_converge() {
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("room_sync=debug")),
+            )
+            .with_ansi(false)
+            .try_init();
+        let game = identity::GameId::from("game");
+        let room = identity::RoomName::from("room-ae");
+        let mut apps = vec![
+            test_harness::node_with(&game, None),
+            test_harness::node_with(&game, None),
+        ];
+        let peers: Vec<identity::Peer> = apps.iter_mut().map(test_harness::wait_ready).collect();
+
+        test_harness::dial(&mut apps[1], &peers[0]);
+
+        for (index, app) in apps.iter_mut().enumerate() {
+            let others = peers
+                .iter()
+                .enumerate()
+                .filter(|(other, _)| *other != index)
+                .map(|(_, peer)| peer.id.clone())
+                .collect();
+            test_harness::join(app, &room, others);
+        }
+
+        for op in scripted_ops() {
+            for app in &mut apps {
+                app.world_mut()
+                    .write_message(starboard::input::PendingLocalDraw(op));
+                app.update();
+            }
+        }
+
+        let started = std::time::Instant::now();
+        loop {
+            for app in &mut apps {
+                app.update();
+            }
+            let hashes: Vec<u64> = apps.iter().map(canvas_hash).collect();
+            if hashes.first() == hashes.last() && hashes.first().is_some_and(|hash| *hash != 0) {
+                return;
+            }
+            assert!(
+                started.elapsed() <= CONVERGE_BUDGET,
+                "canvases did not converge: {hashes:?}"
+            );
+            tokio::time::sleep(test_harness::SETTLE).await;
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_joiner_learns_the_creators_room_subscription_and_both_converge() {
+        let _ = tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("room_sync=debug")),
+            )
+            .with_ansi(false)
+            .try_init();
+        let game = identity::GameId::from("game");
+        let room = identity::RoomName::from("room-ae");
+        let mut apps = vec![
+            test_harness::node_with(&game, None),
+            test_harness::node_with(&game, None),
+        ];
+        let peers: Vec<identity::Peer> = apps.iter_mut().map(test_harness::wait_ready).collect();
+
+        test_harness::join(&mut apps[0], &room, Vec::new());
+        for _ in 0..20 {
+            apps[0].update();
+            tokio::time::sleep(test_harness::SETTLE).await;
+        }
+
+        test_harness::dial(&mut apps[1], &peers[0]);
+        test_harness::join(&mut apps[1], &room, vec![peers[0].id.clone()]);
+
+        for op in scripted_ops() {
+            apps[1]
+                .world_mut()
+                .write_message(starboard::input::PendingLocalDraw(op));
+            apps[1].update();
+            apps[0]
+                .world_mut()
+                .write_message(starboard::input::PendingLocalDraw(op));
+            apps[0].update();
+        }
+
+        let started = std::time::Instant::now();
+        loop {
+            for app in &mut apps {
+                app.update();
+            }
+            let hashes: Vec<u64> = apps.iter().map(canvas_hash).collect();
+            if hashes.first() == hashes.last() && hashes.first().is_some_and(|hash| *hash != 0) {
+                return;
+            }
+            assert!(
+                started.elapsed() <= CONVERGE_BUDGET,
+                "canvases did not converge: {hashes:?}"
+            );
+            tokio::time::sleep(test_harness::SETTLE).await;
+        }
+    }
 }

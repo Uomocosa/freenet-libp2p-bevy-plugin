@@ -27,21 +27,25 @@ resend-all-previews:
 
 # Real, visual e2e: needs X + the freenet network + N lobby_room windows.
 e2e-discovery:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test lobby_room_discovery --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test lobby_room_discovery --all-features --run-ignored all -- --nocapture
 
 e2e-join:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test lobby_room_join --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture
 
 e2e-room:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test room_messaging --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test room_messaging --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: needs X + the freenet network + 3 starboard windows.
 e2e-starboard:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test starboard_e2e --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test starboard_e2e --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: the Kademlia history scenarios (S4a, S4b, S4c) on one machine.
 e2e-history:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --test starboard_history --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test starboard_history --all-features --run-ignored all -- --nocapture
+
+# Real, visual e2e: S3, S5, S6, S7 on one machine.
+e2e-scenarios:
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test starboard_scenarios --all-features --run-ignored all -- --nocapture
 
 # Run the starboard example detached (no terminal tie-up; only the app window).
 # Extra args: --username, --token, --transport.

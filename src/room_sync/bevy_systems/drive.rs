@@ -95,6 +95,10 @@ pub fn drive<Replica: room_sync::RoomState>(
     let record_ttl = state.kademlia_history.record_ttl;
     for input in inputs {
         for output in state.update(input) {
+            if let room_sync::state_machine::Output::FetchReplicaSlice { peer, index, .. } = &output
+            {
+                tracing::debug!(target: "room_sync", "anti-entropy fetch peer={peer} index={}", **index);
+            }
             room_sync::bevy_systems::SyncState::<Replica::Op>::perform(
                 output,
                 &mut *room,

@@ -6,9 +6,11 @@ pub fn publish_slice_content_hashes<Op>(
     local: room_sync::ReplicaSliceContentHashes,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
     let Some(room) = state.room.clone() else {
+        tracing::debug!(target: "room_sync", "anti-entropy ignored phase={:?} reason=publish-no-room", state.phase);
         return Vec::new();
     };
     if state.phase != room_sync::state_machine::Phase::Ready {
+        tracing::debug!(target: "room_sync", "anti-entropy ignored phase={:?} reason=publish-not-ready", state.phase);
         return Vec::new();
     }
     vec![

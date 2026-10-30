@@ -8,6 +8,7 @@ pub fn handle_replica_slice_received<Op>(
     index: room_sync::ReplicaSliceIndex,
     data: Vec<u8>,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
+    tracing::debug!(target: "room_sync", "anti-entropy slice from={from} index={} bytes={}", *index, data.len());
     if let Some(awaiting) = state
         .slice_anti_entropy
         .fetches_awaiting_reply
@@ -18,6 +19,7 @@ pub fn handle_replica_slice_received<Op>(
     if state.room.as_ref() != Some(room) {
         return Vec::new();
     }
+    tracing::debug!(target: "room_sync", "anti-entropy slice index={} merged", *index);
     vec![room_sync::state_machine::Output::Merge { bytes: data }]
 }
 

@@ -38,23 +38,23 @@ host our own relay — that would defeat the purpose of Freenet.
   (gateway, time to join network), libp2p connection kind per peer (tcp/quic/hole-punched/none),
   per-step timings, errors, exit code.
 - **Checker.** Reads every machine's `result.json` + logs and prints one table per scenario:
-  `expected | actual | PASS/FAIL`. The bin `e2e-check --results-dir <dir> --peer <name>... --expect converge --expect min-members:N --expect may-crash:<user>` does this.
+  `expected | actual | PASS/FAIL`. The bin `e2e-check --results-dir <dir> --peer <name>... --expect converge --expect min-members:N --expect may-crash:<user> --expect join-must-fail:<user>` does this.
 - **Logs.** Each job uploads `.local-run/<scenario>/` (game logs, Freenet node log,
   `result.json`, video). Read with `gh run download <run-id>`.
 
 ## 3. Scenarios (W = Windows peer, L1/L2 = Linux peers)
 
-| # | Scenario | Expected |
-|---|---|---|
-| S1 | Basic: W paints 6, L1 erases 3 | Same non-empty hash on every peer |
-| S2 | Late join: W joins after painting stopped | W converges to the room hash within the scaled budget |
-| S3 | W leaves, L1 paints over W's cells, W rejoins | W converges to the new hash; L1 wins those cells (LWW) |
-| S4a | All leave the room but stay in the game; a new peer joins | Board restored from Kademlia history, same hash as before |
-| S4b | All quit the game; a new peer tries to join | Room gone from the lobby; scripted join gets "room no longer exists" and a known non-zero exit code |
-| S4c | Last holder killed while a peer is joining | Joiner shows the error screen and returns to the lobby; recorded in `result.json` |
-| S5 | Simultaneous paint on the same cells | Same hash everywhere, deterministic winner |
-| S6 | Peer killed (no clean leave) | Others drop it from members within the scaled budget; survivors keep converging |
-| S7 | Bad token / room that doesn't exist | Clear error in the log; non-zero exit |
+| # | Scenario | Expected | Test |
+|---|---|---|---|
+| S1 | Basic: W paints 6, L1 erases 3 | Same non-empty hash on every peer | `starboard_e2e` (`just e2e-starboard`) |
+| S2 | Late join: W joins after painting stopped | W converges to the room hash within the scaled budget | `starboard_late_join` (`just e2e-starboard`) |
+| S3 | W leaves, L1 paints over W's cells, W rejoins | W converges to the new hash; L1 wins those cells (LWW) | `starboard_leave_rejoin` (`just e2e-scenarios`) |
+| S4a | All leave the room but stay in the game; a new peer joins | Board restored from Kademlia history, same hash as before | `starboard_history_restore` (`just e2e-history`) |
+| S4b | All quit the game; a new peer tries to join | Room gone from the lobby; scripted join gets "room no longer exists" and a known non-zero exit code | `starboard_history_room_gone` (`just e2e-history`) |
+| S4c | Last holder killed while a peer is joining | Joiner shows the error screen and returns to the lobby; recorded in `result.json` | `starboard_history_holder_killed` (`just e2e-history`) |
+| S5 | Simultaneous paint on the same cells | Same hash everywhere, deterministic winner | `starboard_simultaneous_paint` (`just e2e-scenarios`) |
+| S6 | Peer killed (no clean leave) | Others drop it from members within the scaled budget; survivors keep converging | `starboard_peer_killed` (`just e2e-scenarios`) |
+| S7 | Bad token / room that doesn't exist | Clear error in the log; non-zero exit | `starboard_bad_token` (`just e2e-scenarios`) |
 
 The 5G run also reports, per scenario, both connectivity layers. Layer 1 PASS + layer 2 FAIL is a
 valid, expected finding: the follow-up would be Freenet-coordinated hole punching (exchange
@@ -86,6 +86,7 @@ Jobs:
 - [x] 3. Ship Freenet with the game (X3) (2026-10-29: in-process node; --freenet-node-dir).
 - [x] 4. Step script, `result.json`, checker, two-layer connectivity report (2026-10-29: step script from Part C; result.json via --result-json; e2e-check bin; connection kind = /p2p-circuit -> relayed, else quic/tcp; hole-punched = relayed then direct).
 5. S1–S7 green on Linux alone.
+   - 2026-10-29 live: 8/9 green — S1 219s, S2 142s, S3 86s, S4a 199s, S4b 236s, S4c 48s, S6 163s, S7 332s; S5 FAILS: canvases diverge when both peers paint right after a join (anti-entropy did not repair). Headless repro: examples/starboard/app/starboard_plugin.rs two_apps_painting_the_same_cells_right_after_joining_converge. Root cause: concurrent dialing of a peer's addresses created short-lived duplicate connections; gossipsub's one-time subscription exchange rode a closed one, so the joiner never learned the creator's room topics (312x NoPeersSubscribedToTopic live). Fix: DIAL_CONCURRENCY_FACTOR = 1 in dial_peer.
 6. `ci-min` profile + Windows build-and-bundle job.
 7. Register `linux-e2e` runner; two-machine workflow green on `lan`.
 8. Windows to 5G; re-run with `bundle_run_id`, `network_label=5g`.

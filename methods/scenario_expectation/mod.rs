@@ -1,2 +1,10 @@
+mod canvas_row;
 mod check_peer_run_results;
+mod freenet_rows;
+mod libp2p_rows;
+mod scenario_rows;
+pub use canvas_row::canvas_row;
 pub use check_peer_run_results::check_peer_run_results;
+pub use freenet_rows::freenet_rows;
+pub use libp2p_rows::libp2p_rows;
+pub use scenario_rows::scenario_rows;
