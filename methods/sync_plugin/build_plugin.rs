@@ -22,6 +22,7 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
     app.init_resource::<room_sync::LamportClock>();
     app.init_resource::<room_sync::PendingOps<Replica>>();
     app.init_resource::<room_sync::bevy_systems::SyncState<Replica::Op>>();
+    app.add_message::<room_sync::ReplicaInputFromTimer<Replica::Op>>();
     if let Some(anti_entropy) = plugin.anti_entropy {
         app.insert_resource(room_sync::AntiEntropyTimer(Timer::new(
             anti_entropy.interval,
@@ -33,7 +34,8 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
             .max_fetches_per_peer = anti_entropy.max_slice_fetches_per_peer;
         app.add_systems(
             Update,
-            room_sync::bevy_systems::publish_slice_content_hashes::<Replica>,
+            room_sync::bevy_systems::publish_slice_content_hashes::<Replica>
+                .before(room_sync::bevy_systems::drive::<Replica>),
         );
     }
     if let Some(history) = plugin.history {
@@ -53,7 +55,8 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
         }
         app.add_systems(
             Update,
-            room_sync::bevy_systems::refresh_room_history::<Replica>,
+            room_sync::bevy_systems::refresh_room_history::<Replica>
+                .before(room_sync::bevy_systems::drive::<Replica>),
         );
     }
     app.insert_resource(room_sync::SyncGame(plugin.game.clone()));

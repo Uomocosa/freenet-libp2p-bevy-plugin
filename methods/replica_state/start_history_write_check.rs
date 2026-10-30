@@ -19,6 +19,7 @@ pub fn start_history_write_check<Op>(
         prefix: prefix.clone(),
         manifest: None,
         received_chunks: BTreeMap::new(),
+        records_requested_at: None,
     });
     vec![room_sync::state_machine::Output::GetHistoryRecord {
         id: p2p::RoomHistoryRecordKind::Manifest(prefix),

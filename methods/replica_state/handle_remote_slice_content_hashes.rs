@@ -16,24 +16,30 @@ pub fn handle_remote_slice_content_hashes<Op>(
         return Vec::new();
     };
     let max_fetches = state.slice_anti_entropy.max_fetches_per_peer;
-    let awaiting = state
+    let awaiting_len = state
         .slice_anti_entropy
         .fetches_awaiting_reply
-        .entry(from.clone())
-        .or_default();
-    let mut outputs = Vec::new();
-    for index in room_sync::ReplicaSliceIndex::from_hash_mismatches(local, remote) {
-        if awaiting.len() >= max_fetches {
-            break;
-        }
-        if awaiting.insert(index) {
-            outputs.push(room_sync::state_machine::Output::FetchReplicaSlice {
-                peer: from.clone(),
-                room: room.clone(),
-                index,
-            });
-        }
-    }
+        .get(from)
+        .map_or(0, std::collections::BTreeMap::len);
+    let outputs: Vec<room_sync::state_machine::Output<Op>> =
+        room_sync::ReplicaSliceIndex::from_hash_mismatches(local, remote)
+            .into_iter()
+            .filter(|index| {
+                !state
+                    .slice_anti_entropy
+                    .fetches_awaiting_reply
+                    .get(from)
+                    .is_some_and(|awaiting| awaiting.contains_key(index))
+            })
+            .take(max_fetches.saturating_sub(awaiting_len))
+            .map(
+                |index| room_sync::state_machine::Output::FetchReplicaSlice {
+                    peer: from.clone(),
+                    room: room.clone(),
+                    index,
+                },
+            )
+            .collect();
     tracing::debug!(target: "room_sync", "anti-entropy compare fetches={}", outputs.len());
     outputs
 }

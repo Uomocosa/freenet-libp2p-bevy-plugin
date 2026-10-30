@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use crate::identity;
 use crate::p2p;
@@ -12,7 +12,10 @@ pub struct LobbyRoomStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SliceAntiEntropyState {
-    pub fetches_awaiting_reply: BTreeMap<identity::PeerId, BTreeSet<room_sync::ReplicaSliceIndex>>,
+    pub fetches_awaiting_reply: BTreeMap<
+        identity::PeerId,
+        BTreeMap<room_sync::ReplicaSliceIndex, room_sync::ElapsedSinceAppStart>,
+    >,
     pub max_fetches_per_peer: usize,
 }
 
@@ -21,6 +24,7 @@ pub struct PendingHistoryFetch {
     pub prefix: p2p::HistoryKeyPrefix,
     pub manifest: Option<p2p::HistoryManifest>,
     pub received_chunks: BTreeMap<p2p::ChunkIndex, Vec<u8>>,
+    pub records_requested_at: Option<room_sync::ElapsedSinceAppStart>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

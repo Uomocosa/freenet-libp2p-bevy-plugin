@@ -20,6 +20,7 @@ pub fn handle_joined<Op>(
         members,
         asked_members: Vec::new(),
         current_source: None,
+        part_requested_at: None,
     };
     state.slice_anti_entropy.fetches_awaiting_reply.clear();
     state.kademlia_history.prefix = Some(prefix);

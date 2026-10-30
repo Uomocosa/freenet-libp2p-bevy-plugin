@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use atomic_delegate_macros::atomic_delegates;
 
 use crate::identity;
+use crate::room_sync;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct MemberSnapshotFetchState {
@@ -11,6 +12,7 @@ pub struct MemberSnapshotFetchState {
     pub members: Vec<identity::PeerId>,
     pub asked_members: Vec<identity::PeerId>,
     pub current_source: Option<identity::PeerId>,
+    pub part_requested_at: Option<room_sync::ElapsedSinceAppStart>,
 }
 
 #[atomic_delegates]

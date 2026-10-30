@@ -20,6 +20,7 @@ pub fn handle_snapshot<Op>(
         state.member_snapshot.total_parts = total;
         state.member_snapshot.received_parts.clear();
     }
+    state.member_snapshot.part_requested_at = None;
     state.member_snapshot.received_parts.insert(part, data);
     if let Some(next_part) =
         (0..total).find(|index| !state.member_snapshot.received_parts.contains_key(index))

@@ -81,6 +81,7 @@ mod tests {
             prefix: prefix.clone(),
             manifest: None,
             received_chunks: BTreeMap::new(),
+            records_requested_at: None,
         });
         let outputs = handle_history_record_not_found(
             &mut state,

@@ -92,7 +92,9 @@ impl<Op> SyncState<Op> {
                     data: data.clone(),
                 },
             ),
-            p2p::NetEvent::SnapshotMissing { .. } => Some(room_sync::state_machine::Input::Tick),
+            p2p::NetEvent::SnapshotMissing { .. } => {
+                Some(room_sync::state_machine::Input::SnapshotMissingFromRoomMember)
+            }
             p2p::NetEvent::SnapshotFailed { from } => {
                 Some(room_sync::state_machine::Input::RequestToRoomMemberFailed { from: from.clone() })
             }

@@ -14,6 +14,7 @@ pub fn start_kademlia_history_fetch<Op>(
         prefix: prefix.clone(),
         manifest: None,
         received_chunks: BTreeMap::new(),
+        records_requested_at: None,
     });
     vec![room_sync::state_machine::Output::GetHistoryRecord {
         id: p2p::RoomHistoryRecordKind::Manifest(prefix),

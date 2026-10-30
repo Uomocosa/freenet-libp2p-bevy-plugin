@@ -41,7 +41,7 @@ pub enum Input<Op> {
         room: identity::RoomName,
         part: u32,
     },
-    Tick,
+    SnapshotMissingFromRoomMember,
     RequestToRoomMemberFailed {
         from: identity::PeerId,
     },

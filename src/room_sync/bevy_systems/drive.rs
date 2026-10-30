@@ -5,12 +5,18 @@ use crate::identity;
 use crate::p2p;
 use crate::room_sync;
 
+type ReplicaInputSources<'a, 's, Op> = (
+    Res<'a, room_sync::bevy_systems::NetEvents>,
+    MessageReader<'a, 's, room_sync::ReplicaInputFromTimer<Op>>,
+    Res<'a, Time<Real>>,
+);
+
 pub fn drive<Replica: room_sync::RoomState>(
     room_events: Option<MessageReader<discovery::Event>>,
     command_sender: Option<Res<discovery::CommandSender>>,
     mut join_error: Option<ResMut<discovery::ui::JoinError>>,
     discovery_status: Option<Res<discovery::Status>>,
-    net_events: Res<room_sync::bevy_systems::NetEvents>,
+    (net_events, mut timer_inputs, real_time): ReplicaInputSources<'_, '_, Replica::Op>,
     game: Res<room_sync::SyncGame>,
     mut clock: ResMut<room_sync::LamportClock>,
     mut state: ResMut<room_sync::bevy_systems::SyncState<Replica::Op>>,
@@ -91,10 +97,14 @@ pub fn drive<Replica: room_sync::RoomState>(
             inputs.push(input);
         }
     }
+    for timer_input in timer_inputs.read() {
+        inputs.push((**timer_input).clone());
+    }
+    let now = room_sync::ElapsedSinceAppStart::from(real_time.elapsed());
     let per_room_bytes = state.kademlia_history.per_room_bytes;
     let record_ttl = state.kademlia_history.record_ttl;
     for input in inputs {
-        for output in state.update(input) {
+        for output in state.update(input, now) {
             if let room_sync::state_machine::Output::FetchReplicaSlice { peer, index, .. } = &output
             {
                 tracing::debug!(target: "room_sync", "anti-entropy fetch peer={peer} index={}", **index);

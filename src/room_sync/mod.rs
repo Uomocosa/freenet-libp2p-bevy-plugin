@@ -4,6 +4,8 @@ pub mod basic;
 pub use basic::aliases::ReplicaSliceContentHashes;
 pub use basic::constants::PART_BYTES;
 pub use basic::enums::ReplicaSyncTopicMessage;
+pub use basic::messages::ReplicaInputFromTimer;
+pub use basic::newtypes::ElapsedSinceAppStart;
 pub use basic::resources::{AntiEntropyTimer, HistoryWriteTimer, SyncGame};
 pub use basic::structs::OpMeta;
 
