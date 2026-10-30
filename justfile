@@ -89,6 +89,10 @@ lint:
 bevy-lint:
     lele-bevy-lint .
 
+# Regenerate the methods/mod.rs indexes after adding or removing #[atomic_delegates] shells.
+sync-methods:
+    lele-lint --sync-methods .
+
 contract:
     cargo build --manifest-path contract/lobby/Cargo.toml --release --target wasm32-unknown-unknown
 
