@@ -30,10 +30,7 @@ pub fn handle_joined<Op>(
     if !next.is_empty() {
         return next;
     }
-    if state.kademlia_history.is_enabled {
-        return state.start_kademlia_history_fetch();
-    }
-    Vec::new()
+    state.finish_member_fetch()
 }
 
 #[cfg(test)]
@@ -58,6 +55,30 @@ mod tests {
         assert_eq!(
             state.phase,
             room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember
+        );
+    }
+
+    #[test]
+    fn a_lone_room_creator_without_history_becomes_ready() {
+        let mut state = ReplicaState::<u8>::default();
+        let room = identity::RoomName::from("room");
+        let outputs = handle_joined(
+            &mut state,
+            room.clone(),
+            p2p::HistoryKeyPrefix::from("prefix"),
+            Vec::new(),
+            LobbyRoomStatus::default(),
+        );
+        assert_eq!(outputs, Vec::new());
+        assert_eq!(state.phase, room_sync::state_machine::Phase::Ready);
+        let meta = room_sync::OpMeta {
+            lamport: 1,
+            author: 2,
+        };
+        let outputs = state.handle_remote(&room, meta, 7_u8);
+        assert_eq!(
+            outputs,
+            vec![room_sync::state_machine::Output::Apply { meta, op: 7_u8 }]
         );
     }
 }
