@@ -1,12 +1,14 @@
 mod attach;
 mod connected_peers;
 mod fetch_and_subscribe;
+mod node_status;
 mod send;
 mod try_from_host_and_port;
 mod wait_until_ring_ready;
 pub use attach::attach;
 pub use connected_peers::connected_peers;
 pub use fetch_and_subscribe::fetch_and_subscribe;
+pub use node_status::node_status;
 pub use send::send;
 pub use try_from_host_and_port::try_from_host_and_port;
 pub use wait_until_ring_ready::wait_until_ring_ready;

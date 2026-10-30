@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use crate::discovery;
-use crate::identity;
 
 pub async fn wait_until_ring_ready(
     state: &mut discovery::freenet::Client,
@@ -10,15 +9,15 @@ pub async fn wait_until_ring_ready(
     let tick = Duration::from_secs(1);
     let started = std::time::Instant::now();
     loop {
-        let peers = state.connected_peers().await?;
-        let addrs: Vec<String> = peers.iter().map(|p| p.addr.to_string()).collect();
-        if identity::FreenetPeer::is_ring_ready(&peers) {
-            tracing::info!(target: "discovery", ?addrs, "lobby freenet ring-ready gate peer addrs");
+        let node = state.node_status().await?;
+        if node.is_ring_ready() {
             tracing::info!(
                 target: "discovery",
-                "lobby freenet transport connected peers={} waited_ms={}",
-                peers.len(),
-                started.elapsed().as_millis()
+                ring_peers = node.ring_peers,
+                transport_peers = node.transport_peers,
+                ring_location = ?node.ring_location,
+                waited_ms = started.elapsed().as_millis(),
+                "lobby freenet ring ready"
             );
             return Ok(());
         }
@@ -26,14 +25,23 @@ pub async fn wait_until_ring_ready(
         if waited >= budget {
             tracing::warn!(
                 target: "discovery",
-                ?addrs,
-                "lobby freenet ring not ready, proceeding via gateway peers={} waited_ms={} budget_ms={}",
-                peers.len(),
-                waited.as_millis(),
-                budget.as_millis()
+                ring_peers = node.ring_peers,
+                transport_peers = node.transport_peers,
+                ring_location = ?node.ring_location,
+                waited_ms = waited.as_millis(),
+                budget_ms = budget.as_millis(),
+                "lobby freenet ring not ready, proceeding via gateway"
             );
             return Ok(());
         }
+        tracing::info!(
+            target: "discovery",
+            ring_peers = node.ring_peers,
+            transport_peers = node.transport_peers,
+            ring_location = ?node.ring_location,
+            waited_ms = waited.as_millis(),
+            "lobby freenet ring waiting"
+        );
         tokio::time::sleep(tick).await;
     }
 }

@@ -60,6 +60,10 @@ impl Client {
         &mut self,
     ) -> Result<Vec<identity::FreenetPeer>, discovery::Error> {
     }
+    pub async fn node_status(
+        &mut self,
+    ) -> Result<discovery::freenet::NodeStatus, discovery::Error> {
+    }
     pub async fn fetch_and_subscribe(
         &mut self,
         instance_id: ContractInstanceId,
@@ -83,7 +87,9 @@ impl Client {
     pub(crate) async fn next_reply(&mut self) -> Result<HostResponse, discovery::Error> {
         loop {
             match self.recv().await? {
-                HostResponse::ContractResponse(ContractResponse::UpdateNotification { .. }) => {}
+                HostResponse::ContractResponse(ContractResponse::UpdateNotification { .. }) => {
+                    tracing::debug!(target: "discovery", "lobby update notification");
+                }
                 other => return Ok(other),
             }
         }

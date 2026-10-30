@@ -19,7 +19,7 @@ pub use result_json_arg::result_json_arg;
 mod log_parse;
 pub use log_parse::{
     CanvasTick, Tick, canvas_ticks, history_write_bytes, last_canvas, last_tick, log_contains,
-    log_matches, marker_times, read_head, senders_seen_in_room,
+    log_matches, marker_times, max_ring_peers, read_head, senders_seen_in_room,
 };
 
 mod poke;

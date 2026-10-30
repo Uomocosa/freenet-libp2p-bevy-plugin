@@ -8,6 +8,8 @@ each), record the screen, and send the clip to Telegram.
 
 ```
 just e2e-discovery   # 3 lobby_room peers: all discover the created room
+just e2e-discovery 5 # the same with 5 peers (E2E_PEERS=2..5)
+just e2e-ring-ladder # freenet ring health alone, 2 then 3 then 4 then 5 peers
 just e2e-join        # 5 lobby_room peers: discover, join, full mesh
 just e2e-room        # 3 lobby_room peers: discover, join, full mesh, all-to-all room gossipsub
 just e2e-starboard   # 3 starboard peers paint/erase, plus a 4th that joins late
@@ -82,8 +84,13 @@ Adding any such shortcut invalidates the test even if it makes it pass.
 - Log markers (keep them stable, or update `common/log_parse.rs`):
   - `script step done step=<i>/<n> <step>`, `script done steps=<n>`,
     `script failed step=<i>/<n> <step> reason=<why>`, `script crash-app`
-  - `lobby tick rooms=<a,b|none> room=<r|none> members=<k> connected=<c>`
-  - `lobby freenet ring ready peers=<n>` — the node has actually read the lobby
+  - `lobby tick rooms=<a,b|none> room=<r|none> members=<k> connected=<c>` — libp2p/app layer
+  - `freenet node status ring_peers=<n> transport_peers=<m> ring_location=<l>` — embedded Freenet
+    node, on change and every 30 s; a gateway-only node reports `ring_peers=0 transport_peers=2`
+  - `lobby freenet ring waiting ring_peers=<n> …` / `lobby freenet ring ready ring_peers=<n> …` —
+    one line per second while `attach` waits for the first ring connection
+  - `lobby freenet attached … ring_peers=<n>` — the node has read the lobby (ring or gateway)
+  - `lobby refresh timed out` / `lobby refresh failed` — the 5 s lobby GET did not answer
   - `starboard canvas room=<r> hash=<h> tiles=<n> cursor=<x>,<y> color=<c> size=<p>%` (1 Hz)
   - `room history written snapshot_bytes=<n> record_bytes=<n> chunks=<n>`
 - Layering: Freenet only seeds candidates (lobby heartbeat, polled in its own task);

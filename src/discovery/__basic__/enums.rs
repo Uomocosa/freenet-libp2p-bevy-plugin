@@ -24,6 +24,8 @@ pub enum FreenetRequestKind {
     DeployLobby,
     #[display("peer query")]
     QueryPeers,
+    #[display("node status query")]
+    QueryNodeStatus,
     #[display("lobby poll")]
     PollLobby,
 }

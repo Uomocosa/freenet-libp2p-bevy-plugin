@@ -60,13 +60,15 @@ pub async fn attach(
         }
         Err(e) => return Err(e),
     };
-    let peers = state.connected_peers().await.unwrap_or_default();
+    let node = state.node_status().await.unwrap_or_default();
     info!(
         target: "discovery",
         %key,
         rooms = lobby.len(),
-        "lobby freenet ring ready peers={}",
-        peers.len()
+        ring_peers = node.ring_peers,
+        transport_peers = node.transport_peers,
+        ring_location = ?node.ring_location,
+        "lobby freenet attached"
     );
     Ok((key, lobby))
 }

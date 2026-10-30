@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 
 use super::{
     TerminalGuard, build_game, cleanup_stale, finish_record, history_write_bytes, last_canvas,
-    log_contains, marker_times, read_head, require_x11, speed_clip, start_record, tile,
-    wakeup_screen,
+    log_contains, marker_times, max_ring_peers, read_head, require_x11, speed_clip, start_record,
+    tile, wakeup_screen,
 };
 
 /// libp2p-only join target: last joiner's press -> every peer fully meshed.
@@ -67,6 +67,23 @@ impl Scenario {
             ui: Some("custom".to_string()),
             peers: runs,
             cap: Duration::from_mins(10),
+            on_finish: Some(did_every_peer_find_the_room_and_join_the_ring),
+            ..Self::lobby()
+        }
+    }
+
+    /// No room and no UI: every peer only proves its embedded Freenet node joined the ring.
+    #[must_use]
+    pub fn ring_only(peers: usize) -> Self {
+        let runs = (0..peers)
+            .map(|_| now("sleep:60s, exit-app".to_string()))
+            .collect();
+        Self {
+            name: "freenet_ring".to_string(),
+            ui: Some("custom".to_string()),
+            peers: runs,
+            cap: Duration::from_mins(4),
+            on_finish: Some(did_every_peer_join_the_ring),
             ..Self::lobby()
         }
     }
@@ -1145,6 +1162,61 @@ fn did_mesh_converge_within_budget(logs: &[PathBuf]) -> Result<String, String> {
     }
 }
 
+/// `on_finish` (ring): every peer's embedded Freenet node reached the ring.
+fn did_every_peer_join_the_ring(logs: &[PathBuf]) -> Result<String, String> {
+    let rings: Vec<(usize, Option<usize>)> = logs
+        .iter()
+        .enumerate()
+        .map(|(index, log)| (index.saturating_add(1), max_ring_peers(log)))
+        .collect();
+    let isolated: Vec<String> = rings
+        .iter()
+        .filter(|(_, ring)| ring.is_none_or(|peers| peers == 0))
+        .map(|(index, ring)| format!("p{index} ring_peers={ring:?}"))
+        .collect();
+    let detail = rings
+        .iter()
+        .map(|(index, ring)| format!("p{index}={ring:?}"))
+        .collect::<Vec<String>>()
+        .join(" ");
+    if isolated.is_empty() {
+        Ok(detail)
+    } else {
+        Err(format!(
+            "never joined the ring within the run: {}",
+            isolated.join(", ")
+        ))
+    }
+}
+
+/// `on_finish` (discovery): every peer read the room from the lobby and its node reached the ring.
+fn did_every_peer_find_the_room_and_join_the_ring(logs: &[PathBuf]) -> Result<String, String> {
+    let rows: Vec<(usize, bool, Option<usize>)> = logs
+        .iter()
+        .enumerate()
+        .map(|(index, log)| {
+            let saw_room = log_contains(log, "lobby changed rooms=1")
+                || log_contains(log, "lobby fetch found");
+            (index.saturating_add(1), saw_room, max_ring_peers(log))
+        })
+        .collect();
+    let missing: Vec<String> = rows
+        .iter()
+        .filter(|(_, saw_room, ring)| !saw_room || ring.is_none_or(|peers| peers == 0))
+        .map(|(index, saw_room, ring)| format!("p{index} saw_lobby={saw_room} ring_peers={ring:?}"))
+        .collect();
+    let detail = rows
+        .iter()
+        .map(|(index, saw_room, ring)| format!("p{index}=lobby:{saw_room}/ring:{ring:?}"))
+        .collect::<Vec<String>>()
+        .join(" ");
+    if missing.is_empty() {
+        Ok(detail)
+    } else {
+        Err(missing.join(" | "))
+    }
+}
+
 /// `on_finish` (S4a): a holder wrote the room history, and the late joiner (the last peer)
 /// ended on the painter's canvas.
 fn was_history_written_and_restored(logs: &[PathBuf]) -> Result<String, String> {
@@ -1198,6 +1270,7 @@ mod tests {
     fn every_wait_in_every_scenario_carries_a_deadline() {
         let scenarios = [
             Scenario::discover_only(3),
+            Scenario::ring_only(3),
             Scenario::join(5),
             Scenario::room_messaging(3),
             Scenario::starboard(3),

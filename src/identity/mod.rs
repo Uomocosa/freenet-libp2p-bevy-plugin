@@ -2,9 +2,7 @@
 pub mod basic;
 
 pub use basic::newtypes::{FreenetPeerId, RoomName, Username};
-
-mod freenet_peer;
-pub use freenet_peer::FreenetPeer;
+pub use basic::structs::FreenetPeer;
 
 mod game_id;
 pub use game_id::GameId;

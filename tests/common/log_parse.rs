@@ -108,6 +108,22 @@ pub fn history_write_bytes(path: &Path) -> Option<u64> {
         .next_back()
 }
 
+/// The highest ring-peer count the peer's embedded Freenet node ever reported.
+#[must_use]
+pub fn max_ring_peers(path: &Path) -> Option<usize> {
+    strip_ansi(&std::fs::read_to_string(path).ok()?)
+        .lines()
+        .filter_map(ring_peers_in_line)
+        .max()
+}
+
+// needed helper: `... ring_peers=4 ...` -> 4
+fn ring_peers_in_line(line: &str) -> Option<usize> {
+    line.split_whitespace()
+        .find_map(|token| token.strip_prefix("ring_peers="))
+        .and_then(|value| value.parse().ok())
+}
+
 // needed helper: `2026-10-01T17:04:19.867931Z ...` -> milliseconds since midnight
 fn line_millis(line: &str) -> Option<u64> {
     let time = line.split_whitespace().next()?.split('T').nth(1)?;

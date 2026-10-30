@@ -26,8 +26,18 @@ resend-all-previews:
     LELE_PREVIEW_RESEND_ALL=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
 
 # Real, visual e2e: needs X + the freenet network + N lobby_room windows.
-e2e-discovery:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test lobby_room_discovery --all-features --run-ignored all -- --nocapture
+e2e-discovery N="3":
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run --no-fail-fast --test lobby_room_discovery -E 'test(lobby_room_discovery)' --all-features --run-ignored all -- --nocapture
+
+# Ring health only: no room, no UI, no libp2p mesh — just N embedded Freenet nodes.
+e2e-ring N:
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run --no-fail-fast --test lobby_room_discovery -E 'test(freenet_ring)' --all-features --run-ignored all -- --nocapture
+
+# The whole ladder, one network at a time (never 4 x N nodes on one NAT at once).
+e2e-ring-ladder:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for peers in 2 3 4 5; do just e2e-ring "$peers"; done
 
 e2e-join:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture

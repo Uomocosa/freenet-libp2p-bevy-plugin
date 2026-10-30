@@ -35,10 +35,28 @@ pub async fn run_lobby(
             last_bridge = Some(now);
         }
         if discovery::freenet::Config::is_due(last_refresh, now, constants::LOBBY_REFRESH) {
-            let timeout = constants::REQUEST_TIMEOUT;
-            let refresh = subscription.refresh();
-            if let Ok(Ok(fresh)) = tokio::time::timeout(timeout, refresh).await {
-                lobby = Some(fresh);
+            let budget = constants::REQUEST_TIMEOUT;
+            let started_refresh = Instant::now();
+            match tokio::time::timeout(budget, subscription.refresh()).await {
+                Ok(Ok(fresh)) => {
+                    tracing::debug!(
+                        target: "discovery",
+                        rooms = fresh.len(),
+                        elapsed_ms = started_refresh.elapsed().as_millis(),
+                        "lobby refresh ok"
+                    );
+                    lobby = Some(fresh);
+                }
+                Ok(Err(error)) => tracing::warn!(
+                    target: "discovery",
+                    ?error,
+                    "lobby refresh failed"
+                ),
+                Err(_) => tracing::warn!(
+                    target: "discovery",
+                    budget_ms = budget.as_millis(),
+                    "lobby refresh timed out"
+                ),
             }
             last_refresh = Some(now);
         }

@@ -6,6 +6,9 @@ pub use basic::enums::DeployPolicy;
 mod config;
 pub use config::Config;
 
+mod node_status;
+pub use node_status::NodeStatus;
+
 mod lobby_contract_subscription;
 pub use lobby_contract_subscription::LobbyContractSubscription;
 
