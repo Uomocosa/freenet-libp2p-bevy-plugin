@@ -21,9 +21,16 @@ pub async fn fetch_or_deploy_lobby(
     let instance_id = *key.id();
     info!(target: "discovery", %key, ?deploy, "lobby fetch start");
     let started = std::time::Instant::now();
-    let first = discovery::freenet::RequestKind::FetchLobby
+    let first = match discovery::freenet::RequestKind::FetchLobby
         .run_with_timeout(state.fetch_and_subscribe(instance_id))
-        .await;
+        .await
+    {
+        Err(discovery::Error::Timeout(discovery::freenet::RequestKind::FetchLobby)) => {
+            info!(target: "discovery", %key, "lobby fetch timed out, awaiting the node's answer");
+            state.await_outstanding_fetch().await
+        }
+        first => first,
+    };
     let elapsed_ms = started.elapsed().as_millis();
     match &first {
         Ok(lobby) => {

@@ -81,6 +81,21 @@ impl Client {
         kind.run_with_timeout(self.next_reply()).await
     }
 
+    pub async fn await_outstanding_fetch(&mut self) -> Result<discovery::Lobby, discovery::Error> {
+        loop {
+            match self.next_reply().await? {
+                HostResponse::ContractResponse(ContractResponse::GetResponse { state, .. }) => {
+                    return Ok(bincode::deserialize(state.as_ref())?);
+                }
+                HostResponse::ContractResponse(ContractResponse::NotFound { .. }) => {
+                    return Err(discovery::Error::ContractNotFound);
+                }
+                HostResponse::ContractResponse(ContractResponse::SubscribeResponse { .. }) => {}
+                other => return Err(discovery::Error::UnexpectedResponse(format!("{other:?}"))),
+            }
+        }
+    }
+
     pub(crate) async fn next_reply(&mut self) -> Result<HostResponse, discovery::Error> {
         loop {
             match self.recv().await? {
@@ -129,6 +144,13 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use freenet_stdlib::client_api::{ContractResponse, HostResponse};
+    use freenet_stdlib::prelude::{
+        ContractCode, ContractKey, Parameters, WrappedContract, WrappedState,
+    };
+
     use super::Client;
     use crate::discovery;
 
@@ -156,5 +178,44 @@ mod tests {
             .recv_reply(discovery::freenet::RequestKind::PollLobby)
             .await;
         assert!(matches!(result, Err(discovery::Error::Timeout(_))));
+    }
+
+    fn contract_key() -> ContractKey {
+        WrappedContract::new(
+            Arc::new(ContractCode::from(
+                discovery::freenet::LOBBY_CONTRACT_WASM.to_vec(),
+            )),
+            Parameters::from(Vec::new()),
+        )
+        .key
+    }
+
+    fn client_with(reply: HostResponse) -> Client {
+        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        read_tx.send(Ok(reply)).ok();
+        Client { write, read }
+    }
+
+    #[tokio::test]
+    async fn outstanding_fetch_drains_state_or_absence() {
+        let key = contract_key();
+        let lobby = discovery::Lobby::default();
+        let mut found = client_with(HostResponse::ContractResponse(
+            ContractResponse::GetResponse {
+                key,
+                contract: None,
+                state: WrappedState::new(bincode::serialize(&lobby).unwrap_or_default()),
+            },
+        ));
+        assert_eq!(found.await_outstanding_fetch().await.ok(), Some(lobby));
+
+        let mut missing = client_with(HostResponse::ContractResponse(ContractResponse::NotFound {
+            instance_id: *key.id(),
+        }));
+        assert!(matches!(
+            missing.await_outstanding_fetch().await,
+            Err(discovery::Error::ContractNotFound)
+        ));
     }
 }

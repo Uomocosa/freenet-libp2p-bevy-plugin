@@ -1,4 +1,4 @@
-use freenet_stdlib::client_api::{ClientRequest, ContractRequest, ContractResponse, HostResponse};
+use freenet_stdlib::client_api::{ClientRequest, ContractRequest};
 use freenet_stdlib::prelude::ContractInstanceId;
 
 use crate::discovery;
@@ -14,18 +14,7 @@ pub async fn fetch_and_subscribe(
         blocking_subscribe: true,
     };
     state.send(&ClientRequest::ContractOp(get))?;
-    loop {
-        match state.next_reply().await? {
-            HostResponse::ContractResponse(ContractResponse::GetResponse { state, .. }) => {
-                return Ok(bincode::deserialize(state.as_ref())?);
-            }
-            HostResponse::ContractResponse(ContractResponse::NotFound { .. }) => {
-                return Err(discovery::Error::ContractNotFound);
-            }
-            HostResponse::ContractResponse(ContractResponse::SubscribeResponse { .. }) => {}
-            other => return Err(discovery::Error::UnexpectedResponse(format!("{other:?}"))),
-        }
-    }
+    state.await_outstanding_fetch().await
 }
 
 #[cfg(test)]
