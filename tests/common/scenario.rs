@@ -196,7 +196,11 @@ impl Scenario {
     pub fn starboard_history_restore(peers: usize) -> Self {
         let holders = peers.saturating_sub(1).max(2);
         let members = format!("wait-members:{holders}@420s");
-        let leave = "sleep:45s, leave:{room}, wait-left:{room}@30s, exit-app";
+        // S4a (PLAN_HISTORY.md HD1): holders leave the room but stay in the
+        // game, so they keep holding and serving the room's history while the
+        // late joiner restores it. `stay` keeps their processes alive until
+        // the late joiner's exit-app ends the run.
+        let leave = "sleep:45s, leave:{room}, wait-left:{room}@30s, stay";
         let mut runs = vec![now(format!(
             "{}, {members}, {}, wait-canvas-stable@60s, {leave}",
             create_and_enter(),

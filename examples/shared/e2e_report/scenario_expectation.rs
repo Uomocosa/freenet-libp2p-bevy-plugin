@@ -130,8 +130,11 @@ impl ScenarioExpectation {
         if !self.canvas_converges {
             return None;
         }
+        // Crashed peers (`may_crash`) leave a mid-paint snapshot behind; they
+        // are not survivors, so convergence is over the rest.
         let surviving: Vec<(&String, &PeerRunResult)> = results
             .iter()
+            .filter(|(username, _)| !self.may_crash.contains(username.as_str()))
             .filter_map(|(username, maybe)| maybe.as_ref().map(|result| (username, result)))
             .collect();
         let first = surviving.first().and_then(|(_, result)| {
@@ -569,6 +572,31 @@ mod tests {
             let results: BTreeMap<String, Option<PeerRunResult>> =
                 std::iter::once(("p1".to_string(), Some(result("p1")))).collect();
             assert!(no_canvas.canvas_row(&results).is_none());
+        }
+
+        /// A crashed peer's mid-paint snapshot is not a survivor: survivors
+        /// must still agree, and the crashed canvas must not fail the row.
+        #[test]
+        fn crashed_peers_are_not_survivors() {
+            let mut crashed = expectation();
+            crashed.may_crash = std::iter::once("p3".to_string()).collect();
+            let mut diverged = result("p3");
+            diverged.canvas_hash = Some(7);
+            diverged.tiles = 1;
+            let results: BTreeMap<String, Option<PeerRunResult>> = [
+                ("p1".to_string(), Some(result("p1"))),
+                ("p2".to_string(), Some(result("p2"))),
+                ("p3".to_string(), Some(diverged)),
+            ]
+            .into_iter()
+            .collect();
+            let row = crashed.canvas_row(&results).expect("row");
+            assert!(row.pass, "survivors agree: {}", row.actual);
+            assert!(
+                !row.actual.contains("p3"),
+                "crashed peer shown: {}",
+                row.actual
+            );
         }
     }
 }

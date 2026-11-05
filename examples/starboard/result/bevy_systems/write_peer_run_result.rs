@@ -1,21 +1,45 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 use crate::peer_run_result::PeerRunResult;
 use crate::result::ResultJsonPath;
 
+/// How often a running peer snapshots its `result.json`, so peers whose
+/// script ends in `stay` (never `AppExit`) still leave a result behind.
+const RESULT_SNAPSHOT_EVERY: Duration = Duration::from_secs(5);
+
+/// A staying peer that never joined a room leaves no `result.json`, exactly
+/// as before snapshots existed: watchers (`wait-lobby-room, stay`) are
+/// excused through `may_crash`, and their empty result would only trip the
+/// members row they can never satisfy.
+fn has_room_evidence(result: &PeerRunResult) -> bool {
+    !result.members_seen.is_empty() || result.canvas_hash.is_some() || result.error.is_some()
+}
+
 pub fn write_peer_run_result(
     mut exits: MessageReader<AppExit>,
+    time: Res<Time>,
     mut result: ResMut<PeerRunResult>,
     path: Res<ResultJsonPath>,
+    mut last_snapshot_secs: Local<Option<f64>>,
 ) {
     let path = path.into_inner();
-    let Some(exit) = exits.read().next() else {
-        return;
-    };
-    result.exit_code = match exit {
-        AppExit::Success => 0,
-        AppExit::Error(code) => code.get(),
-    };
+    let time = time.into_inner();
+    if let Some(exit) = exits.read().next() {
+        result.exit_code = match exit {
+            AppExit::Success => 0,
+            AppExit::Error(code) => code.get(),
+        };
+    } else {
+        let snapshot_due = last_snapshot_secs.is_none_or(|last| {
+            time.elapsed_secs_f64() - last >= RESULT_SNAPSHOT_EVERY.as_secs_f64()
+        });
+        if !snapshot_due || !has_room_evidence(&result) {
+            return;
+        }
+        *last_snapshot_secs = Some(time.elapsed_secs_f64());
+    }
     if let Some(parent) = path.parent()
         && let Err(error) = std::fs::create_dir_all(parent)
     {
@@ -48,6 +72,7 @@ mod tests {
         let path = dir.path().join("p1").join("result.json");
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
+        app.init_resource::<Time>();
         app.insert_resource(PeerRunResult {
             username: "p1".to_string(),
             ..PeerRunResult::default()
@@ -60,5 +85,52 @@ mod tests {
         let back: PeerRunResult = serde_json::from_slice(&bytes).expect("decode");
         assert_eq!(back.username, "p1");
         assert_eq!(back.exit_code, 0);
+    }
+
+    /// A peer whose script ends in `stay` never sees `AppExit`, so the
+    /// periodic snapshot is its only `result.json` (S4a holders).
+    #[test]
+    fn staying_peers_snapshot_result_without_exit() {
+        use freenet_libp2p_bevy_plugin::identity;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("p1").join("result.json");
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<Time>();
+        let mut recorded = PeerRunResult {
+            username: "p1".to_string(),
+            ..PeerRunResult::default()
+        };
+        recorded.members_seen.insert(identity::PeerId::from("p1"));
+        app.insert_resource(recorded);
+        app.insert_resource(ResultJsonPath(path.clone()));
+        app.add_systems(Last, write_peer_run_result);
+        app.update();
+        let bytes = std::fs::read(&path).expect("staying peers leave a result.json");
+        let back: PeerRunResult = serde_json::from_slice(&bytes).expect("decode");
+        assert_eq!(back.username, "p1");
+    }
+
+    /// A watcher that never joined a room leaves no `result.json`, exactly as
+    /// before snapshots existed, so `may_crash` keeps excusing it.
+    #[test]
+    fn watchers_without_room_evidence_leave_no_result() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("p3").join("result.json");
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<Time>();
+        app.insert_resource(PeerRunResult {
+            username: "p3".to_string(),
+            ..PeerRunResult::default()
+        });
+        app.insert_resource(ResultJsonPath(path.clone()));
+        app.add_systems(Last, write_peer_run_result);
+        app.update();
+        assert!(
+            std::fs::read(&path).is_err(),
+            "watchers without room evidence leave no result.json"
+        );
     }
 }
