@@ -8,7 +8,7 @@ use bevy::input_focus::{FocusCause, InputFocus};
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui::UiGlobalTransform;
-use bevy::window::PrimaryWindow;
+use bevy::window::{PrimaryWindow, WindowEvent};
 use freenet_libp2p_bevy_plugin::discovery;
 use freenet_libp2p_bevy_plugin::identity;
 
@@ -19,8 +19,8 @@ use crate::shared::action::Action;
 /// `create:<room>` focuses the room-name field, types the name with
 /// [`KeyboardInput`] events, and waits for the Create button to become
 /// clickable; `join:<room>` waits for that room's button to appear. Either way
-/// the button is then pressed with a real pointer click (window cursor +
-/// [`MouseButtonInput`]) and the click is retried, after a cooldown, until the
+/// the button is then pressed with a real pointer click (window cursor + a
+/// window mouse-button event) and the click is retried, after a cooldown, until the
 /// room is actually joined — the cooldown avoids toggling back out, since a
 /// second press on the joined room is a `Leave`.
 /// The action the intent should drive next, one scripted step at a time.
@@ -92,7 +92,7 @@ pub fn script_input<F, C, J>(
     create: Query<&UiGlobalTransform, (With<C>, With<Hovered>)>,
     join: Query<(&UiGlobalTransform, &J), With<Hovered>>,
     mut keyboard: MessageWriter<KeyboardInput>,
-    mut mouse: MessageWriter<MouseButtonInput>,
+    mut window_clicks: MessageWriter<WindowEvent>,
     mut focus: ResMut<InputFocus>,
 ) where
     F: Component,
@@ -163,19 +163,22 @@ pub fn script_input<F, C, J>(
             }
             intent.cooldown = 0;
             window.set_physical_cursor_position(Some(transform.translation.as_dvec2()));
-            mouse.write(MouseButtonInput {
+            // Picking converts only per-window mouse-button events into
+            // pointer presses; a bare MouseButtonInput message never reaches
+            // a Bevy 0.20 button.
+            window_clicks.write(WindowEvent::MouseButtonInput(MouseButtonInput {
                 button: MouseButton::Left,
                 state: ButtonState::Pressed,
                 window: window_entity,
-            });
+            }));
             intent.step = Step::Release;
         }
         Step::Release => {
-            mouse.write(MouseButtonInput {
+            window_clicks.write(WindowEvent::MouseButtonInput(MouseButtonInput {
                 button: MouseButton::Left,
                 state: ButtonState::Released,
                 window: window_entity,
-            });
+            }));
             intent.clicks = intent.clicks.saturating_add(1);
             intent.step = Step::Verify;
         }
@@ -227,13 +230,97 @@ pub fn log_joined(intent: Res<Intent>, mut events: MessageReader<discovery::Even
 
 #[cfg(test)]
 mod tests {
+    use bevy::input::ButtonState;
+    use bevy::input::keyboard::KeyboardInput;
+    use bevy::input::mouse::{MouseButton, MouseButtonInput};
+    use bevy::input_focus::InputFocus;
+    use bevy::picking::hover::Hovered;
+    use bevy::prelude::*;
+    use bevy::ui::UiGlobalTransform;
+    use bevy::window::{PrimaryWindow, Window, WindowEvent};
+    use derive_more::Deref;
+    use freenet_libp2p_bevy_plugin::discovery;
     use freenet_libp2p_bevy_plugin::identity;
 
-    use super::{Intent, PendingAction, arm_with_pending};
+    use super::{Intent, PendingAction, arm_with_pending, script_input};
     use crate::shared::action::Action;
 
     fn join(room: &str) -> Action {
         Action::Join(identity::RoomName::from(room))
+    }
+
+    fn create(room: &str) -> Action {
+        Action::Create(identity::RoomName::from(room))
+    }
+
+    #[derive(Component)]
+    struct TestField;
+
+    #[derive(Component)]
+    struct TestCreateButton;
+
+    #[derive(Component, Deref)]
+    struct TestJoinButton(identity::RoomName);
+
+    fn window_clicks(app: &mut App) -> Vec<WindowEvent> {
+        let messages = app.world().resource::<Messages<WindowEvent>>();
+        let mut cursor = messages.get_cursor();
+        cursor.read(messages).cloned().collect()
+    }
+
+    /// Drives one [`Step::Click`] through [`Step::Release`]: the synthetic
+    /// click must reach picking as a window mouse-button event, or no Bevy
+    /// 0.20 button (which listens for `Pressed` from `PointerPress`) fires.
+    #[test]
+    fn a_scripted_click_sends_window_mouse_button_press_and_release() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_message::<KeyboardInput>();
+        app.add_message::<MouseButtonInput>();
+        app.add_message::<WindowEvent>();
+        app.init_resource::<discovery::Status>();
+        app.init_resource::<InputFocus>();
+        app.insert_resource(Intent::new(Some(create("room-1"))));
+        let window = app
+            .world_mut()
+            .spawn((Window::default(), PrimaryWindow))
+            .id();
+        app.world_mut().spawn((
+            TestCreateButton,
+            Hovered(false),
+            UiGlobalTransform::default(),
+        ));
+        app.world_mut().resource_mut::<Intent>().step = super::Step::Click;
+        app.add_systems(
+            Update,
+            script_input::<TestField, TestCreateButton, TestJoinButton>,
+        );
+        app.update();
+        let pressed = window_clicks(&mut app);
+        assert!(
+            pressed.iter().any(|event| matches!(
+                event,
+                WindowEvent::MouseButtonInput(MouseButtonInput {
+                    button: MouseButton::Left,
+                    state: ButtonState::Pressed,
+                    window: event_window,
+                }) if *event_window == window
+            )),
+            "a scripted click must press the window mouse button, sent {pressed:?}"
+        );
+        app.update();
+        let released = window_clicks(&mut app);
+        assert!(
+            released.iter().any(|event| matches!(
+                event,
+                WindowEvent::MouseButtonInput(MouseButtonInput {
+                    button: MouseButton::Left,
+                    state: ButtonState::Released,
+                    window: event_window,
+                }) if *event_window == window
+            )),
+            "releasing a scripted click must release the window mouse button, sent {released:?}"
+        );
     }
 
     #[test]
