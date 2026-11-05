@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Compare the two newest dry_run preview runs for hash stability.
+"""Compare the newest N dry_run preview runs for hash stability.
 
-Reads ui_preview/preview-log.jsonl (path given as argv[1]), takes the two
-newest distinct run ids with outcome == "dry_run" in log order, and compares
-new_hash per key across (and within) those runs.
+Reads ui_preview/preview-log.jsonl (path given as argv[1]), takes the N
+newest distinct run ids with outcome == "dry_run" in log order (N given as
+argv[2], default 5), and compares new_hash per key across (and within)
+those runs.
 
 Exit 0 when stable, 1 with a key-by-key report when unstable.
 """
@@ -30,10 +31,18 @@ def load_entries(log_path):
 
 
 def main(argv):
-    if len(argv) != 2:
-        print(f"usage: {argv[0]} <preview-log.jsonl>")
+    if len(argv) not in (2, 3):
+        print(f"usage: {argv[0]} <preview-log.jsonl> [N]")
         return 2
     log_path = argv[1]
+    try:
+        want = int(argv[2]) if len(argv) == 3 else 5
+    except ValueError:
+        print(f"preview-stability: invalid N: {argv[2]!r}")
+        return 2
+    if want < 2:
+        print(f"preview-stability: N must be >= 2, got {want}")
+        return 2
     try:
         entries = load_entries(log_path)
     except FileNotFoundError:
@@ -50,16 +59,13 @@ def main(argv):
 
     ordered_runs = list(OrderedDict.fromkeys(e.get("run", "") for e in dry))
     ordered_runs = [r for r in ordered_runs if r]
-    if len(ordered_runs) < 2:
+    if len(ordered_runs) < want:
         print(
-            "preview-stability: need two distinct dry_run run ids, "
+            f"preview-stability: need {want} distinct dry_run run ids, "
             f"found {len(ordered_runs)}"
         )
         return 1
-    run_a, run_b = ordered_runs[-2], ordered_runs[-1]
-
-    entries_a = [e for e in dry if e.get("run") == run_a]
-    entries_b = [e for e in dry if e.get("run") == run_b]
+    runs = ordered_runs[-want:]
 
     def hashes_by_key(rows):
         grouped = {}
@@ -68,42 +74,40 @@ def main(argv):
             grouped.setdefault(key, set()).add(row.get("new_hash", ""))
         return grouped
 
-    hashes_a = hashes_by_key(entries_a)
-    hashes_b = hashes_by_key(entries_b)
+    by_run = {}
+    for run in runs:
+        by_run[run] = hashes_by_key([e for e in dry if e.get("run") == run])
 
     problems = []
-    for key in sorted(set(hashes_a)):
-        if len(hashes_a[key]) > 1:
-            problems.append(
-                f"intra-run disagreement in {run_a}: {key} "
-                f"hashes {sorted(hashes_a[key])}"
-            )
-    for key in sorted(set(hashes_b)):
-        if len(hashes_b[key]) > 1:
-            problems.append(
-                f"intra-run disagreement in {run_b}: {key} "
-                f"hashes {sorted(hashes_b[key])}"
-            )
+    for run in runs:
+        for key in sorted(by_run[run]):
+            if len(by_run[run][key]) > 1:
+                problems.append(
+                    f"intra-run disagreement in {run}: {key} "
+                    f"hashes {sorted(by_run[run][key])}"
+                )
 
-    all_keys = sorted(set(hashes_a) | set(hashes_b))
+    all_keys = sorted({key for hashes in by_run.values() for key in hashes})
     for key in all_keys:
-        if key not in hashes_a:
-            problems.append(f"missing in run {run_a}: {key} (B={sorted(hashes_b[key])})")
-        elif key not in hashes_b:
-            problems.append(f"missing in run {run_b}: {key} (A={sorted(hashes_a[key])})")
-        else:
-            hash_a = next(iter(hashes_a[key]))
-            hash_b = next(iter(hashes_b[key]))
-            if len(hashes_a[key]) == 1 and len(hashes_b[key]) == 1 and hash_a != hash_b:
-                problems.append(f"{key}: A={hash_a} B={hash_b}")
+        missing = [run for run in runs if key not in by_run[run]]
+        if missing:
+            present = {run: sorted(by_run[run][key]) for run in runs if key in by_run[run]}
+            problems.append(f"missing {key} in run(s) {missing} (present={present})")
+            continue
+        distinct = {next(iter(by_run[run][key])) for run in runs}
+        single = all(len(by_run[run][key]) == 1 for run in runs)
+        if single and len(distinct) > 1:
+            detail = {run: next(iter(by_run[run][key])) for run in runs}
+            problems.append(f"{key}: differing hashes {detail}")
 
     non_same_keys = set()
-    for row in entries_a + entries_b:
-        if row.get("status") != "same":
-            non_same_keys.add(row.get("key", ""))
+    for run in runs:
+        for row in (e for e in dry if e.get("run") == run):
+            if row.get("status") != "same":
+                non_same_keys.add(row.get("key", ""))
     print(
         f"non-same statuses: {len(non_same_keys)} of {len(all_keys)} keys "
-        f"have status other than 'same' in runs {run_a} and {run_b}"
+        f"have status other than 'same' in runs {', '.join(runs)}"
     )
 
     if problems:
@@ -112,7 +116,7 @@ def main(argv):
             print(f"  {item}")
         print(
             f"preview-stability: UNSTABLE compared {len(all_keys)} keys "
-            f"between {run_a} and {run_b}: "
+            f"across {len(runs)} runs {', '.join(runs)}: "
             f"{len(problems)} differing/missing/intra-run conflicts, "
             f"{len(non_same_keys)} non-same statuses"
         )
@@ -120,7 +124,7 @@ def main(argv):
 
     print(
         f"preview-stability: STABLE compared {len(all_keys)} keys "
-        f"between {run_a} and {run_b}, "
+        f"across {len(runs)} runs {', '.join(runs)}, "
         f"{len(non_same_keys)} non-same statuses"
     )
     return 0
