@@ -1,17 +1,17 @@
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 
 use crate::discovery;
 use discovery::ui::{LeaveDialog, LeaveNoButton, LeaveYesButton};
 
 pub fn handle_leave_answer(
-    yes: Query<&Interaction, (Changed<Interaction>, With<LeaveYesButton>)>,
-    no: Query<&Interaction, (Changed<Interaction>, With<LeaveNoButton>)>,
+    yes: Query<(), (Added<Pressed>, With<LeaveYesButton>)>,
+    no: Query<(), (Added<Pressed>, With<LeaveNoButton>)>,
     mut next: ResMut<NextState<LeaveDialog>>,
     mut commands: MessageWriter<discovery::Command>,
 ) {
-    let pressed = |interaction: &Interaction| *interaction == Interaction::Pressed;
-    let confirmed = yes.iter().any(pressed);
-    let cancelled = no.iter().any(pressed);
+    let confirmed = yes.iter().next().is_some();
+    let cancelled = no.iter().next().is_some();
     if confirmed {
         tracing::info!(target: "discovery", "ui leave confirmed");
         commands.write(discovery::Command::Leave);
@@ -24,6 +24,7 @@ pub fn handle_leave_answer(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use bevy::ui::Pressed;
 
     use super::handle_leave_answer;
     use crate::discovery;
@@ -32,7 +33,7 @@ mod tests {
         let mut app = App::new();
         app.add_message::<discovery::Command>();
         app.init_resource::<NextState<discovery::ui::LeaveDialog>>();
-        app.world_mut().spawn((marker, Interaction::Pressed));
+        app.world_mut().spawn((marker, Pressed));
         app.add_systems(Update, handle_leave_answer);
         app.update();
         let messages = app.world().resource::<Messages<discovery::Command>>();

@@ -1,18 +1,17 @@
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 
 use crate::discovery;
 use discovery::ui::{LeaveDialog, LeaveDoor};
 
 pub fn request_leave(
     keys: Option<Res<ButtonInput<KeyCode>>>,
-    doors: Query<&Interaction, (Changed<Interaction>, With<LeaveDoor>)>,
+    doors: Query<(), (Added<Pressed>, With<LeaveDoor>)>,
     dialog: Res<State<LeaveDialog>>,
     mut next: ResMut<NextState<LeaveDialog>>,
 ) {
     let is_open = *dialog.into_inner().get() == LeaveDialog::Open;
-    let clicked = doors
-        .iter()
-        .any(|interaction| *interaction == Interaction::Pressed);
+    let clicked = doors.iter().next().is_some();
     let escaped = keys.is_some_and(|keys| keys.just_pressed(KeyCode::Escape));
     let open = match (clicked, escaped) {
         (true, _) => true,
@@ -32,6 +31,7 @@ pub fn request_leave(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use bevy::ui::Pressed;
 
     use super::request_leave;
     use crate::discovery;
@@ -58,7 +58,7 @@ mod tests {
         let mut clicked = app_closed();
         clicked
             .world_mut()
-            .spawn((discovery::ui::LeaveDoor, Interaction::Pressed));
+            .spawn((discovery::ui::LeaveDoor, Pressed));
         clicked.update();
         assert!(opening(&clicked));
 

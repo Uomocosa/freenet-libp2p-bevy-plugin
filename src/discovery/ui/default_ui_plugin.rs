@@ -23,6 +23,7 @@ impl DefaultUiPlugin {
 #[cfg(test)]
 mod tests {
     use crate::identity;
+    use bevy::picking::hover::Hovered;
     use bevy::prelude::*;
 
     use crate::discovery;
@@ -67,9 +68,9 @@ mod tests {
     #[derive(Component)]
     struct PinHover;
 
-    fn pin_hover(mut pinned: Query<&mut Interaction, With<PinHover>>) {
-        for mut interaction in &mut pinned {
-            *interaction = Interaction::Hovered;
+    fn pin_hover(mut commands: Commands, pinned: Query<Entity, With<PinHover>>) {
+        for entity in &pinned {
+            commands.entity(entity).insert(Hovered(true));
         }
     }
 
@@ -83,7 +84,7 @@ mod tests {
         let hovered: Vec<Entity> = glows.iter(world).collect();
         for entity in hovered {
             world.entity_mut(entity).insert((
-                Interaction::Hovered,
+                Hovered(true),
                 PinHover,
                 discovery::ui::HoverGlow(1.0),
             ));

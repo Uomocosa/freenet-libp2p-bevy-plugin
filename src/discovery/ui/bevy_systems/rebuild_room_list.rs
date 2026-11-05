@@ -1,4 +1,6 @@
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui_widgets::Button;
 
 use crate::discovery;
 use discovery::ui::basic::constants::ROOM_COLOR;
@@ -39,6 +41,7 @@ pub fn rebuild_room_list(
                 parent.spawn((
                     RoomButton(row.name.clone()),
                     Button,
+                    Hovered::default(),
                     HoverGlow::default(),
                     Node {
                         padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),

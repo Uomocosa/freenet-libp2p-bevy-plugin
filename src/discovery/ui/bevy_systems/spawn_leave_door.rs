@@ -1,4 +1,6 @@
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui_widgets::Button;
 
 use crate::discovery;
 use discovery::ui::basic::constants::{
@@ -29,6 +31,7 @@ pub fn spawn_leave_door(mut commands: Commands) {
                 LeaveDoor,
                 DoorOpening::default(),
                 Button,
+                Hovered::default(),
                 Node {
                     width: Val::Px(DOOR_WIDTH),
                     height: Val::Px(DOOR_HEIGHT),

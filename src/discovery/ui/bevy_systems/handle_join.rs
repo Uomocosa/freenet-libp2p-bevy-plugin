@@ -1,20 +1,18 @@
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 
 use crate::discovery;
 use crate::identity;
 use discovery::ui::RoomButton;
 
 pub fn handle_join(
-    buttons: Query<(&Interaction, &RoomButton), Changed<Interaction>>,
+    buttons: Query<&RoomButton, Added<Pressed>>,
     status: Res<discovery::Status>,
     mut commands: MessageWriter<discovery::Command>,
 ) {
     let status = status.into_inner();
     let current = status.room.as_ref().map(|room| &room.name);
-    for (interaction, button) in &buttons {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for button in &buttons {
         let room: &identity::RoomName = button;
         if current == Some(room) {
             tracing::info!(target: "discovery", "ui leave room={}", room.as_str());
@@ -30,6 +28,7 @@ pub fn handle_join(
 mod tests {
     use crate::identity;
     use bevy::prelude::*;
+    use bevy::ui::Pressed;
 
     use super::handle_join;
     use crate::discovery;
@@ -40,10 +39,8 @@ mod tests {
         app.add_message::<discovery::Command>();
         app.init_resource::<discovery::Status>();
         let room = identity::RoomName::from("alpha");
-        app.world_mut().spawn((
-            discovery::ui::RoomButton(room.clone()),
-            Interaction::Pressed,
-        ));
+        app.world_mut()
+            .spawn((discovery::ui::RoomButton(room.clone()), Pressed));
         app.add_systems(Update, handle_join);
         app.update();
         let messages = app.world().resource::<Messages<discovery::Command>>();

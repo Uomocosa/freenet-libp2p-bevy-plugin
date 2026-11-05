@@ -1,19 +1,23 @@
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 
 use crate::discovery;
 use discovery::ui::basic::constants::{DOOR_OPEN_PER_SEC, DOOR_SWING};
 use discovery::ui::{DoorLabel, DoorOpening, DoorPanel, LeaveDialog, LeaveDoor};
 
+type DoorParts<'a> = (Option<&'a Hovered>, Has<Pressed>, &'a mut DoorOpening);
+
 pub fn animate_door(
     time: Res<Time>,
     dialog: Option<Res<State<LeaveDialog>>>,
-    door: Single<(&Interaction, &mut DoorOpening), With<LeaveDoor>>,
+    door: Single<DoorParts<'_>, With<LeaveDoor>>,
     mut panel: Single<&mut Node, With<DoorPanel>>,
     mut label: Single<&mut TextColor, With<DoorLabel>>,
 ) {
-    let (interaction, mut opening) = door.into_inner();
+    let (hovered, pressed, mut opening) = door.into_inner();
     let dialog_open = dialog.is_some_and(|dialog| *dialog.get() == LeaveDialog::Open);
-    let wants_open = dialog_open || *interaction != Interaction::None;
+    let wants_open = dialog_open || hovered.is_some_and(Hovered::get) || pressed;
     let target = if wants_open { 1.0 } else { 0.0 };
     let step = DOOR_OPEN_PER_SEC * time.into_inner().delta_secs();
     let progress = if **opening < target {
@@ -37,6 +41,7 @@ pub fn animate_door(
 
 #[cfg(test)]
 mod tests {
+    use bevy::picking::hover::Hovered;
     use bevy::prelude::*;
     use bevy::time::TimeUpdateStrategy;
 
@@ -52,7 +57,7 @@ mod tests {
         app.world_mut().spawn((
             discovery::ui::LeaveDoor,
             discovery::ui::DoorOpening::default(),
-            Interaction::Hovered,
+            Hovered(true),
         ));
         app.world_mut()
             .spawn((discovery::ui::DoorPanel, Node::default()));

@@ -1,4 +1,6 @@
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui_widgets::Button;
 
 use crate::discovery;
 use discovery::ui::basic::constants::{BUTTON_COLOR, PANEL_COLOR};
@@ -36,6 +38,7 @@ pub fn spawn_join_failed(mut commands: Commands, join_error: Res<JoinError>) {
                 (
                     JoinErrorDismissButton,
                     Button,
+                    Hovered::default(),
                     Node {
                         padding: UiRect::axes(Val::Px(18.0), Val::Px(6.0)),
                         ..default()

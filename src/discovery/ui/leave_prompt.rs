@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::ui_widgets::Button;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct LeavePrompt;

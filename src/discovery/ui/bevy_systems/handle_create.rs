@@ -1,20 +1,18 @@
 use bevy::prelude::*;
 use bevy::text::EditableText;
+use bevy::ui::Pressed;
 
 use crate::discovery;
 use crate::identity;
 use discovery::ui::{CreateRoomButton, RoomNameInput};
 
 pub fn handle_create(
-    buttons: Query<&Interaction, (Changed<Interaction>, With<CreateRoomButton>)>,
+    buttons: Query<(), (Added<Pressed>, With<CreateRoomButton>)>,
     input: Single<&EditableText, With<RoomNameInput>>,
     mut commands: MessageWriter<discovery::Command>,
 ) {
     let typed = input.into_inner().value().to_string();
-    for interaction in &buttons {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for () in &buttons {
         let name = typed.trim();
         if name.is_empty() {
             tracing::error!(target: "discovery", "ui create rejected: empty room name");
@@ -30,6 +28,7 @@ mod tests {
     use crate::identity;
     use bevy::prelude::*;
     use bevy::text::EditableText;
+    use bevy::ui::Pressed;
 
     use super::handle_create;
     use crate::discovery;
@@ -40,7 +39,7 @@ mod tests {
         app.world_mut()
             .spawn((discovery::ui::RoomNameInput, EditableText::new(typed)));
         app.world_mut()
-            .spawn((discovery::ui::CreateRoomButton, Interaction::Pressed));
+            .spawn((discovery::ui::CreateRoomButton, Pressed));
         app.add_systems(Update, handle_create);
         app.update();
         let messages = app.world().resource::<Messages<discovery::Command>>();

@@ -7,7 +7,9 @@
 
 #[cfg(test)]
 mod tests {
+    use bevy::picking::hover::Hovered;
     use bevy::prelude::*;
+    use bevy::ui::Pressed;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use crate::{overlay, shared::status};
@@ -67,7 +69,7 @@ mod tests {
         let is_new_frame = frame != clock.frame;
         clock.frame = frame;
         if (HOVER_DOOR_AT..CLICK_DOOR_AT).contains(&frame) {
-            press::<discovery::ui::LeaveDoor>(world, Interaction::Hovered);
+            hover_marker::<discovery::ui::LeaveDoor>(world);
         }
         let mut keys = world.resource_mut::<ButtonInput<KeyCode>>();
         keys.release(KeyCode::Escape);
@@ -90,33 +92,49 @@ mod tests {
             add_peer(world, index);
         }
         match frame {
-            CLICK_DOOR_AT => press::<discovery::ui::LeaveDoor>(world, Interaction::Pressed),
-            ANSWER_NO_AT => press::<discovery::ui::LeaveNoButton>(world, Interaction::Pressed),
+            CLICK_DOOR_AT => press_marker::<discovery::ui::LeaveDoor>(world),
+            ANSWER_NO_AT => press_marker::<discovery::ui::LeaveNoButton>(world),
             PRESS_ESC_AT => {
                 world
                     .resource_mut::<ButtonInput<KeyCode>>()
                     .press(KeyCode::Escape);
             }
-            ANSWER_YES_AT => press::<discovery::ui::LeaveYesButton>(world, Interaction::Pressed),
+            ANSWER_YES_AT => press_marker::<discovery::ui::LeaveYesButton>(world),
             _ => {}
         }
     }
 
     /// # needed helper: a scripted press lasts one frame, then the "mouse" is released
     fn release_presses(world: &mut World) {
-        let mut buttons = world.query::<&mut Interaction>();
-        for mut interaction in buttons.iter_mut(world) {
-            if *interaction == Interaction::Pressed {
-                *interaction = Interaction::None;
-            }
+        let pressed: Vec<Entity> = world
+            .query_filtered::<Entity, With<Pressed>>()
+            .iter(world)
+            .collect();
+        for entity in pressed {
+            world.entity_mut(entity).remove::<Pressed>();
         }
     }
 
-    /// # needed helper: drives a button's real `Interaction`, as the cursor would
-    fn press<Marker: Component>(world: &mut World, state: Interaction) {
-        let mut buttons = world.query_filtered::<&mut Interaction, With<Marker>>();
-        for mut interaction in buttons.iter_mut(world) {
-            *interaction = state;
+    /// # needed helper: drives a button's real hover state, as the cursor would
+    fn hover_marker<Marker: Component>(world: &mut World) {
+        let targets: Vec<Entity> = world
+            .query_filtered::<Entity, With<Marker>>()
+            .iter(world)
+            .collect();
+        for entity in targets {
+            world.entity_mut(entity).insert(Hovered(true));
+        }
+    }
+
+    /// # needed helper: drives a button's real press, as the cursor would
+    fn press_marker<Marker: Component>(world: &mut World) {
+        let targets: Vec<Entity> = world
+            .query_filtered::<Entity, With<Marker>>()
+            .iter(world)
+            .collect();
+        for entity in targets {
+            world.entity_mut(entity).insert(Hovered(true));
+            world.entity_mut(entity).insert(Pressed);
         }
     }
 
@@ -171,10 +189,17 @@ mod tests {
 
     /// # needed helper: presses the room's real Join button, so the default UI emits the command
     fn click_join(world: &mut World) {
-        let mut buttons = world.query::<(&discovery::ui::RoomButton, &mut Interaction)>();
-        for (button, mut interaction) in buttons.iter_mut(world) {
-            if button.as_str() == JOIN_ROOM {
-                *interaction = Interaction::Pressed;
+        let targets: Vec<Entity> = world
+            .query_filtered::<Entity, With<discovery::ui::RoomButton>>()
+            .iter(world)
+            .collect();
+        for entity in targets {
+            let is_target = world
+                .get::<discovery::ui::RoomButton>(entity)
+                .is_some_and(|button| button.as_str() == JOIN_ROOM);
+            if is_target {
+                world.entity_mut(entity).insert(Hovered(true));
+                world.entity_mut(entity).insert(Pressed);
             }
         }
     }

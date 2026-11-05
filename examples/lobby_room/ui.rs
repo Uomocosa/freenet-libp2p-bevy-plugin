@@ -3,8 +3,11 @@
 //! It shows that the plugin's default UI can be swapped out entirely: this
 //! plugin only reads `discovery::Status` and writes `discovery::Command`.
 #![allow(clippy::needless_pass_by_value)]
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
+use bevy::ui::{InteractionDisabled, Pressed};
+use bevy::ui_widgets::{Button, TextInput};
 use derive_more::Deref;
 use freenet_libp2p_bevy_plugin::discovery;
 use freenet_libp2p_bevy_plugin::discovery::ui::basic::constants::{
@@ -37,6 +40,14 @@ struct RoomColumn;
 #[derive(Component, Deref)]
 pub struct JoinButton(pub identity::RoomName);
 
+type NewRoomButtonParts<'a> = (
+    Entity,
+    Option<&'a Hovered>,
+    Has<InteractionDisabled>,
+    &'a mut BackgroundColor,
+    &'a Children,
+);
+
 fn spawn(mut commands: Commands) {
     commands.spawn((
         Node {
@@ -58,6 +69,7 @@ fn spawn(mut commands: Commands) {
                     (
                         NameField,
                         EditableText::new(""),
+                        TextInput,
                         TextCursorStyle {
                             color: CARET_COLOR,
                             ..default()
@@ -72,6 +84,7 @@ fn spawn(mut commands: Commands) {
                     (
                         NewRoomButton,
                         Button,
+                        InteractionDisabled,
                         Node {
                             padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
                             ..default()
@@ -110,6 +123,7 @@ fn rebuild_list(
                 parent.spawn((
                     JoinButton(name.clone()),
                     Button,
+                    Hovered::default(),
                     Node {
                         padding: UiRect::axes(Val::Px(12.0), Val::Px(4.0)),
                         ..default()
@@ -127,14 +141,11 @@ fn rebuild_list(
 }
 
 fn on_create(
-    buttons: Query<&Interaction, (Changed<Interaction>, With<NewRoomButton>)>,
+    buttons: Query<(), (Added<Pressed>, With<NewRoomButton>)>,
     field: Single<&EditableText, With<NameField>>,
     mut commands: MessageWriter<discovery::Command>,
 ) {
-    for interaction in &buttons {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
+    for () in &buttons {
         let typed = field.value().to_string();
         let name = typed.trim();
         if name.is_empty() {
@@ -149,21 +160,13 @@ fn on_create(
 /// # needed helper: the Create button is only clickable while the room name is non-empty
 fn gate_create(
     input: Single<&EditableText, With<NameField>>,
-    button: Single<
-        (
-            Entity,
-            Option<&Interaction>,
-            &mut BackgroundColor,
-            &Children,
-        ),
-        With<NewRoomButton>,
-    >,
+    button: Single<NewRoomButtonParts, With<NewRoomButton>>,
     mut labels: Query<&mut TextColor>,
     mut commands: Commands,
 ) {
     let typed = input.into_inner().value().to_string();
     let enabled = !typed.trim().is_empty();
-    let (entity, interaction, mut background, children) = button.into_inner();
+    let (entity, hovered, disabled, mut background, children) = button.into_inner();
     let BackgroundColor(existing) = &mut *background;
     let (color, label_color) = if enabled {
         (BUTTON_COLOR, BUTTON_LABEL_COLOR)
@@ -173,33 +176,43 @@ fn gate_create(
     if *existing != color {
         *existing = color;
     }
-    let mut label_iter = labels.iter_many_mut(children);
+    let mut label_iter = labels.iter_many_mut(children).matched();
     while let Some(mut label) = label_iter.fetch_next() {
         let TextColor(current) = &mut *label;
         if *current != label_color {
             *current = label_color;
         }
     }
-    match (enabled, interaction.is_some()) {
+    match (enabled, hovered.is_some()) {
         (true, false) => {
-            commands.entity(entity).insert(Interaction::None);
+            commands.entity(entity).insert(Hovered(false));
         }
         (false, true) => {
-            commands.entity(entity).remove::<Interaction>();
+            commands
+                .entity(entity)
+                .remove::<Hovered>()
+                .remove::<Pressed>();
+        }
+        _ => {}
+    }
+    match (enabled, disabled) {
+        (true, true) => {
+            commands.entity(entity).remove::<InteractionDisabled>();
+        }
+        (false, false) => {
+            commands.entity(entity).insert(InteractionDisabled);
         }
         _ => {}
     }
 }
 
 fn on_join(
-    buttons: Query<(&Interaction, &JoinButton), Changed<Interaction>>,
+    buttons: Query<&JoinButton, Added<Pressed>>,
     mut commands: MessageWriter<discovery::Command>,
 ) {
-    for (interaction, button) in &buttons {
-        if *interaction == Interaction::Pressed {
-            tracing::info!("lobby ui click join room={}", button.as_str());
-            commands.write(discovery::Command::Join((**button).clone()));
-        }
+    for button in &buttons {
+        tracing::info!("lobby ui click join room={}", button.as_str());
+        commands.write(discovery::Command::Join((**button).clone()));
     }
 }
 

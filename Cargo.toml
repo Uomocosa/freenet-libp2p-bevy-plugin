@@ -86,7 +86,7 @@ missing_errors_doc = "allow"
 
 [dependencies]
 atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.10" }
-bevy = { version = "=0.19.1", default-features = false, features = ["2d", "ui"] }
+bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
 derive_more = { version = "=2.1.1", features = ["deref", "deref_mut", "display", "from"] }
 libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }

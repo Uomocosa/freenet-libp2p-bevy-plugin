@@ -1,5 +1,7 @@
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::EditableText;
+use bevy::ui::{InteractionDisabled, Pressed};
 
 use crate::discovery;
 use discovery::ui::basic::constants::{
@@ -9,7 +11,8 @@ use discovery::ui::{CreateRoomButton, RoomNameInput};
 
 type CreateButtonParts<'a> = (
     Entity,
-    Option<&'a Interaction>,
+    Option<&'a Hovered>,
+    Has<InteractionDisabled>,
     &'a mut BackgroundColor,
     Option<&'a Children>,
 );
@@ -22,7 +25,7 @@ pub fn gate_create(
 ) {
     let typed = input.into_inner().value().to_string();
     let enabled = !typed.trim().is_empty();
-    let (entity, interaction, mut background, children) = button.into_inner();
+    let (entity, hovered, disabled, mut background, children) = button.into_inner();
     let BackgroundColor(existing) = &mut *background;
     let (color, label_color) = if enabled {
         (BUTTON_COLOR, BUTTON_LABEL_COLOR)
@@ -32,19 +35,33 @@ pub fn gate_create(
     if *existing != color {
         *existing = color;
     }
-    let mut label_iter = labels.iter_many_mut(children.into_iter().flatten());
+    let mut label_iter = labels
+        .iter_many_mut(children.into_iter().flatten())
+        .matched();
     while let Some(mut label) = label_iter.fetch_next() {
         let TextColor(current) = &mut *label;
         if *current != label_color {
             *current = label_color;
         }
     }
-    match (enabled, interaction.is_some()) {
+    match (enabled, hovered.is_some()) {
         (true, false) => {
-            commands.entity(entity).insert(Interaction::None);
+            commands.entity(entity).insert(Hovered(false));
         }
         (false, true) => {
-            commands.entity(entity).remove::<Interaction>();
+            commands
+                .entity(entity)
+                .remove::<Hovered>()
+                .remove::<Pressed>();
+        }
+        _ => {}
+    }
+    match (enabled, disabled) {
+        (true, true) => {
+            commands.entity(entity).remove::<InteractionDisabled>();
+        }
+        (false, false) => {
+            commands.entity(entity).insert(InteractionDisabled);
         }
         _ => {}
     }
@@ -52,8 +69,16 @@ pub fn gate_create(
 
 #[cfg(test)]
 mod tests {
+    use bevy::camera::NormalizedRenderTarget;
+    use bevy::picking::backend::HitData;
+    use bevy::picking::events::{Pointer, PointerPress};
+    use bevy::picking::hover::Hovered;
+    use bevy::picking::pointer::{Location, PointerButton, PointerId};
     use bevy::prelude::*;
     use bevy::text::EditableText;
+    use bevy::ui::{InteractionDisabled, Pressed};
+    use bevy::ui_widgets::{Button, ButtonPlugin, TextInput};
+    use bevy::window::{Window, WindowRef};
 
     use super::gate_create;
     use crate::discovery;
@@ -65,7 +90,7 @@ mod tests {
             .spawn((discovery::ui::RoomNameInput, EditableText::new(typed)));
         app.world_mut().spawn((
             discovery::ui::CreateRoomButton,
-            Interaction::None,
+            Hovered(false),
             BackgroundColor(Color::BLACK),
         ));
         app.add_systems(Update, gate_create);
@@ -75,7 +100,15 @@ mod tests {
     fn clickable(app: &mut App) -> usize {
         let mut query = app
             .world_mut()
-            .query_filtered::<(), (With<discovery::ui::CreateRoomButton>, With<Interaction>)>();
+            .query_filtered::<(), (With<discovery::ui::CreateRoomButton>, With<Hovered>)>();
+        query.iter(app.world()).count()
+    }
+
+    fn disabled(app: &mut App) -> usize {
+        let mut query = app.world_mut().query_filtered::<(), (
+            With<discovery::ui::CreateRoomButton>,
+            With<InteractionDisabled>,
+        )>();
         query.iter(app.world()).count()
     }
 
@@ -90,8 +123,71 @@ mod tests {
         assert_eq!(clickable(&mut blank), 0);
     }
 
+    #[test]
+    fn disabled_button_carries_interaction_disabled() {
+        let mut named = app_with("alpha");
+        named.update();
+        assert_eq!(disabled(&mut named), 0);
+
+        let mut blank = app_with("   ");
+        blank.update();
+        assert_eq!(disabled(&mut blank), 1);
+        assert_eq!(clickable(&mut blank), 0);
+    }
+
+    #[test]
+    fn disabled_button_ignores_pointer_press() {
+        let mut app = App::new();
+        app.add_plugins(ButtonPlugin);
+        let window = app.world_mut().spawn(Window::default()).id();
+        let location = Location {
+            target: NormalizedRenderTarget::Window(
+                WindowRef::Entity(window)
+                    .normalize(Some(window))
+                    .expect("test window is a valid target"),
+            ),
+            position: Vec2::ZERO,
+        };
+        let disabled = app
+            .world_mut()
+            .spawn((
+                discovery::ui::CreateRoomButton,
+                Button,
+                InteractionDisabled,
+                Hovered(false),
+            ))
+            .id();
+        let enabled = app
+            .world_mut()
+            .spawn((discovery::ui::CreateRoomButton, Button, Hovered(false)))
+            .id();
+        app.update();
+        for target in [disabled, enabled] {
+            app.world_mut().trigger(PointerPress {
+                entity: target,
+                pointer: Pointer::new(PointerId::Mouse, location.clone()),
+                button: PointerButton::Primary,
+                hit: HitData::new(window, 0.0, None, None),
+                count: 1,
+            });
+        }
+        app.update();
+        assert!(
+            !app.world().entity(disabled).contains::<Pressed>(),
+            "disabled button must not gain Pressed"
+        );
+        assert!(
+            app.world().entity(enabled).contains::<Pressed>(),
+            "enabled button must gain Pressed"
+        );
+    }
+
     fn spawn_button(mut commands: Commands) {
-        commands.spawn((discovery::ui::RoomNameInput, EditableText::new("")));
+        commands.spawn((
+            discovery::ui::RoomNameInput,
+            EditableText::new(""),
+            TextInput,
+        ));
         let root = commands
             .spawn(lele_bevy_preview::scene::Scene::centered_root())
             .id();
@@ -99,6 +195,7 @@ mod tests {
             ChildOf(root),
             discovery::ui::CreateRoomButton,
             Button,
+            Hovered::default(),
             Node {
                 padding: UiRect::axes(Val::Px(12.0), Val::Px(6.0)),
                 ..default()

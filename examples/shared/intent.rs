@@ -5,6 +5,7 @@ use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyCode, KeyboardInput, NativeKeyCode};
 use bevy::input::mouse::MouseButtonInput;
 use bevy::input_focus::{FocusCause, InputFocus};
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui::UiGlobalTransform;
 use bevy::window::PrimaryWindow;
@@ -88,8 +89,8 @@ pub fn script_input<F, C, J>(
     status: Res<discovery::Status>,
     mut windows: Query<(Entity, &mut Window), With<PrimaryWindow>>,
     fields: Query<Entity, With<F>>,
-    create: Query<&UiGlobalTransform, (With<C>, With<Interaction>)>,
-    join: Query<(&UiGlobalTransform, &J), With<Interaction>>,
+    create: Query<&UiGlobalTransform, (With<C>, With<Hovered>)>,
+    join: Query<(&UiGlobalTransform, &J), With<Hovered>>,
     mut keyboard: MessageWriter<KeyboardInput>,
     mut mouse: MessageWriter<MouseButtonInput>,
     mut focus: ResMut<InputFocus>,

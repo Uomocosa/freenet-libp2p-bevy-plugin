@@ -41,7 +41,9 @@ pub fn highlight_current_room(
 
 #[cfg(test)]
 mod tests {
+    use bevy::picking::hover::Hovered;
     use bevy::prelude::*;
+    use bevy::ui_widgets::Button;
 
     use crate::discovery;
     use crate::identity;
@@ -101,6 +103,7 @@ mod tests {
                 ChildOf(root),
                 discovery::ui::RoomButton(identity::RoomName::from(name)),
                 Button,
+                Hovered::default(),
                 Node {
                     width: Val::Px(160.0),
                     height: Val::Px(28.0),

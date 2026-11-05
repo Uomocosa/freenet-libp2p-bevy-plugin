@@ -1,4 +1,6 @@
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui::Pressed;
 
 use crate::discovery;
 use discovery::ui::basic::constants::{
@@ -12,7 +14,8 @@ type Unstyled = (
 );
 
 type HoverParts<'a> = (
-    Option<&'a Interaction>,
+    Option<&'a Hovered>,
+    Has<Pressed>,
     Has<HoverOutlineOnly>,
     &'a mut HoverGlow,
     &'a mut UiTransform,
@@ -32,8 +35,8 @@ pub fn animate_hover(
         ));
     }
     let step = HOVER_PER_SEC * time.into_inner().delta_secs();
-    for (interaction, outline_only, mut glow, mut transform, mut outline) in &mut nodes {
-        let hovered = interaction.is_some_and(|interaction| *interaction != Interaction::None);
+    for (hovered_state, pressed, outline_only, mut glow, mut transform, mut outline) in &mut nodes {
+        let hovered = hovered_state.is_some_and(Hovered::get) || pressed;
         let target = if hovered { 1.0 } else { 0.0 };
         let progress = if **glow < target {
             (**glow + step).min(target)
@@ -57,13 +60,14 @@ pub fn animate_hover(
 
 #[cfg(test)]
 mod tests {
+    use bevy::picking::hover::Hovered;
     use bevy::prelude::*;
     use bevy::time::TimeUpdateStrategy;
 
     use super::animate_hover;
     use crate::discovery;
 
-    fn app_with(interaction: Interaction) -> (App, Entity) {
+    fn app_with(hovered: Hovered) -> (App, Entity) {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(TimeUpdateStrategy::ManualDuration(
@@ -71,7 +75,7 @@ mod tests {
         ));
         let entity = app
             .world_mut()
-            .spawn((interaction, discovery::ui::HoverGlow::default()))
+            .spawn((hovered, discovery::ui::HoverGlow::default()))
             .id();
         app.add_systems(Update, animate_hover);
         (app, entity)
@@ -79,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let (mut hovered, entity) = app_with(Interaction::Hovered);
+        let (mut hovered, entity) = app_with(Hovered(true));
         for _ in 0..10 {
             hovered.update();
         }
@@ -95,7 +99,7 @@ mod tests {
             .scale;
         assert!(scale.x > 1.0);
 
-        let (mut idle, entity) = app_with(Interaction::None);
+        let (mut idle, entity) = app_with(Hovered(false));
         for _ in 0..10 {
             idle.update();
         }
@@ -113,7 +117,7 @@ mod tests {
         commands.spawn((
             ChildOf(root),
             discovery::ui::HoverGlow::default(),
-            Interaction::Hovered,
+            Hovered(true),
             Node {
                 width: Val::Px(180.0),
                 height: Val::Px(56.0),
@@ -124,9 +128,9 @@ mod tests {
         ));
     }
 
-    fn hover_all(mut nodes: Query<&mut Interaction, With<discovery::ui::HoverGlow>>) {
-        for mut interaction in &mut nodes {
-            *interaction = Interaction::Hovered;
+    fn hover_all(mut commands: Commands, nodes: Query<Entity, With<discovery::ui::HoverGlow>>) {
+        for entity in &nodes {
+            commands.entity(entity).insert(Hovered(true));
         }
     }
 

@@ -1,5 +1,8 @@
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
+use bevy::ui::InteractionDisabled;
+use bevy::ui_widgets::{Button, TextInput};
 
 use crate::discovery;
 use discovery::ui::basic::constants::{
@@ -27,13 +30,15 @@ pub fn spawn_root(mut commands: Commands) {
             (
                 RoomNameInput,
                 EditableText::new(""),
+                TextInput,
                 TextCursorStyle {
                     color: CARET_COLOR,
                     selection_color: CARET_SELECTION_COLOR,
                     unfocused_selection_color: Color::NONE,
                     selected_text_color: None,
+                    selection_radius: 0.0,
                 },
-                Interaction::None,
+                Hovered::default(),
                 HoverGlow::default(),
                 HoverOutlineOnly,
                 Node {
@@ -46,6 +51,7 @@ pub fn spawn_root(mut commands: Commands) {
             (
                 CreateRoomButton,
                 Button,
+                InteractionDisabled,
                 HoverGlow::default(),
                 Node {
                     padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
