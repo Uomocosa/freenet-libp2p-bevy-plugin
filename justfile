@@ -25,6 +25,19 @@ test:
 resend-all-previews:
     LELE_PREVIEW_RESEND_ALL=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
 
+# Render every real UI preview twice (dry run, no Telegram, no manifest
+# write) and prove the pixel hashes are identical across both runs.
+preview-stability:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    start=$SECONDS
+    status=0
+    TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= LELE_PREVIEW_DRY_RUN=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
+    TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= LELE_PREVIEW_DRY_RUN=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
+    python3 scripts/preview_stability.py ui_preview/preview-log.jsonl || status=$?
+    echo "preview-stability recipe time: $((SECONDS - start))s (exit $status)"
+    exit $status
+
 # Real, visual e2e: needs X + the freenet network + N lobby_room windows.
 e2e-discovery N="3":
     VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run --no-fail-fast --test lobby_room_discovery -E 'test(lobby_room_discovery)' --all-features --run-ignored all -- --nocapture
