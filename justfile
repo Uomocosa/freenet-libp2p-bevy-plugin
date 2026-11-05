@@ -25,17 +25,22 @@ test:
 resend-all-previews:
     LELE_PREVIEW_RESEND_ALL=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
 
-# Render every real UI preview in a dry run (no Telegram, no .sent
-# write) and prove the pixel hashes are identical across all N runs.
+# Render every preview N times without sending; fail if any render differs between runs.
 preview-stability N="5":
     #!/usr/bin/env bash
     set -euo pipefail
-    start=$SECONDS
-    status=0
-    for _ in $(seq 1 {{ N }}); do TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= LELE_PREVIEW_DRY_RUN=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'; done
-    python3 -B scripts/preview_stability.py ui_preview/preview-log.jsonl {{ N }} || status=$?
-    echo "preview-stability recipe time: $((SECONDS - start))s (exit $status)"
-    exit $status
+    previous=""
+    for run in $(seq 1 {{ N }}); do
+        TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= LELE_PREVIEW_DRY_RUN=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
+        current=$(find ui_preview/_unsent -type f -name '*.png' -exec sha256sum {} + 2>/dev/null | sort -k2 || true)
+        if [ "$run" -gt 1 ] && [ "$current" != "$previous" ]; then
+            echo "UNSTABLE: run $run differs"
+            diff <(echo "$previous") <(echo "$current") || true
+            exit 1
+        fi
+        previous=$current
+    done
+    echo "STABLE across {{ N }} runs"
 
 # Real, visual e2e: needs X + the freenet network + N lobby_room windows.
 e2e-discovery N="3":
