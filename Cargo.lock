@@ -5751,7 +5751,6 @@ dependencies = [
  "derive_more",
  "image",
  "serde",
- "serde_json",
  "telegram-bot-helper",
  "thiserror 2.0.21",
  "tracing",
