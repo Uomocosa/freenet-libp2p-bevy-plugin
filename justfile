@@ -37,10 +37,6 @@ preview-stability N="5":
     echo "preview-stability recipe time: $((SECONDS - start))s (exit $status)"
     exit $status
 
-# List orphaned UI previews (pass `apply` to delete them).
-preview-clean *ARGS:
-    python3 -B scripts/preview_clean.py ui_preview {{ ARGS }}
-
 # Real, visual e2e: needs X + the freenet network + N lobby_room windows.
 e2e-discovery N="3":
     VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run --no-fail-fast --test lobby_room_discovery -E 'test(lobby_room_discovery)' --all-features --run-ignored all -- --nocapture
