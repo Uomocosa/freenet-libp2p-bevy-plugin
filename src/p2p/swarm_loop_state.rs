@@ -495,9 +495,7 @@ pub(crate) fn history_event(result: kad::QueryResult) -> Option<p2p::Libp2pEvent
             })
         }
         kad::QueryResult::GetRecord(Err(
-            kad::GetRecordError::NotFound { key, .. }
-            | kad::GetRecordError::QuorumFailed { key, .. }
-            | kad::GetRecordError::Timeout { key },
+            kad::GetRecordError::NotFound { key, .. } | kad::GetRecordError::Timeout { key },
         )) => Some(p2p::Libp2pEvent::HistoryRecordNotFound {
             id: p2p::RoomHistoryRecordKind::parse_history_record_key(&key)?,
         }),

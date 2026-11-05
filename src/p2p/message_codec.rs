@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use derive_more::Deref;
 use libp2p::StreamProtocol;
 use libp2p::request_response::Codec;
@@ -14,19 +13,18 @@ impl<Req, Resp> Default for MessageCodec<Req, Resp> {
     }
 }
 
-#[async_trait]
 impl<Req: p2p::Message, Resp: p2p::Message> Codec for MessageCodec<Req, Resp> {
     type Protocol = StreamProtocol;
     type Request = Req;
     type Response = Resp;
 
-    async fn read_request<R>(
+    async fn read_request<T>(
         &mut self,
         _: &StreamProtocol,
-        io: &mut R,
+        io: &mut T,
     ) -> std::io::Result<Self::Request>
     where
-        R: futures::AsyncRead + Unpin + Send,
+        T: futures::AsyncRead + Unpin + Send,
     {
         let mut buf = Vec::new();
         futures::AsyncReadExt::read_to_end(io, &mut buf).await?;
@@ -34,13 +32,13 @@ impl<Req: p2p::Message, Resp: p2p::Message> Codec for MessageCodec<Req, Resp> {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
 
-    async fn read_response<R>(
+    async fn read_response<T>(
         &mut self,
         _: &StreamProtocol,
-        io: &mut R,
+        io: &mut T,
     ) -> std::io::Result<Self::Response>
     where
-        R: futures::AsyncRead + Unpin + Send,
+        T: futures::AsyncRead + Unpin + Send,
     {
         let mut buf = Vec::new();
         futures::AsyncReadExt::read_to_end(io, &mut buf).await?;
@@ -48,14 +46,14 @@ impl<Req: p2p::Message, Resp: p2p::Message> Codec for MessageCodec<Req, Resp> {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
 
-    async fn write_request<W>(
+    async fn write_request<T>(
         &mut self,
         _: &StreamProtocol,
-        io: &mut W,
+        io: &mut T,
         req: Self::Request,
     ) -> std::io::Result<()>
     where
-        W: futures::AsyncWrite + Unpin + Send,
+        T: futures::AsyncWrite + Unpin + Send,
     {
         let bytes = bincode::serialize(&req)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
@@ -63,14 +61,14 @@ impl<Req: p2p::Message, Resp: p2p::Message> Codec for MessageCodec<Req, Resp> {
         futures::AsyncWriteExt::close(io).await
     }
 
-    async fn write_response<W>(
+    async fn write_response<T>(
         &mut self,
         _: &StreamProtocol,
-        io: &mut W,
+        io: &mut T,
         res: Self::Response,
     ) -> std::io::Result<()>
     where
-        W: futures::AsyncWrite + Unpin + Send,
+        T: futures::AsyncWrite + Unpin + Send,
     {
         let bytes = bincode::serialize(&res)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
