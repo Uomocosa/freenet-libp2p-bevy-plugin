@@ -277,16 +277,12 @@ mod tests {
     #[test]
     fn lobby_ui_png_preview() {
         let _markers: Option<(NameField, NewRoomButton, RoomColumn, JoinButton)> = None;
-        scene("lobby_ui", None)
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene("lobby_ui", None).run(&config()).expect("preview");
     }
 
     #[test]
     fn lobby_ui_scene_preview() {
-        scene("lobby_ui", None)
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene("lobby_ui", None).run(&config()).expect("preview");
     }
 
     #[test]
@@ -298,7 +294,7 @@ mod tests {
             apply: add_room,
         };
         scene("lobby_ui", Some(timeline))
-            .run(&config(), env!("CARGO_PKG_NAME"))
+            .run(&config())
             .expect("preview");
     }
 }

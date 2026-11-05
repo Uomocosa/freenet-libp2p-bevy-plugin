@@ -117,9 +117,7 @@ mod tests {
 
     #[test]
     fn spawn_member_panel_ui_png_preview() {
-        scene()
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene().run(&config()).expect("preview");
     }
 
     #[test]

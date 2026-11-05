@@ -151,9 +151,7 @@ mod tests {
 
     #[test]
     fn follow_brush_ui_png_preview() {
-        scene()
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene().run(&config()).expect("preview");
     }
 
     fn app_with_outline() -> App {

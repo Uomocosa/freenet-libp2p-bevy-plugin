@@ -276,9 +276,7 @@ mod tests {
 
     #[test]
     fn lobby_journey_ui_png_preview() {
-        scene(None)
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene(None).run(&config()).expect("preview");
     }
 
     #[test]
@@ -289,8 +287,6 @@ mod tests {
             fps: JOURNEY_FPS,
             apply: start_journey,
         };
-        scene(Some(timeline))
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene(Some(timeline)).run(&config()).expect("preview");
     }
 }

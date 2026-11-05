@@ -315,15 +315,11 @@ mod tests {
     fn overlay_ui_png_preview() {
         let _markers: Option<(RoomBar, PeerCard, RoomView)> = None;
         let _labels: Option<(RoomTitle, PeerCount, PeerList)> = None;
-        scene(None)
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene(None).run(&config()).expect("preview");
     }
 
     #[test]
     fn overlay_ui_scene_preview() {
-        scene(None)
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene(None).run(&config()).expect("preview");
     }
 }

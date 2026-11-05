@@ -130,9 +130,7 @@ mod tests {
 
     #[test]
     fn animate_door_ui_png_preview() {
-        scene(None)
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene(None).run(&config()).expect("preview");
     }
 
     #[test]
@@ -143,8 +141,6 @@ mod tests {
             fps: 30,
             apply: open_prompt,
         };
-        scene(Some(timeline))
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene(Some(timeline)).run(&config()).expect("preview");
     }
 }

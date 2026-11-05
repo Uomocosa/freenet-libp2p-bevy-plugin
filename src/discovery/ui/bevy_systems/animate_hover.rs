@@ -168,8 +168,6 @@ mod tests {
             fps: 30,
             apply: preview_noop,
         };
-        scene(Some(timeline))
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene(Some(timeline)).run(&config()).expect("preview");
     }
 }

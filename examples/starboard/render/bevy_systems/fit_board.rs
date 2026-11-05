@@ -91,9 +91,7 @@ mod tests {
 
     #[test]
     fn fit_board_ui_png_preview() {
-        scene()
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene().run(&config()).expect("preview");
     }
 
     #[test]

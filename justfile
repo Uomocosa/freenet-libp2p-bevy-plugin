@@ -25,7 +25,7 @@ test:
 resend-all-previews:
     LELE_PREVIEW_RESEND_ALL=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
 
-# Render every real UI preview in a dry run (no Telegram, no manifest
+# Render every real UI preview in a dry run (no Telegram, no .sent
 # write) and prove the pixel hashes are identical across all N runs.
 preview-stability N="5":
     #!/usr/bin/env bash
@@ -36,6 +36,10 @@ preview-stability N="5":
     python3 -B scripts/preview_stability.py ui_preview/preview-log.jsonl {{ N }} || status=$?
     echo "preview-stability recipe time: $((SECONDS - start))s (exit $status)"
     exit $status
+
+# List orphaned UI previews (pass `apply` to delete them).
+preview-clean *ARGS:
+    python3 -B scripts/preview_clean.py ui_preview {{ ARGS }}
 
 # Real, visual e2e: needs X + the freenet network + N lobby_room windows.
 e2e-discovery N="3":

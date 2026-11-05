@@ -142,8 +142,6 @@ mod tests {
 
     #[test]
     fn sync_board_visibility_ui_png_preview() {
-        scene()
-            .run(&config(), env!("CARGO_PKG_NAME"))
-            .expect("preview");
+        scene().run(&config()).expect("preview");
     }
 }

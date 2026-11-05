@@ -88,13 +88,10 @@ mod tests {
             }],
             timeline: None,
         }
-        .run(
-            &lele_bevy_preview::preview::Config {
-                out_dir: out,
-                ..Default::default()
-            },
-            env!("CARGO_PKG_NAME"),
-        )
+        .run(&lele_bevy_preview::preview::Config {
+            out_dir: out,
+            ..Default::default()
+        })
         .expect("preview");
     }
 }
