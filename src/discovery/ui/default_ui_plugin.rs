@@ -45,7 +45,7 @@ mod tests {
                     addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
                 })
                 .collect(),
-            is_lobby_attached: true,
+            is_lobby_fetched: true,
             ..Default::default()
         };
         for (name, room_size) in [("alpha", 8), ("beta", 4)] {

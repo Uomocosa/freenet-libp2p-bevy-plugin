@@ -8,6 +8,9 @@ mod ping;
 mod script_runner;
 mod ui;
 
+#[path = "../shared/script/step_timing.rs"]
+mod step_timing;
+
 use bevy::prelude::*;
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin};

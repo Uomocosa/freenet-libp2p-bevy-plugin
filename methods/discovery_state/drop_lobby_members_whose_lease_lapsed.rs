@@ -22,7 +22,7 @@ pub fn drop_lobby_members_whose_lease_lapsed(
         .map(|record| record.members.len())
         .sum();
     if state.lobby.len() != rooms_before || members_after != members_before {
-        vec![Output::Notify(discovery::Event::LobbyChanged)]
+        vec![Output::Notify(discovery::Event::LobbyUpdated)]
     } else {
         Vec::new()
     }
@@ -86,7 +86,7 @@ mod tests {
             drop_lobby_members_whose_lease_lapsed(&mut state, discovery::UnixTime::from(500));
         assert_eq!(
             dropped,
-            vec![Output::Notify(discovery::Event::LobbyChanged)]
+            vec![Output::Notify(discovery::Event::LobbyUpdated)]
         );
         assert!(state.lobby.is_empty());
         let outputs = state.handle_lobby(raw_lobby(), discovery::UnixTime::from(500));
@@ -138,7 +138,7 @@ mod tests {
         assert!(state.lobby.is_empty());
         assert_eq!(
             outputs,
-            vec![Output::Notify(discovery::Event::LobbyChanged)]
+            vec![Output::Notify(discovery::Event::LobbyUpdated)]
         );
     }
 }

@@ -3,7 +3,6 @@ use freenet_stdlib::client_api::{
 };
 
 use crate::discovery;
-use discovery::freenet::basic::constants;
 
 pub async fn node_status(
     state: &mut discovery::freenet::Client,
@@ -12,10 +11,7 @@ pub async fn node_status(
         config: NodeDiagnosticsConfig::basic_status(),
     }))?;
     let reply = state
-        .recv_reply(
-            discovery::FreenetRequestKind::QueryNodeStatus,
-            constants::REQUEST_TIMEOUT,
-        )
+        .recv_reply(discovery::freenet::RequestKind::QueryNodeStatus)
         .await?;
     let HostResponse::QueryResponse(QueryResponse::NodeDiagnostics(diagnostics)) = reply else {
         return Err(discovery::Error::UnexpectedResponse(format!("{reply:?}")));

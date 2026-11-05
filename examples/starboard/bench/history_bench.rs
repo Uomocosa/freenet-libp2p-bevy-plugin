@@ -97,13 +97,13 @@ pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
 
     let mut writer_events = writer
         .world()
-        .resource::<p2p::NetEventChannel>()
+        .resource::<p2p::Libp2pEventChannel>()
         .subscribe();
     let started = Instant::now();
     for command in commands {
         writer
             .world()
-            .resource::<p2p::NetCommandSender>()
+            .resource::<p2p::Libp2pCommandSender>()
             .send(command)
             .ok();
     }
@@ -113,13 +113,13 @@ pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
 
     let mut reader_events = reader
         .world()
-        .resource::<p2p::NetEventChannel>()
+        .resource::<p2p::Libp2pEventChannel>()
         .subscribe();
     let started = Instant::now();
     reader
         .world()
-        .resource::<p2p::NetCommandSender>()
-        .send(p2p::NetCommand::GetHistoryRecord {
+        .resource::<p2p::Libp2pCommandSender>()
+        .send(p2p::Libp2pCommand::GetHistoryRecord {
             id: p2p::RoomHistoryRecordKind::Manifest(prefix),
         })
         .ok();
@@ -176,8 +176,8 @@ pub fn history_markdown(reports: &[HistoryReport]) -> String {
 // needed helper: tells one peer's kademlia about the other, the way the lobby does
 fn seed_kad(app: &mut App, peer: &identity::Peer) {
     app.world()
-        .resource::<p2p::NetCommandSender>()
-        .send(p2p::NetCommand::AddKadPeer(peer.clone()))
+        .resource::<p2p::Libp2pCommandSender>()
+        .send(p2p::Libp2pCommand::AddKadPeer(peer.clone()))
         .ok();
 }
 
@@ -198,11 +198,11 @@ fn paint(app: &mut App, board: HistoryBoard) {
 }
 
 // needed helper: the plugin's own writer output for the writer's canvas
-fn write_commands(app: &mut App, prefix: &p2p::HistoryKeyPrefix) -> (u64, Vec<p2p::NetCommand>) {
+fn write_commands(app: &mut App, prefix: &p2p::HistoryKeyPrefix) -> (u64, Vec<p2p::Libp2pCommand>) {
     let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
     let snapshot = room_sync::RoomState::snapshot(&*canvas);
     let snapshot_bytes = bincode::serialize(&snapshot).map_or(0, |bytes| bytes.len());
-    let commands = p2p::NetCommand::merge_and_write_history_records(
+    let commands = p2p::Libp2pCommand::merge_and_write_history_records(
         &mut *canvas,
         prefix,
         None,
@@ -215,11 +215,11 @@ fn write_commands(app: &mut App, prefix: &p2p::HistoryKeyPrefix) -> (u64, Vec<p2
 }
 
 // needed helper: the total bytes and the chunk count of the write commands
-fn command_sizes(commands: &[p2p::NetCommand]) -> (u64, u32) {
+fn command_sizes(commands: &[p2p::Libp2pCommand]) -> (u64, u32) {
     let mut bytes = 0_u64;
     let mut chunks = 0_u32;
     for command in commands {
-        if let p2p::NetCommand::PutHistoryRecord { id, value, .. } = command
+        if let p2p::Libp2pCommand::PutHistoryRecord { id, value, .. } = command
             && matches!(id, p2p::RoomHistoryRecordKind::Chunk(_))
         {
             bytes = bytes.saturating_add(u64::try_from(value.len()).unwrap_or(0));
@@ -232,13 +232,13 @@ fn command_sizes(commands: &[p2p::NetCommand]) -> (u64, u32) {
 // needed helper: pumps the writer until it stored the manifest
 async fn wait_for_manifest(
     app: &mut App,
-    events: &mut tokio::sync::broadcast::Receiver<p2p::NetEvent>,
+    events: &mut tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>,
     started: Instant,
 ) -> Duration {
     for _ in 0..MAX_ROUNDS {
         app.update();
         while let Ok(event) = events.try_recv() {
-            if let p2p::NetEvent::HistoryRecordStored { id } = &event
+            if let p2p::Libp2pEvent::HistoryRecordStored { id } = &event
                 && matches!(id, p2p::RoomHistoryRecordKind::Manifest(_))
             {
                 return started.elapsed();
@@ -252,13 +252,13 @@ async fn wait_for_manifest(
 // needed helper: pumps the reader until the manifest arrived
 async fn wait_for_found(
     app: &mut App,
-    events: &mut tokio::sync::broadcast::Receiver<p2p::NetEvent>,
+    events: &mut tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>,
     started: Instant,
 ) -> Duration {
     for _ in 0..MAX_ROUNDS {
         app.update();
         while let Ok(event) = events.try_recv() {
-            if matches!(event, p2p::NetEvent::HistoryRecordFound { .. }) {
+            if matches!(event, p2p::Libp2pEvent::HistoryRecordFound { .. }) {
                 return started.elapsed();
             }
         }

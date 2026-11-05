@@ -13,7 +13,7 @@ pub fn handle_handshake(
     };
     let my_room = state.room.as_ref().map(|room| room.name.clone());
     if handshake.room.is_none() || handshake.room != my_room {
-        return state.drop_member(from);
+        return state.drop_member_who_left_room(from);
     }
     let mut peers = handshake.peers;
     peers.push(identity::Peer {
@@ -47,7 +47,7 @@ pub fn handle_handshake(
         members = room.members.len(),
         "discovery member joined"
     );
-    let mut outputs = vec![Output::Notify(discovery::Event::MembersChanged)];
+    let mut outputs = vec![Output::Notify(discovery::Event::RoomMembersUpdated)];
     outputs.extend(state.send_handshake(from));
     outputs
 }
@@ -70,7 +70,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
         state
     }
@@ -96,8 +96,8 @@ mod tests {
         assert!(matches!(
             outputs.as_slice(),
             [
-                Output::Notify(discovery::Event::MembersChanged),
-                Output::NetCommand(p2p::NetCommand::PeerExchange { .. }),
+                Output::Notify(discovery::Event::RoomMembersUpdated),
+                Output::Libp2pCommand(p2p::Libp2pCommand::PeerExchange { .. }),
             ]
         ));
         let left = bincode::serialize(&Handshake::default()).unwrap_or_default();

@@ -12,9 +12,18 @@ mod script;
 mod script_runner;
 mod status;
 
+#[path = "../shared/e2e_report/__basic__/structs.rs"]
+mod freenet_layer_result;
+#[path = "../shared/e2e_report/__basic__/resources.rs"]
+mod peer_run_result;
+#[path = "../shared/script/step_timing.rs"]
+mod step_timing;
+
 use bevy::prelude::*;
 use clap::Parser;
-use freenet_libp2p_bevy_plugin::{discovery, e2e_report, identity, p2p, plugin, room_sync};
+use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, room_sync};
+
+use crate::peer_run_result::PeerRunResult;
 
 #[tokio::main]
 async fn main() -> bevy::app::AppExit {
@@ -98,9 +107,9 @@ async fn main() -> bevy::app::AppExit {
         ),
     );
     if let Some(path) = args.result_json.clone() {
-        app.insert_resource(e2e_report::PeerRunResult {
+        app.insert_resource(PeerRunResult {
             username: args.username.clone(),
-            ..e2e_report::PeerRunResult::default()
+            ..PeerRunResult::default()
         });
         app.insert_resource(result::ResultJsonPath(path));
         app.add_systems(

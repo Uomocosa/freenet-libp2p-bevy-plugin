@@ -5,15 +5,15 @@ use crate::p2p;
 
 pub fn follow_room(
     mut events: MessageReader<discovery::Event>,
-    mut pending: ResMut<p2p::PendingNetCommands>,
+    mut pending: ResMut<p2p::PendingLibp2pCommands>,
 ) {
     for event in events.read() {
         match event {
             discovery::Event::Joined(room) => {
-                pending.push(p2p::NetCommand::SubscribeRoom { room: room.clone() });
+                pending.push(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() });
             }
             discovery::Event::Left(room) => {
-                pending.push(p2p::NetCommand::UnsubscribeRoom { room: room.clone() });
+                pending.push(p2p::Libp2pCommand::UnsubscribeRoom { room: room.clone() });
             }
             _ => {}
         }
@@ -33,7 +33,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_message::<discovery::Event>();
-        app.init_resource::<p2p::PendingNetCommands>();
+        app.init_resource::<p2p::PendingLibp2pCommands>();
         app.add_systems(Update, follow_room);
         app
     }
@@ -51,15 +51,19 @@ mod tests {
         let room = identity::RoomName::from("room-a");
         send(&mut app, discovery::Event::Joined(room.clone()));
         assert_eq!(
-            app.world().resource::<p2p::PendingNetCommands>().as_slice(),
-            [p2p::NetCommand::SubscribeRoom { room: room.clone() }]
+            app.world()
+                .resource::<p2p::PendingLibp2pCommands>()
+                .as_slice(),
+            [p2p::Libp2pCommand::SubscribeRoom { room: room.clone() }]
         );
         send(&mut app, discovery::Event::Left(room.clone()));
         assert_eq!(
-            app.world().resource::<p2p::PendingNetCommands>().as_slice(),
+            app.world()
+                .resource::<p2p::PendingLibp2pCommands>()
+                .as_slice(),
             [
-                p2p::NetCommand::SubscribeRoom { room: room.clone() },
-                p2p::NetCommand::UnsubscribeRoom { room },
+                p2p::Libp2pCommand::SubscribeRoom { room: room.clone() },
+                p2p::Libp2pCommand::UnsubscribeRoom { room },
             ]
         );
     }
@@ -71,6 +75,10 @@ mod tests {
             &mut app,
             discovery::Event::RoomReady(identity::RoomName::from("room-a")),
         );
-        assert!(app.world().resource::<p2p::PendingNetCommands>().is_empty());
+        assert!(
+            app.world()
+                .resource::<p2p::PendingLibp2pCommands>()
+                .is_empty()
+        );
     }
 }

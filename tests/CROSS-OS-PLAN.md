@@ -38,7 +38,7 @@ host our own relay — that would defeat the purpose of Freenet.
   (gateway, time to join network), libp2p connection kind per peer (tcp/quic/hole-punched/none),
   per-step timings, errors, exit code.
 - **Checker.** Reads every machine's `result.json` + logs and prints one table per scenario:
-  `expected | actual | PASS/FAIL`. The bin `e2e-check --results-dir <dir> --peer <name>... --expect converge --expect min-members:N --expect may-crash:<user> --expect join-must-fail:<user>` does this.
+  `expected | actual | PASS/FAIL`. The example `cargo run --example e2e_check -- --results-dir <dir> --peer <name>... --expect converge --expect min-members:N --expect may-crash:<user> --expect join-must-fail:<user>` does this.
 - **Logs.** Each job uploads `.local-run/<scenario>/` (game logs, Freenet node log,
   `result.json`, video). Read with `gh run download <run-id>`.
 
@@ -84,7 +84,7 @@ Jobs:
       (unit → headless multi-App → local e2e S4a/S4b/S4c). All green on Linux first
       (2026-10-29: fast 398 passed; S4a/S4b/S4c PASS on mainnet, finding 7 fixed).
 - [x] 3. Ship Freenet with the game (X3) (2026-10-29: in-process node; --freenet-node-dir).
-- [x] 4. Step script, `result.json`, checker, two-layer connectivity report (2026-10-29: step script from Part C; result.json via --result-json; e2e-check bin; connection kind = /p2p-circuit -> relayed, else quic/tcp; hole-punched = relayed then direct).
+- [x] 4. Step script, `result.json`, checker, two-layer connectivity report (2026-10-29: step script from Part C; result.json via --result-json; e2e-check example; connection kind = /p2p-circuit -> relayed, else quic/tcp; hole-punched = relayed then direct).
 5. S1–S7 green on Linux alone.
    - 2026-10-29 live: 8/9 green — S1 219s, S2 142s, S3 86s, S4a 199s, S4b 236s, S4c 48s, S6 163s, S7 332s; S5 FAILS: canvases diverge when both peers paint right after a join (anti-entropy did not repair). Headless repro: examples/starboard/app/starboard_plugin.rs two_apps_painting_the_same_cells_right_after_joining_converge. Root cause: concurrent dialing of a peer's addresses created short-lived duplicate connections; gossipsub's one-time subscription exchange rode a closed one, so the joiner never learned the creator's room topics (312x NoPeersSubscribedToTopic live). Fix: DIAL_CONCURRENCY_FACTOR = 1 in dial_peer.
 6. `ci-min` profile + Windows build-and-bundle job.

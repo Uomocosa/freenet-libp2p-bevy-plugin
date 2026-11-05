@@ -37,7 +37,7 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase,
                 members: discovery::Members::new(),
-                entry: discovery::RoomEntry::Created,
+                how_entered: discovery::HowRoomWasEntered::Created,
             }),
             ..discovery::Status::default()
         }
@@ -77,7 +77,7 @@ mod tests {
                 id: identity::FreenetPeerId::from("gateway"),
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
             }],
-            is_lobby_attached: true,
+            is_lobby_fetched: true,
             ..status_with(discovery::JoinPhase::Ready)
         };
         status.lobby.insert(

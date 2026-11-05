@@ -30,10 +30,12 @@ mod tests {
     fn test_usage() {
         let mut c = Commands::<()>::default();
         assert!(c.is_empty());
-        c.push(p2p::Command::Net(p2p::NetCommand::Dial(identity::Peer {
-            id: identity::PeerId::from("p"),
-            addrs: vec![],
-        })));
+        c.push(p2p::Command::Net(p2p::Libp2pCommand::Dial(
+            identity::Peer {
+                id: identity::PeerId::from("p"),
+                addrs: vec![],
+            },
+        )));
         assert_eq!(c.take_all().len(), 1);
         assert!(c.is_empty());
     }

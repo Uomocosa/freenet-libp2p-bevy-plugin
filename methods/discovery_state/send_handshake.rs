@@ -6,7 +6,7 @@ use discovery::state_machine::{DiscoveryState, Output};
 #[must_use]
 pub fn send_handshake(state: &DiscoveryState, peer: &identity::PeerId) -> Vec<Output> {
     let data = bincode::serialize(&state.handshake()).unwrap_or_default();
-    vec![Output::NetCommand(p2p::NetCommand::PeerExchange {
+    vec![Output::Libp2pCommand(p2p::Libp2pCommand::PeerExchange {
         peer_id: peer.clone(),
         data,
     })]
@@ -29,7 +29,7 @@ mod tests {
         let outputs = send_handshake(&state, &identity::PeerId::from("a"));
         assert!(matches!(
             outputs.as_slice(),
-            [Output::NetCommand(p2p::NetCommand::PeerExchange { peer_id, .. })] if peer_id.as_str() == "a"
+            [Output::Libp2pCommand(p2p::Libp2pCommand::PeerExchange { peer_id, .. })] if peer_id.as_str() == "a"
         ));
     }
 }

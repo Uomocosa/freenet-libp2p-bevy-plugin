@@ -59,9 +59,13 @@ pub async fn run_scenario(
             .size_index = starboard::bench::BENCH_SIZE_INDEX;
     }
     let peer_ids: Vec<identity::PeerId> = peers.iter().map(|peer| peer.id.clone()).collect();
-    let mut taps: Vec<broadcast::Receiver<p2p::NetEvent>> = apps
+    let mut taps: Vec<broadcast::Receiver<p2p::Libp2pEvent>> = apps
         .iter()
-        .map(|app| app.world().resource::<p2p::NetEventChannel>().subscribe())
+        .map(|app| {
+            app.world()
+                .resource::<p2p::Libp2pEventChannel>()
+                .subscribe()
+        })
         .collect();
 
     let warmup_frames = config
@@ -187,7 +191,7 @@ pub async fn run_scenario(
 // needed helper: paint one frame on every peer, draining the taps after each update
 fn paint_frame(
     apps: &mut [App],
-    taps: &mut [broadcast::Receiver<p2p::NetEvent>],
+    taps: &mut [broadcast::Receiver<p2p::Libp2pEvent>],
     topic: &identity::Topic,
     peer_ids: &[identity::PeerId],
     peer_count: usize,
@@ -207,7 +211,7 @@ fn paint_frame(
 
 // needed helper: one round of tap draining, recording bytes, latency samples and arrivals
 fn drain_taps(
-    taps: &mut [broadcast::Receiver<p2p::NetEvent>],
+    taps: &mut [broadcast::Receiver<p2p::Libp2pEvent>],
     topic: &identity::Topic,
     peer_ids: &[identity::PeerId],
     tally: &mut TapTally,
@@ -216,7 +220,7 @@ fn drain_taps(
     for (receiver, tap) in taps.iter_mut().enumerate() {
         while let Ok(event) = tap.try_recv() {
             match event {
-                p2p::NetEvent::Gossip {
+                p2p::Libp2pEvent::Gossip {
                     topic: event_topic,
                     from,
                     data,
@@ -238,8 +242,8 @@ fn drain_taps(
                         }
                     }
                 }
-                p2p::NetEvent::SnapshotPart { from, data, .. }
-                | p2p::NetEvent::ReplicaSlice { from, data, .. } => {
+                p2p::Libp2pEvent::SnapshotPart { from, data, .. }
+                | p2p::Libp2pEvent::ReplicaSlice { from, data, .. } => {
                     count_bytes(peer_ids, &mut tally.received_bytes, &from, data.len());
                 }
                 _ => {}

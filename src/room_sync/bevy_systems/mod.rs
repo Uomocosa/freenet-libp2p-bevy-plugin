@@ -1,8 +1,8 @@
 mod drive;
 pub use drive::drive;
 
-mod net_events;
-pub use net_events::NetEvents;
+mod libp2p_events;
+pub use libp2p_events::Libp2pEvents;
 
 mod publish_slice_content_hashes;
 pub use publish_slice_content_hashes::publish_slice_content_hashes;

@@ -12,11 +12,11 @@ pub enum Command {
 
 #[derive(Message, Debug, Clone, PartialEq, Eq)]
 pub enum Event {
-    LobbyChanged,
+    LobbyUpdated,
     Joined(identity::RoomName),
     RoomReady(identity::RoomName),
     Left(identity::RoomName),
-    MembersChanged,
+    RoomMembersUpdated,
     RoomGone(identity::RoomName),
     HistoryUnavailable(identity::RoomName),
 }

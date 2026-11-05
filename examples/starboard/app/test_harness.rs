@@ -59,7 +59,7 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
             created_at: discovery::UnixTime::from(1),
             phase: discovery::JoinPhase::Ready,
             members: room_members,
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         }),
         connected,
         ..discovery::Status::default()
@@ -104,10 +104,13 @@ pub fn wait_ready(app: &mut App) -> identity::Peer {
 }
 
 pub fn dial(app: &mut App, target: &identity::Peer) {
-    let mut events = app.world().resource::<p2p::NetEventChannel>().subscribe();
+    let mut events = app
+        .world()
+        .resource::<p2p::Libp2pEventChannel>()
+        .subscribe();
     app.world()
-        .resource::<p2p::NetCommandSender>()
-        .send(p2p::NetCommand::Dial(dialable(target)))
+        .resource::<p2p::Libp2pCommandSender>()
+        .send(p2p::Libp2pCommand::Dial(dialable(target)))
         .expect("dial");
     wait_connected(app, &mut events, &target.id);
 }
@@ -115,13 +118,13 @@ pub fn dial(app: &mut App, target: &identity::Peer) {
 // needed helper: pump the app until the swarm reports the peer as connected
 fn wait_connected(
     app: &mut App,
-    events: &mut tokio::sync::broadcast::Receiver<p2p::NetEvent>,
+    events: &mut tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>,
     peer: &identity::PeerId,
 ) {
     for _ in 0..MAX_ROUNDS {
         app.update();
         while let Ok(event) = events.try_recv() {
-            if let p2p::NetEvent::PeerConnected(id) = event
+            if let p2p::Libp2pEvent::PeerConnected(id) = event
                 && &id == peer
             {
                 return;

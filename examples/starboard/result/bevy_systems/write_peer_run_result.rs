@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::e2e_report;
 
+use crate::peer_run_result::PeerRunResult;
 use crate::result::ResultJsonPath;
 
 pub fn write_peer_run_result(
     mut exits: MessageReader<AppExit>,
-    mut result: ResMut<e2e_report::PeerRunResult>,
+    mut result: ResMut<PeerRunResult>,
     path: Res<ResultJsonPath>,
 ) {
     let path = path.into_inner();
@@ -37,9 +37,9 @@ pub fn write_peer_run_result(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::e2e_report;
 
     use super::write_peer_run_result;
+    use crate::peer_run_result::PeerRunResult;
     use crate::result::ResultJsonPath;
 
     #[test]
@@ -48,16 +48,16 @@ mod tests {
         let path = dir.path().join("p1").join("result.json");
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(e2e_report::PeerRunResult {
+        app.insert_resource(PeerRunResult {
             username: "p1".to_string(),
-            ..e2e_report::PeerRunResult::default()
+            ..PeerRunResult::default()
         });
         app.insert_resource(ResultJsonPath(path.clone()));
         app.add_systems(Last, write_peer_run_result);
         app.world_mut().write_message(AppExit::Success);
         app.update();
         let bytes = std::fs::read(&path).expect("result.json");
-        let back: e2e_report::PeerRunResult = serde_json::from_slice(&bytes).expect("decode");
+        let back: PeerRunResult = serde_json::from_slice(&bytes).expect("decode");
         assert_eq!(back.username, "p1");
         assert_eq!(back.exit_code, 0);
     }

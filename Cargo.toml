@@ -9,9 +9,9 @@ license = "MIT OR Apache-2.0"
 name = "new-game-id"
 path = "src/bin/new_game_id.rs"
 
-[[bin]]
-name = "e2e-check"
-path = "src/bin/e2e_check/main.rs"
+[[example]]
+name = "e2e_check"
+path = "examples/e2e_check/main.rs"
 required-features = ["e2e"]
 
 [[example]]

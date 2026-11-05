@@ -12,7 +12,7 @@ pub fn write_ops<Replica: room_sync::RoomState>(
     status: Option<Res<discovery::Status>>,
     game: Res<room_sync::SyncGame>,
     mut room: ResMut<Replica>,
-    mut pending: ResMut<p2p::PendingNetCommands>,
+    mut pending: ResMut<p2p::PendingLibp2pCommands>,
 ) {
     let ready = ready.into_inner();
     let status = status.map(Res::into_inner);
@@ -42,7 +42,7 @@ pub fn write_ops<Replica: room_sync::RoomState>(
         let Ok(data) = bincode::serialize(&message) else {
             continue;
         };
-        pending.push(p2p::NetCommand::Publish {
+        pending.push(p2p::Libp2pCommand::Publish {
             topic: topic.clone(),
             data,
         });
@@ -114,7 +114,7 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
-                entry: discovery::RoomEntry::Created,
+                how_entered: discovery::HowRoomWasEntered::Created,
             }),
             ..discovery::Status::default()
         }

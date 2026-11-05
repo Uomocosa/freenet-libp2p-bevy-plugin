@@ -9,7 +9,7 @@ pub fn handle_kademlia_query_result<Payload: p2p::Message>(
     let Some(event) = p2p::SwarmLoopState::<Payload>::history_event(result) else {
         return;
     };
-    state.event_tx.send(p2p::Event::Net(event)).ok();
+    state.event_tx.send(p2p::Event::Libp2p(event)).ok();
 }
 
 #[cfg(test)]
@@ -42,10 +42,10 @@ mod tests {
         state: &mut p2p::SwarmLoopState<u32>,
         rx: &mut tokio::sync::mpsc::UnboundedReceiver<p2p::Event<u32>>,
         result: kad::QueryResult,
-    ) -> Option<p2p::NetEvent> {
+    ) -> Option<p2p::Libp2pEvent> {
         state.handle_kademlia_query_result(result);
         match rx.try_recv() {
-            Ok(p2p::Event::Net(event)) => Some(event),
+            Ok(p2p::Event::Libp2p(event)) => Some(event),
             _ => None,
         }
     }
@@ -55,7 +55,7 @@ mod tests {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         assert_eq!(
             next_event(&mut state, &mut rx, found(chunk().history_record_key())),
-            Some(p2p::NetEvent::HistoryRecordFound {
+            Some(p2p::Libp2pEvent::HistoryRecordFound {
                 id: chunk(),
                 value: vec![1, 2, 3]
             })
@@ -71,11 +71,11 @@ mod tests {
         let stored = kad::QueryResult::PutRecord(Ok(kad::PutRecordOk { key }));
         assert_eq!(
             next_event(&mut state, &mut rx, missing),
-            Some(p2p::NetEvent::HistoryRecordNotFound { id: chunk() })
+            Some(p2p::Libp2pEvent::HistoryRecordNotFound { id: chunk() })
         );
         assert_eq!(
             next_event(&mut state, &mut rx, stored),
-            Some(p2p::NetEvent::HistoryRecordStored { id: chunk() })
+            Some(p2p::Libp2pEvent::HistoryRecordStored { id: chunk() })
         );
     }
 

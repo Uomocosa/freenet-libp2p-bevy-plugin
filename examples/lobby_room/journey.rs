@@ -134,7 +134,7 @@ mod tests {
                         created_at: discovery::UnixTime::from(0),
                         phase: discovery::JoinPhase::Ready,
                         members: discovery::Members::new(),
-                        entry: discovery::RoomEntry::Created,
+                        how_entered: discovery::HowRoomWasEntered::Created,
                     });
                 }
                 discovery::Command::Leave => status.room = None,
@@ -151,7 +151,7 @@ mod tests {
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
             })
             .collect();
-        status.is_lobby_attached = true;
+        status.is_lobby_fetched = true;
     }
 
     fn list_lobby(world: &mut World) {
@@ -219,7 +219,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
         for index in 0..PEERS.len() {
             add_peer(world, index);

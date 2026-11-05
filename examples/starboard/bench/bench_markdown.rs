@@ -74,7 +74,7 @@ pub fn bench_markdown(
     out.push_str("- Byte counts are gossipsub payloads (ops, anti-entropy announcements and repair\n  frames). Transport framing, gossipsub metadata and identify/kad/ping are excluded.\n");
     out.push_str("- The anti-entropy announcement is 12 bytes per touched tile, so it grows with the\n  painted area rather than with the canvas (1024 tiles fully painted would be ~12 KiB).\n");
     out.push_str("- Dropped means \"never arrived as a gossip op\": repair delivers a slice instead, so\n  a dropped op still converges.\n");
-    out.push_str("- The tap drains every ~1 ms; the `NetEventChannel` holds 1024 events, so a lagging\n  tap would inflate the dropped rate.\n");
+    out.push_str("- The tap drains every ~1 ms; the `Libp2pEventChannel` holds 1024 events, so a lagging\n  tap would inflate the dropped rate.\n");
     out.push_str("- The 4 MiB GPU texture re-upload while painting (B4's open issue) needs a render\n  world; headless only the CPU repaint above is measurable.\n");
     out
 }

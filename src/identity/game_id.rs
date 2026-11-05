@@ -7,7 +7,7 @@ pub struct GameId(pub String);
 
 impl GameId {
     #[must_use]
-    pub fn new_game_id() -> Self {
+    pub fn generate_new_random_game_id() -> Self {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())

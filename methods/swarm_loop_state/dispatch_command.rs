@@ -6,8 +6,8 @@ pub fn dispatch_command<Payload: p2p::Message>(
     cmd: Option<p2p::Command<Payload>>,
 ) -> bool {
     match cmd {
-        Some(p2p::Command::Net(net)) => {
-            state.dispatch_net_command(net);
+        Some(p2p::Command::Net(libp2p_command)) => {
+            state.dispatch_libp2p_command(libp2p_command);
         }
         Some(p2p::Command::Send { peer_id, payload }) => {
             if let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() {
@@ -43,7 +43,7 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let (mut state, _rx) = p2p::SwarmLoopState::<Vec<u8>>::for_test();
-        let subscribe = p2p::Command::Net(p2p::NetCommand::Subscribe {
+        let subscribe = p2p::Command::Net(p2p::Libp2pCommand::Subscribe {
             topic: identity::Topic::from("lobby/topic"),
         });
         assert!(dispatch_command(&mut state, &config(), Some(subscribe)));
@@ -55,7 +55,7 @@ mod tests {
     async fn subscribe_room_registers_its_topic_and_joins_it() {
         let (mut state, _rx) = p2p::SwarmLoopState::<Vec<u8>>::for_test();
         let room = identity::RoomName::from("room-a");
-        let command = p2p::Command::Net(p2p::NetCommand::SubscribeRoom { room: room.clone() });
+        let command = p2p::Command::Net(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() });
         assert!(dispatch_command(&mut state, &config(), Some(command)));
         let topic = libp2p::gossipsub::IdentTopic::new(
             identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),

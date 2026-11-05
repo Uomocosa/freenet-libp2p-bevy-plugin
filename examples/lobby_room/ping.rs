@@ -102,7 +102,7 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members,
-                entry: discovery::RoomEntry::Created,
+                how_entered: discovery::HowRoomWasEntered::Created,
             }),
             connected: [identity::PeerId::from("peer-b")].into_iter().collect(),
             ..discovery::Status::default()

@@ -10,12 +10,12 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
     plugin: &room_sync::SyncPlugin<Replica>,
     app: &mut App,
 ) {
-    let Some(net_events) = app
+    let Some(libp2p_events) = app
         .world()
-        .get_resource::<p2p::NetEventChannel>()
-        .map(p2p::NetEventChannel::subscribe)
+        .get_resource::<p2p::Libp2pEventChannel>()
+        .map(p2p::Libp2pEventChannel::subscribe)
     else {
-        tracing::error!(target: "room_sync", "room_sync: p2p NetEventChannel missing");
+        tracing::error!(target: "room_sync", "room_sync: p2p Libp2pEventChannel missing");
         return;
     };
     app.init_resource::<Replica>();
@@ -60,8 +60,8 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
         );
     }
     app.insert_resource(room_sync::SyncGame(plugin.game.clone()));
-    app.insert_resource(room_sync::bevy_systems::NetEvents {
-        receiver: Mutex::new(net_events),
+    app.insert_resource(room_sync::bevy_systems::Libp2pEvents {
+        receiver: Mutex::new(libp2p_events),
     });
     app.add_systems(
         Update,

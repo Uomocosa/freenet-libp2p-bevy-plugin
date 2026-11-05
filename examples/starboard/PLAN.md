@@ -106,7 +106,7 @@ first**. Loading a skill is cheap; skipping one is a correctness bug.
 - `src/discovery/`: Freenet lobby + room state machine (`state_machine/`), `Room`
   struct in `src/discovery/__basic__/structs.rs` (`room_size`, `members`),
   `UnixTime` in `src/discovery/unix_time.rs`, discovery `Command::{Create,Join,Leave}` /
-  `Event::{LobbyChanged,Joined,Left,MembersChanged}`.
+  `Event::{LobbyUpdated,Joined,Left,RoomMembersUpdated}`.
 - `contract/lobby/`: Freenet lobby contract (own workspace; built to wasm with `just contract`).
 - `src/plugin/config.rs`: `Config<T> { mode, mdns, marker }`.
 - `examples/lobby_room/`: reference example using the default lobby UI.

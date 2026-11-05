@@ -15,13 +15,13 @@ pub async fn connect_retry(
     loop {
         tries = tries.saturating_add(1);
         let current = target.borrow().clone();
-        let seed = discovery::freenet::Config::initial_lobby(
+        let seed = discovery::freenet::Config::seed_lobby_for_deploy(
             &state.me,
             state.discovery.room_size,
             current.first(),
         );
         let result = client
-            .attach(
+            .fetch_or_deploy_lobby(
                 wasm,
                 &state.params,
                 state.discovery.deploy_policy,
@@ -46,7 +46,7 @@ pub async fn connect_retry(
                 tokio::time::sleep(constants::MISSING_RETRY).await;
             }
             Err(e) => {
-                warn!(target: "discovery", tries = tries, error = ?e, "lobby attach failed, retrying");
+                warn!(target: "discovery", tries = tries, error = ?e, "lobby fetch or deploy failed, retrying");
                 tokio::time::sleep(constants::CONNECT_RETRY).await;
             }
         }

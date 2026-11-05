@@ -45,10 +45,14 @@ mod tests {
         assert!(app.world().get_resource::<p2p::Events<Dummy>>().is_some());
         assert!(
             app.world()
-                .get_resource::<p2p::PendingNetCommands>()
+                .get_resource::<p2p::PendingLibp2pCommands>()
                 .is_some()
         );
-        assert!(app.world().get_resource::<p2p::NetEventChannel>().is_some());
+        assert!(
+            app.world()
+                .get_resource::<p2p::Libp2pEventChannel>()
+                .is_some()
+        );
         assert!(app.world().get_resource::<p2p::ReadyChannel>().is_some());
     }
 }

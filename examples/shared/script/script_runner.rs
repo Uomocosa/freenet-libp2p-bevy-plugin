@@ -2,9 +2,8 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use freenet_libp2p_bevy_plugin::e2e_report::StepTiming;
-
 use crate::shared::script::timed_script_step::TimedScriptStep;
+use crate::step_timing::StepTiming;
 
 /// The exit code of a peer whose script failed: a wait missed its deadline or a step failed.
 pub const SCRIPT_FAILED_EXIT_CODE: u8 = 3;

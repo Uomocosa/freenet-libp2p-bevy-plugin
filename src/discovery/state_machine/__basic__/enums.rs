@@ -5,7 +5,7 @@ use crate::p2p;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input {
     Command(discovery::Command),
-    NetEvent(p2p::NetEvent),
+    Libp2pEvent(p2p::Libp2pEvent),
     LobbyUpdated(discovery::Lobby),
     FreenetPeers(Vec<identity::FreenetPeer>),
     OwnAddrsChanged(Vec<identity::PeerAddr>),
@@ -15,5 +15,5 @@ pub enum Input {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Output {
     Notify(discovery::Event),
-    NetCommand(p2p::NetCommand),
+    Libp2pCommand(p2p::Libp2pCommand),
 }

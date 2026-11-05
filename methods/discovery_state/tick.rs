@@ -12,10 +12,13 @@ pub fn tick(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output>
         outputs.extend(state.broadcast_handshake());
         state.last_handshake_at = Some(now);
     }
-    outputs.extend(state.prune_members(now));
+    state.drop_expired_candidates(now);
+    outputs.extend(state.drop_members_past_grace(now));
     outputs.extend(state.drop_lobby_members_whose_lease_lapsed(now));
     outputs.extend(state.wait_for_contract_self_heal(now));
-    outputs.push(Output::NetCommand(p2p::NetCommand::MeasureHistoryStore));
+    outputs.push(Output::Libp2pCommand(
+        p2p::Libp2pCommand::MeasureHistoryStore,
+    ));
     outputs
 }
 
@@ -39,7 +42,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
         let mut outputs = tick(&mut state, discovery::UnixTime::from(100));
         outputs.extend(tick(&mut state, discovery::UnixTime::from(101)));
@@ -51,8 +54,8 @@ mod tests {
             .iter()
             .filter(|output| {
                 **output
-                    == discovery::state_machine::Output::NetCommand(
-                        p2p::NetCommand::MeasureHistoryStore,
+                    == discovery::state_machine::Output::Libp2pCommand(
+                        p2p::Libp2pCommand::MeasureHistoryStore,
                     )
             })
             .count();

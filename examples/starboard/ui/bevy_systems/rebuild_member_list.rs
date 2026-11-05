@@ -110,7 +110,7 @@ mod tests {
                 created_at: discovery::UnixTime::from(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
-                entry: discovery::RoomEntry::Created,
+                how_entered: discovery::HowRoomWasEntered::Created,
             }),
             ..discovery::Status::default()
         }

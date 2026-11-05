@@ -13,16 +13,16 @@ pub fn perform<Replica: room_sync::RoomState>(
     clock: room_sync::LamportClock,
     per_room_bytes: p2p::HistoryByteCount,
     record_ttl: Duration,
-    pending: &mut p2p::PendingNetCommands,
+    pending: &mut p2p::PendingLibp2pCommands,
     command_sender: Option<&discovery::CommandSender>,
     join_error: &mut Option<ResMut<discovery::ui::JoinError>>,
     game: &identity::GameId,
 ) {
-    use p2p::NetCommand;
+    use p2p::Libp2pCommand;
     use room_sync::state_machine::Output;
     match output {
         Output::FetchSnapshotPartFromRoomMember { peer, room, part } => {
-            pending.push(NetCommand::FetchSnapshot {
+            pending.push(Libp2pCommand::FetchSnapshot {
                 peer_id: peer,
                 room,
                 part,
@@ -35,7 +35,7 @@ pub fn perform<Replica: room_sync::RoomState>(
         } => {
             let frame =
                 room_sync::bevy_systems::SyncState::<Replica::Op>::snapshot_frame(room, name, part);
-            pending.push(NetCommand::RespondSnapshot { id, frame });
+            pending.push(Libp2pCommand::RespondSnapshot { id, frame });
         }
         Output::Merge { bytes } => {
             if let Ok(snapshot) = bincode::deserialize::<Replica::Snapshot>(&bytes) {
@@ -43,13 +43,13 @@ pub fn perform<Replica: room_sync::RoomState>(
             }
         }
         Output::Apply { meta, op } => room.apply(meta, &op),
-        Output::GetHistoryRecord { id } => pending.push(NetCommand::GetHistoryRecord { id }),
+        Output::GetHistoryRecord { id } => pending.push(Libp2pCommand::GetHistoryRecord { id }),
         Output::MergeAndWriteHistory {
             prefix,
             stored_manifest,
             stored_snapshot,
         } => {
-            pending.extend(p2p::NetCommand::merge_and_write_history_records(
+            pending.extend(p2p::Libp2pCommand::merge_and_write_history_records(
                 room,
                 &prefix,
                 stored_manifest.as_ref(),
@@ -86,14 +86,14 @@ pub fn perform<Replica: room_sync::RoomState>(
                     hashes,
                 };
             if let Ok(data) = bincode::serialize(&msg) {
-                pending.push(NetCommand::Publish {
+                pending.push(Libp2pCommand::Publish {
                     topic: identity::Topic::from_room_sync(game, &room),
                     data,
                 });
             }
         }
         Output::FetchReplicaSlice { peer, room, index } => {
-            pending.push(NetCommand::FetchReplicaSlice {
+            pending.push(Libp2pCommand::FetchReplicaSlice {
                 peer_id: peer,
                 room,
                 index,
@@ -112,7 +112,7 @@ pub fn perform<Replica: room_sync::RoomState>(
                     data,
                 },
             );
-            pending.push(NetCommand::RespondSnapshot { id, frame });
+            pending.push(Libp2pCommand::RespondSnapshot { id, frame });
         }
     }
 }
@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut room = MockReplica;
-        let mut pending = p2p::PendingNetCommands::default();
+        let mut pending = p2p::PendingLibp2pCommands::default();
         let game = identity::GameId::from("game");
         perform(
             room_sync::state_machine::Output::GetHistoryRecord {

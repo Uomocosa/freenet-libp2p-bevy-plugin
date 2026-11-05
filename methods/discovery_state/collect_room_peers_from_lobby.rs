@@ -23,7 +23,7 @@ pub fn collect_room_peers_from_lobby(state: &mut DiscoveryState) -> Vec<Output> 
         .collect();
     let mut outputs = Vec::new();
     for (peer, room_member) in seeds {
-        outputs.push(Output::NetCommand(p2p::NetCommand::AddKadPeer(
+        outputs.push(Output::Libp2pCommand(p2p::Libp2pCommand::AddKadPeer(
             identity::Peer {
                 id: peer.clone(),
                 addrs: room_member.peer.addrs.clone(),
@@ -71,7 +71,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
         let in_room = discovery::RoomMember {
             peer: identity::Peer {
@@ -110,11 +110,11 @@ mod tests {
         assert_eq!(
             outputs,
             vec![
-                Output::NetCommand(p2p::NetCommand::AddKadPeer(identity::Peer {
+                Output::Libp2pCommand(p2p::Libp2pCommand::AddKadPeer(identity::Peer {
                     id: identity::PeerId::from("a"),
                     addrs: vec![identity::PeerAddr::from("/ip4/1")],
                 })),
-                Output::NetCommand(p2p::NetCommand::AddKadPeer(identity::Peer {
+                Output::Libp2pCommand(p2p::Libp2pCommand::AddKadPeer(identity::Peer {
                     id: identity::PeerId::from("holder"),
                     addrs: vec![identity::PeerAddr::from("/ip4/2")],
                 })),

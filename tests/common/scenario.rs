@@ -51,7 +51,7 @@ pub struct Scenario {
     pub peers: Vec<PeerRun>,
     pub cap: Duration,
     pub on_finish: Option<OnFinish>,
-    pub expectation: Option<freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation>,
+    pub expectation: Option<super::scenario_expectation::ScenarioExpectation>,
 }
 
 impl Scenario {
@@ -225,14 +225,12 @@ impl Scenario {
             peers: runs,
             cap: Duration::from_mins(25),
             on_finish: Some(was_history_written_and_restored),
-            expectation: Some(
-                freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
-                    canvas_converges: true,
-                    min_members: 1,
-                    may_crash: std::collections::BTreeSet::new(),
-                    join_must_fail: std::collections::BTreeSet::new(),
-                },
-            ),
+            expectation: Some(super::scenario_expectation::ScenarioExpectation {
+                canvas_converges: true,
+                min_members: 1,
+                may_crash: std::collections::BTreeSet::new(),
+                join_must_fail: std::collections::BTreeSet::new(),
+            }),
             ..Self::starboard_base()
         }
     }
@@ -274,14 +272,12 @@ impl Scenario {
             peers: runs,
             cap: Duration::from_mins(25),
             on_finish: None,
-            expectation: Some(
-                freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
-                    canvas_converges: false,
-                    min_members: 1,
-                    may_crash,
-                    join_must_fail: std::iter::once(last).collect(),
-                },
-            ),
+            expectation: Some(super::scenario_expectation::ScenarioExpectation {
+                canvas_converges: false,
+                min_members: 1,
+                may_crash,
+                join_must_fail: std::iter::once(last).collect(),
+            }),
             ..Self::starboard_base()
         }
     }
@@ -315,14 +311,12 @@ impl Scenario {
             peers: runs,
             cap: Duration::from_mins(20),
             on_finish: None,
-            expectation: Some(
-                freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
-                    canvas_converges: false,
-                    min_members: 1,
-                    may_crash,
-                    join_must_fail: std::iter::once(last).collect(),
-                },
-            ),
+            expectation: Some(super::scenario_expectation::ScenarioExpectation {
+                canvas_converges: false,
+                min_members: 1,
+                may_crash,
+                join_must_fail: std::iter::once(last).collect(),
+            }),
             ..Self::starboard_base()
         }
     }
@@ -469,17 +463,15 @@ impl Scenario {
             peers: runs,
             cap: Duration::from_mins(25),
             on_finish: None,
-            expectation: Some(
-                freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
-                    canvas_converges: false,
-                    min_members: 0,
-                    may_crash,
-                    join_must_fail: std::collections::BTreeSet::from([
-                        "p2".to_string(),
-                        "p3".to_string(),
-                    ]),
-                },
-            ),
+            expectation: Some(super::scenario_expectation::ScenarioExpectation {
+                canvas_converges: false,
+                min_members: 0,
+                may_crash,
+                join_must_fail: std::collections::BTreeSet::from([
+                    "p2".to_string(),
+                    "p3".to_string(),
+                ]),
+            }),
             ..Self::starboard_base()
         }
     }
@@ -553,8 +545,8 @@ fn room_roster(peers: usize, tail: &str) -> Vec<PeerRun> {
 fn starboard_expectation(
     peers: usize,
     may_crash: &[String],
-) -> freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
-    freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation {
+) -> super::scenario_expectation::ScenarioExpectation {
+    super::scenario_expectation::ScenarioExpectation {
         canvas_converges: true,
         min_members: peers,
         may_crash: may_crash.iter().cloned().collect(),
@@ -988,15 +980,13 @@ fn release(windows: Vec<TerminalGuard>) {
 
 // needed helper: the result.json checker rows for one run, as Checks plus markdown tables
 fn check_peer_run_results_of_run(
-    expectation: &freenet_libp2p_bevy_plugin::e2e_report::ScenarioExpectation,
+    expectation: &super::scenario_expectation::ScenarioExpectation,
     env: &Env,
     peer_count: usize,
 ) -> (Vec<Check>, String) {
     use std::collections::BTreeMap;
-    let mut results: BTreeMap<
-        String,
-        Option<freenet_libp2p_bevy_plugin::e2e_report::PeerRunResult>,
-    > = BTreeMap::new();
+    let mut results: BTreeMap<String, Option<super::peer_run_result::PeerRunResult>> =
+        BTreeMap::new();
     for index in 1..=peer_count {
         let username = format!("p{index}");
         let path = env.dir.join(&username).join("result.json");
@@ -1010,9 +1000,9 @@ fn check_peer_run_results_of_run(
         .iter()
         .map(|row| {
             let layer = match row.layer {
-                freenet_libp2p_bevy_plugin::e2e_report::CheckLayer::Scenario => "scenario",
-                freenet_libp2p_bevy_plugin::e2e_report::CheckLayer::Freenet => "freenet",
-                freenet_libp2p_bevy_plugin::e2e_report::CheckLayer::Libp2p => "libp2p",
+                super::check_layer::CheckLayer::Scenario => "scenario",
+                super::check_layer::CheckLayer::Freenet => "freenet",
+                super::check_layer::CheckLayer::Libp2p => "libp2p",
             };
             Check {
                 name: format!("{layer} {}", row.name),
@@ -1021,8 +1011,7 @@ fn check_peer_run_results_of_run(
             }
         })
         .collect();
-    let tables =
-        freenet_libp2p_bevy_plugin::e2e_report::ExpectationResult::render_markdown_tables(&rows);
+    let tables = super::expectation_result::ExpectationResult::render_markdown_tables(&rows);
     (checks, tables)
 }
 

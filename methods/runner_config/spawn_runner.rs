@@ -8,12 +8,12 @@ use crate::p2p;
 pub fn spawn_runner<Payload: p2p::Message>(
     config: &p2p::RunnerConfig,
     cmd_rx: UnboundedReceiver<p2p::Command<Payload>>,
-    net_rx: UnboundedReceiver<p2p::NetCommand>,
+    libp2p_rx: UnboundedReceiver<p2p::Libp2pCommand>,
     event_tx: UnboundedSender<p2p::Event<Payload>>,
     keypair: Keypair,
 ) -> JoinHandle<()> {
     let config = config.clone();
-    let task = async move { config.run(cmd_rx, net_rx, event_tx, keypair).await };
+    let task = async move { config.run(cmd_rx, libp2p_rx, event_tx, keypair).await };
     tokio::spawn(task)
 }
 
@@ -26,7 +26,7 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let (_cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (_net_tx, net_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (_libp2p_tx, libp2p_rx) = tokio::sync::mpsc::unbounded_channel();
         let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel();
         let keypair = libp2p::identity::Keypair::generate_ed25519();
         let config = p2p::RunnerConfig {
@@ -35,10 +35,10 @@ mod tests {
             game: identity::GameId::from("test"),
             gossipsub: p2p::GossipsubConfig::default(),
         };
-        let handle = spawn_runner::<()>(&config, cmd_rx, net_rx, event_tx, keypair);
+        let handle = spawn_runner::<()>(&config, cmd_rx, libp2p_rx, event_tx, keypair);
         let found = tokio::time::timeout(std::time::Duration::from_secs(10), async {
             while let Some(event) = event_rx.recv().await {
-                if matches!(event, p2p::Event::Net(p2p::NetEvent::Ready(_))) {
+                if matches!(event, p2p::Event::Libp2p(p2p::Libp2pEvent::Ready(_))) {
                     break;
                 }
             }

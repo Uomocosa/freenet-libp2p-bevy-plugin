@@ -24,10 +24,12 @@ pub fn put_history_record<Payload: p2p::Message>(
     {
         state
             .event_tx
-            .send(p2p::Event::Net(p2p::NetEvent::HistoryRecordPutFailed {
-                id: id.clone(),
-                reason: format!("{error:?}"),
-            }))
+            .send(p2p::Event::Libp2p(
+                p2p::Libp2pEvent::HistoryRecordPutFailed {
+                    id: id.clone(),
+                    reason: format!("{error:?}"),
+                },
+            ))
             .ok();
     }
 }
@@ -67,8 +69,8 @@ mod tests {
         );
         assert!(matches!(
             rx.try_recv(),
-            Ok(p2p::Event::Net(
-                p2p::NetEvent::HistoryRecordPutFailed { .. }
+            Ok(p2p::Event::Libp2p(
+                p2p::Libp2pEvent::HistoryRecordPutFailed { .. }
             ))
         ));
     }

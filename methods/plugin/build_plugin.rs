@@ -26,7 +26,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.insert_resource(discovery::EventReceiver(Mutex::new(Some(event_rx))));
     app.insert_resource(discovery::CommandSender(command_tx));
 
-    let Some(net) = discovery::Plugin::net_link(app) else {
+    let Some(swarm) = discovery::Plugin::swarm_channels(app) else {
         error!(target: "discovery", "discovery: p2p resources missing, discovery disabled");
         return;
     };
@@ -43,7 +43,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         discovery::bevy_systems::follow_room.after(discovery::bevy_systems::drain_events),
     );
     let channels = discovery::RunChannels {
-        net,
+        swarm,
         commands: command_rx,
         statuses: status_tx,
         events: event_tx,

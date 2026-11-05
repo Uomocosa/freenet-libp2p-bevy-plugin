@@ -6,7 +6,7 @@ use crate::p2p;
 use crate::room_sync;
 
 type ReplicaInputSources<'a, 's, Op> = (
-    Res<'a, room_sync::bevy_systems::NetEvents>,
+    Res<'a, room_sync::bevy_systems::Libp2pEvents>,
     MessageReader<'a, 's, room_sync::ReplicaInputFromTimer<Op>>,
     Res<'a, Time<Real>>,
 );
@@ -16,16 +16,16 @@ pub fn drive<Replica: room_sync::RoomState>(
     command_sender: Option<Res<discovery::CommandSender>>,
     mut join_error: Option<ResMut<discovery::ui::JoinError>>,
     discovery_status: Option<Res<discovery::Status>>,
-    (net_events, mut timer_inputs, real_time): ReplicaInputSources<'_, '_, Replica::Op>,
+    (libp2p_events, mut timer_inputs, real_time): ReplicaInputSources<'_, '_, Replica::Op>,
     game: Res<room_sync::SyncGame>,
     mut clock: ResMut<room_sync::LamportClock>,
     mut state: ResMut<room_sync::bevy_systems::SyncState<Replica::Op>>,
     mut room: ResMut<Replica>,
-    mut pending: ResMut<p2p::PendingNetCommands>,
+    mut pending: ResMut<p2p::PendingLibp2pCommands>,
 ) {
     let discovery_status = discovery_status.map(Res::into_inner);
     let command_sender = command_sender.map(Res::into_inner);
-    let net_events = net_events.into_inner();
+    let libp2p_events = libp2p_events.into_inner();
     let game = game.into_inner();
     let members: Vec<identity::PeerId> = discovery_status.map_or_else(Vec::new, |status| {
         status.connected_members().cloned().collect()
@@ -35,7 +35,7 @@ pub fn drive<Replica: room_sync::RoomState>(
         for event in room_events.read() {
             match event {
                 discovery::Event::Joined(room_name) => {
-                    pending.push(p2p::NetCommand::Subscribe {
+                    pending.push(p2p::Libp2pCommand::Subscribe {
                         topic: identity::Topic::from_room_sync(game, room_name),
                     });
                     let (prefix, lobby_status) = discovery::Status::room_prefix_and_lobby_status(
@@ -51,7 +51,7 @@ pub fn drive<Replica: room_sync::RoomState>(
                     });
                 }
                 discovery::Event::Left(room_name) => {
-                    pending.push(p2p::NetCommand::Unsubscribe {
+                    pending.push(p2p::Libp2pCommand::Unsubscribe {
                         topic: identity::Topic::from_room_sync(game, room_name),
                     });
                     *state = room_sync::bevy_systems::SyncState(
@@ -71,7 +71,7 @@ pub fn drive<Replica: room_sync::RoomState>(
                         },
                     );
                 }
-                discovery::Event::MembersChanged | discovery::Event::LobbyChanged => {
+                discovery::Event::RoomMembersUpdated | discovery::Event::LobbyUpdated => {
                     if let Some(room_name) = state.room.clone() {
                         let (prefix, lobby_status) =
                             discovery::Status::room_prefix_and_lobby_status(
@@ -90,12 +90,11 @@ pub fn drive<Replica: room_sync::RoomState>(
             }
         }
     }
-    for event in net_events.drain() {
-        if let Some(input) = room_sync::bevy_systems::SyncState::<Replica::Op>::net_event_to_input(
+    for event in libp2p_events.drain() {
+        let input = room_sync::bevy_systems::SyncState::<Replica::Op>::libp2p_event_to_input(
             &event, &state, &mut clock, game, &*room,
-        ) {
-            inputs.push(input);
-        }
+        );
+        inputs.extend(input);
     }
     for timer_input in timer_inputs.read() {
         inputs.push((**timer_input).clone());
@@ -314,10 +313,10 @@ mod tests {
                         )
                     })
                     .collect(),
-                entry: discovery::RoomEntry::Created,
+                how_entered: discovery::HowRoomWasEntered::Created,
             }),
             freenet_peers: Vec::new(),
-            is_lobby_attached: true,
+            is_lobby_fetched: true,
             self_peer_id: None,
         }
     }
@@ -350,13 +349,13 @@ mod tests {
 
     fn wait_connected(
         app: &mut App,
-        events: &mut tokio::sync::broadcast::Receiver<p2p::NetEvent>,
+        events: &mut tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>,
         peer: &identity::PeerId,
     ) {
         for _ in 0..MAX_ROUNDS {
             app.update();
             while let Ok(event) = events.try_recv() {
-                if let p2p::NetEvent::PeerConnected(id) = event
+                if let p2p::Libp2pEvent::PeerConnected(id) = event
                     && &id == peer
                 {
                     return;
@@ -390,12 +389,12 @@ mod tests {
 
         let mut joiner_events = joiner
             .world()
-            .resource::<p2p::NetEventChannel>()
+            .resource::<p2p::Libp2pEventChannel>()
             .subscribe();
         joiner
             .world()
-            .resource::<p2p::NetCommandSender>()
-            .send(p2p::NetCommand::Dial(dialable(&a)))
+            .resource::<p2p::Libp2pCommandSender>()
+            .send(p2p::Libp2pCommand::Dial(dialable(&a)))
             .expect("dial");
         wait_connected(&mut joiner, &mut joiner_events, &a.id);
 
@@ -412,7 +411,7 @@ mod tests {
             incumbent.update();
             joiner.update();
             while let Ok(event) = joiner_events.try_recv() {
-                if matches!(event, p2p::NetEvent::SnapshotPart { .. }) {
+                if matches!(event, p2p::Libp2pEvent::SnapshotPart { .. }) {
                     saw_part = true;
                 }
             }
@@ -449,12 +448,12 @@ mod tests {
         for (dialer, target) in [(1usize, 0usize), (2, 0), (2, 1)] {
             let mut events = apps[dialer]
                 .world()
-                .resource::<p2p::NetEventChannel>()
+                .resource::<p2p::Libp2pEventChannel>()
                 .subscribe();
             apps[dialer]
                 .world()
-                .resource::<p2p::NetCommandSender>()
-                .send(p2p::NetCommand::Dial(dialable(&peers[target])))
+                .resource::<p2p::Libp2pCommandSender>()
+                .send(p2p::Libp2pCommand::Dial(dialable(&peers[target])))
                 .expect("dial");
             wait_connected(&mut apps[dialer], &mut events, &peers[target].id);
         }
@@ -526,13 +525,16 @@ mod tests {
     }
 
     fn connect_and_seed_kad(app: &mut App, peer: &identity::Peer) {
-        let mut events = app.world().resource::<p2p::NetEventChannel>().subscribe();
-        let sender = app.world().resource::<p2p::NetCommandSender>();
+        let mut events = app
+            .world()
+            .resource::<p2p::Libp2pEventChannel>()
+            .subscribe();
+        let sender = app.world().resource::<p2p::Libp2pCommandSender>();
         sender
-            .send(p2p::NetCommand::AddKadPeer(peer.clone()))
+            .send(p2p::Libp2pCommand::AddKadPeer(peer.clone()))
             .expect("kad");
         sender
-            .send(p2p::NetCommand::Dial(peer.clone()))
+            .send(p2p::Libp2pCommand::Dial(peer.clone()))
             .expect("dial");
         wait_connected(app, &mut events, &peer.id);
     }
@@ -556,7 +558,7 @@ mod tests {
         let _c = wait_ready(&mut peer_c);
         let mut b_events = peer_b
             .world()
-            .resource::<p2p::NetEventChannel>()
+            .resource::<p2p::Libp2pEventChannel>()
             .subscribe();
         connect_and_seed_kad(&mut peer_b, &a);
 
@@ -597,7 +599,7 @@ mod tests {
             peer_a.update();
             peer_b.update();
             while let Ok(event) = b_events.try_recv() {
-                if matches!(event, p2p::NetEvent::HistoryRecordStored { .. }) {
+                if matches!(event, p2p::Libp2pEvent::HistoryRecordStored { .. }) {
                     stored = true;
                 }
             }
@@ -830,11 +832,11 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
-                entry: discovery::RoomEntry::Joined,
+                how_entered: discovery::HowRoomWasEntered::Joined,
             }),
             connected: std::collections::BTreeSet::new(),
             freenet_peers: Vec::new(),
-            is_lobby_attached: true,
+            is_lobby_fetched: true,
             self_peer_id: Some(joiner_peer.id),
         });
         joiner
@@ -942,7 +944,7 @@ mod tests {
         mid_joiner
             .world_mut()
             .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::LobbyChanged);
+            .write(discovery::Event::LobbyUpdated);
         mid_joiner.update();
         assert_eq!(
             mid_joiner

@@ -28,7 +28,7 @@ pub fn dial_candidates(state: &mut DiscoveryState, now: discovery::UnixTime) -> 
     for peer in due {
         tracing::debug!(target: "discovery", peer = %peer.id.as_str(), "discovery dial candidate");
         state.last_dialed_at.insert(peer.id.clone(), now);
-        outputs.push(Output::NetCommand(p2p::NetCommand::Dial(peer)));
+        outputs.push(Output::Libp2pCommand(p2p::Libp2pCommand::Dial(peer)));
     }
     outputs
 }
@@ -52,7 +52,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
         let peers = vec![
             identity::Peer {
@@ -70,7 +70,7 @@ mod tests {
         outputs.extend(dial_candidates(&mut state, discovery::UnixTime::from(10)));
         assert!(matches!(
             outputs.as_slice(),
-            [Output::NetCommand(p2p::NetCommand::Dial(peer))] if peer.id.as_str() == "a"
+            [Output::Libp2pCommand(p2p::Libp2pCommand::Dial(peer))] if peer.id.as_str() == "a"
         ));
         assert_eq!(
             dial_candidates(&mut state, discovery::UnixTime::from(12)).len(),

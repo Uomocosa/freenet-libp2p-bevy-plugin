@@ -10,10 +10,12 @@ pub fn send_room_sync_request<Payload: p2p::Message>(
     let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() else {
         state
             .event_tx
-            .send(p2p::Event::Net(p2p::NetEvent::RoomSyncRequestFailed {
-                from: peer_id.clone(),
-                request,
-            }))
+            .send(p2p::Event::Libp2p(
+                p2p::Libp2pEvent::RoomSyncRequestFailed {
+                    from: peer_id.clone(),
+                    request,
+                },
+            ))
             .ok();
         return;
     };
@@ -42,7 +44,7 @@ mod tests {
             part: 0,
         };
         send_room_sync_request(&mut state, &peer, request.clone());
-        let Ok(p2p::Event::Net(p2p::NetEvent::RoomSyncRequestFailed { from, request: got })) =
+        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::RoomSyncRequestFailed { from, request: got })) =
             rx.try_recv()
         else {
             panic!("expected a room sync failure");

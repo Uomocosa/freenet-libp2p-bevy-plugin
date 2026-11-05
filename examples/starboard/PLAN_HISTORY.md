@@ -43,7 +43,7 @@ peers download it on join; it is continuously updated.
 | HD6 | Stuck joiner | History fetch deadline → re-check the lobby: dead → "Room `<name>` no longer exists (all players left)"; alive → retry N times, then "Couldn't get room history". |
 | HD7 | Local history file | None. An explicit export/import may come later. |
 | HD8 | Dead rooms in the contract | **Option A + cap** (agreed 2026-10-19). The contract drops a room once **every** heartbeat in it is `Quit` (deterministic, no clock). When the lobby is full (`MAX_ROOMS`), it evicts the room whose newest heartbeat is oldest. Rooms whose last holder crashed stay until the cap evicts them; clients already hide them (`drop_dead`). No contract clock, no median — skew-proof by construction. |
-| HD9 | History size caps | Per process: **256 MB** of held history (configurable, may be lowered by default). Per room snapshot: **64 MB** — the writer refuses a larger one and logs an error. On overflow, `drop_oldest_history` evicts held rooms oldest-left first, never the current room, and publishes `Quit` for each evicted room (you no longer hold it, so the lobby must know). |
+| HD9 | History size caps | Per process: **256 MB** of held history (configurable, may be lowered by default). Per room snapshot: **64 MB** — the writer refuses a larger one and logs an error. On overflow, `evict_held_rooms_over_history_limit` evicts held rooms oldest-left first, never the current room, and publishes `Quit` for each evicted room (you no longer hold it, so the lobby must know). |
 
 ## Step H0 — Holder leases and room deletion
 
@@ -156,12 +156,12 @@ prefix/content-hash scoped. The open questions were already answered (see bottom
   aborted, reader gets both byte-identical; an unknown id gives NotFound.
 - Verified: build, clippy, fmt, lint, bevy-lint, 274 nextest.
 
-## Step H2b — History size caps + `drop_oldest_history` (HD9)
+## Step H2b — History size caps + `evict_held_rooms_over_history_limit` (HD9)
 
 - [x] `HistoryLimits { per_process_bytes: 256 MB, per_room_bytes: 64 MB }` in the history
       config (defaults may be lowered; keep them configurable).
 - [x] Writer refuses a snapshot over `per_room_bytes` (error log, nothing stored).
-- [x] `drop_oldest_history` (pure core over held rooms + their byte sizes + leave times →
+- [x] `evict_held_rooms_over_history_limit` (pure core over held rooms + their byte sizes + leave times →
       rooms to evict): oldest-left first, never the current room, until under
       `per_process_bytes`. Shell: remove the records from the Kad store, remove the room from
       `discovery::state_machine::State.held_rooms`, publish `Presence::Quit` for it.
@@ -181,13 +181,13 @@ prefix/content-hash scoped. The open questions were already answered (see bottom
 - `State.held_rooms` value is now `HeldRoomHistory { created_at, left_at }` (`leave` takes `now`);
   `State` gained `game`, `history_size_limits`, `evicted_rooms` (name → `created_at`).
   `heartbeat_targets` publishes every evicted room as `Presence::Quit`; re-joining clears it.
-- Pure core `held_rooms_to_evict_until_history_fits` (current room + held rooms total; evicts
+- Pure core `oldest_held_rooms_to_evict_until_history_fits` (current room + held rooms total; evicts
   oldest `left_at` first, ties by name, until ≤ limit; current room is never a candidate).
-  Transition `drop_oldest_history(state, bytes_by_prefix)`. Deviation: no `now` parameter (unused).
+  Transition `evict_held_rooms_over_history_limit(state, bytes_by_prefix)`. Deviation: no `now` parameter (unused).
 - Triggers: every `tick` and every `HistoryRecordStored` emit `MeasureHistoryStore`.
 - Kad `MemoryStore` `max_records` raised 1024 → `p2p::KADEMLIA_MAX_RECORDS = 8192` (≈ 480 MB of
   60 KB chunks, so HD9 is the binding cap).
-- Tests: selector order / under-limit / current-room-over-limit; `drop_oldest_history` → `Quit`
+- Tests: selector order / under-limit / current-room-over-limit; `evict_held_rooms_over_history_limit` → `Quit`
   target + `RemoveHistoryRecords`; `measure_history_store`, `remove_history_records` usage;
   headless `p2p::run::tests::history_over_limit_is_removed_from_the_kademlia_store`.
   "Room disappears from another peer's lobby" needs Freenet → covered in H4/S4b.
@@ -460,7 +460,7 @@ board's record is 333 KB in 6 chunks of ≤ 60 KB — far below HD9's 64 MB per-
    lease) instead of hand-injecting an expired heartbeat.
    **FOLLOW-UP 2026-10-29 (created-vs-joined rule, S4b):** a joiner's own heartbeat
    in the lobby no longer counts as "room alive". `JoinedRoom` carries
-   `entry: RoomEntry::{Created, Joined}` (set from `Command::Create`/`Join`);
+   `how_entered: HowRoomWasEntered::{Created, Joined}` (set from `Command::Create`/`Join`);
    with `entry == Joined`, `is_room_alive_in_lobby` requires at least one live
    member other than self (own entry does not count), so a joiner whose lobby
    holds only itself reports `RoomGone` instead of accepting an empty board.

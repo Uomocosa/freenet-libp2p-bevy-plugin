@@ -1,6 +1,7 @@
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::{discovery, e2e_report, p2p};
+use freenet_libp2p_bevy_plugin::{discovery, p2p};
 
+use crate::peer_run_result::PeerRunResult;
 use crate::script_runner::StarboardScriptRunner;
 use crate::starboard;
 
@@ -9,9 +10,9 @@ pub fn record_peer_run_result(
     status: Res<discovery::Status>,
     canvas: Res<starboard::canvas::Canvas>,
     runner: Res<StarboardScriptRunner>,
-    channel: Res<p2p::NetEventChannel>,
-    mut subscription: Local<Option<tokio::sync::broadcast::Receiver<p2p::NetEvent>>>,
-    mut result: ResMut<e2e_report::PeerRunResult>,
+    channel: Res<p2p::Libp2pEventChannel>,
+    mut subscription: Local<Option<tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>>>,
+    mut result: ResMut<PeerRunResult>,
 ) {
     let time = time.into_inner();
     let status = status.into_inner();
@@ -24,7 +25,7 @@ pub fn record_peer_run_result(
     if let Some(rx) = subscription.as_mut() {
         loop {
             match rx.try_recv() {
-                Ok(p2p::NetEvent::Libp2pConnectionEstablished { peer_id, kind }) => {
+                Ok(p2p::Libp2pEvent::Libp2pConnectionEstablished { peer_id, kind }) => {
                     result
                         .connection_kinds
                         .entry(peer_id)
@@ -37,7 +38,7 @@ pub fn record_peer_run_result(
                     | tokio::sync::broadcast::error::TryRecvError::Closed,
                 ) => break,
                 Err(tokio::sync::broadcast::error::TryRecvError::Lagged(skipped)) => {
-                    tracing::warn!("result tap lagged, skipped {skipped} net events");
+                    tracing::warn!("result tap lagged, skipped {skipped} libp2p events");
                 }
             }
         }
@@ -50,8 +51,8 @@ pub fn record_peer_run_result(
             result.members_seen.insert(me.clone());
         }
     }
-    if status.is_lobby_attached && result.freenet.lobby_attached_after_secs.is_none() {
-        result.freenet.lobby_attached_after_secs = Some(time.elapsed_secs_f64());
+    if status.is_lobby_fetched && result.freenet.lobby_fetched_after_secs.is_none() {
+        result.freenet.lobby_fetched_after_secs = Some(time.elapsed_secs_f64());
     }
     result.freenet.freenet_peers_seen = result
         .freenet
@@ -73,9 +74,10 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, e2e_report, identity, p2p};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
     use super::record_peer_run_result;
+    use crate::peer_run_result::PeerRunResult;
     use crate::script_runner::StarboardScriptRunner;
     use crate::shared::script::timed_script_step::parse_timed_script_step;
     use crate::starboard;
@@ -86,7 +88,7 @@ mod tests {
         app.init_resource::<Time>();
         app.init_resource::<discovery::Status>();
         app.init_resource::<starboard::canvas::Canvas>();
-        app.init_resource::<p2p::NetEventChannel>();
+        app.init_resource::<p2p::Libp2pEventChannel>();
         let steps = ["sleep:1s"]
             .iter()
             .map(|raw| {
@@ -94,9 +96,9 @@ mod tests {
             })
             .collect();
         app.insert_resource(StarboardScriptRunner::new(steps));
-        app.insert_resource(e2e_report::PeerRunResult {
+        app.insert_resource(PeerRunResult {
             username: "p1".to_string(),
-            ..e2e_report::PeerRunResult::default()
+            ..PeerRunResult::default()
         });
         app.add_systems(Update, record_peer_run_result);
         app
@@ -106,7 +108,7 @@ mod tests {
     fn test_usage() {
         let mut app = app();
         app.update();
-        let result = app.world().resource::<e2e_report::PeerRunResult>();
+        let result = app.world().resource::<PeerRunResult>();
         assert_eq!(result.username, "p1");
         assert_eq!(result.steps.len(), 0);
     }
@@ -115,14 +117,14 @@ mod tests {
     fn connection_events_are_recorded() {
         let mut app = app();
         app.update();
-        app.world().resource::<p2p::NetEventChannel>().send(
-            p2p::NetEvent::Libp2pConnectionEstablished {
+        app.world().resource::<p2p::Libp2pEventChannel>().send(
+            p2p::Libp2pEvent::Libp2pConnectionEstablished {
                 peer_id: identity::PeerId::from("peer-a"),
                 kind: p2p::ConnectionKind::Tcp,
             },
         );
         app.update();
-        let result = app.world().resource::<e2e_report::PeerRunResult>();
+        let result = app.world().resource::<PeerRunResult>();
         assert_eq!(
             result
                 .connection_kinds
@@ -132,20 +134,20 @@ mod tests {
     }
 
     #[test]
-    fn lobby_attach_time_is_set_once() {
+    fn lobby_fetch_time_is_set_once() {
         let mut app = app();
         app.world_mut()
             .resource_mut::<Time>()
             .advance_by(Duration::from_secs(2));
         app.world_mut()
             .resource_mut::<discovery::Status>()
-            .is_lobby_attached = true;
+            .is_lobby_fetched = true;
         app.update();
         let first = app
             .world()
-            .resource::<e2e_report::PeerRunResult>()
+            .resource::<PeerRunResult>()
             .freenet
-            .lobby_attached_after_secs;
+            .lobby_fetched_after_secs;
         assert!(first.is_some());
         app.world_mut()
             .resource_mut::<Time>()
@@ -153,9 +155,9 @@ mod tests {
         app.update();
         let second = app
             .world()
-            .resource::<e2e_report::PeerRunResult>()
+            .resource::<PeerRunResult>()
             .freenet
-            .lobby_attached_after_secs;
+            .lobby_fetched_after_secs;
         assert_eq!(first, second);
     }
 
@@ -184,12 +186,12 @@ mod tests {
                 created_at: discovery::UnixTime::from(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
-                entry: discovery::RoomEntry::Joined,
+                how_entered: discovery::HowRoomWasEntered::Joined,
             });
             status.self_peer_id = Some(me.clone());
         }
         app.update();
-        let result = app.world().resource::<e2e_report::PeerRunResult>();
+        let result = app.world().resource::<PeerRunResult>();
         assert!(result.members_seen.contains(&me));
         assert!(result.members_seen.contains(&other));
         assert_eq!(result.members_seen.len(), 2);

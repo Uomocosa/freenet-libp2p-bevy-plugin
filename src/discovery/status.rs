@@ -14,18 +14,21 @@ pub struct Status {
     pub room: Option<discovery::JoinedRoom>,
     pub connected: BTreeSet<identity::PeerId>,
     pub freenet_peers: Vec<identity::FreenetPeer>,
-    pub is_lobby_attached: bool,
+    pub is_lobby_fetched: bool,
     pub self_peer_id: Option<identity::PeerId>,
 }
 
 #[rustfmt::skip]
 impl Status {
     #[must_use]
-    pub fn link_status(&self, peer: &identity::PeerId) -> discovery::LinkStatus {
+    pub fn peer_connection_status(
+        &self,
+        peer: &identity::PeerId,
+    ) -> discovery::libp2p::PeerConnectionStatus {
         if self.connected.contains(peer) {
-            discovery::LinkStatus::Connected
+            discovery::libp2p::PeerConnectionStatus::Connected
         } else {
-            discovery::LinkStatus::Lost
+            discovery::libp2p::PeerConnectionStatus::NotConnected
         }
     }
 

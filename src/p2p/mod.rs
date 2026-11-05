@@ -25,8 +25,8 @@ pub use connection_kind::ConnectionKind;
 pub mod mdns_mode;
 pub use mdns_mode::MdnsMode;
 
-pub mod net_command;
-pub use net_command::NetCommand;
+pub mod libp2p_command;
+pub use libp2p_command::Libp2pCommand;
 
 pub mod runner_config;
 pub use runner_config::RunnerConfig;
@@ -35,9 +35,11 @@ pub use runner_config::RunnerConfig;
 pub mod basic;
 
 pub use basic::constants::*;
-pub use basic::enums::{ChunkError, Command, Event, NetEvent, SnapshotRequest, SnapshotResponse};
+pub use basic::enums::{
+    ChunkError, Command, Event, Libp2pEvent, SnapshotRequest, SnapshotResponse,
+};
 pub use basic::newtypes::{ChunkIndex, ContentHash, HistoryByteCount, ReplyId};
-pub use basic::resources::{CommandSender, EventReceiver, NetCommandSender};
+pub use basic::resources::{CommandSender, EventReceiver, Libp2pCommandSender};
 pub use basic::structs::{HistoryChunkId, HistoryManifest};
 
 pub mod gossipsub_config;
@@ -57,10 +59,10 @@ pub use events::Events;
 pub mod ready_channel;
 pub use ready_channel::ReadyChannel;
 
-pub mod net_event_channel;
-pub use net_event_channel::NetEventChannel;
+pub mod libp2p_event_channel;
+pub use libp2p_event_channel::Libp2pEventChannel;
 
-pub mod pending_net_commands;
-pub use pending_net_commands::PendingNetCommands;
+pub mod pending_libp2p_commands;
+pub use pending_libp2p_commands::PendingLibp2pCommands;
 
 pub mod bevy_systems;

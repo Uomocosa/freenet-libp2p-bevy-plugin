@@ -33,7 +33,7 @@ mod tests {
         app.add_message::<discovery::Event>();
         app.insert_resource(discovery::EventReceiver(Mutex::new(Some(rx))));
         app.add_systems(Update, drain_events);
-        tx.send(discovery::Event::LobbyChanged).ok();
+        tx.send(discovery::Event::LobbyUpdated).ok();
         app.update();
         let mut messages = app.world_mut().resource_mut::<Messages<discovery::Event>>();
         assert_eq!(messages.drain().count(), 1);

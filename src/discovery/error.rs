@@ -7,7 +7,7 @@ pub enum Error {
     #[error("connection timed out")]
     ConnectionTimeout,
     #[error("freenet {0} timed out")]
-    Timeout(discovery::FreenetRequestKind),
+    Timeout(discovery::freenet::RequestKind),
     #[error("disconnected")]
     Disconnected,
     #[error("websocket error")]

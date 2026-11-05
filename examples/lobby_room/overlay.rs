@@ -137,9 +137,9 @@ fn sync_room_bar(
         .despawn_children()
         .with_children(|rows| {
             for (peer, member) in &room.members {
-                let dot = match status.link_status(peer) {
-                    discovery::LinkStatus::Connected => CONNECTED_COLOR,
-                    discovery::LinkStatus::Lost => LOST_COLOR,
+                let dot = match status.peer_connection_status(peer) {
+                    discovery::libp2p::PeerConnectionStatus::Connected => CONNECTED_COLOR,
+                    discovery::libp2p::PeerConnectionStatus::NotConnected => LOST_COLOR,
                 };
                 rows.spawn((
                     Node {
@@ -162,7 +162,7 @@ fn sync_room_bar(
                         ),
                         (Text::new(peer_label(peer, member)), TextLayout::no_wrap(),),
                         (
-                            Text::new(status_word(status.link_status(peer))),
+                            Text::new(status_word(status.peer_connection_status(peer))),
                             TextColor(DIM_COLOR),
                             TextLayout::no_wrap(),
                         ),
@@ -172,10 +172,10 @@ fn sync_room_bar(
         });
 }
 
-const fn status_word(status: discovery::LinkStatus) -> &'static str {
+const fn status_word(status: discovery::libp2p::PeerConnectionStatus) -> &'static str {
     match status {
-        discovery::LinkStatus::Connected => "connected",
-        discovery::LinkStatus::Lost => "lost",
+        discovery::libp2p::PeerConnectionStatus::Connected => "connected",
+        discovery::libp2p::PeerConnectionStatus::NotConnected => "lost",
     }
 }
 
@@ -224,7 +224,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
     }
 
@@ -241,14 +241,18 @@ mod tests {
             (
                 "12D3KooWbob000Kd2a",
                 Some("bob"),
-                discovery::LinkStatus::Connected,
+                discovery::libp2p::PeerConnectionStatus::Connected,
             ),
             (
                 "12D3KooWcarol0Zm9c",
                 Some("carol"),
-                discovery::LinkStatus::Connected,
+                discovery::libp2p::PeerConnectionStatus::Connected,
             ),
-            ("12D3KooWdave00Qx7f", None, discovery::LinkStatus::Lost),
+            (
+                "12D3KooWdave00Qx7f",
+                None,
+                discovery::libp2p::PeerConnectionStatus::NotConnected,
+            ),
         ] {
             members.insert(
                 identity::PeerId::from(peer),
@@ -268,7 +272,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members,
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
     }
 

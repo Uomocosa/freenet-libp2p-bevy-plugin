@@ -112,60 +112,60 @@ pub fn dial_mdns_peers(&mut self, peers: Vec<(libp2p::PeerId, libp2p::Multiaddr)
         }
     }
 }
-pub fn dispatch_net_command(&mut self, command: p2p::NetCommand) {
+pub fn dispatch_libp2p_command(&mut self, command: p2p::Libp2pCommand) {
     match command {
-        p2p::NetCommand::Dial(peer) => {
+        p2p::Libp2pCommand::Dial(peer) => {
             self.dial_peer(&peer.id, &peer.addrs, PeerCondition::DisconnectedAndNotDialing);
         }
-        p2p::NetCommand::ReserveRelay { relay_addr } => {
+        p2p::Libp2pCommand::ReserveRelay { relay_addr } => {
             if let Ok(addr) = relay_addr.parse::<libp2p::Multiaddr>() {
                 let _ = self.swarm.listen_on(addr);
             }
         }
-        p2p::NetCommand::SetMdns { mode } => {
+        p2p::Libp2pCommand::SetMdns { mode } => {
             let peer_id = *self.swarm.local_peer_id();
             self.swarm.behaviour_mut().mdns = mode.mdns_behaviour(peer_id);
         }
-        p2p::NetCommand::AddKadPeer(peer) => {
+        p2p::Libp2pCommand::AddKadPeer(peer) => {
             self.seed_kad_peer( &peer.id, &peer.addrs);
         }
-        p2p::NetCommand::PutHistoryRecord { id, value, ttl } => {
+        p2p::Libp2pCommand::PutHistoryRecord { id, value, ttl } => {
             self.put_history_record( &id, value, ttl);
         }
-        p2p::NetCommand::GetHistoryRecord { id } => {
+        p2p::Libp2pCommand::GetHistoryRecord { id } => {
             let key = id.history_record_key();
             self.swarm.behaviour_mut().kademlia.get_record(key);
         }
-        p2p::NetCommand::MeasureHistoryStore => {
+        p2p::Libp2pCommand::MeasureHistoryStore => {
             let bytes_by_prefix = self.measure_history_store();
-            let measured = p2p::NetEvent::HistoryStoreMeasured { bytes_by_prefix };
-            self.event_tx.send(p2p::Event::Net(measured)).ok();
+            let measured = p2p::Libp2pEvent::HistoryStoreMeasured { bytes_by_prefix };
+            self.event_tx.send(p2p::Event::Libp2p(measured)).ok();
         }
-        p2p::NetCommand::RemoveHistoryRecords { prefix } => {
+        p2p::Libp2pCommand::RemoveHistoryRecords { prefix } => {
             self.remove_history_records( &prefix);
         }
-        p2p::NetCommand::Subscribe { topic } => {
+        p2p::Libp2pCommand::Subscribe { topic } => {
             let topic = gossipsub::IdentTopic::new(topic.as_str());
             let _ = self.swarm.behaviour_mut().gossipsub.subscribe(&topic);
         }
-        p2p::NetCommand::Unsubscribe { topic } => {
+        p2p::Libp2pCommand::Unsubscribe { topic } => {
             let topic = gossipsub::IdentTopic::new(topic.as_str());
             let _ = self.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
         }
-        p2p::NetCommand::SubscribeRoom { room } => {
+        p2p::Libp2pCommand::SubscribeRoom { room } => {
             self.subscribe_room( room);
         }
-        p2p::NetCommand::UnsubscribeRoom { room } => {
+        p2p::Libp2pCommand::UnsubscribeRoom { room } => {
             self.unsubscribe_room( &room);
         }
-        p2p::NetCommand::FetchSnapshot {
+        p2p::Libp2pCommand::FetchSnapshot {
             peer_id,
             room,
             part,
         } => {
             self.send_room_sync_request(&peer_id, p2p::SnapshotRequest::Fetch { room, part });
         }
-        p2p::NetCommand::FetchReplicaSlice {
+        p2p::Libp2pCommand::FetchReplicaSlice {
             peer_id,
             room,
             index,
@@ -175,13 +175,13 @@ pub fn dispatch_net_command(&mut self, command: p2p::NetCommand) {
                 p2p::SnapshotRequest::FetchReplicaSlice { room, index },
             );
         }
-        p2p::NetCommand::RespondSnapshot { id, frame } => {
+        p2p::Libp2pCommand::RespondSnapshot { id, frame } => {
             tracing::debug!(target: "p2p", id = ?id, "snapshot respond requested");
             if let Some(channel) = self.snapshot_replies.remove(id) {
                 let _ = self.swarm.behaviour_mut().room_sync.send_response(channel, frame);
             }
         }
-        p2p::NetCommand::Publish { topic, data } => {
+        p2p::Libp2pCommand::Publish { topic, data } => {
             let topic = gossipsub::IdentTopic::new(topic.as_str());
             let subscribed_peers = self
                 .swarm
@@ -197,7 +197,7 @@ pub fn dispatch_net_command(&mut self, command: p2p::NetCommand) {
                     .ok();
             }
         }
-        p2p::NetCommand::PeerExchange { peer_id, data } => {
+        p2p::Libp2pCommand::PeerExchange { peer_id, data } => {
             if let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() {
                 self.swarm
                     .behaviour_mut()
@@ -264,7 +264,7 @@ pub fn handle_peer_exchange(&mut self, peer: &libp2p::PeerId, message: request_r
     } = message
     {
         self.event_tx
-            .send(p2p::Event::Net(p2p::NetEvent::PeerExchange {
+            .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerExchange {
                 from: identity::PeerId(peer.to_string()),
                 data: request,
             }))
@@ -285,7 +285,7 @@ pub fn handle_room_sync(&mut self, peer: &libp2p::PeerId, message: request_respo
             match request {
                 p2p::SnapshotRequest::Fetch { room, part } => {
                     self.event_tx
-                        .send(p2p::Event::Net(p2p::NetEvent::SnapshotRequest {
+                        .send(p2p::Event::Libp2p(p2p::Libp2pEvent::SnapshotRequest {
                             id,
                             from,
                             room,
@@ -295,7 +295,7 @@ pub fn handle_room_sync(&mut self, peer: &libp2p::PeerId, message: request_respo
                 }
                 p2p::SnapshotRequest::FetchReplicaSlice { room, index } => {
                     self.event_tx
-                        .send(p2p::Event::Net(p2p::NetEvent::ReplicaSliceRequest {
+                        .send(p2p::Event::Libp2p(p2p::Libp2pEvent::ReplicaSliceRequest {
                             id,
                             from,
                             room,
@@ -315,7 +315,7 @@ pub fn handle_room_sync(&mut self, peer: &libp2p::PeerId, message: request_respo
                     part,
                     total,
                     data,
-                } => p2p::NetEvent::SnapshotPart {
+                } => p2p::Libp2pEvent::SnapshotPart {
                     from,
                     room,
                     part,
@@ -323,10 +323,10 @@ pub fn handle_room_sync(&mut self, peer: &libp2p::PeerId, message: request_respo
                     data,
                 },
                 p2p::SnapshotResponse::Missing { room } => {
-                    p2p::NetEvent::SnapshotMissing { from, room }
+                    p2p::Libp2pEvent::SnapshotMissing { from, room }
                 }
                 p2p::SnapshotResponse::ReplicaSlice { room, index, data } => {
-                    p2p::NetEvent::ReplicaSlice {
+                    p2p::Libp2pEvent::ReplicaSlice {
                         from,
                         room,
                         index,
@@ -334,7 +334,7 @@ pub fn handle_room_sync(&mut self, peer: &libp2p::PeerId, message: request_respo
                     }
                 }
             };
-            self.event_tx.send(p2p::Event::Net(event)).ok();
+            self.event_tx.send(p2p::Event::Libp2p(event)).ok();
         }
     }
 }
@@ -370,7 +370,7 @@ pub fn handle_swarm_event(&mut self, event: SwarmEvent<p2p::behaviour::Behaviour
                 return;
             };
             self.event_tx
-                .send(p2p::Event::Net(p2p::NetEvent::RoomSyncRequestFailed {
+                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::RoomSyncRequestFailed {
                     from: identity::PeerId(peer.to_string()),
                     request,
                 }))
@@ -388,7 +388,7 @@ pub fn handle_swarm_event(&mut self, event: SwarmEvent<p2p::behaviour::Behaviour
             relay::client::Event::ReservationReqAccepted { relay_peer_id, .. },
         )) => {
             self.event_tx
-                .send(p2p::Event::Net(p2p::NetEvent::RelayReserved {
+                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::RelayReserved {
                     relay_peer_id: identity::PeerId(relay_peer_id.to_string()),
                 }))
                 .ok();
@@ -397,7 +397,7 @@ pub fn handle_swarm_event(&mut self, event: SwarmEvent<p2p::behaviour::Behaviour
             identify::Event::Received { info, .. },
         )) => {
             self.event_tx
-                .send(p2p::Event::Net(p2p::NetEvent::ObservedAddr(
+                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::ObservedAddr(
                     identity::PeerAddr(info.observed_addr.to_string()),
                 )))
                 .ok();
@@ -429,8 +429,8 @@ pub fn note_connection(&mut self, event: SwarmEvent<p2p::behaviour::BehaviourEve
             Self::log_established(&peer_id, connection_id, &endpoint);
             let kind = p2p::ConnectionKind::from(endpoint.get_remote_address());
             self.event_tx
-                .send(p2p::Event::Net(
-                    p2p::NetEvent::Libp2pConnectionEstablished {
+                .send(p2p::Event::Libp2p(
+                    p2p::Libp2pEvent::Libp2pConnectionEstablished {
                         peer_id: identity::PeerId(peer_id.to_string()),
                         kind,
                     },
@@ -438,7 +438,7 @@ pub fn note_connection(&mut self, event: SwarmEvent<p2p::behaviour::BehaviourEve
                 .ok();
             if num_established.get() == 1 {
                 self.event_tx
-                    .send(p2p::Event::Net(p2p::NetEvent::PeerConnected(
+                    .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerConnected(
                         identity::PeerId(peer_id.to_string()),
                     )))
                     .ok();
@@ -461,7 +461,7 @@ pub fn note_connection(&mut self, event: SwarmEvent<p2p::behaviour::BehaviourEve
             );
             if num_established == 0 {
                 self.event_tx
-                    .send(p2p::Event::Net(p2p::NetEvent::PeerDisconnected(
+                    .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerDisconnected(
                         identity::PeerId(peer_id.to_string()),
                     )))
                     .ok();
@@ -474,7 +474,7 @@ pub fn note_dial_failure(&mut self, peer_id: Option<libp2p::PeerId>, error: &lib
     match peer_id {
         Some(peer_id) => {
             self.event_tx
-                .send(p2p::Event::Net(p2p::NetEvent::DialFailed {
+                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::DialFailed {
                     peer_id: identity::PeerId(peer_id.to_string()),
                     reason: error.to_string(),
                 }))
@@ -485,11 +485,11 @@ pub fn note_dial_failure(&mut self, peer_id: Option<libp2p::PeerId>, error: &lib
         }
     }
 }
-pub(crate) fn history_event(result: kad::QueryResult) -> Option<p2p::NetEvent> {
+pub(crate) fn history_event(result: kad::QueryResult) -> Option<p2p::Libp2pEvent> {
     match result {
         kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))) => {
             let record = peer_record.record;
-            Some(p2p::NetEvent::HistoryRecordFound {
+            Some(p2p::Libp2pEvent::HistoryRecordFound {
                 id: p2p::RoomHistoryRecordKind::parse_history_record_key(&record.key)?,
                 value: record.value,
             })
@@ -498,15 +498,15 @@ pub(crate) fn history_event(result: kad::QueryResult) -> Option<p2p::NetEvent> {
             kad::GetRecordError::NotFound { key, .. }
             | kad::GetRecordError::QuorumFailed { key, .. }
             | kad::GetRecordError::Timeout { key },
-        )) => Some(p2p::NetEvent::HistoryRecordNotFound {
+        )) => Some(p2p::Libp2pEvent::HistoryRecordNotFound {
             id: p2p::RoomHistoryRecordKind::parse_history_record_key(&key)?,
         }),
         kad::QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
-            Some(p2p::NetEvent::HistoryRecordStored {
+            Some(p2p::Libp2pEvent::HistoryRecordStored {
                 id: p2p::RoomHistoryRecordKind::parse_history_record_key(&key)?,
             })
         }
-        kad::QueryResult::PutRecord(Err(error)) => Some(p2p::NetEvent::HistoryRecordPutFailed {
+        kad::QueryResult::PutRecord(Err(error)) => Some(p2p::Libp2pEvent::HistoryRecordPutFailed {
             id: p2p::RoomHistoryRecordKind::parse_history_record_key(error.key())?,
             reason: error.to_string(),
         }),
@@ -553,7 +553,7 @@ pub(crate) fn forward_gossip(
     let from = identity::PeerId(message.source.unwrap_or(propagation_source).to_string());
     let Some(room) = self.subscriptions.room(&message.topic) else {
         self.event_tx
-            .send(p2p::Event::Net(p2p::NetEvent::Gossip {
+            .send(p2p::Event::Libp2p(p2p::Libp2pEvent::Gossip {
                 topic: identity::Topic(message.topic.to_string()),
                 from,
                 data: message.data,
@@ -681,7 +681,7 @@ mod tests {
     async fn test_usage() {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
         let topic = identity::Topic::from("lobby/topic");
-        state.dispatch_net_command(p2p::NetCommand::Subscribe {
+        state.dispatch_libp2p_command(p2p::Libp2pCommand::Subscribe {
             topic: topic.clone(),
         });
         let hash = IdentTopic::new(topic.as_str()).hash();
@@ -703,7 +703,7 @@ mod tests {
             identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
         )
         .hash();
-        state.dispatch_net_command(p2p::NetCommand::SubscribeRoom { room: room.clone() });
+        state.dispatch_libp2p_command(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() });
         assert_eq!(state.subscriptions.room(&hash), Some(&room));
         assert!(
             state
@@ -713,7 +713,7 @@ mod tests {
                 .topics()
                 .any(|t| *t == hash)
         );
-        state.dispatch_net_command(p2p::NetCommand::UnsubscribeRoom { room });
+        state.dispatch_libp2p_command(p2p::Libp2pCommand::UnsubscribeRoom { room });
         assert!(state.subscriptions.room(&hash).is_none());
         assert!(
             !state
@@ -730,7 +730,7 @@ mod tests {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
         let topic = identity::Topic::from("lobby/topic");
         let hash = IdentTopic::new(topic.as_str()).hash();
-        state.dispatch_net_command(p2p::NetCommand::Subscribe {
+        state.dispatch_libp2p_command(p2p::Libp2pCommand::Subscribe {
             topic: topic.clone(),
         });
         assert!(
@@ -741,7 +741,7 @@ mod tests {
                 .topics()
                 .any(|t| *t == hash)
         );
-        state.dispatch_net_command(p2p::NetCommand::Unsubscribe { topic });
+        state.dispatch_libp2p_command(p2p::Libp2pCommand::Unsubscribe { topic });
         assert!(
             !state
                 .swarm
@@ -781,7 +781,8 @@ mod tests {
             gossipsub::TopicHash::from_raw("lobby/topic"),
         );
         state.handle_gossipsub(event);
-        let Ok(p2p::Event::Net(p2p::NetEvent::Gossip { topic, from, data })) = rx.try_recv() else {
+        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::Gossip { topic, from, data })) = rx.try_recv()
+        else {
             panic!("expected a gossip event");
         };
         assert_eq!((topic.as_str(), data), ("lobby/topic", vec![7]));
@@ -837,7 +838,8 @@ mod tests {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let peer = libp2p::PeerId::random();
         state.note_dial_failure(Some(peer), &DialError::NoAddresses);
-        let Ok(p2p::Event::Net(p2p::NetEvent::DialFailed { peer_id, .. })) = rx.try_recv() else {
+        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::DialFailed { peer_id, .. })) = rx.try_recv()
+        else {
             panic!("expected a dial failure");
         };
         assert_eq!(peer_id.as_str(), peer.to_string());
@@ -856,12 +858,12 @@ mod tests {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let peer = identity::PeerId::from("not-a-peer-id");
         let room = identity::RoomName::from("r");
-        state.dispatch_net_command(p2p::NetCommand::FetchSnapshot {
+        state.dispatch_libp2p_command(p2p::Libp2pCommand::FetchSnapshot {
             peer_id: peer.clone(),
             room: room.clone(),
             part: 0,
         });
-        let Ok(p2p::Event::Net(p2p::NetEvent::RoomSyncRequestFailed { from, request })) =
+        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::RoomSyncRequestFailed { from, request })) =
             rx.try_recv()
         else {
             panic!("expected a room sync failure");
@@ -876,12 +878,12 @@ mod tests {
         let peer = identity::PeerId::from("not-a-peer-id");
         let room = identity::RoomName::from("r");
         let index = room_sync::ReplicaSliceIndex(2);
-        state.dispatch_net_command(p2p::NetCommand::FetchReplicaSlice {
+        state.dispatch_libp2p_command(p2p::Libp2pCommand::FetchReplicaSlice {
             peer_id: peer.clone(),
             room: room.clone(),
             index,
         });
-        let Ok(p2p::Event::Net(p2p::NetEvent::RoomSyncRequestFailed { from, request })) =
+        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::RoomSyncRequestFailed { from, request })) =
             rx.try_recv()
         else {
             panic!("expected a room sync failure");

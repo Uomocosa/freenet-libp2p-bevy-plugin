@@ -22,7 +22,7 @@ pub fn dial_peer<Payload: p2p::Message>(
         if let Err(e) = state.swarm.dial(opts) {
             state
                 .event_tx
-                .send(p2p::Event::Net(p2p::NetEvent::DialFailed {
+                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::DialFailed {
                     peer_id: peer_id.clone(),
                     reason: e.to_string(),
                 }))
@@ -56,7 +56,7 @@ mod tests {
         dial_peer(&mut state, &peer, &addrs, gentle);
         assert!(matches!(
             rx.try_recv(),
-            Ok(p2p::Event::Net(p2p::NetEvent::DialFailed { .. }))
+            Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::DialFailed { .. }))
         ));
     }
 }

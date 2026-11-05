@@ -54,7 +54,8 @@ pub fn room_prefix_and_lobby_status(
                 })
                 .collect();
             let is_joined_entry = status.room.as_ref().is_some_and(|joined| {
-                joined.name == *room_name && joined.entry == discovery::RoomEntry::Joined
+                joined.name == *room_name
+                    && joined.how_entered == discovery::HowRoomWasEntered::Joined
             });
             let is_room_alive_in_lobby = if is_joined_entry {
                 self_peer_id.map_or_else(
@@ -237,7 +238,7 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
-                entry: discovery::RoomEntry::Joined,
+                how_entered: discovery::HowRoomWasEntered::Joined,
             }),
             self_peer_id: Some(me),
             ..discovery::Status::default()
@@ -282,7 +283,7 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
-                entry: discovery::RoomEntry::Created,
+                how_entered: discovery::HowRoomWasEntered::Created,
             }),
             self_peer_id: Some(me),
             ..discovery::Status::default()

@@ -21,7 +21,7 @@ impl RunnerConfig {
     pub async fn run<Payload: p2p::Message>(
         &self,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<Payload>>,
-        net_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::NetCommand>,
+        libp2p_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Libp2pCommand>,
         event_tx: tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
         keypair: libp2p::identity::Keypair,
     ) {
@@ -29,7 +29,7 @@ impl RunnerConfig {
     pub fn spawn_runner<Payload: p2p::Message>(
         &self,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<Payload>>,
-        net_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::NetCommand>,
+        libp2p_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Libp2pCommand>,
         event_tx: tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
         keypair: libp2p::identity::Keypair,
     ) -> tokio::task::JoinHandle<()> {

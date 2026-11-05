@@ -26,7 +26,7 @@ impl<Op> SyncState<Op> {
         clock: room_sync::LamportClock,
         per_room_bytes: p2p::HistoryByteCount,
         record_ttl: Duration,
-        pending: &mut p2p::PendingNetCommands,
+        pending: &mut p2p::PendingLibp2pCommands,
         command_sender: Option<&discovery::CommandSender>,
         join_error: &mut Option<ResMut<discovery::ui::JoinError>>,
         game: &identity::GameId,
@@ -42,15 +42,15 @@ impl<Op> SyncState<Op> {
 
 #[rustfmt::skip]
 impl<Op> SyncState<Op> {
-    pub(crate) fn net_event_to_input<Replica: room_sync::RoomState>(
-        event: &p2p::NetEvent,
+    pub(crate) fn libp2p_event_to_input<Replica: room_sync::RoomState>(
+        event: &p2p::Libp2pEvent,
         state: &SyncState<Replica::Op>,
         clock: &mut room_sync::LamportClock,
         game: &identity::GameId,
         replica: &Replica,
     ) -> Option<room_sync::state_machine::Input<Replica::Op>> {
         match event {
-            p2p::NetEvent::Gossip { topic, from, data } => {
+            p2p::Libp2pEvent::Gossip { topic, from, data } => {
                 let expected = state
                     .room
                     .as_ref()
@@ -78,7 +78,7 @@ impl<Op> SyncState<Op> {
                     }
                 }
             }
-            p2p::NetEvent::SnapshotPart {
+            p2p::Libp2pEvent::SnapshotPart {
                 room,
                 part,
                 total,
@@ -92,10 +92,10 @@ impl<Op> SyncState<Op> {
                     data: data.clone(),
                 },
             ),
-            p2p::NetEvent::SnapshotMissing { .. } => {
+            p2p::Libp2pEvent::SnapshotMissing { .. } => {
                 Some(room_sync::state_machine::Input::SnapshotMissingFromRoomMember)
             }
-            p2p::NetEvent::RoomSyncRequestFailed { from, request } => {
+            p2p::Libp2pEvent::RoomSyncRequestFailed { from, request } => {
                 match request {
                     p2p::SnapshotRequest::Fetch { .. } => {
                         Some(room_sync::state_machine::Input::RequestToRoomMemberFailed { from: from.clone() })
@@ -105,23 +105,23 @@ impl<Op> SyncState<Op> {
                     }
                 }
             }
-            p2p::NetEvent::HistoryRecordFound { id, value } => {
+            p2p::Libp2pEvent::HistoryRecordFound { id, value } => {
                 Some(room_sync::state_machine::Input::HistoryRecordFound {
                     id: id.clone(),
                     value: value.clone(),
                 })
             }
-            p2p::NetEvent::HistoryRecordNotFound { id } => {
+            p2p::Libp2pEvent::HistoryRecordNotFound { id } => {
                 Some(room_sync::state_machine::Input::HistoryRecordNotFound { id: id.clone() })
             }
-            p2p::NetEvent::ReplicaSliceRequest {
+            p2p::Libp2pEvent::ReplicaSliceRequest {
                 id, room, index, ..
             } => Some(room_sync::state_machine::Input::ReplicaSliceRequested {
                 id: *id,
                 room: room.clone(),
                 index: *index,
             }),
-            p2p::NetEvent::ReplicaSlice {
+            p2p::Libp2pEvent::ReplicaSlice {
                 from,
                 room,
                 index,
@@ -135,7 +135,7 @@ impl<Op> SyncState<Op> {
                     data: data.clone(),
                 })
             }
-            p2p::NetEvent::SnapshotRequest { id, room, part, .. } => Some(
+            p2p::Libp2pEvent::SnapshotRequest { id, room, part, .. } => Some(
                 room_sync::state_machine::Input::SnapshotPartRequestedByRoomMember {
                     id: *id,
                     room: room.clone(),

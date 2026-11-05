@@ -1,10 +1,6 @@
-use std::time::Duration;
-
 use freenet_stdlib::client_api::{ContractResponse, HostResponse};
 
 use crate::discovery;
-
-const DRAIN_TIMEOUT: Duration = Duration::from_millis(10);
 
 pub async fn poll(
     state: &mut discovery::freenet::LobbyContractSubscription,
@@ -12,7 +8,7 @@ pub async fn poll(
     loop {
         let reply = match state
             .client
-            .recv_reply(discovery::FreenetRequestKind::PollLobby, DRAIN_TIMEOUT)
+            .recv_reply(discovery::freenet::RequestKind::PollLobby)
             .await
         {
             Err(discovery::Error::Timeout(_)) => break,

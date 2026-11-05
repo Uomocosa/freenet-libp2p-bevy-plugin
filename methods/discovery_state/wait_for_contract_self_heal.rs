@@ -51,7 +51,7 @@ mod tests {
                 since: discovery::UnixTime::from(0),
             },
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
         state
     }

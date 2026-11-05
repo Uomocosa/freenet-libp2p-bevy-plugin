@@ -5,21 +5,21 @@ use crate::p2p;
 pub fn poll_p2p_events<Payload: p2p::Message>(
     mut events: ResMut<p2p::Events<Payload>>,
     mut commands: ResMut<p2p::Commands<Payload>>,
-    mut pending: ResMut<p2p::PendingNetCommands>,
+    mut pending: ResMut<p2p::PendingLibp2pCommands>,
     command_channel: Res<p2p::CommandSender<Payload>>,
     event_channel: Res<p2p::EventReceiver<Payload>>,
-    net_commands: Option<Res<p2p::NetCommandSender>>,
+    libp2p_commands: Option<Res<p2p::Libp2pCommandSender>>,
     ready: Option<Res<p2p::ReadyChannel>>,
-    net_events: Option<Res<p2p::NetEventChannel>>,
+    libp2p_events: Option<Res<p2p::Libp2pEventChannel>>,
 ) {
     let command_channel = command_channel.into_inner();
     let event_channel = event_channel.into_inner();
     for command in commands.take_all() {
         command_channel.send(command).ok();
     }
-    if let Some(net_commands) = net_commands {
+    if let Some(libp2p_commands) = libp2p_commands {
         for command in pending.take_all() {
-            net_commands.send(command).ok();
+            libp2p_commands.send(command).ok();
         }
     }
     let drained = event_channel.lock().map_or_else(
@@ -36,7 +36,7 @@ pub fn poll_p2p_events<Payload: p2p::Message>(
     );
     for event in &drained {
         match event {
-            p2p::Event::Net(p2p::NetEvent::Ready(me)) => {
+            p2p::Event::Libp2p(p2p::Libp2pEvent::Ready(me)) => {
                 tracing::info!("ready peer_id={} addrs={:?}", me.id, me.addrs);
             }
             p2p::Event::Error(message) => {
@@ -48,20 +48,20 @@ pub fn poll_p2p_events<Payload: p2p::Message>(
     if let Some(ready) = ready {
         for event in &drained {
             match event {
-                p2p::Event::Net(p2p::NetEvent::Ready(me)) => {
+                p2p::Event::Libp2p(p2p::Libp2pEvent::Ready(me)) => {
                     ready.ready_tx.send_replace(Some(me.clone()));
                 }
-                p2p::Event::Net(p2p::NetEvent::ObservedAddr(addr)) => {
+                p2p::Event::Libp2p(p2p::Libp2pEvent::ObservedAddr(addr)) => {
                     ready.observed_tx.send_replace(Some(vec![addr.clone()]));
                 }
                 _ => {}
             }
         }
     }
-    if let Some(net_events) = net_events {
+    if let Some(libp2p_events) = libp2p_events {
         for event in &drained {
-            if let p2p::Event::Net(net_event) = event {
-                net_events.send(net_event.clone());
+            if let p2p::Event::Libp2p(libp2p_event) = event {
+                libp2p_events.send(libp2p_event.clone());
             }
         }
     }
@@ -89,18 +89,20 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(p2p::Events::<Dummy>::default());
         app.insert_resource(p2p::Commands::<Dummy>::default());
-        app.insert_resource(p2p::PendingNetCommands::default());
+        app.insert_resource(p2p::PendingLibp2pCommands::default());
         event_tx
-            .send(p2p::Event::Net(p2p::NetEvent::PeerConnected(
+            .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerConnected(
                 identity::PeerId::from("peer"),
             )))
             .ok();
         app.world_mut()
             .resource_mut::<p2p::Commands<Dummy>>()
-            .push(p2p::Command::Net(p2p::NetCommand::Dial(identity::Peer {
-                id: identity::PeerId::from("peer"),
-                addrs: vec![],
-            })));
+            .push(p2p::Command::Net(p2p::Libp2pCommand::Dial(
+                identity::Peer {
+                    id: identity::PeerId::from("peer"),
+                    addrs: vec![],
+                },
+            )));
         app.insert_resource(p2p::CommandSender(cmd_tx));
         app.insert_resource(p2p::EventReceiver(std::sync::Mutex::new(Some(event_rx))));
         app.add_systems(Update, poll_p2p_events::<Dummy>);
@@ -110,21 +112,21 @@ mod tests {
     }
 
     #[test]
-    fn net_event_channel_forwards_non_generic_events() {
+    fn libp2p_event_channel_forwards_non_generic_events() {
         let (cmd_tx, _cmd_rx) = tokio::sync::mpsc::unbounded_channel::<p2p::Command<Dummy>>();
         let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel::<p2p::Event<Dummy>>();
-        let channel = p2p::NetEventChannel::default();
+        let channel = p2p::Libp2pEventChannel::default();
         let mut tap_rx = channel.subscribe();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(p2p::Events::<Dummy>::default());
         app.insert_resource(p2p::Commands::<Dummy>::default());
-        app.insert_resource(p2p::PendingNetCommands::default());
+        app.insert_resource(p2p::PendingLibp2pCommands::default());
         app.insert_resource(p2p::CommandSender(cmd_tx));
         app.insert_resource(p2p::EventReceiver(std::sync::Mutex::new(Some(event_rx))));
         app.insert_resource(channel);
         event_tx
-            .send(p2p::Event::Net(p2p::NetEvent::PeerConnected(
+            .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerConnected(
                 identity::PeerId::from("peer"),
             )))
             .ok();
@@ -139,11 +141,13 @@ mod tests {
         let tapped = tap_rx.try_recv();
         assert_eq!(
             tapped,
-            Ok(p2p::NetEvent::PeerConnected(identity::PeerId::from("peer")))
+            Ok(p2p::Libp2pEvent::PeerConnected(identity::PeerId::from(
+                "peer"
+            )))
         );
         assert!(
             tap_rx.try_recv().is_err(),
-            "game messages stay off the net event channel"
+            "game messages stay off the libp2p event channel"
         );
     }
 }

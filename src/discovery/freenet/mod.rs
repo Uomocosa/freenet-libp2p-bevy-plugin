@@ -12,8 +12,8 @@ pub use node_status::NodeStatus;
 mod lobby_contract_subscription;
 pub use lobby_contract_subscription::LobbyContractSubscription;
 
-mod request_timeout;
-pub use request_timeout::RequestTimeout;
+mod request_kind;
+pub use request_kind::RequestKind;
 
 mod client;
 pub use client::Client;

@@ -19,7 +19,7 @@ pub fn handle_lobby(
     let mut outputs = state.collect_room_peers_from_lobby();
     state.align_room_created_at();
     outputs.extend(state.wait_for_contract_self_heal(now));
-    outputs.push(Output::Notify(discovery::Event::LobbyChanged));
+    outputs.push(Output::Notify(discovery::Event::LobbyUpdated));
     outputs
 }
 
@@ -43,7 +43,7 @@ mod tests {
             created_at: discovery::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
         let mut members = BTreeMap::new();
         for peer in ["me", "a"] {
@@ -72,11 +72,11 @@ mod tests {
         assert_eq!(
             handle_lobby(&mut state, lobby.clone(), discovery::UnixTime::from(10)),
             vec![
-                Output::NetCommand(crate::p2p::NetCommand::AddKadPeer(identity::Peer {
+                Output::Libp2pCommand(crate::p2p::Libp2pCommand::AddKadPeer(identity::Peer {
                     id: identity::PeerId::from("a"),
                     addrs: vec![identity::PeerAddr::from("/ip4/1")],
                 })),
-                Output::Notify(discovery::Event::LobbyChanged),
+                Output::Notify(discovery::Event::LobbyUpdated),
             ]
         );
         assert_eq!(state.candidates.len(), 1);

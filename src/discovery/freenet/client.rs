@@ -42,13 +42,13 @@ impl Client {
 #[atomic_delegates]
 impl Client {
     pub async fn try_from_host_and_port(host: &str, port: u16) -> Result<Self, discovery::Error> {}
-    pub async fn attach(
+    pub async fn fetch_or_deploy_lobby(
         &mut self,
         contract_wasm: &[u8],
         params: &[u8],
         deploy: discovery::freenet::DeployPolicy,
         ring_wait: Duration,
-        initial_lobby: &discovery::Lobby,
+        seed_lobby: &discovery::Lobby,
     ) -> Result<(ContractKey, discovery::Lobby), discovery::Error> {
     }
     pub async fn wait_until_ring_ready(
@@ -76,12 +76,9 @@ impl Client {
 impl Client {
     pub async fn recv_reply(
         &mut self,
-        kind: discovery::FreenetRequestKind,
-        timeout: Duration,
+        kind: discovery::freenet::RequestKind,
     ) -> Result<HostResponse, discovery::Error> {
-        discovery::freenet::RequestTimeout(timeout)
-            .within(kind, self.next_reply())
-            .await
+        kind.run_with_timeout(self.next_reply()).await
     }
 
     pub(crate) async fn next_reply(&mut self) -> Result<HostResponse, discovery::Error> {
@@ -98,11 +95,11 @@ impl Client {
     pub(crate) async fn deploy_contract(
         &mut self,
         contract: ContractContainer,
-        initial_lobby: &discovery::Lobby,
+        seed_lobby: &discovery::Lobby,
     ) -> Result<(), discovery::Error> {
         let put = ContractRequest::Put {
             contract,
-            state: WrappedState::new(bincode::serialize(initial_lobby)?),
+            state: WrappedState::new(bincode::serialize(seed_lobby)?),
             related_contracts: RelatedContracts::default(),
             subscribe: true,
             blocking_subscribe: false,
@@ -132,8 +129,6 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use super::Client;
     use crate::discovery;
 
@@ -150,10 +145,7 @@ mod tests {
         assert!(client.recv().await.is_err());
         assert!(client.next_reply().await.is_err());
         let result = client
-            .recv_reply(
-                discovery::FreenetRequestKind::QueryPeers,
-                Duration::from_millis(1),
-            )
+            .recv_reply(discovery::freenet::RequestKind::QueryPeers)
             .await;
         assert!(matches!(result, Err(discovery::Error::Disconnected)));
 
@@ -161,10 +153,7 @@ mod tests {
         let (_read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         let mut silent = Client { write, read };
         let result = silent
-            .recv_reply(
-                discovery::FreenetRequestKind::QueryPeers,
-                Duration::from_millis(1),
-            )
+            .recv_reply(discovery::freenet::RequestKind::PollLobby)
             .await;
         assert!(matches!(result, Err(discovery::Error::Timeout(_))));
     }

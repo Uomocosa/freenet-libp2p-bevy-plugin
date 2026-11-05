@@ -18,7 +18,7 @@ pub struct Config {
 
 #[atomic_delegates]
 impl Config {
-    pub async fn run_lobby(
+    pub async fn run_lobby_sync_loop(
         &self,
         subscription: discovery::freenet::LobbyContractSubscription,
         target: Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
@@ -31,7 +31,7 @@ impl Config {
         target: &Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
     ) -> discovery::freenet::LobbyContractSubscription {
     }
-    pub(crate) fn initial_lobby(
+    pub(crate) fn seed_lobby_for_deploy(
         me: &identity::PeerId,
         room_size: discovery::RoomSize,
         target: Option<&discovery::state_machine::HeartbeatTarget>,

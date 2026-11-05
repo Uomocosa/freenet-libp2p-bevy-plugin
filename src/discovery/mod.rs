@@ -9,7 +9,7 @@ pub mod ui;
 pub mod basic;
 
 pub use basic::constants::*;
-pub use basic::enums::{FreenetRequestKind, JoinPhase, LinkStatus, RoomEntry, RoomMembership};
+pub use basic::enums::{HowRoomWasEntered, JoinPhase, RoomMembership};
 pub use basic::messages::{Command, Event};
 pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, StatusReceiver};
 pub use basic::structs::{JoinedRoom, LobbyLeaseLimits, RoomMember, RunChannels};

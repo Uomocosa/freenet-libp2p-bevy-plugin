@@ -93,6 +93,9 @@ run *ARGS:
 demo:
     just run --username lele --ui default
 
+new-game-id:
+    cargo run --bin new-game-id
+
 lint:
     lele-lint .
 

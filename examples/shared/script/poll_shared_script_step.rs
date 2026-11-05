@@ -121,13 +121,13 @@ pub fn poll_shared_script_step(
 }
 
 // needed helper: why the join to `name` failed, if it did — the plugin's error, or the room
-// vanishing from an attached lobby while the peer is not in it
+// vanishing from a fetched lobby while the peer is not in it
 fn join_failure_reason(view: &SharedStepView<'_>, name: &identity::RoomName) -> Option<String> {
     if let Some(reason) = view.join_error {
         return Some(reason.to_string());
     }
     let status = view.status;
-    if status.room.is_some() || !status.is_lobby_attached || status.lobby.contains_key(name) {
+    if status.room.is_some() || !status.is_lobby_fetched || status.lobby.contains_key(name) {
         return None;
     }
     Some(format!("room {name} no longer exists"))
@@ -194,9 +194,9 @@ mod tests {
     }
 
     #[test]
-    fn a_room_missing_from_the_attached_lobby_is_a_failed_join() {
+    fn a_room_missing_from_the_fetched_lobby_is_a_failed_join() {
         let status = discovery::Status {
-            is_lobby_attached: true,
+            is_lobby_fetched: true,
             ..discovery::Status::default()
         };
         let poll = poll_shared_script_step(

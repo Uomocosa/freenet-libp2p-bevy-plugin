@@ -10,7 +10,7 @@ use crate::p2p;
 pub async fn run<Payload: p2p::Message>(
     config: &p2p::RunnerConfig,
     mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<Payload>>,
-    mut net_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::NetCommand>,
+    mut libp2p_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Libp2pCommand>,
     event_tx: tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     keypair: Keypair,
 ) {
@@ -54,7 +54,7 @@ pub async fn run<Payload: p2p::Message>(
             () = &mut ready_sleep, if state.ready_deadline.is_some() => {
                 let addrs = std::mem::take(&mut state.listen_addrs);
                 let me = identity::Peer { id: own_peer_id.clone(), addrs };
-                state.event_tx.send(p2p::Event::Net(p2p::NetEvent::Ready(me))).ok();
+                state.event_tx.send(p2p::Event::Libp2p(p2p::Libp2pEvent::Ready(me))).ok();
                 state.ready_deadline = None;
             }
             () = &mut mesh_sleep => {
@@ -66,9 +66,9 @@ pub async fn run<Payload: p2p::Message>(
                     break;
                 }
             }
-            net_cmd = net_rx.recv() => {
-                if let Some(net) = net_cmd {
-                    state.dispatch_net_command(net);
+            libp2p_cmd = libp2p_rx.recv() => {
+                if let Some(libp2p_command) = libp2p_cmd {
+                    state.dispatch_libp2p_command(libp2p_command);
                 } else {
                     break;
                 }
@@ -99,14 +99,14 @@ mod tests {
 
     struct Node {
         commands: tokio::sync::mpsc::UnboundedSender<p2p::Command<TestPayload>>,
-        net_commands: tokio::sync::mpsc::UnboundedSender<p2p::NetCommand>,
+        libp2p_commands: tokio::sync::mpsc::UnboundedSender<p2p::Libp2pCommand>,
         events: tokio::sync::mpsc::UnboundedReceiver<p2p::Event<TestPayload>>,
         handle: tokio::task::JoinHandle<()>,
     }
 
     fn node(game: &identity::GameId) -> Node {
         let (commands, command_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (net_commands, net_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (libp2p_commands, libp2p_rx) = tokio::sync::mpsc::unbounded_channel();
         let (event_tx, events) = tokio::sync::mpsc::unbounded_channel();
         let config = p2p::RunnerConfig {
             mode: p2p::TransportMode::Tcp,
@@ -116,13 +116,13 @@ mod tests {
         };
         let handle = config.spawn_runner::<TestPayload>(
             command_rx,
-            net_rx,
+            libp2p_rx,
             event_tx,
             Keypair::generate_ed25519(),
         );
         Node {
             commands,
-            net_commands,
+            libp2p_commands,
             events,
             handle,
         }
@@ -142,7 +142,7 @@ mod tests {
     async fn wait_ready(node: &mut Node) -> identity::Peer {
         let ready = tokio::time::timeout(Duration::from_secs(10), async {
             while let Some(event) = node.events.recv().await {
-                if let p2p::Event::Net(p2p::NetEvent::Ready(peer)) = event {
+                if let p2p::Event::Libp2p(p2p::Libp2pEvent::Ready(peer)) = event {
                     return Some(peer);
                 }
             }
@@ -159,7 +159,7 @@ mod tests {
         let mut seen: Vec<identity::PeerId> = Vec::new();
         let connected = tokio::time::timeout(Duration::from_secs(10), async {
             while let Some(event) = node.events.recv().await {
-                if let p2p::Event::Net(p2p::NetEvent::PeerConnected(id)) = event
+                if let p2p::Event::Libp2p(p2p::Libp2pEvent::PeerConnected(id)) = event
                     && peers.contains(&id)
                     && !seen.contains(&id)
                 {
@@ -217,18 +217,18 @@ mod tests {
         }
     }
 
-    async fn wait_history_event(node: &mut Node) -> p2p::NetEvent {
+    async fn wait_history_event(node: &mut Node) -> p2p::Libp2pEvent {
         let event = tokio::time::timeout(Duration::from_secs(15), async {
             while let Some(event) = node.events.recv().await {
-                if let p2p::Event::Net(
-                    net @ (p2p::NetEvent::HistoryRecordStored { .. }
-                    | p2p::NetEvent::HistoryRecordPutFailed { .. }
-                    | p2p::NetEvent::HistoryRecordFound { .. }
-                    | p2p::NetEvent::HistoryRecordNotFound { .. }
-                    | p2p::NetEvent::HistoryStoreMeasured { .. }),
+                if let p2p::Event::Libp2p(
+                    libp2p_event @ (p2p::Libp2pEvent::HistoryRecordStored { .. }
+                    | p2p::Libp2pEvent::HistoryRecordPutFailed { .. }
+                    | p2p::Libp2pEvent::HistoryRecordFound { .. }
+                    | p2p::Libp2pEvent::HistoryRecordNotFound { .. }
+                    | p2p::Libp2pEvent::HistoryStoreMeasured { .. }),
                 ) = event
                 {
-                    return Some(net);
+                    return Some(libp2p_event);
                 }
             }
             None
@@ -254,8 +254,8 @@ mod tests {
         let mut right = node(&game);
 
         for node in [&mut hub, &mut left, &mut right] {
-            node.net_commands
-                .send(p2p::NetCommand::SubscribeRoom { room: room.clone() })
+            node.libp2p_commands
+                .send(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() })
                 .unwrap();
         }
 
@@ -263,12 +263,12 @@ mod tests {
         let left_peer = wait_ready(&mut left).await;
         let right_peer = wait_ready(&mut right).await;
 
-        left.net_commands
-            .send(p2p::NetCommand::Dial(dialable(&hub_peer)))
+        left.libp2p_commands
+            .send(p2p::Libp2pCommand::Dial(dialable(&hub_peer)))
             .unwrap();
         right
-            .net_commands
-            .send(p2p::NetCommand::Dial(dialable(&hub_peer)))
+            .libp2p_commands
+            .send(p2p::Libp2pCommand::Dial(dialable(&hub_peer)))
             .unwrap();
 
         wait_connected_to_all(&mut hub, &[left_peer.id.clone(), right_peer.id.clone()]).await;
@@ -318,11 +318,11 @@ mod tests {
         let reader_peer = wait_ready(&mut reader).await;
 
         for node in [&writer, &reader] {
-            node.net_commands
-                .send(p2p::NetCommand::AddKadPeer(middle_peer.clone()))
+            node.libp2p_commands
+                .send(p2p::Libp2pCommand::AddKadPeer(middle_peer.clone()))
                 .unwrap();
-            node.net_commands
-                .send(p2p::NetCommand::Dial(middle_peer.clone()))
+            node.libp2p_commands
+                .send(p2p::Libp2pCommand::Dial(middle_peer.clone()))
                 .unwrap();
         }
         wait_connected_to_all(
@@ -341,8 +341,8 @@ mod tests {
         let chunk_value: Vec<u8> = (0..60 * 1024).map(|i: u32| i.to_le_bytes()[0]).collect();
         for (id, value) in [(&manifest, vec![7, 7, 7]), (&chunk, chunk_value.clone())] {
             writer
-                .net_commands
-                .send(p2p::NetCommand::PutHistoryRecord {
+                .libp2p_commands
+                .send(p2p::Libp2pCommand::PutHistoryRecord {
                     id: id.clone(),
                     value,
                     ttl: Duration::from_secs(90),
@@ -350,19 +350,19 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 wait_history_event(&mut writer).await,
-                p2p::NetEvent::HistoryRecordStored { id: id.clone() }
+                p2p::Libp2pEvent::HistoryRecordStored { id: id.clone() }
             );
         }
         writer.handle.abort();
 
         for (id, value) in [(&manifest, vec![7, 7, 7]), (&chunk, chunk_value)] {
             reader
-                .net_commands
-                .send(p2p::NetCommand::GetHistoryRecord { id: id.clone() })
+                .libp2p_commands
+                .send(p2p::Libp2pCommand::GetHistoryRecord { id: id.clone() })
                 .unwrap();
             assert_eq!(
                 wait_history_event(&mut reader).await,
-                p2p::NetEvent::HistoryRecordFound {
+                p2p::Libp2pEvent::HistoryRecordFound {
                     id: id.clone(),
                     value
                 }
@@ -371,14 +371,14 @@ mod tests {
 
         let unknown = p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("nope"));
         reader
-            .net_commands
-            .send(p2p::NetCommand::GetHistoryRecord {
+            .libp2p_commands
+            .send(p2p::Libp2pCommand::GetHistoryRecord {
                 id: unknown.clone(),
             })
             .unwrap();
         assert_eq!(
             wait_history_event(&mut reader).await,
-            p2p::NetEvent::HistoryRecordNotFound { id: unknown }
+            p2p::Libp2pEvent::HistoryRecordNotFound { id: unknown }
         );
 
         middle.handle.abort();
@@ -408,8 +408,8 @@ mod tests {
         let prefix = p2p::HistoryKeyPrefix::new(&game, &room, created_at);
         let manifest = p2p::RoomHistoryRecordKind::Manifest(prefix.clone());
         holder
-            .net_commands
-            .send(p2p::NetCommand::PutHistoryRecord {
+            .libp2p_commands
+            .send(p2p::Libp2pCommand::PutHistoryRecord {
                 id: manifest,
                 value: vec![1; 32],
                 ttl: Duration::from_secs(90),
@@ -418,10 +418,10 @@ mod tests {
         wait_history_event(&mut holder).await;
 
         holder
-            .net_commands
-            .send(p2p::NetCommand::MeasureHistoryStore)
+            .libp2p_commands
+            .send(p2p::Libp2pCommand::MeasureHistoryStore)
             .unwrap();
-        let p2p::NetEvent::HistoryStoreMeasured { bytes_by_prefix } =
+        let p2p::Libp2pEvent::HistoryStoreMeasured { bytes_by_prefix } =
             wait_history_event(&mut holder).await
         else {
             panic!("expected a history store measurement");
@@ -430,20 +430,20 @@ mod tests {
             bytes_by_prefix.get(&prefix),
             Some(&p2p::HistoryByteCount(32))
         );
-        for output in state.drop_oldest_history(&bytes_by_prefix) {
-            if let discovery::state_machine::Output::NetCommand(command) = output {
-                holder.net_commands.send(command).unwrap();
+        for output in state.evict_held_rooms_over_history_limit(&bytes_by_prefix) {
+            if let discovery::state_machine::Output::Libp2pCommand(command) = output {
+                holder.libp2p_commands.send(command).unwrap();
             }
         }
         assert_eq!(state.evicted_rooms.get(&room), Some(&created_at));
 
         holder
-            .net_commands
-            .send(p2p::NetCommand::MeasureHistoryStore)
+            .libp2p_commands
+            .send(p2p::Libp2pCommand::MeasureHistoryStore)
             .unwrap();
         assert_eq!(
             wait_history_event(&mut holder).await,
-            p2p::NetEvent::HistoryStoreMeasured {
+            p2p::Libp2pEvent::HistoryStoreMeasured {
                 bytes_by_prefix: std::collections::BTreeMap::new()
             }
         );

@@ -44,11 +44,11 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
-                entry: discovery::RoomEntry::Created,
+                how_entered: discovery::HowRoomWasEntered::Created,
             }),
             connected: std::collections::BTreeSet::new(),
             freenet_peers: Vec::new(),
-            is_lobby_attached: true,
+            is_lobby_fetched: true,
             self_peer_id: None,
         };
         tx.send(status.clone()).ok();

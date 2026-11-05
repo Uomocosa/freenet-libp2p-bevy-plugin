@@ -12,7 +12,7 @@ pub struct LobbyContractSubscription {
 
 #[atomic_delegates]
 impl LobbyContractSubscription {
-    pub fn bridge_subscription(&mut self) -> Result<(), discovery::Error> {}
+    pub fn resubscribe_to_heal_replica_split(&mut self) -> Result<(), discovery::Error> {}
     pub fn publish_heartbeat(
         &mut self,
         room: &identity::RoomName,

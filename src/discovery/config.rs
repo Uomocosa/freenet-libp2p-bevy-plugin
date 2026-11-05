@@ -37,7 +37,7 @@ impl Config {
 impl Config {
     pub(crate) fn flush(
         outputs: Vec<discovery::state_machine::Output>,
-        net: &UnboundedSender<p2p::NetCommand>,
+        libp2p: &UnboundedSender<p2p::Libp2pCommand>,
         events: &UnboundedSender<discovery::Event>,
     ) {
         for output in outputs {
@@ -45,8 +45,8 @@ impl Config {
                 discovery::state_machine::Output::Notify(event) => {
                     let _ = events.send(event);
                 }
-                discovery::state_machine::Output::NetCommand(command) => {
-                    let _ = net.send(command);
+                discovery::state_machine::Output::Libp2pCommand(command) => {
+                    let _ = libp2p.send(command);
                 }
             }
         }

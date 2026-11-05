@@ -27,11 +27,11 @@ pub struct JoinedRoom {
     pub created_at: discovery::UnixTime,
     pub phase: discovery::JoinPhase,
     pub members: discovery::Members,
-    pub entry: discovery::RoomEntry,
+    pub how_entered: discovery::HowRoomWasEntered,
 }
 
 pub struct RunChannels {
-    pub net: discovery::libp2p::NetLink,
+    pub swarm: discovery::libp2p::SwarmChannels,
     pub commands: UnboundedReceiver<discovery::Command>,
     pub statuses: UnboundedSender<discovery::Status>,
     pub events: UnboundedSender<discovery::Event>,

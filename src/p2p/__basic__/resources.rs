@@ -16,4 +16,4 @@ pub struct EventReceiver<Payload: p2p::Message>(
 );
 
 #[derive(Resource, Deref)]
-pub struct NetCommandSender(pub UnboundedSender<p2p::NetCommand>);
+pub struct Libp2pCommandSender(pub UnboundedSender<p2p::Libp2pCommand>);

@@ -25,6 +25,6 @@ impl bevy::prelude::Plugin for Plugin {
 #[atomic_delegates]
 impl Plugin {
     pub fn build_plugin(&self, app: &mut App) {}
-    pub(crate) fn net_link(app: &App) -> Option<discovery::libp2p::NetLink> {}
+    pub(crate) fn swarm_channels(app: &App) -> Option<discovery::libp2p::SwarmChannels> {}
 }
 // no test_usage necessary

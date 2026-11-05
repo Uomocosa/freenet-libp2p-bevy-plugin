@@ -19,7 +19,7 @@ pub fn pick_screen(
         match (phase, current) {
             (Some(discovery::JoinPhase::Ready), _) => Screen::InRoom,
             (Some(discovery::JoinPhase::Joining { .. }), _) => Screen::JoiningRoom,
-            (None, Screen::Connecting) if !status.is_lobby_attached => Screen::Connecting,
+            (None, Screen::Connecting) if !status.is_lobby_fetched => Screen::Connecting,
             (None, _) => Screen::Lobby,
         }
     };
@@ -66,7 +66,7 @@ mod tests {
         );
         let ready = discovery::Status {
             freenet_peers: ready_peers(),
-            is_lobby_attached: true,
+            is_lobby_fetched: true,
             ..Default::default()
         };
         assert_eq!(screen_after(ready.clone()), discovery::ui::Screen::Lobby);
@@ -78,7 +78,7 @@ mod tests {
                     since: discovery::UnixTime::from(0),
                 },
                 members: discovery::Members::new(),
-                entry: discovery::RoomEntry::Created,
+                how_entered: discovery::HowRoomWasEntered::Created,
             }),
             ..ready.clone()
         };
@@ -89,7 +89,7 @@ mod tests {
                 created_at: discovery::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
-                entry: discovery::RoomEntry::Created,
+                how_entered: discovery::HowRoomWasEntered::Created,
             }),
             ..ready
         };

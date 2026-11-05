@@ -1,10 +1,10 @@
 mod connect_retry;
-mod initial_lobby;
 mod poll_peers;
 mod run;
-mod run_lobby;
+mod run_lobby_sync_loop;
+mod seed_lobby_for_deploy;
 pub use connect_retry::connect_retry;
-pub use initial_lobby::initial_lobby;
 pub use poll_peers::poll_peers;
 pub use run::run;
-pub use run_lobby::run_lobby;
+pub use run_lobby_sync_loop::run_lobby_sync_loop;
+pub use seed_lobby_for_deploy::seed_lobby_for_deploy;

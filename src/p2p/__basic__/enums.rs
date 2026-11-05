@@ -7,7 +7,7 @@ use crate::p2p;
 use crate::room_sync;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum NetEvent {
+pub enum Libp2pEvent {
     Ready(identity::Peer),
     ObservedAddr(identity::PeerAddr),
     PeerConnected(identity::PeerId),
@@ -123,7 +123,7 @@ pub enum SnapshotResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command<Payload> {
-    Net(p2p::NetCommand),
+    Net(p2p::Libp2pCommand),
     Send {
         peer_id: identity::PeerId,
         payload: Payload,
@@ -139,7 +139,7 @@ pub enum Command<Payload> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Event<Payload> {
-    Net(NetEvent),
+    Libp2p(Libp2pEvent),
     Message {
         from: identity::PeerId,
         payload: Payload,

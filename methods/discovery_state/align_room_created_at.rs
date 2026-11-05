@@ -37,7 +37,7 @@ mod tests {
                 since: discovery::UnixTime::from(0),
             },
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
         state.lobby.insert(
             room,
@@ -67,7 +67,7 @@ mod tests {
                 since: discovery::UnixTime::from(0),
             },
             members: discovery::Members::new(),
-            entry: discovery::RoomEntry::Created,
+            how_entered: discovery::HowRoomWasEntered::Created,
         });
         align_room_created_at(&mut state);
         assert_eq!(
