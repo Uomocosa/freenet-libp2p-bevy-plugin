@@ -5,14 +5,14 @@ fn peer_count() -> usize {
         .ok()
         .and_then(|raw| raw.parse().ok())
         .unwrap_or(3)
-        .clamp(2, 5)
+        .clamp(1, 5)
 }
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "e2e: needs X + freenet network + N lobby_room windows"]
 #[telegram_bot_helper::telegram_notify]
 async fn lobby_room_discovery() {
-    common::run_scenario(common::Scenario::discover_only(peer_count()))
+    common::run_scenario(common::Scenario::discover_only(peer_count().clamp(2, 5)))
         .await
         .assert_all();
 }
