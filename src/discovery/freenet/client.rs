@@ -111,25 +111,62 @@ impl Client {
         &mut self,
         contract: ContractContainer,
         seed_lobby: &discovery::Lobby,
-    ) -> Result<(), discovery::Error> {
-        let put = ContractRequest::Put {
+    ) -> Result<usize, discovery::Error> {
+        self.send(&ClientRequest::ContractOp(ContractRequest::Put {
             contract,
             state: WrappedState::new(bincode::serialize(seed_lobby)?),
             related_contracts: RelatedContracts::default(),
             subscribe: true,
             blocking_subscribe: false,
-        };
-        self.send(&ClientRequest::ContractOp(put))?;
-        match self.next_reply().await? {
-            HostResponse::ContractResponse(
-                ContractResponse::PutResponse { key }
-                | ContractResponse::SubscribeResponse { key, .. }
-                | ContractResponse::UpdateResponse { key, .. },
-            ) => {
-                tracing::info!(target: "discovery", key = %key, "discovery: lobby contract deployed");
-                Ok(())
+        }))?;
+        let mut skipped_stale_get_replies: usize = 0;
+        loop {
+            match self.next_reply().await? {
+                HostResponse::ContractResponse(
+                    ContractResponse::PutResponse { key }
+                    | ContractResponse::SubscribeResponse { key, .. }
+                    | ContractResponse::UpdateResponse { key, .. },
+                ) => {
+                    tracing::info!(target: "discovery", key = %key, "discovery: lobby contract deployed");
+                    return Ok(skipped_stale_get_replies);
+                }
+                HostResponse::ContractResponse(
+                    ContractResponse::GetResponse { .. } | ContractResponse::NotFound { .. },
+                ) => {
+                    skipped_stale_get_replies = skipped_stale_get_replies.saturating_add(1);
+                }
+                other => return Err(discovery::Error::UnexpectedResponse(format!("{other:?}"))),
             }
-            other => Err(discovery::Error::UnexpectedResponse(format!("{other:?}"))),
+        }
+    }
+
+    pub(crate) fn send_lobby_fetch(
+        &self,
+        instance_id: ContractInstanceId,
+    ) -> Result<(), discovery::Error> {
+        let get = ContractRequest::Get {
+            key: instance_id,
+            return_contract_code: false,
+            subscribe: true,
+            blocking_subscribe: true,
+        };
+        self.send(&ClientRequest::ContractOp(get))
+    }
+
+    pub(crate) async fn fetch_after_deploy(
+        &mut self,
+        instance_id: ContractInstanceId,
+        stale_not_founds: usize,
+    ) -> Result<discovery::Lobby, discovery::Error> {
+        self.send_lobby_fetch(instance_id)?;
+        let mut remaining_stale_not_founds = stale_not_founds;
+        loop {
+            match self.await_outstanding_fetch().await {
+                Err(discovery::Error::ContractNotFound) if remaining_stale_not_founds > 0 => {
+                    remaining_stale_not_founds = remaining_stale_not_founds.saturating_sub(1);
+                }
+                settled => return settled,
+            }
         }
     }
 
@@ -148,7 +185,8 @@ mod tests {
 
     use freenet_stdlib::client_api::{ContractResponse, HostResponse};
     use freenet_stdlib::prelude::{
-        ContractCode, ContractKey, Parameters, WrappedContract, WrappedState,
+        ContractCode, ContractContainer, ContractKey, ContractWasmAPIVersion, Parameters,
+        WrappedContract, WrappedState,
     };
 
     use super::Client;
@@ -217,5 +255,42 @@ mod tests {
             missing.await_outstanding_fetch().await,
             Err(discovery::Error::ContractNotFound)
         ));
+    }
+
+    #[tokio::test]
+    async fn deploy_skips_stale_get_replies() {
+        let key = contract_key();
+        let seed = discovery::Lobby::default();
+        let wrapped = WrappedContract::new(
+            Arc::new(ContractCode::from(vec![0; 4])),
+            Parameters::from(Vec::new()),
+        );
+        let container = ContractContainer::from(ContractWasmAPIVersion::V1(wrapped));
+        let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::NotFound {
+                    instance_id: *key.id(),
+                },
+            )))
+            .ok();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::GetResponse {
+                    key,
+                    contract: None,
+                    state: WrappedState::new(bincode::serialize(&seed).unwrap_or_default()),
+                },
+            )))
+            .ok();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::PutResponse { key },
+            )))
+            .ok();
+        let mut client = Client { write, read };
+        assert_eq!(client.deploy_contract(container, &seed).await.ok(), Some(2));
+        assert!(write_rx.recv().await.is_some());
     }
 }

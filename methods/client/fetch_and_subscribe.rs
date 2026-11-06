@@ -1,4 +1,3 @@
-use freenet_stdlib::client_api::{ClientRequest, ContractRequest};
 use freenet_stdlib::prelude::ContractInstanceId;
 
 use crate::discovery;
@@ -7,13 +6,7 @@ pub async fn fetch_and_subscribe(
     state: &mut discovery::freenet::Client,
     instance_id: ContractInstanceId,
 ) -> Result<discovery::Lobby, discovery::Error> {
-    let get = ContractRequest::Get {
-        key: instance_id,
-        return_contract_code: false,
-        subscribe: true,
-        blocking_subscribe: true,
-    };
-    state.send(&ClientRequest::ContractOp(get))?;
+    state.send_lobby_fetch(instance_id)?;
     state.await_outstanding_fetch().await
 }
 
