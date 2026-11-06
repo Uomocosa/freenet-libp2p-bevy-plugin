@@ -58,9 +58,14 @@ impl Scenario {
     /// The creator stays in its room; every other peer waits for the room in its lobby.
     #[must_use]
     pub fn discover_only(peers: usize) -> Self {
-        let mut runs = vec![now(format!("{}, stay", create_and_enter()))];
+        let mut runs = vec![now(format!(
+            "{}, wait-ring-joined@120s, stay",
+            create_and_enter()
+        ))];
         for _ in 1..peers {
-            runs.push(now("wait-lobby-room:{room}@420s, exit-app".to_string()));
+            runs.push(now(
+                "wait-lobby-room:{room}@420s, wait-ring-joined@120s, exit-app".to_string(),
+            ));
         }
         Self {
             name: "lobby_room_discovery".to_string(),
