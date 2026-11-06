@@ -33,11 +33,15 @@ pub async fn start_embedded_freenet_node(
     let clients = serve_client_api_with_listener(ws_config, listener)
         .await
         .map_err(|e| e.to_string())?;
+    let network_port = match &node_dir {
+        FreenetNodeDir::Kept(_) => None,
+        FreenetNodeDir::Temporary(_) => Some(free_udp_port()?),
+    };
     let args = ConfigArgs {
         mode: Some(OperationMode::Network),
         network_api: NetworkArgs {
             is_gateway: false,
-            network_port: Some(free_udp_port()?),
+            network_port,
             ..Default::default()
         },
         config_paths: ConfigPathsArgs {
@@ -62,7 +66,7 @@ pub async fn start_embedded_freenet_node(
     Ok((node_dir, ws_port))
 }
 
-// needed helper: allocates a free UDP port so parallel instances never collide
+// needed helper: allocates a free UDP port so parallel temporary instances never collide
 fn free_udp_port() -> Result<u16, String> {
     let socket =
         UdpSocket::bind((IpAddr::V4(Ipv4Addr::LOCALHOST), 0)).map_err(|e| e.to_string())?;

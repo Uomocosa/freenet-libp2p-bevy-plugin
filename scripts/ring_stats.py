@@ -14,6 +14,8 @@ seconds elapsed from that log's first timestamped line:
   fetch               elapsed_ms + outcome of the first
                       "lobby fetch found" / "lobby fetch failed"
   deployed            "lobby contract deployed" appears
+  cached_reconnect    "Attempting fast reconnection" appears
+  listen_port         port from "Node will be listening at :::port"
   max_ring_peers      max ring_peers=N seen
 
 Per run, on one clock (the earliest first timestamp across the run's logs):
@@ -56,6 +58,7 @@ RING_PEERS_RE = re.compile(r"ring_peers=(\d+)")
 ELAPSED_MS_RE = re.compile(r"elapsed_ms=(\d+)")
 ROOMS_RE = re.compile(r"rooms=(\d+)")
 KEY_RE = re.compile(r"key=([A-Za-z0-9_-]+)")
+LISTEN_PORT_RE = re.compile(r"Node will be listening at .*?:(\d+) internal address")
 
 GATE_OPEN_OLD = "lobby freenet ring ready"
 GATE_OPEN_NEW = "lobby freenet node reachable"
@@ -97,6 +100,7 @@ def parse_peer_log(path):
         "fetch_outcome": None,
         "deployed": False,
         "cached_reconnect": False,
+        "listen_port": None,
         "max_ring_peers": None,
         "keys": [],
         "t0_epoch": None,
@@ -150,6 +154,10 @@ def parse_peer_log(path):
             peer["deployed"] = True
         if FAST_RECONNECT in line:
             peer["cached_reconnect"] = True
+        if peer["listen_port"] is None:
+            found = LISTEN_PORT_RE.search(line)
+            if found:
+                peer["listen_port"] = int(found.group(1))
         for value in RING_PEERS_RE.findall(line):
             count = int(value)
             if peer["max_ring_peers"] is None or count > peer["max_ring_peers"]:
@@ -323,11 +331,14 @@ def print_table(runs, stats, empty_note=None):
             continue
         print(
             "  peer  gate_open_s   gave_up  "
-            "ring_join_s  first_ring_peers_s  lobby_ready_s  fetch        deployed  max_ring_peers  cached_reconnect"
+            "ring_join_s  first_ring_peers_s  lobby_ready_s  fetch        deployed  max_ring_peers  cached_reconnect  listen_port"
         )
         for peer in run["peers"]:
             max_ring = (
                 "-" if peer["max_ring_peers"] is None else str(peer["max_ring_peers"])
+            )
+            listen_port = (
+                "-" if peer["listen_port"] is None else str(peer["listen_port"])
             )
             print(
                 f"  {peer['peer']:<5}"
@@ -339,7 +350,8 @@ def print_table(runs, stats, empty_note=None):
                 f"{fmt_fetch(peer):<13}"
                 f"{'yes' if peer['deployed'] else 'no':<10}"
                 f"{max_ring:<16}"
-                f"{'yes' if peer['cached_reconnect'] else 'no'}"
+                f"{'yes' if peer['cached_reconnect'] else 'no':<18}"
+                f"{listen_port}"
             )
         gave_up = ",".join(run["gave_up"]) if run["gave_up"] else "-"
         deployed = ",".join(run["deployed"]) if run["deployed"] else "-"
