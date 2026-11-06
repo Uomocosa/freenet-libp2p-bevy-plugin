@@ -441,7 +441,7 @@ impl Scenario {
         }
         runs.push(PeerRun {
             script: format!(
-                "{}, wait-canvas-nonempty@120s, sleep:5s, crash-app",
+                "{}, {members}, wait-canvas-nonempty@120s, sleep:5s, crash-app",
                 join_and_enter()
             ),
             start: PeerStart::Now,

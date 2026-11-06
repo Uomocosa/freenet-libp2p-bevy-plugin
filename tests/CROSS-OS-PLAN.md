@@ -26,7 +26,7 @@ host our own relay — that would defeat the purpose of Freenet.
 | X9 | Slow Windows | All waits × `E2E_TIME_SCALE` (default 1, Windows ≈ 4, tune). |
 | X10 | Video | Recorded on both machines: Linux ffmpeg x11grab (existing), Windows ffmpeg gdigrab (low fps/resolution). |
 | X11 | Runners | Windows self-hosted runner (exists) + this Linux machine registered as `linux-e2e`. |
-| X12 | Repo / branch | `freenet-libp2p-bevy-plugin`, branch `feature/cross-machine-e2e`. |
+| X12 | Repo / branch | `freenet-libp2p-bevy-plugin`, branch `main`. |
 
 ## 2. Test mechanics
 
@@ -85,8 +85,9 @@ Jobs:
       (2026-10-29: fast 398 passed; S4a/S4b/S4c PASS on mainnet, finding 7 fixed).
 - [x] 3. Ship Freenet with the game (X3) (2026-10-29: in-process node; --freenet-node-dir).
 - [x] 4. Step script, `result.json`, checker, two-layer connectivity report (2026-10-29: step script from Part C; result.json via --result-json; e2e-check example; connection kind = /p2p-circuit -> relayed, else quic/tcp; hole-punched = relayed then direct).
-5. S1–S7 green on Linux alone.
+- [x] 5. S1–S7 green on Linux alone.
    - 2026-10-29 live: 8/9 green — S1 219s, S2 142s, S3 86s, S4a 199s, S4b 236s, S4c 48s, S6 163s, S7 332s; S5 FAILS: canvases diverge when both peers paint right after a join (anti-entropy did not repair). Headless repro: examples/starboard/app/starboard_plugin.rs two_apps_painting_the_same_cells_right_after_joining_converge. Root cause: concurrent dialing of a peer's addresses created short-lived duplicate connections; gossipsub's one-time subscription exchange rode a closed one, so the joiner never learned the creator's room topics (312x NoPeersSubscribedToTopic live). Fix: DIAL_CONCURRENCY_FACTOR = 1 in dial_peer.
+   - 2026-11-06 live: 9/9 green on mainnet — S1 45s, S2 129s, S3 144s, S4a 273s, S4b 140s, S4c 52s, S5 152s, S6 55s, S7 266s. S6 needed a test fix: the crashing peer now waits for all members, so it cannot crash before the last peer joins.
 6. `ci-min` profile + Windows build-and-bundle job.
 7. Register `linux-e2e` runner; two-machine workflow green on `lan`.
 8. Windows to 5G; re-run with `bundle_run_id`, `network_label=5g`.
