@@ -52,6 +52,8 @@ pub struct Scenario {
     pub cap: Duration,
     pub on_finish: Option<OnFinish>,
     pub expectation: Option<super::scenario_expectation::ScenarioExpectation>,
+    pub fixed_token: Option<String>,
+    pub fixed_node_dir: Option<PathBuf>,
 }
 
 impl Scenario {
@@ -91,6 +93,17 @@ impl Scenario {
             on_finish: Some(did_every_peer_join_the_ring),
             ..Self::lobby()
         }
+    }
+
+    /// One saved-node launch: the same peer, node folder and game token as its
+    /// pair, so the second launch reuses its identity and cached contract.
+    #[must_use]
+    pub fn relaunch(name: String, token: String, node_dir: PathBuf) -> Self {
+        let mut relaunched = Self::ring_only(1);
+        relaunched.name = name;
+        relaunched.fixed_token = Some(token);
+        relaunched.fixed_node_dir = Some(node_dir);
+        relaunched
     }
 
     /// Every peer ends up in one fully meshed room.
@@ -497,6 +510,8 @@ impl Scenario {
             cap: Duration::from_mins(5),
             on_finish: None,
             expectation: None,
+            fixed_token: None,
+            fixed_node_dir: None,
         }
     }
 
@@ -781,7 +796,10 @@ fn prepare(scenario: &Scenario) -> Result<Env, String> {
     Ok(Env {
         bin,
         dir,
-        token: format!("lobby-e2e/{stamp}"),
+        token: scenario
+            .fixed_token
+            .clone()
+            .unwrap_or_else(|| format!("lobby-e2e/{stamp}")),
         room: format!("room-{stamp}"),
         transport: std::env::var("LOBBY_TRANSPORT").unwrap_or_else(|_| "both".to_string()),
         raw,
@@ -876,6 +894,9 @@ fn spawn_peer(
         let [flag, file] = super::result_json_arg(&env.dir, &username);
         args.push(flag);
         args.push(file);
+    } else if let Some(dir) = &scenario.fixed_node_dir {
+        args.push("--freenet-node-dir".to_string());
+        args.push(dir.display().to_string());
     }
     super::spawn_app::spawn_app(&env.bin, &args, &username, &log, scenario.window_prefix)
 }

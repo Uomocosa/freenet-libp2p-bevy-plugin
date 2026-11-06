@@ -67,6 +67,7 @@ LOBBY_CHANGED = "lobby changed"
 FETCH_FOUND = "lobby fetch found"
 FETCH_FAILED = "lobby fetch failed"
 DEPLOYED = "lobby contract deployed"
+FAST_RECONNECT = "Attempting fast reconnection"
 
 
 def parse_timestamp(line):
@@ -95,6 +96,7 @@ def parse_peer_log(path):
         "fetch_ms": None,
         "fetch_outcome": None,
         "deployed": False,
+        "cached_reconnect": False,
         "max_ring_peers": None,
         "keys": [],
         "t0_epoch": None,
@@ -146,6 +148,8 @@ def parse_peer_log(path):
                     break
         if DEPLOYED in line:
             peer["deployed"] = True
+        if FAST_RECONNECT in line:
+            peer["cached_reconnect"] = True
         for value in RING_PEERS_RE.findall(line):
             count = int(value)
             if peer["max_ring_peers"] is None or count > peer["max_ring_peers"]:
@@ -319,7 +323,7 @@ def print_table(runs, stats, empty_note=None):
             continue
         print(
             "  peer  gate_open_s   gave_up  "
-            "ring_join_s  first_ring_peers_s  lobby_ready_s  fetch        deployed  max_ring_peers"
+            "ring_join_s  first_ring_peers_s  lobby_ready_s  fetch        deployed  max_ring_peers  cached_reconnect"
         )
         for peer in run["peers"]:
             max_ring = (
@@ -334,7 +338,8 @@ def print_table(runs, stats, empty_note=None):
                 f"{fmt_seconds(peer['lobby_ready_s']):<15}"
                 f"{fmt_fetch(peer):<13}"
                 f"{'yes' if peer['deployed'] else 'no':<10}"
-                f"{max_ring}"
+                f"{max_ring:<16}"
+                f"{'yes' if peer['cached_reconnect'] else 'no'}"
             )
         gave_up = ",".join(run["gave_up"]) if run["gave_up"] else "-"
         deployed = ",".join(run["deployed"]) if run["deployed"] else "-"

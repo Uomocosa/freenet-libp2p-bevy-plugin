@@ -62,6 +62,11 @@ path = "tests/contract_wire.rs"
 name = "freenet_harness"
 path = "tests/freenet_harness.rs"
 
+[[test]]
+name = "freenet_relaunch"
+path = "tests/freenet_relaunch.rs"
+required-features = ["e2e"]
+
 [lints.rust]
 non_snake_case = "allow"
 

@@ -15,13 +15,18 @@ just e2e-ring-check  # N=1 5 times, then N=3 5 times; stop at the first failure
 just e2e-ring-ladder # freenet ring health alone, 2 then 3 then 4 then 5 peers
 just e2e-join        # 5 lobby_room peers: discover, join, full mesh
 just e2e-room        # 3 lobby_room peers: discover, join, full mesh, all-to-all room gossipsub
+just e2e-relaunch   # 1 lobby_room peer, cold then warm with the same node folder and token
+just e2e-relaunch-loop # the same up to 5 pairs; stop at the first failure, then ring-stats both
 just e2e-starboard   # 3 starboard peers paint/erase, plus a 4th that joins late
 just e2e-history     # the Kademlia history scenarios S4a, S4b, S4c
 ```
 
 `just ring-stats` reports per-peer timings over `.local-run/freenet_ring-*`
 runs: `ring_join_s` (first `connect driver: joined peer`), `first_ring_peers_s`
-(first `ring_peers>0`), `lobby_ready_s`, `gate_open_s`, fetch, deployers.
+(first `ring_peers>0`), `lobby_ready_s`, `gate_open_s`, fetch, deployers,
+`cached_reconnect` (whether the log shows freenet's peer-cache
+`Attempting fast reconnection`). `--scenario freenet_relaunch_cold` and
+`--scenario freenet_relaunch_warm` select the relaunch pair's runs.
 
 Direct equivalent:
 
@@ -95,6 +100,8 @@ Adding any such shortcut invalidates the test even if it makes it pass.
   - starboard: every peer's last `starboard canvas … hash=<h> tiles=<n>` agrees, `tiles > 0`;
   - S4a: some holder logged `room history written`, and the late joiner's last canvas hash
     equals the painter's.
+  - relaunch: same as ring (each launch passes on its own); the pair only proves
+    something together (see below).
 - Log markers (keep them stable, or update `common/log_parse.rs`):
   - `script step done step=<i>/<n> <step>`, `script done steps=<n>`,
     `script failed step=<i>/<n> <step> reason=<why>`, `script crash-app`
@@ -112,6 +119,22 @@ Adding any such shortcut invalidates the test even if it makes it pass.
   `/blackboard/pex/1.0.0` handshake for the same room. Handshakes carry the sender's members, so one
   Freenet seed is enough to reach the whole room.
 
+## Saved-node relaunch (`freenet_relaunch`)
+
+The shipped game starts the node itself and keeps its folder on the player's
+disk between launches. This test measures how much a second launch gains: one
+peer launches cold (`freenet_relaunch_cold`), exits, waits `E2E_RELAUNCH_GAP_SECS`
+(default 10 s) with the app closed, then launches again (`freenet_relaunch_warm`)
+with the SAME node folder and the SAME game token, so the second launch has the
+same identity and already holds the contract. Both launches run
+`wait-ring-joined@120s, wait-lobby-ready@60s, exit-app` and each must pass on its
+own; the comparison is in `ring-stats` (cold vs warm) plus the warm log's
+`cached_reconnect` (`Attempting fast reconnection`).
+
+Freenet's peer cache expires after 300 s, so GAP below and above 300 mean
+different things: below 300 the warm launch can fast-reconnect from cache, above
+300 the cache has expired and the warm launch rejoins like a cold one.
+
 ## Env toggles
 
 - `LOBBY_BUILD_PROFILE` — `dev` (default) or `release`.
@@ -121,3 +144,5 @@ Adding any such shortcut invalidates the test even if it makes it pass.
 - `RUST_LOG` — tracing filter for the example process.
 - `E2E_TIME_SCALE` — scales the lease and history timings of the example (default 1);
   the harness passes its own environment on to the peers.
+- `E2E_RELAUNCH_GAP_SECS` — seconds the relaunch test waits with the app closed
+  between the cold and warm launches (default 10).

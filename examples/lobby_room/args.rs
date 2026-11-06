@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Parser, ValueEnum};
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
@@ -38,6 +40,9 @@ pub struct Args {
     pub ui: UiArg,
     #[arg(long = "room-ping")]
     pub is_room_ping_enabled: bool,
+    /// Folder the embedded Freenet node keeps its config, data and logs in (default: a temp dir).
+    #[arg(long)]
+    pub freenet_node_dir: Option<PathBuf>,
 }
 
 #[must_use]

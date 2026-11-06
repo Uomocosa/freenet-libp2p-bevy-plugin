@@ -9,6 +9,11 @@ export CARGO_TARGET_DIR := env("HOME") / ".cache/cargo-target/freenet-libp2p-bev
 # Headless Bevy previews use the software Vulkan driver for deterministic, clean teardown.
 _lavapipe := `ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -n1`
 
+# Shared e2e log filter: lobby_room=info keeps the script/tick markers the
+# scenario checks read; freenet::config=info keeps the mainnet/local caption
+# detection truthful.
+e2e_log_filter := "warn,discovery=info,lobby_room=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug"
+
 build:
     cargo build --all-targets --all-features
 
@@ -73,9 +78,7 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
     # Telegram stays silent: empty creds make send_video_best_effort a no-op
     # (see the preview-stability recipe and telegram-bot-helper from_env).
     # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
-    # lobby_room=info keeps the script/tick markers the scenario checks read;
-    # freenet::config=info keeps the mainnet/local caption detection truthful.
-    export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-warn,discovery=info,lobby_room=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug}"
+    export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-{{ e2e_log_filter }}}"
     # Headless-safe display defaults (overridable); the e2e peers need X.
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
@@ -112,6 +115,54 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
 # Stop after N=1 if it fails.
 e2e-ring-check:
     just e2e-ring-loop 1 5 && just e2e-ring-loop 3 5
+
+# Saved-node relaunch: one peer launches cold, exits, waits GAP seconds with
+# the app closed, then launches again with the same node folder and game
+# token (see tests/freenet_relaunch.rs and tests/README.md).
+e2e-relaunch GAP="10":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Telegram stays silent: empty creds make send_video_best_effort a no-op.
+    # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
+    export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-{{ e2e_log_filter }}}"
+    # Headless-safe display defaults (overridable); the e2e peer needs X.
+    export DISPLAY="${DISPLAY:-:0}"
+    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_RELAUNCH_GAP_SECS={{ GAP }} TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run --no-fail-fast --test freenet_relaunch -E 'test(freenet_relaunch)' --all-features --run-ignored all -- --nocapture
+
+# Repeat `just e2e-relaunch GAP` up to RUNS pairs; stop at the first failure
+# and always print the stats for the cold and warm runs completed so far.
+e2e-relaunch-loop GAP="10" RUNS="5":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
+    export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-{{ e2e_log_filter }}}"
+    # Headless-safe display defaults (overridable); the e2e peer needs X.
+    export DISPLAY="${DISPLAY:-:0}"
+    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+    # Only this loop's runs are reported: run dirs carry a unix-epoch suffix
+    # (see epoch_secs in tests/common/scenario.rs), so --since filters out
+    # older runs instead of showing stale data.
+    started=$(date +%s)
+    failed=0
+    run=0
+    while [ "$run" -lt {{ RUNS }} ]; do
+        run=$((run + 1))
+        if TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= just e2e-relaunch {{ GAP }}; then
+            :
+        else
+            failed=$((failed + 1))
+            echo "e2e-relaunch-loop: run $run of {{ RUNS }} FAILED (GAP={{ GAP }})" >&2
+            break
+        fi
+    done
+    just ring-stats --scenario freenet_relaunch_cold --since "$started"
+    just ring-stats --scenario freenet_relaunch_warm --since "$started"
+    if [ "$failed" -ne 0 ]; then
+        echo "e2e-relaunch-loop: run $run of {{ RUNS }} FAILED (GAP={{ GAP }})" >&2
+        exit 1
+    fi
+    echo "e2e-relaunch-loop: all {{ RUNS }} runs passed (GAP={{ GAP }})"
 
 e2e-join:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture
