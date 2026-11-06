@@ -175,8 +175,17 @@ bevy-lint:
 sync-methods:
     lele-lint --sync-methods .
 
+# The only way to rebuild the lobby contract wasm. build.rs was removed because it
+# inherited RUSTC_WORKSPACE_WRAPPER=clippy-driver from `cargo clippy`, which rebuilt
+# the same source to different bytes. This recipe clears the wrappers so the output
+# is repeatable, then copies the result over the canonical committed file.
 contract:
-    cargo build --manifest-path contract/lobby/Cargo.toml --release --target wasm32-unknown-unknown
+    #!/usr/bin/env bash
+    set -euo pipefail
+    env -u RUSTC_WRAPPER -u RUSTC_WORKSPACE_WRAPPER -u CLIPPY_ARGS cargo build --manifest-path contract/lobby/Cargo.toml --release --target wasm32-unknown-unknown
+    cp "$CARGO_TARGET_DIR/wasm32-unknown-unknown/release/lobby_contract.wasm" contract/lobby/lobby_contract.wasm
+    wc -c contract/lobby/lobby_contract.wasm
+    sha256sum contract/lobby/lobby_contract.wasm
 
 # The lobby contract is its own workspace root (`[workspace]` in its Cargo.toml), so the
 # parent's fmt/clippy/lint never reach it. Run each check here too, from the repo root so
