@@ -20,10 +20,10 @@ pub async fn fetch_or_deploy_lobby(
     contract_wasm: &[u8],
     params: &[u8],
     deploy: freenet::DeployPolicy,
-    ring_wait: Duration,
+    gateway_wait: Duration,
     seed_lobby: &discovery::Lobby,
 ) -> Result<(ContractKey, discovery::Lobby), discovery::Error> {
-    state.wait_until_node_reachable(ring_wait).await?;
+    state.wait_until_node_reachable(gateway_wait).await?;
     let code = Arc::new(ContractCode::from(contract_wasm.to_vec()));
     let wrapped = WrappedContract::new(code, Parameters::from(params.to_vec()));
     let key = wrapped.key;
@@ -516,17 +516,9 @@ mod tests {
             assert!(write_rx.recv().await.as_ref().is_some_and(is_lobby_get));
             tokio::time::advance(FETCH_RESEND_AFTER).await;
             assert!(write_rx.recv().await.as_ref().is_some_and(is_lobby_get));
-            tokio::time::advance(FETCH_RESEND_AFTER).await;
-            assert!(write_rx.recv().await.as_ref().is_some_and(is_lobby_get));
             assert!(write_rx.try_recv().is_err());
-            tokio::time::advance(
-                FETCH_SILENCE_LIMIT
-                    .checked_sub(FETCH_RESEND_AFTER)
-                    .unwrap()
-                    .checked_sub(FETCH_RESEND_AFTER)
-                    .unwrap(),
-            )
-            .await;
+            tokio::time::advance(FETCH_SILENCE_LIMIT.checked_sub(FETCH_RESEND_AFTER).unwrap())
+                .await;
             assert!(write_rx.recv().await.as_ref().is_some_and(is_lobby_put));
             read_tx.send(Ok(put_response(key))).ok();
             assert!(write_rx.recv().await.as_ref().is_some_and(is_lobby_get));
@@ -567,14 +559,8 @@ mod tests {
             if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
                 gets = gets.saturating_add(1);
             }
-            tokio::time::advance(FETCH_RESEND_AFTER).await;
-            if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
-                gets = gets.saturating_add(1);
-            }
             tokio::time::advance(
                 FETCH_SILENCE_LIMIT
-                    .checked_sub(FETCH_RESEND_AFTER)
-                    .unwrap()
                     .checked_sub(FETCH_RESEND_AFTER)
                     .unwrap()
                     .checked_sub(Duration::from_secs(1))
@@ -627,18 +613,8 @@ mod tests {
             if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
                 gets = gets.saturating_add(1);
             }
-            tokio::time::advance(FETCH_RESEND_AFTER).await;
-            if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
-                gets = gets.saturating_add(1);
-            }
-            tokio::time::advance(
-                FETCH_SILENCE_LIMIT
-                    .checked_sub(FETCH_RESEND_AFTER)
-                    .unwrap()
-                    .checked_sub(FETCH_RESEND_AFTER)
-                    .unwrap(),
-            )
-            .await;
+            tokio::time::advance(FETCH_SILENCE_LIMIT.checked_sub(FETCH_RESEND_AFTER).unwrap())
+                .await;
             let mut puts: usize = 0;
             while let Ok(message) = write_rx.try_recv() {
                 if is_lobby_put(&message) {
@@ -682,7 +658,7 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn silent_deploy_discards_three_stale_not_founds() {
+    async fn silent_deploy_discards_two_stale_not_founds() {
         let key = contract_key();
         let lobby = discovery::Lobby::default();
         let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -709,18 +685,8 @@ mod tests {
             if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
                 gets = gets.saturating_add(1);
             }
-            tokio::time::advance(FETCH_RESEND_AFTER).await;
-            if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
-                gets = gets.saturating_add(1);
-            }
-            tokio::time::advance(
-                FETCH_SILENCE_LIMIT
-                    .checked_sub(FETCH_RESEND_AFTER)
-                    .unwrap()
-                    .checked_sub(FETCH_RESEND_AFTER)
-                    .unwrap(),
-            )
-            .await;
+            tokio::time::advance(FETCH_SILENCE_LIMIT.checked_sub(FETCH_RESEND_AFTER).unwrap())
+                .await;
             let mut puts: usize = 0;
             if write_rx.recv().await.as_ref().is_some_and(is_lobby_put) {
                 puts = puts.saturating_add(1);
@@ -729,7 +695,6 @@ mod tests {
             if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
                 gets = gets.saturating_add(1);
             }
-            read_tx.send(Ok(not_found(key))).ok();
             read_tx.send(Ok(not_found(key))).ok();
             read_tx.send(Ok(not_found(key))).ok();
             read_tx.send(Ok(get_response(key, &lobby))).ok();
@@ -742,7 +707,7 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn silent_deploy_fourth_not_found_fails() {
+    async fn silent_deploy_third_not_found_fails() {
         let key = contract_key();
         let lobby = discovery::Lobby::default();
         let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -769,18 +734,8 @@ mod tests {
             if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
                 gets = gets.saturating_add(1);
             }
-            tokio::time::advance(FETCH_RESEND_AFTER).await;
-            if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
-                gets = gets.saturating_add(1);
-            }
-            tokio::time::advance(
-                FETCH_SILENCE_LIMIT
-                    .checked_sub(FETCH_RESEND_AFTER)
-                    .unwrap()
-                    .checked_sub(FETCH_RESEND_AFTER)
-                    .unwrap(),
-            )
-            .await;
+            tokio::time::advance(FETCH_SILENCE_LIMIT.checked_sub(FETCH_RESEND_AFTER).unwrap())
+                .await;
             let mut puts: usize = 0;
             if write_rx.recv().await.as_ref().is_some_and(is_lobby_put) {
                 puts = puts.saturating_add(1);
@@ -789,7 +744,6 @@ mod tests {
             if write_rx.recv().await.as_ref().is_some_and(is_lobby_get) {
                 gets = gets.saturating_add(1);
             }
-            read_tx.send(Ok(not_found(key))).ok();
             read_tx.send(Ok(not_found(key))).ok();
             read_tx.send(Ok(not_found(key))).ok();
             read_tx.send(Ok(not_found(key))).ok();

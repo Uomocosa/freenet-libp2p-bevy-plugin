@@ -1,3 +1,6 @@
+use std::collections::hash_map::RandomState;
+use std::hash::{BuildHasher, Hasher};
+
 use tokio::sync::watch::Receiver;
 use tracing::{debug, warn};
 
@@ -25,7 +28,7 @@ pub async fn connect_retry(
                 wasm,
                 &state.params,
                 state.discovery.deploy_policy,
-                constants::RING_WAIT,
+                constants::GATEWAY_WAIT,
                 &seed,
             )
             .await;
@@ -47,7 +50,9 @@ pub async fn connect_retry(
             }
             Err(e) => {
                 warn!(target: "discovery", tries = tries, error = ?e, "lobby fetch or deploy failed, retrying");
-                tokio::time::sleep(constants::CONNECT_RETRY).await;
+                let random = RandomState::new().build_hasher().finish();
+                let delay = discovery::freenet::Client::reconnect_delay(tries, random);
+                tokio::time::sleep(delay).await;
             }
         }
     }

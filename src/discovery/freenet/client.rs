@@ -1,3 +1,5 @@
+use std::collections::hash_map::RandomState;
+use std::hash::{BuildHasher, Hasher};
 use std::time::Duration;
 
 use atomic_delegate_macros::atomic_delegates;
@@ -14,7 +16,6 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::discovery;
 use crate::identity;
-use discovery::freenet::basic::constants;
 
 pub struct Client {
     pub(crate) write: tokio::sync::mpsc::UnboundedSender<Message>,
@@ -23,16 +24,22 @@ pub struct Client {
 
 impl Client {
     pub async fn from_host_and_port_with_retry(host: &str, port: u16) -> Self {
+        let mut failures: u32 = 0;
         loop {
             match Self::try_from_host_and_port(host, port).await {
                 Ok(client) => return client,
                 Err(e) => {
+                    failures = failures.saturating_add(1);
+                    let random = RandomState::new().build_hasher().finish();
+                    let delay = Self::reconnect_delay(failures, random);
                     tracing::warn!(
                         target: "discovery",
                         error = ?e,
+                        failures,
+                        delay_ms = delay.as_millis(),
                         "freenet websocket connect failed, retrying"
                     );
-                    tokio::time::sleep(constants::CONNECT_RETRY).await;
+                    tokio::time::sleep(delay).await;
                 }
             }
         }
@@ -47,7 +54,7 @@ impl Client {
         contract_wasm: &[u8],
         params: &[u8],
         deploy: discovery::freenet::DeployPolicy,
-        ring_wait: Duration,
+        gateway_wait: Duration,
         seed_lobby: &discovery::Lobby,
     ) -> Result<(ContractKey, discovery::Lobby), discovery::Error> {
     }
@@ -78,12 +85,20 @@ impl Client {
         &mut self,
         kind: discovery::freenet::RequestKind,
     ) -> Result<HostResponse, discovery::Error> {
+        let is_query = matches!(
+            kind,
+            discovery::freenet::RequestKind::QueryPeers
+                | discovery::freenet::RequestKind::QueryNodeStatus
+        );
         kind.run_with_timeout(async {
             loop {
                 match self.next_reply().await? {
                     HostResponse::ContractResponse(
                         ContractResponse::SubscribeResponse { .. },
                     ) => {}
+                    HostResponse::ContractResponse(
+                        ContractResponse::GetResponse { .. } | ContractResponse::NotFound { .. },
+                    ) if is_query => {}
                     other => return Ok(other),
                 }
             }
@@ -186,6 +201,11 @@ impl Client {
             None => Err(discovery::Error::Disconnected),
         }
     }
+}
+
+#[atomic_delegates]
+impl Client {
+    pub(crate) fn reconnect_delay(failures: u32, random: u64) -> Duration {}
 }
 
 #[cfg(test)]
@@ -305,6 +325,55 @@ mod tests {
 
     #[tokio::test]
     async fn recv_reply_skips_stray_subscribe_response() {
+        use freenet_stdlib::client_api::QueryResponse;
+        let key = contract_key();
+        let lobby = discovery::Lobby::default();
+        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::SubscribeResponse {
+                    key,
+                    subscribed: true,
+                },
+            )))
+            .ok();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::GetResponse {
+                    key,
+                    contract: None,
+                    state: WrappedState::new(bincode::serialize(&lobby).unwrap_or_default()),
+                },
+            )))
+            .ok();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::NotFound {
+                    instance_id: *key.id(),
+                },
+            )))
+            .ok();
+        read_tx
+            .send(Ok(HostResponse::QueryResponse(
+                QueryResponse::ConnectedPeers { peers: Vec::new() },
+            )))
+            .ok();
+        let mut client = Client { write, read };
+        let reply = client
+            .recv_reply(discovery::freenet::RequestKind::QueryPeers)
+            .await
+            .ok();
+        assert!(matches!(
+            reply,
+            Some(HostResponse::QueryResponse(
+                QueryResponse::ConnectedPeers { .. }
+            ))
+        ));
+    }
+
+    #[tokio::test]
+    async fn recv_reply_returns_get_for_poll() {
         let key = contract_key();
         let lobby = discovery::Lobby::default();
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -328,7 +397,7 @@ mod tests {
             .ok();
         let mut client = Client { write, read };
         let reply = client
-            .recv_reply(discovery::freenet::RequestKind::QueryPeers)
+            .recv_reply(discovery::freenet::RequestKind::PollLobby)
             .await
             .ok();
         assert!(matches!(

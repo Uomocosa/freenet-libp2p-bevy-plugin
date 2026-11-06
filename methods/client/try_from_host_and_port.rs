@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -8,6 +6,7 @@ use tracing::info;
 use freenet_stdlib::client_api::{ClientError, HostResponse};
 
 use crate::discovery;
+use discovery::freenet::basic::constants;
 
 pub async fn try_from_host_and_port(
     host: &str,
@@ -20,7 +19,7 @@ pub async fn try_from_host_and_port(
         "encoding-protocol",
         http::HeaderValue::from_static("native"),
     );
-    let ws = tokio::time::timeout(Duration::from_secs(5), connect_async(request));
+    let ws = tokio::time::timeout(constants::CONNECT_TIMEOUT, connect_async(request));
     let (ws_stream, _) = ws
         .await
         .map_err(|_| discovery::Error::ConnectionTimeout)??;

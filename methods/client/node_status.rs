@@ -98,4 +98,57 @@ mod tests {
         let mut client = discovery::freenet::Client { write, read };
         assert!(node_status(&mut client).await.is_ok());
     }
+
+    #[tokio::test]
+    async fn late_fetch_reply_does_not_break_node_status() {
+        use freenet_stdlib::prelude::WrappedState;
+        let key = contract_key();
+        let lobby = discovery::Lobby::default();
+        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::GetResponse {
+                    key,
+                    contract: None,
+                    state: WrappedState::new(bincode::serialize(&lobby).unwrap_or_default()),
+                },
+            )))
+            .ok();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::NotFound {
+                    instance_id: *key.id(),
+                },
+            )))
+            .ok();
+        read_tx
+            .send(Ok(HostResponse::QueryResponse(
+                QueryResponse::NodeDiagnostics(NodeDiagnosticsResponse {
+                    node_info: Some(NodeInfo {
+                        peer_id: "peer".to_string(),
+                        is_gateway: false,
+                        location: Some("0.5".to_string()),
+                        listening_address: None,
+                        uptime_seconds: 1,
+                    }),
+                    network_info: Some(NetworkInfo {
+                        connected_peers: Vec::new(),
+                        active_connections: 1,
+                    }),
+                    subscriptions: Vec::new(),
+                    contract_states: HashMap::new(),
+                    system_metrics: None,
+                    connected_peers_detailed: Vec::new(),
+                }),
+            )))
+            .ok();
+        read_tx
+            .send(Ok(HostResponse::QueryResponse(
+                QueryResponse::ConnectedPeers { peers: Vec::new() },
+            )))
+            .ok();
+        let mut client = discovery::freenet::Client { write, read };
+        assert!(node_status(&mut client).await.is_ok());
+    }
 }
