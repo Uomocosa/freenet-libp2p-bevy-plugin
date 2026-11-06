@@ -56,6 +56,50 @@ e2e-ring-ladder:
     set -euo pipefail
     for peers in 2 3 4 5; do just e2e-ring "$peers"; done
 
+# Per-peer ring timing stats over .local-run/<scenario>-<epoch> runs.
+# Examples: `just ring-stats`, `just ring-stats --last 8`,
+# `just ring-stats --scenario freenet_ring --last 3 --json /tmp/ring.json`.
+ring-stats *ARGS:
+    python3 scripts/ring_stats.py {{ ARGS }}
+
+# Repeat `just e2e-ring N` up to RUNS times; stop at the first failure and
+# always print the stats for the runs completed so far.
+# KEEP_GOING=1 is for measuring a baseline only: it runs all RUNS even when
+# some fail, then exits non-zero with the failure count.
+e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Telegram stays silent: empty creds make send_video_best_effort a no-op
+    # (see the preview-stability recipe and telegram-bot-helper from_env).
+    # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
+    # lobby_room=info keeps the script/tick markers the scenario checks read;
+    # freenet::config=info keeps the mainnet/local caption detection truthful.
+    export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-warn,discovery=info,lobby_room=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug}"
+    failed=0
+    run=0
+    while [ "$run" -lt {{ RUNS }} ]; do
+        run=$((run + 1))
+        if TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= just e2e-ring {{ N }}; then
+            :
+        else
+            failed=$((failed + 1))
+            echo "e2e-ring-loop: run $run of {{ RUNS }} FAILED (N={{ N }})" >&2
+            if [ "{{ KEEP_GOING }}" = "0" ]; then
+                break
+            fi
+        fi
+    done
+    just ring-stats --last "$run"
+    if [ "$failed" -ne 0 ]; then
+        if [ "{{ KEEP_GOING }}" = "1" ]; then
+            echo "e2e-ring-loop: $failed of {{ RUNS }} failed (N={{ N }})" >&2
+        else
+            echo "e2e-ring-loop: run $run of {{ RUNS }} FAILED (N={{ N }})" >&2
+        fi
+        exit 1
+    fi
+    echo "e2e-ring-loop: all {{ RUNS }} runs passed (N={{ N }})"
+
 e2e-join:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture
 
