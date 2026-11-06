@@ -14,11 +14,13 @@ seconds elapsed from that log's first timestamped line:
   max_ring_peers      max ring_peers=N seen
 
 Usage:
-  scripts/ring_stats.py [--scenario NAME] [--last K] [--json FILE] [run_dir ...]
+  scripts/ring_stats.py [--scenario NAME] [--last K] [--since EPOCH] [--json FILE] [run_dir ...]
 
   --scenario NAME  run directory prefix (default: freenet_ring)
   --last K         the K newest runs by epoch (default: 5)
-  explicit run directories (relative or absolute) override --scenario/--last
+  --since EPOCH    only run directories with epoch >= EPOCH;
+                   overrides the --last default (keeps all matching runs)
+  explicit run directories (relative or absolute) override --scenario/--last/--since
 
 Missing values print as "-" (null in JSON). Truncated logs and runs with
 no logs never crash the script; they show up as "-" rows / empty runs.
@@ -200,22 +202,34 @@ def aggregate(runs):
     return result
 
 
-def select_runs(scenario, last):
-    """The `last` newest .local-run/<scenario>-<epoch> dirs, by epoch."""
+def select_runs(scenario, last, since=None):
+    """Run dirs for a scenario, newest first-filtered.
+
+    Keeps only `.local-run/<scenario>-<epoch>` dirs whose numeric epoch is
+    >= `since` (when given; non-numeric suffixes never match a bound), then
+    the `last` newest of those (`last=None` keeps all).
+    """
     prefix = scenario + "-"
     candidates = []
     for entry in glob.glob(os.path.join(".local-run", prefix + "*")):
         if not os.path.isdir(entry):
             continue
         name = os.path.basename(entry)
-        epoch = name[len(prefix):]
+        epoch_text = name[len(prefix):]
         try:
-            order = int(epoch)
+            epoch = int(epoch_text)
         except ValueError:
-            order = epoch
+            epoch = None
+        if since is not None and (epoch is None or epoch < since):
+            continue
+        order = epoch if epoch is not None else epoch_text
         candidates.append((order, entry))
     candidates.sort(key=lambda item: (str(type(item[0])), item[0]))
-    return [entry for _, entry in candidates[-last:] if last > 0]
+    if last is not None:
+        if last <= 0:
+            return []
+        candidates = candidates[-last:]
+    return [entry for _, entry in candidates]
 
 
 def fmt_seconds(value):
@@ -229,10 +243,11 @@ def fmt_fetch(peer):
     return f"{ms}/{peer['fetch_outcome']}"
 
 
-def print_table(runs, stats):
+def print_table(runs, stats, empty_note=None):
     if runs:
-        scenario = runs[0]["run"].rsplit("-", 1)[0] if runs else ""
         print(f"ring stats: scenario runs={len(runs)}")
+    elif empty_note:
+        print(f"ring stats: no runs selected ({empty_note})")
     else:
         print("ring stats: no runs selected")
     for run in runs:
@@ -283,22 +298,45 @@ def print_table(runs, stats):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", default="freenet_ring")
-    parser.add_argument("--last", type=int, default=5)
+    parser.add_argument("--last", type=int, default=None)
+    parser.add_argument(
+        "--since",
+        type=int,
+        default=None,
+        help="only .local-run/<scenario>-<epoch> dirs with epoch >= SINCE",
+    )
     parser.add_argument("--json", default=None)
     parser.add_argument("run_dirs", nargs="*")
     args = parser.parse_args(argv)
     if args.run_dirs:
+        # Explicit directories bypass --scenario/--last/--since selection.
         run_dirs = args.run_dirs
+        empty_note = None
     else:
-        run_dirs = select_runs(args.scenario, args.last)
+        if args.last is None and args.since is None:
+            last = 5
+        else:
+            last = args.last
+        run_dirs = select_runs(args.scenario, last, args.since)
         if not run_dirs:
-            print(
-                f"no runs match scenario {args.scenario!r} under .local-run/",
-                file=sys.stderr,
-            )
+            if args.since is not None:
+                empty_note = f"no runs with epoch >= {args.since}"
+                print(
+                    f"no runs with epoch >= {args.since} for scenario "
+                    f"{args.scenario!r} under .local-run/ (no stale data shown)",
+                    file=sys.stderr,
+                )
+            else:
+                empty_note = None
+                print(
+                    f"no runs match scenario {args.scenario!r} under .local-run/",
+                    file=sys.stderr,
+                )
+        else:
+            empty_note = None
     runs = [parse_run(run_dir) for run_dir in run_dirs]
     stats = aggregate(runs)
-    print_table(runs, stats)
+    print_table(runs, stats, empty_note)
     if args.json:
         with open(args.json, "w") as handle:
             json.dump({"runs": runs, "aggregate": stats}, handle, indent=2)

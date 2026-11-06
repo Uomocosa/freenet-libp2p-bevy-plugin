@@ -58,7 +58,8 @@ e2e-ring-ladder:
 
 # Per-peer ring timing stats over .local-run/<scenario>-<epoch> runs.
 # Examples: `just ring-stats`, `just ring-stats --last 8`,
-# `just ring-stats --scenario freenet_ring --last 3 --json /tmp/ring.json`.
+# `just ring-stats --scenario freenet_ring --last 3 --json /tmp/ring.json`,
+# `just ring-stats --since 1793900000` (only runs from that epoch on).
 ring-stats *ARGS:
     python3 scripts/ring_stats.py {{ ARGS }}
 
@@ -75,6 +76,13 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
     # lobby_room=info keeps the script/tick markers the scenario checks read;
     # freenet::config=info keeps the mainnet/local caption detection truthful.
     export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-warn,discovery=info,lobby_room=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug}"
+    # Headless-safe display defaults (overridable); the e2e peers need X.
+    export DISPLAY="${DISPLAY:-:0}"
+    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+    # Only this loop's runs are reported: run dirs carry a unix-epoch suffix
+    # (see epoch_secs in tests/common/scenario.rs), so --since filters out
+    # older runs instead of showing stale data.
+    started=$(date +%s)
     failed=0
     run=0
     while [ "$run" -lt {{ RUNS }} ]; do
@@ -89,7 +97,7 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
             fi
         fi
     done
-    just ring-stats --last "$run"
+    just ring-stats --since "$started"
     if [ "$failed" -ne 0 ]; then
         if [ "{{ KEEP_GOING }}" = "1" ]; then
             echo "e2e-ring-loop: $failed of {{ RUNS }} failed (N={{ N }})" >&2
