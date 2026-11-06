@@ -78,7 +78,16 @@ impl Client {
         &mut self,
         kind: discovery::freenet::RequestKind,
     ) -> Result<HostResponse, discovery::Error> {
-        kind.run_with_timeout(self.next_reply()).await
+        kind.run_with_timeout(async {
+            loop {
+                match self.next_reply().await? {
+                    HostResponse::ContractResponse(
+                        ContractResponse::SubscribeResponse { .. },
+                    ) => {}
+                    other => return Ok(other),
+                }
+            }
+        }).await
     }
 
     pub async fn await_outstanding_fetch(&mut self) -> Result<discovery::Lobby, discovery::Error> {
@@ -148,7 +157,7 @@ impl Client {
             key: instance_id,
             return_contract_code: false,
             subscribe: true,
-            blocking_subscribe: true,
+            blocking_subscribe: false,
         };
         self.send(&ClientRequest::ContractOp(get))
     }
@@ -292,5 +301,41 @@ mod tests {
         let mut client = Client { write, read };
         assert_eq!(client.deploy_contract(container, &seed).await.ok(), Some(2));
         assert!(write_rx.recv().await.is_some());
+    }
+
+    #[tokio::test]
+    async fn recv_reply_skips_stray_subscribe_response() {
+        let key = contract_key();
+        let lobby = discovery::Lobby::default();
+        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::SubscribeResponse {
+                    key,
+                    subscribed: true,
+                },
+            )))
+            .ok();
+        read_tx
+            .send(Ok(HostResponse::ContractResponse(
+                ContractResponse::GetResponse {
+                    key,
+                    contract: None,
+                    state: WrappedState::new(bincode::serialize(&lobby).unwrap_or_default()),
+                },
+            )))
+            .ok();
+        let mut client = Client { write, read };
+        let reply = client
+            .recv_reply(discovery::freenet::RequestKind::QueryPeers)
+            .await
+            .ok();
+        assert!(matches!(
+            reply,
+            Some(HostResponse::ContractResponse(
+                ContractResponse::GetResponse { .. }
+            ))
+        ));
     }
 }
