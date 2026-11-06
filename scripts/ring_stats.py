@@ -4,8 +4,10 @@
 Reads .local-run/<scenario>-<epoch>/instance-pN.log and reports, per peer,
 seconds elapsed from that log's first timestamped line:
 
-  ring_ready_s        first "lobby freenet ring ready"
-  gave_up             "ring not ready, proceeding via gateway" appears
+  gate_open_s         first "lobby freenet node reachable"
+                      (or old "lobby freenet ring ready")
+  gave_up             "lobby freenet node unreachable, proceeding anyway" appears
+                      (or old "ring not ready, proceeding via gateway")
   first_ring_peers_s  first line with ring_peers=N, N > 0
   lobby_ready_s       first "lobby ready key="
   fetch               elapsed_ms + outcome of the first
@@ -42,8 +44,10 @@ RING_PEERS_RE = re.compile(r"ring_peers=(\d+)")
 ELAPSED_MS_RE = re.compile(r"elapsed_ms=(\d+)")
 KEY_RE = re.compile(r"key=([A-Za-z0-9_-]+)")
 
-RING_READY = "lobby freenet ring ready"
-GAVE_UP = "ring not ready, proceeding via gateway"
+GATE_OPEN_OLD = "lobby freenet ring ready"
+GATE_OPEN_NEW = "lobby freenet node reachable"
+GAVE_UP_OLD = "ring not ready, proceeding via gateway"
+GAVE_UP_NEW = "lobby freenet node unreachable, proceeding anyway"
 LOBBY_READY = "lobby ready key="
 FETCH_FOUND = "lobby fetch found"
 FETCH_FAILED = "lobby fetch failed"
@@ -68,7 +72,7 @@ def parse_timestamp(line):
 def parse_peer_log(path):
     """Parse one instance-pN.log. Never raises; missing data stays None."""
     peer = {
-        "ring_ready_s": None,
+        "gate_open_s": None,
         "gave_up": False,
         "first_ring_peers_s": None,
         "lobby_ready_s": None,
@@ -93,9 +97,9 @@ def parse_peer_log(path):
         if stamp is None:
             continue
         elapsed = (stamp - t0).total_seconds()
-        if RING_READY in line and peer["ring_ready_s"] is None:
-            peer["ring_ready_s"] = elapsed
-        if GAVE_UP in line:
+        if (GATE_OPEN_OLD in line or GATE_OPEN_NEW in line) and peer["gate_open_s"] is None:
+            peer["gate_open_s"] = elapsed
+        if GAVE_UP_OLD in line or GAVE_UP_NEW in line:
             peer["gave_up"] = True
         if peer["first_ring_peers_s"] is None:
             for value in RING_PEERS_RE.findall(line):
@@ -180,8 +184,8 @@ def aggregate(runs):
     result = {
         "runs": len(runs),
         "peers": len(peers),
-        "ring_ready_s": summarize(
-            [p["ring_ready_s"] for p in peers if p["ring_ready_s"] is not None]
+        "gate_open_s": summarize(
+            [p["gate_open_s"] for p in peers if p["gate_open_s"] is not None]
         ),
         "first_ring_peers_s": summarize(
             [
@@ -257,7 +261,7 @@ def print_table(runs, stats, empty_note=None):
             print("  (no instance-pN.log files)")
             continue
         print(
-            "  peer  ring_ready_s  gave_up  "
+            "  peer  gate_open_s   gave_up  "
             "first_ring_peers_s  lobby_ready_s  fetch        deployed  max_ring_peers"
         )
         for peer in run["peers"]:
@@ -266,7 +270,7 @@ def print_table(runs, stats, empty_note=None):
             )
             print(
                 f"  {peer['peer']:<5}"
-                f"{fmt_seconds(peer['ring_ready_s']):<14}"
+                f"{fmt_seconds(peer['gate_open_s']):<14}"
                 f"{'yes' if peer['gave_up'] else 'no':<9}"
                 f"{fmt_seconds(peer['first_ring_peers_s']):<20}"
                 f"{fmt_seconds(peer['lobby_ready_s']):<15}"
@@ -279,7 +283,7 @@ def print_table(runs, stats, empty_note=None):
         print(f"  gave_up: {gave_up}  deployed: {deployed}")
     print(f"\naggregate over {stats['runs']} runs ({stats['peers']} peers):")
     print("  metric              n    p50    p90    max")
-    for metric in ("ring_ready_s", "first_ring_peers_s", "lobby_ready_s"):
+    for metric in ("gate_open_s", "first_ring_peers_s", "lobby_ready_s"):
         summary = stats[metric]
         print(
             f"  {metric:<18}"

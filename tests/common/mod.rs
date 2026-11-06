@@ -62,8 +62,8 @@ pub use terminal_guard::TerminalGuard;
 mod tile;
 pub use tile::tile;
 
-mod rings_ready;
-pub use rings_ready::rings_ready;
+mod nodes_reachable;
+pub use nodes_reachable::nodes_reachable;
 
 mod wakeup_screen;
 pub use wakeup_screen::wakeup_screen;

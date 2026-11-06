@@ -29,7 +29,7 @@ impl NodeStatus {
 #[rustfmt::skip]
 impl NodeStatus {
     #[must_use]
-    pub const fn is_ring_ready(&self) -> bool { self.ring_peers > 0 }
+    pub const fn is_node_reachable(&self) -> bool { self.transport_peers > 0 || self.ring_peers > 0 }
 }
 
 #[cfg(test)]
@@ -69,11 +69,17 @@ mod tests {
         assert_eq!(gateway_only.ring_peers, 0);
         assert_eq!(gateway_only.transport_peers, 2);
         assert_eq!(gateway_only.ring_location, Some(0.999_024));
-        assert!(!gateway_only.is_ring_ready());
+        assert!(gateway_only.is_node_reachable());
 
         let joined = NodeStatus::from_diagnostics(&diagnostics(Some("0.5"), 27, true), 29);
-        assert!(joined.is_ring_ready());
+        assert!(joined.is_node_reachable());
         assert!(joined.is_gateway);
+
+        let ring_only = NodeStatus::from_diagnostics(&diagnostics(Some("0.5"), 3, false), 0);
+        assert!(ring_only.is_node_reachable());
+
+        let isolated = NodeStatus::from_diagnostics(&diagnostics(Some("0.5"), 0, false), 0);
+        assert!(!isolated.is_node_reachable());
 
         let unknown = NodeStatus::from_diagnostics(
             &NodeDiagnosticsResponse {
@@ -87,5 +93,6 @@ mod tests {
             0,
         );
         assert_eq!(unknown, NodeStatus::default());
+        assert!(!unknown.is_node_reachable());
     }
 }

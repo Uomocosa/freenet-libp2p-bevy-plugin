@@ -14,7 +14,7 @@ pub async fn fetch_or_deploy_lobby(
     ring_wait: Duration,
     seed_lobby: &discovery::Lobby,
 ) -> Result<(ContractKey, discovery::Lobby), discovery::Error> {
-    state.wait_until_ring_ready(ring_wait).await?;
+    state.wait_until_node_reachable(ring_wait).await?;
     let code = Arc::new(ContractCode::from(contract_wasm.to_vec()));
     let wrapped = WrappedContract::new(code, Parameters::from(params.to_vec()));
     let key = wrapped.key;

@@ -51,7 +51,7 @@ impl Client {
         seed_lobby: &discovery::Lobby,
     ) -> Result<(ContractKey, discovery::Lobby), discovery::Error> {
     }
-    pub async fn wait_until_ring_ready(
+    pub async fn wait_until_node_reachable(
         &mut self,
         budget: Duration,
     ) -> Result<(), discovery::Error> {

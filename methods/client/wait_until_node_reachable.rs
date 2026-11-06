@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::discovery;
 
-pub async fn wait_until_ring_ready(
+pub async fn wait_until_node_reachable(
     state: &mut discovery::freenet::Client,
     budget: Duration,
 ) -> Result<(), discovery::Error> {
@@ -10,14 +10,14 @@ pub async fn wait_until_ring_ready(
     let started = std::time::Instant::now();
     loop {
         let node = state.node_status().await?;
-        if node.is_ring_ready() {
+        if node.is_node_reachable() {
             tracing::info!(
                 target: "discovery",
                 ring_peers = node.ring_peers,
                 transport_peers = node.transport_peers,
                 ring_location = ?node.ring_location,
                 waited_ms = started.elapsed().as_millis(),
-                "lobby freenet ring ready"
+                "lobby freenet node reachable"
             );
             return Ok(());
         }
@@ -30,7 +30,7 @@ pub async fn wait_until_ring_ready(
                 ring_location = ?node.ring_location,
                 waited_ms = waited.as_millis(),
                 budget_ms = budget.as_millis(),
-                "lobby freenet ring not ready, proceeding via gateway"
+                "lobby freenet node unreachable, proceeding anyway"
             );
             return Ok(());
         }
@@ -40,7 +40,7 @@ pub async fn wait_until_ring_ready(
             transport_peers = node.transport_peers,
             ring_location = ?node.ring_location,
             waited_ms = waited.as_millis(),
-            "lobby freenet ring waiting"
+            "lobby freenet node waiting"
         );
         tokio::time::sleep(tick).await;
     }
@@ -50,7 +50,7 @@ pub async fn wait_until_ring_ready(
 mod tests {
     use std::time::Duration;
 
-    use super::wait_until_ring_ready;
+    use super::wait_until_node_reachable;
     use crate::discovery;
 
     #[tokio::test]
@@ -59,7 +59,7 @@ mod tests {
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         drop(read_tx);
         let mut client = discovery::freenet::Client { write, read };
-        let result = wait_until_ring_ready(&mut client, Duration::from_millis(1)).await;
+        let result = wait_until_node_reachable(&mut client, Duration::from_millis(1)).await;
         assert!(result.is_err());
     }
 }

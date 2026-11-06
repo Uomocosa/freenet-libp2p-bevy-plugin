@@ -1,5 +1,5 @@
 //! End-to-end UI preview of the whole `lobby_room` passage, with a fake discovery backend:
-//! app start (plugin connecting screen) -> freenet ring ready + lobby listed -> click Join
+//! app start (plugin connecting screen) -> freenet node reachable + lobby listed -> click Join
 //! on a room -> peers arrive one by one -> hover the leave door -> click it, answer No
 //! -> press Esc, answer Yes -> back in the lobby. Only `discovery::Status` is faked; the click
 //! goes through the plugin's real `discovery::ui::DefaultUiPlugin` button path and the
@@ -16,7 +16,7 @@ mod tests {
 
     const JOIN_ROOM: &str = "gamma";
     const JOURNEY_FPS: u32 = 30;
-    const RING_READY_AT: u32 = 20;
+    const NODE_REACHABLE_AT: u32 = 20;
     const CLICK_JOIN_AT: u32 = 40;
     const FIRST_PEER_AT: u32 = 55;
     const PEER_EVERY: u32 = 15;
@@ -77,8 +77,8 @@ mod tests {
         if !is_new_frame {
             return;
         }
-        if frame == RING_READY_AT {
-            ring_ready(world);
+        if frame == NODE_REACHABLE_AT {
+            node_reachable(world);
             list_lobby(world);
         }
         if frame == CLICK_JOIN_AT {
@@ -161,7 +161,7 @@ mod tests {
         }
     }
 
-    fn ring_ready(world: &mut World) {
+    fn node_reachable(world: &mut World) {
         let mut status = world.resource_mut::<discovery::Status>();
         status.freenet_peers = (0..1)
             .map(|index| identity::FreenetPeer {
@@ -233,7 +233,7 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn lobby_listed(world: &mut World) {
-        ring_ready(world);
+        node_reachable(world);
         list_lobby(world);
     }
 

@@ -87,8 +87,8 @@ Adding any such shortcut invalidates the test even if it makes it pass.
   - `lobby tick rooms=<a,b|none> room=<r|none> members=<k> connected=<c>` — libp2p/app layer
   - `freenet node status ring_peers=<n> transport_peers=<m> ring_location=<l>` — embedded Freenet
     node, on change and every 30 s; a gateway-only node reports `ring_peers=0 transport_peers=2`
-  - `lobby freenet ring waiting ring_peers=<n> …` / `lobby freenet ring ready ring_peers=<n> …` —
-    one line per second while `fetch_or_deploy_lobby` waits for the first ring connection
+  - `lobby freenet node waiting ring_peers=<n> …` / `lobby freenet node reachable ring_peers=<n> …` —
+    one line per second while `fetch_or_deploy_lobby` waits for the first transport or ring connection
   - `lobby ready … ring_peers=<n>` — the node has read the lobby (ring or gateway)
   - `lobby refresh timed out` / `lobby refresh failed` — the 5 s lobby GET did not answer
   - `starboard canvas room=<r> hash=<h> tiles=<n> cursor=<x>,<y> color=<c> size=<p>%` (1 Hz)
