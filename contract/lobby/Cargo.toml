@@ -39,3 +39,11 @@ panic_in_result_fn = "deny"
 panic = "deny"
 exit = "deny"
 as_conversions = "deny"
+# Size optimizations, kept off on purpose: build time matters more until the app is finished.
+# Enabling them shrinks the wasm and changes the contract key, which is fine at that point.
+# [profile.release]
+# opt-level = 'z'
+# lto = true
+# codegen-units = 1
+# panic = 'abort'
+# strip = true
