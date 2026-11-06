@@ -15,6 +15,17 @@ seconds elapsed from that log's first timestamped line:
   deployed            "lobby contract deployed" appears
   max_ring_peers      max ring_peers=N seen
 
+Per run, on one clock (the earliest first timestamp across the run's logs):
+
+  room_created_s      earliest any peer logs a lobby with rooms>=1
+                      ("lobby changed", "lobby ready" or "lobby fetch found")
+  all_saw_room_s      when the LAST peer first shows rooms>=1;
+                      missing ("-") if some peer never did
+  deployers           number of peers with "lobby contract deployed"
+
+The aggregate adds all_saw_room_s, room_lag_s (= all_saw_room_s -
+room_created_s), and the per-run deployers counts.
+
 Usage:
   scripts/ring_stats.py [--scenario NAME] [--last K] [--since EPOCH] [--json FILE] [run_dir ...]
 
@@ -42,6 +53,7 @@ TIMESTAMP_RE = re.compile(
 )
 RING_PEERS_RE = re.compile(r"ring_peers=(\d+)")
 ELAPSED_MS_RE = re.compile(r"elapsed_ms=(\d+)")
+ROOMS_RE = re.compile(r"rooms=(\d+)")
 KEY_RE = re.compile(r"key=([A-Za-z0-9_-]+)")
 
 GATE_OPEN_OLD = "lobby freenet ring ready"
@@ -49,6 +61,7 @@ GATE_OPEN_NEW = "lobby freenet node reachable"
 GAVE_UP_OLD = "ring not ready, proceeding via gateway"
 GAVE_UP_NEW = "lobby freenet node unreachable, proceeding anyway"
 LOBBY_READY = "lobby ready key="
+LOBBY_CHANGED = "lobby changed"
 FETCH_FOUND = "lobby fetch found"
 FETCH_FAILED = "lobby fetch failed"
 DEPLOYED = "lobby contract deployed"
@@ -81,6 +94,8 @@ def parse_peer_log(path):
         "deployed": False,
         "max_ring_peers": None,
         "keys": [],
+        "t0_epoch": None,
+        "first_room_epoch": None,
     }
     try:
         with open(path, errors="replace") as handle:
@@ -93,6 +108,7 @@ def parse_peer_log(path):
             t0 = parse_timestamp(line)
             if t0 is None:
                 continue
+            peer["t0_epoch"] = t0.timestamp()
         stamp = parse_timestamp(line)
         if stamp is None:
             continue
@@ -116,6 +132,13 @@ def parse_peer_log(path):
                 peer["fetch_ms"] = (
                     int(elapsed_ms.group(1)) if elapsed_ms else None
                 )
+        if peer["first_room_epoch"] is None and (
+            LOBBY_CHANGED in line or LOBBY_READY in line or FETCH_FOUND in line
+        ):
+            for value in ROOMS_RE.findall(line):
+                if int(value) >= 1:
+                    peer["first_room_epoch"] = stamp.timestamp()
+                    break
         if DEPLOYED in line:
             peer["deployed"] = True
         for value in RING_PEERS_RE.findall(line):
@@ -152,12 +175,28 @@ def parse_run(run_dir):
         peer["keys"] = sorted(keys)
         peers.append(peer)
     keys = sorted({key for peer in peers for key in peer["keys"]})
+    t0s = [peer["t0_epoch"] for peer in peers if peer["t0_epoch"] is not None]
+    run_t0 = min(t0s) if t0s else None
+    room_times = sorted(
+        peer["first_room_epoch"] for peer in peers if peer["first_room_epoch"] is not None
+    )
+    if run_t0 is not None and room_times:
+        room_created_s = room_times[0] - run_t0
+    else:
+        room_created_s = None
+    if run_t0 is not None and peers and len(room_times) == len(peers):
+        all_saw_room_s = room_times[-1] - run_t0
+    else:
+        all_saw_room_s = None
     return {
         "run": os.path.basename(os.path.normpath(run_dir)),
         "peers": peers,
         "keys": keys,
         "gave_up": [p["peer"] for p in peers if p["gave_up"]],
         "deployed": [p["peer"] for p in peers if p["deployed"]],
+        "deployers": sum(1 for p in peers if p["deployed"]),
+        "room_created_s": room_created_s,
+        "all_saw_room_s": all_saw_room_s,
     }
 
 
@@ -181,6 +220,11 @@ def summarize(values):
 
 def aggregate(runs):
     peers = [peer for run in runs for peer in run["peers"]]
+    room_lags = [
+        run["all_saw_room_s"] - run["room_created_s"]
+        for run in runs
+        if run["all_saw_room_s"] is not None and run["room_created_s"] is not None
+    ]
     result = {
         "runs": len(runs),
         "peers": len(peers),
@@ -197,6 +241,11 @@ def aggregate(runs):
         "lobby_ready_s": summarize(
             [p["lobby_ready_s"] for p in peers if p["lobby_ready_s"] is not None]
         ),
+        "all_saw_room_s": summarize(
+            [r["all_saw_room_s"] for r in runs if r["all_saw_room_s"] is not None]
+        ),
+        "room_lag_s": summarize(room_lags),
+        "deployers": [run["deployers"] for run in runs],
         "gave_up_peers": sum(1 for p in peers if p["gave_up"]),
         "peers_no_lobby_ready": sum(1 for p in peers if p["lobby_ready_s"] is None),
         "runs_with_2plus_deployers": sorted(
@@ -281,9 +330,15 @@ def print_table(runs, stats, empty_note=None):
         gave_up = ",".join(run["gave_up"]) if run["gave_up"] else "-"
         deployed = ",".join(run["deployed"]) if run["deployed"] else "-"
         print(f"  gave_up: {gave_up}  deployed: {deployed}")
+        print(
+            f"  room_created_s: {fmt_seconds(run['room_created_s'])}"
+            f"  all_saw_room_s: {fmt_seconds(run['all_saw_room_s'])}"
+            f"  deployers: {run['deployers']}"
+        )
     print(f"\naggregate over {stats['runs']} runs ({stats['peers']} peers):")
     print("  metric              n    p50    p90    max")
-    for metric in ("gate_open_s", "first_ring_peers_s", "lobby_ready_s"):
+    for metric in ("gate_open_s", "first_ring_peers_s", "lobby_ready_s",
+                   "all_saw_room_s", "room_lag_s"):
         summary = stats[metric]
         print(
             f"  {metric:<18}"
@@ -292,6 +347,7 @@ def print_table(runs, stats, empty_note=None):
             f"{fmt_seconds(summary['p90']):<7}"
             f"{fmt_seconds(summary['max'])}"
         )
+    print(f"  deployers per run: {stats['deployers']}")
     multi = stats["runs_with_2plus_deployers"]
     print(f"  gave_up peers: {stats['gave_up_peers']}")
     print(f"  peers with no lobby_ready_s: {stats['peers_no_lobby_ready']}")
