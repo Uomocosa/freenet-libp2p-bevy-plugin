@@ -7,9 +7,22 @@ pub fn build_game(example: &str) -> Result<PathBuf, String> {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let target = target_root(manifest)?;
     let profile = std::env::var("LOBBY_BUILD_PROFILE").unwrap_or_else(|_| "dev".to_string());
-    let output = Command::new("cargo")
-        .current_dir(manifest)
-        .env("CARGO_TARGET_DIR", &target)
+    let mut build = Command::new("cargo");
+    build.current_dir(manifest);
+    build.env("CARGO_TARGET_DIR", &target);
+    for (key, _) in std::env::vars() {
+        if key == "CARGO_TARGET_DIR" {
+            continue;
+        }
+        if key.starts_with("CARGO_")
+            || key.starts_with("NEXTEST_")
+            || key == "RUST_RECURSION_COUNT"
+            || key == "LD_LIBRARY_PATH"
+        {
+            build.env_remove(key);
+        }
+    }
+    let output = build
         .args([
             "build",
             "--example",
