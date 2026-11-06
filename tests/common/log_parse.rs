@@ -215,3 +215,19 @@ fn strip_ansi(s: &str) -> String {
     }
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ring_peers_in_line;
+
+    #[test]
+    fn ring_joined_line_parses_its_count() {
+        assert_eq!(
+            ring_peers_in_line(
+                "2026-11-06T07:53:45.140Z INFO lobby_room::ring: ring joined ring_peers=3"
+            ),
+            Some(3)
+        );
+        assert_eq!(ring_peers_in_line("no peers here"), None);
+    }
+}

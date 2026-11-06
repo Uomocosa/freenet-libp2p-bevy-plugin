@@ -76,13 +76,13 @@ impl Scenario {
     #[must_use]
     pub fn ring_only(peers: usize) -> Self {
         let runs = (0..peers)
-            .map(|_| now("sleep:60s, exit-app".to_string()))
+            .map(|_| now("wait-ring-joined@120s, wait-lobby-ready@60s, exit-app".to_string()))
             .collect();
         Self {
             name: "freenet_ring".to_string(),
             ui: Some("custom".to_string()),
             peers: runs,
-            cap: Duration::from_mins(4),
+            cap: Duration::from_mins(5),
             on_finish: Some(did_every_peer_join_the_ring),
             ..Self::lobby()
         }

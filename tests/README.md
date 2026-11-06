@@ -9,12 +9,19 @@ each), record the screen, and send the clip to Telegram.
 ```
 just e2e-discovery   # 3 lobby_room peers: all discover the created room
 just e2e-discovery 5 # the same with 5 peers (E2E_PEERS=2..5)
+just e2e-ring 3      # freenet ring health alone: N embedded nodes join the ring
+just e2e-ring-loop 3 # the same 5 times; stop at the first failure, then ring-stats
+just e2e-ring-check  # N=1 5 times, then N=3 5 times; stop at the first failure
 just e2e-ring-ladder # freenet ring health alone, 2 then 3 then 4 then 5 peers
 just e2e-join        # 5 lobby_room peers: discover, join, full mesh
 just e2e-room        # 3 lobby_room peers: discover, join, full mesh, all-to-all room gossipsub
 just e2e-starboard   # 3 starboard peers paint/erase, plus a 4th that joins late
 just e2e-history     # the Kademlia history scenarios S4a, S4b, S4c
 ```
+
+`just ring-stats` reports per-peer timings over `.local-run/freenet_ring-*`
+runs: `ring_join_s` (first `connect driver: joined peer`), `first_ring_peers_s`
+(first `ring_peers>0`), `lobby_ready_s`, `gate_open_s`, fetch, deployers.
 
 Direct equivalent:
 
@@ -65,7 +72,9 @@ Adding any such shortcut invalidates the test even if it makes it pass.
     `erase-from-to:<x.y>-<x.y>` (drawing outside a room fails at once)
   - waits: `wait-lobby-room:<r>`, `wait-join-succeeded:<r>`, `wait-join-failed:<r>`,
     `wait-left:<r>`, `wait-members:<n>` (the peer included), `wait-room-messages:<n>`
-    (distinct senders, `--room-ping`), starboard `wait-canvas-nonempty`,
+    (distinct senders, `--room-ping`), `wait-ring-joined` (embedded Freenet node
+    has `ring_peers>0`, polled every 500 ms), `wait-lobby-ready` (the lobby was
+    fetched), starboard `wait-canvas-nonempty`,
     `wait-canvas-stable` (hash held for 3 s)
   - `sleep:<n>s` — a deliberate pause, never used to sync peers
   - endings: `exit-app`, `crash-app`, `stay`
@@ -75,6 +84,11 @@ Adding any such shortcut invalidates the test even if it makes it pass.
   - discovery test: `--ui custom` (`examples/lobby_room/ui.rs::LobbyUi`); join and room
     tests: `--ui default`.
 - `on_finish` checks (`common/scenario.rs`):
+  - ring: every peer's embedded Freenet node reached the ring (`max_ring_peers>0`
+    from `ring_peers=` lines). The script is `wait-ring-joined@120s,
+    wait-lobby-ready@60s, exit-app` (cap 5 min): each peer exits soon after its
+    own join instead of sleeping a fixed 60 s. Every peer still starts cold
+    (temp node folder, new contract key per run).
   - join / room: `converge` = last joiner's press -> every peer at `connected=N-1`,
     budget 500ms (`CONVERGE_BUDGET_MS`), from the `lobby intent pressed` and
     `lobby mesh room=<r> connected=<c>` markers;

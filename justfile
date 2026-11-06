@@ -108,6 +108,11 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
     fi
     echo "e2e-ring-loop: all {{ RUNS }} runs passed (N={{ N }})"
 
+# N=1 then N=3, 5 runs each, each stopping at the first failure.
+# Stop after N=1 if it fails.
+e2e-ring-check:
+    just e2e-ring-loop 1 5 && just e2e-ring-loop 3 5
+
 e2e-join:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture
 

@@ -5,6 +5,7 @@ mod args;
 mod journey;
 mod overlay;
 mod ping;
+mod ring;
 mod script_runner;
 mod ui;
 
@@ -34,6 +35,9 @@ async fn main() -> bevy::app::AppExit {
         ..default()
     }));
     app.insert_resource(discovery::FreenetPort(ws_port));
+    let ring = ring::RingPeers::new();
+    ring::spawn_ring_poller(ws_port, ring.clone());
+    app.insert_resource(ring);
     let username = identity::Username::from(args.username.clone());
     app.insert_resource(shared::status::LocalUser(username.clone()));
     app.insert_resource(ping::IsRoomPingEnabled(args.is_room_ping_enabled));

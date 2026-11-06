@@ -99,6 +99,11 @@ pub fn poll_shared_script_step(
         SharedScriptStep::WaitRoomMessages(count) => {
             done_when(u32::try_from(view.room_message_senders).unwrap_or(u32::MAX) >= **count)
         }
+        // The shared runner has no ring count; `lobby_room` overrides this step
+        // with its live `RingPeers` resource. Pending here keeps `starboard`
+        // (which never uses the step) compiling without a view change.
+        SharedScriptStep::WaitRingJoined | SharedScriptStep::Stay => done_when(false),
+        SharedScriptStep::WaitLobbyReady => done_when(view.status.is_lobby_fetched),
         SharedScriptStep::Sleep(duration) => done_when(clock.elapsed >= *duration),
         SharedScriptStep::ExitApp => SharedStepPoll {
             outcome: if clock.elapsed >= QUIT_PUBLISH_GRACE {
@@ -116,7 +121,6 @@ pub fn poll_shared_script_step(
             outcome: StepOutcome::Pending,
             effect: Some(SharedStepEffect::AbortProcess),
         },
-        SharedScriptStep::Stay => done_when(false),
     }
 }
 
@@ -263,5 +267,28 @@ mod tests {
             &alone,
         );
         assert_eq!(pending.outcome, StepOutcome::Pending);
+    }
+
+    #[test]
+    fn lobby_ready_completes_once_the_lobby_is_fetched() {
+        let unfetched = discovery::Status::default();
+        let pending =
+            poll_shared_script_step(&SharedScriptStep::WaitLobbyReady, FIRST, &view(&unfetched));
+        assert_eq!(pending.outcome, StepOutcome::Pending);
+        let fetched = discovery::Status {
+            is_lobby_fetched: true,
+            ..discovery::Status::default()
+        };
+        let done =
+            poll_shared_script_step(&SharedScriptStep::WaitLobbyReady, FIRST, &view(&fetched));
+        assert_eq!(done.outcome, StepOutcome::Done);
+    }
+
+    #[test]
+    fn ring_joined_stays_pending_without_live_ring_count() {
+        let status = discovery::Status::default();
+        let poll =
+            poll_shared_script_step(&SharedScriptStep::WaitRingJoined, FIRST, &view(&status));
+        assert_eq!(poll.outcome, StepOutcome::Pending);
     }
 }

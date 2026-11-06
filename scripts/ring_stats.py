@@ -8,6 +8,7 @@ seconds elapsed from that log's first timestamped line:
                       (or old "lobby freenet ring ready")
   gave_up             "lobby freenet node unreachable, proceeding anyway" appears
                       (or old "ring not ready, proceeding via gateway")
+  ring_join_s         first "connect driver: joined peer"
   first_ring_peers_s  first line with ring_peers=N, N > 0
   lobby_ready_s       first "lobby ready key="
   fetch               elapsed_ms + outcome of the first
@@ -60,6 +61,7 @@ GATE_OPEN_OLD = "lobby freenet ring ready"
 GATE_OPEN_NEW = "lobby freenet node reachable"
 GAVE_UP_OLD = "ring not ready, proceeding via gateway"
 GAVE_UP_NEW = "lobby freenet node unreachable, proceeding anyway"
+RING_JOINED = "connect driver: joined peer"
 LOBBY_READY = "lobby ready key="
 LOBBY_CHANGED = "lobby changed"
 FETCH_FOUND = "lobby fetch found"
@@ -87,6 +89,7 @@ def parse_peer_log(path):
     peer = {
         "gate_open_s": None,
         "gave_up": False,
+        "ring_join_s": None,
         "first_ring_peers_s": None,
         "lobby_ready_s": None,
         "fetch_ms": None,
@@ -117,6 +120,8 @@ def parse_peer_log(path):
             peer["gate_open_s"] = elapsed
         if GAVE_UP_OLD in line or GAVE_UP_NEW in line:
             peer["gave_up"] = True
+        if RING_JOINED in line and peer["ring_join_s"] is None:
+            peer["ring_join_s"] = elapsed
         if peer["first_ring_peers_s"] is None:
             for value in RING_PEERS_RE.findall(line):
                 if int(value) > 0:
@@ -231,6 +236,9 @@ def aggregate(runs):
         "gate_open_s": summarize(
             [p["gate_open_s"] for p in peers if p["gate_open_s"] is not None]
         ),
+        "ring_join_s": summarize(
+            [p["ring_join_s"] for p in peers if p["ring_join_s"] is not None]
+        ),
         "first_ring_peers_s": summarize(
             [
                 p["first_ring_peers_s"]
@@ -311,7 +319,7 @@ def print_table(runs, stats, empty_note=None):
             continue
         print(
             "  peer  gate_open_s   gave_up  "
-            "first_ring_peers_s  lobby_ready_s  fetch        deployed  max_ring_peers"
+            "ring_join_s  first_ring_peers_s  lobby_ready_s  fetch        deployed  max_ring_peers"
         )
         for peer in run["peers"]:
             max_ring = (
@@ -321,6 +329,7 @@ def print_table(runs, stats, empty_note=None):
                 f"  {peer['peer']:<5}"
                 f"{fmt_seconds(peer['gate_open_s']):<14}"
                 f"{'yes' if peer['gave_up'] else 'no':<9}"
+                f"{fmt_seconds(peer['ring_join_s']):<13}"
                 f"{fmt_seconds(peer['first_ring_peers_s']):<20}"
                 f"{fmt_seconds(peer['lobby_ready_s']):<15}"
                 f"{fmt_fetch(peer):<13}"
@@ -337,7 +346,7 @@ def print_table(runs, stats, empty_note=None):
         )
     print(f"\naggregate over {stats['runs']} runs ({stats['peers']} peers):")
     print("  metric              n    p50    p90    max")
-    for metric in ("gate_open_s", "first_ring_peers_s", "lobby_ready_s",
+    for metric in ("gate_open_s", "ring_join_s", "first_ring_peers_s", "lobby_ready_s",
                    "all_saw_room_s", "room_lag_s"):
         summary = stats[metric]
         print(

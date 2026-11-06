@@ -27,6 +27,8 @@ pub enum SharedScriptStep {
     WaitMembersAreStrictlyLessThan(MemberCount),
     WaitMembersAreLessOrEqualTo(MemberCount),
     WaitRoomMessages(SenderCount),
+    WaitRingJoined,
+    WaitLobbyReady,
     Sleep(Duration),
     ExitApp,
     CrashApp,
@@ -37,7 +39,7 @@ impl ScriptStepGrammar for SharedScriptStep {
     const STEP_NAMES: &'static str = "create, join, leave, wait-lobby-room, \
         wait-join-succeeded, wait-join-failed, wait-left, wait-members, \
         wait-members-are-strictly-less-than, wait-members-are-less-or-equal-to, wait-room-messages, \
-        sleep, exit-app, crash-app, stay";
+        wait-ring-joined, wait-lobby-ready, sleep, exit-app, crash-app, stay";
 
     fn parse_verb(verb: &str, arg: &str) -> Option<Result<Self, String>> {
         let room = || room_name(verb, arg);
@@ -59,6 +61,8 @@ impl ScriptStepGrammar for SharedScriptStep {
             "wait-room-messages" => {
                 count(verb, arg).map(|n| Self::WaitRoomMessages(SenderCount(n)))
             }
+            "wait-ring-joined" => unit(verb, arg).map(|()| Self::WaitRingJoined),
+            "wait-lobby-ready" => unit(verb, arg).map(|()| Self::WaitLobbyReady),
             "sleep" => parse_seconds(arg).map(Self::Sleep),
             "exit-app" => Ok(Self::ExitApp),
             "crash-app" => Ok(Self::CrashApp),
@@ -78,7 +82,18 @@ impl ScriptStepGrammar for SharedScriptStep {
                 | Self::WaitMembersAreStrictlyLessThan(_)
                 | Self::WaitMembersAreLessOrEqualTo(_)
                 | Self::WaitRoomMessages(_)
+                | Self::WaitRingJoined
+                | Self::WaitLobbyReady
         )
+    }
+}
+
+// needed helper: a unit wait step, which must carry no argument
+fn unit(verb: &str, arg: &str) -> Result<(), String> {
+    if arg.trim().is_empty() {
+        Ok(())
+    } else {
+        Err(format!("step '{verb}' takes no argument, got '{arg}'"))
     }
 }
 
@@ -163,5 +178,25 @@ mod tests {
         assert!(step("wait-members-are-strictly-less-than:2").is_err());
         assert!(step("wait-members-are-less-or-equal-to:1").is_err());
         assert!(step("wait-members-are-strictly-less-than:x@60s").is_err());
+    }
+
+    #[test]
+    fn ring_joined_waits_for_the_first_ring_peer() {
+        assert_eq!(
+            step("wait-ring-joined@120s"),
+            Ok(SharedScriptStep::WaitRingJoined)
+        );
+        assert!(step("wait-ring-joined").is_err());
+        assert!(step("wait-ring-joined:1@120s").is_err());
+    }
+
+    #[test]
+    fn lobby_ready_waits_for_the_lobby_fetch() {
+        assert_eq!(
+            step("wait-lobby-ready@60s"),
+            Ok(SharedScriptStep::WaitLobbyReady)
+        );
+        assert!(step("wait-lobby-ready").is_err());
+        assert!(step("wait-lobby-ready:room-1@60s").is_err());
     }
 }

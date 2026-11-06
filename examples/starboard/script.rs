@@ -18,8 +18,8 @@ impl ScriptStepGrammar for StarboardScriptStep {
     const STEP_NAMES: &'static str = "create, join, leave, wait-lobby-room, \
         wait-join-succeeded, wait-join-failed, wait-left, wait-members, \
         wait-members-are-strictly-less-than, wait-members-are-less-or-equal-to, wait-room-messages, \
-        sleep, exit-app, crash-app, stay, paint-from-to, erase-from-to, wait-canvas-nonempty, \
-        wait-canvas-stable, wait-cell-painted";
+        wait-ring-joined, wait-lobby-ready, sleep, exit-app, crash-app, stay, paint-from-to, \
+        erase-from-to, wait-canvas-nonempty, wait-canvas-stable, wait-cell-painted";
 
     fn parse_verb(verb: &str, arg: &str) -> Option<Result<Self, String>> {
         match verb {
