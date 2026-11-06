@@ -37,6 +37,17 @@ Usage:
   --since EPOCH    only run directories with epoch >= EPOCH;
                    overrides the --last default (keeps all matching runs)
   explicit run directories (relative or absolute) override --scenario/--last/--since
+  --summary        print one compact paragraph instead of the table:
+                   "<batch>: P of T passed. lobby_ready_s p50 X max Y;
+                   ring_join_s p50 X max Y; deployers per run [...].
+                   FAILED <run>: <reason>. ..." (a failed run lists its
+                   directory name and the first "script failed" reason).
+                   A run passes when every peer logged "script done" and none
+                   logged "script failed".
+  --batch TEXT     label prefix for --summary (recipe name and params,
+                   e.g. "e2e-ring-loop N=3")
+  --failed-clips   print "<run_dir>/clip.mp4<TAB><run>: <reason>" for each
+                   failed run that still has its clip (one per line)
 
 Missing values print as "-" (null in JSON). Truncated logs and runs with
 no logs never crash the script; they show up as "-" rows / empty runs.
@@ -71,6 +82,8 @@ FETCH_FOUND = "lobby fetch found"
 FETCH_FAILED = "lobby fetch failed"
 DEPLOYED = "lobby contract deployed"
 FAST_RECONNECT = "Attempting fast reconnection"
+SCRIPT_FAILED = "script failed"
+SCRIPT_DONE = "script done"
 
 
 def parse_timestamp(line):
@@ -105,6 +118,8 @@ def parse_peer_log(path):
         "keys": [],
         "t0_epoch": None,
         "first_room_epoch": None,
+        "failed_reason": None,
+        "script_done": False,
     }
     try:
         with open(path, errors="replace") as handle:
@@ -118,6 +133,10 @@ def parse_peer_log(path):
             if t0 is None:
                 continue
             peer["t0_epoch"] = t0.timestamp()
+        if peer["failed_reason"] is None and SCRIPT_FAILED in line:
+            peer["failed_reason"] = line.split(SCRIPT_FAILED, 1)[1].strip()
+        if SCRIPT_DONE in line:
+            peer["script_done"] = True
         stamp = parse_timestamp(line)
         if stamp is None:
             continue
@@ -275,6 +294,60 @@ def aggregate(runs):
     return result
 
 
+def run_outcome(run):
+    """(passed, reason) for one parsed run, mirroring the harness.
+
+    A run fails when any peer logged "script failed" (reason is the peer name
+    plus the text after the marker); otherwise every peer must have logged
+    "script done". Never raises.
+    """
+    if not run["peers"]:
+        return False, "no instance logs"
+    for peer in run["peers"]:
+        if peer["failed_reason"] is not None:
+            return False, f"{peer['peer']} {peer['failed_reason']}"
+    missing = [peer["peer"] for peer in run["peers"] if not peer["script_done"]]
+    if missing:
+        return False, f"{','.join(missing)} no script done"
+    return True, ""
+
+
+def summarize_runs(runs, stats, batch=None):
+    """One compact paragraph for a batch: pass count, p50/max of the two
+    join timings, deployers per run, and each failed run with its reason."""
+    failed = []
+    for run in runs:
+        passed, reason = run_outcome(run)
+        if not passed:
+            failed.append((run["run"], reason))
+    total = len(runs)
+    head = f"{batch}: " if batch else ""
+    parts = [
+        f"{head}{total - len(failed)} of {total} passed.",
+        f"lobby_ready_s p50 {fmt_seconds(stats['lobby_ready_s']['p50'])}"
+        f" max {fmt_seconds(stats['lobby_ready_s']['max'])};",
+        f"ring_join_s p50 {fmt_seconds(stats['ring_join_s']['p50'])}"
+        f" max {fmt_seconds(stats['ring_join_s']['max'])};",
+        f"deployers per run {stats['deployers']}.",
+    ]
+    for name, reason in failed:
+        parts.append(f"FAILED {name}: {reason}.")
+    return " ".join(parts)
+
+
+def failed_clips(run_dirs, runs):
+    """clip.mp4 of each failed run that still has one, as (path, caption)."""
+    clips = []
+    for run_dir, run in zip(run_dirs, runs):
+        passed, reason = run_outcome(run)
+        if passed:
+            continue
+        clip = os.path.join(run_dir, "clip.mp4")
+        if os.path.isfile(clip):
+            clips.append((clip, f"{run['run']}: {reason}"))
+    return clips
+
+
 def select_runs(scenario, last, since=None):
     """Run dirs for a scenario, newest first-filtered.
 
@@ -392,6 +465,22 @@ def main(argv=None):
         help="only .local-run/<scenario>-<epoch> dirs with epoch >= SINCE",
     )
     parser.add_argument("--json", default=None)
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="print one compact paragraph instead of the table",
+    )
+    parser.add_argument(
+        "--batch",
+        default=None,
+        help="label prefix for --summary (recipe name and params)",
+    )
+    parser.add_argument(
+        "--failed-clips",
+        action="store_true",
+        help="print <run_dir>/clip.mp4 and its caption (tab-separated)"
+        " for each failed run that still has its clip",
+    )
     parser.add_argument("run_dirs", nargs="*")
     args = parser.parse_args(argv)
     if args.run_dirs:
@@ -422,7 +511,13 @@ def main(argv=None):
             empty_note = None
     runs = [parse_run(run_dir) for run_dir in run_dirs]
     stats = aggregate(runs)
-    print_table(runs, stats, empty_note)
+    if args.failed_clips:
+        for clip, caption in failed_clips(run_dirs, runs):
+            print(f"{clip}\t{caption}")
+    elif args.summary:
+        print(summarize_runs(runs, stats, args.batch))
+    else:
+        print_table(runs, stats, empty_note)
     if args.json:
         with open(args.json, "w") as handle:
             json.dump({"runs": runs, "aggregate": stats}, handle, indent=2)

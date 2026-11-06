@@ -72,16 +72,31 @@ ring-stats *ARGS:
 # always print the stats for the runs completed so far.
 # KEEP_GOING=1 is for measuring a baseline only: it runs all RUNS even when
 # some fail, then exits non-zero with the failure count.
-e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
+#
+# Pause PAUSE seconds (or E2E_LOOP_PAUSE_SECS) BETWEEN runs: never before the
+# first, never after the last. The pause lets the previous run's peers leave
+# the mainnet ring before the next run joins: with a 90 s pause 8 of 8 runs
+# passed (5 of 24 peers over 30 s to join); back-to-back runs gave 7 of 8
+# (11 of 24 peers slow or never joined), because the previous run's peers had
+# just exited.
+#
+# One Telegram summary per batch (stats plus the clip of each failed run);
+# per-run Telegram stays silent as today. The silencing (empty creds) is an
+# inline prefix on the per-run call only, so the summary still sees the real
+# credentials. Sending is best-effort: a Telegram failure only prints a
+# warning. E2E_LOOP_NOTIFY=0 skips the send (used by e2e-ring-check, which
+# sends its own combined summary for both halves).
+e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0" PAUSE="90":
     #!/usr/bin/env bash
     set -euo pipefail
-    # Telegram stays silent: empty creds make send_video_best_effort a no-op
+    # Telegram stays silent per run: empty creds make send_video_best_effort a no-op
     # (see the preview-stability recipe and telegram-bot-helper from_env).
     # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
     export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-{{ e2e_log_filter }}}"
     # Headless-safe display defaults (overridable); the e2e peers need X.
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+    pause="${E2E_LOOP_PAUSE_SECS:-{{ PAUSE }}}"
     # Only this loop's runs are reported: run dirs carry a unix-epoch suffix
     # (see epoch_secs in tests/common/scenario.rs), so --since filters out
     # older runs instead of showing stale data.
@@ -90,6 +105,7 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
     run=0
     while [ "$run" -lt {{ RUNS }} ]; do
         run=$((run + 1))
+        if [ "$run" -gt 1 ]; then sleep "$pause"; fi
         if TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= just e2e-ring {{ N }}; then
             :
         else
@@ -101,6 +117,8 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
         fi
     done
     just ring-stats --since "$started"
+    E2E_SUMMARY="$(python3 scripts/ring_stats.py --scenario freenet_ring --since "$started" --summary --batch "e2e-ring-loop N={{ N }}")" just _e2e-notify-text
+    just _e2e-notify-clips freenet_ring "$started"
     if [ "$failed" -ne 0 ]; then
         if [ "{{ KEEP_GOING }}" = "1" ]; then
             echo "e2e-ring-loop: $failed of {{ RUNS }} failed (N={{ N }})" >&2
@@ -112,9 +130,33 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0":
     echo "e2e-ring-loop: all {{ RUNS }} runs passed (N={{ N }})"
 
 # N=1 then N=3, 5 runs each, each stopping at the first failure.
-# Stop after N=1 if it fails.
-e2e-ring-check:
-    just e2e-ring-loop 1 5 && just e2e-ring-loop 3 5
+# Inherits PAUSE (or E2E_LOOP_PAUSE_SECS), including one pause between the N=1
+# and N=3 halves. Sends a single combined Telegram summary for both halves;
+# the halves themselves stay silent (E2E_LOOP_NOTIFY=0).
+# Stop after N=1 if it fails (the summary still goes out).
+e2e-ring-check PAUSE="90":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pause="${E2E_LOOP_PAUSE_SECS:-{{ PAUSE }}}"
+    started=$(date +%s)
+    failed=0
+    if ! E2E_LOOP_NOTIFY=0 just e2e-ring-loop 1 5 0 "$pause"; then
+        failed=1
+    fi
+    if [ "$failed" -eq 0 ]; then
+        sleep "$pause"
+        if ! E2E_LOOP_NOTIFY=0 just e2e-ring-loop 3 5 0 "$pause"; then
+            failed=1
+        fi
+    fi
+    just ring-stats --since "$started"
+    E2E_SUMMARY="$(python3 scripts/ring_stats.py --scenario freenet_ring --since "$started" --summary --batch "e2e-ring-check N=1,3")" just _e2e-notify-text
+    just _e2e-notify-clips freenet_ring "$started"
+    if [ "$failed" -ne 0 ]; then
+        echo "e2e-ring-check: a half FAILED" >&2
+        exit 1
+    fi
+    echo "e2e-ring-check: both halves passed"
 
 # Saved-node relaunch: one peer launches cold, exits, waits GAP seconds with
 # the app closed, then launches again with the same node folder and game
@@ -132,7 +174,11 @@ e2e-relaunch GAP="10":
 
 # Repeat `just e2e-relaunch GAP` up to RUNS pairs; stop at the first failure
 # and always print the stats for the cold and warm runs completed so far.
-e2e-relaunch-loop GAP="10" RUNS="5":
+#
+# Same contract as e2e-ring-loop: PAUSE seconds (or E2E_LOOP_PAUSE_SECS)
+# BETWEEN pairs (never before the first, never after the last; see the
+# numbers quoted there) and one Telegram summary per batch, best-effort.
+e2e-relaunch-loop GAP="10" RUNS="5" PAUSE="90":
     #!/usr/bin/env bash
     set -euo pipefail
     # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
@@ -140,6 +186,7 @@ e2e-relaunch-loop GAP="10" RUNS="5":
     # Headless-safe display defaults (overridable); the e2e peer needs X.
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+    pause="${E2E_LOOP_PAUSE_SECS:-{{ PAUSE }}}"
     # Only this loop's runs are reported: run dirs carry a unix-epoch suffix
     # (see epoch_secs in tests/common/scenario.rs), so --since filters out
     # older runs instead of showing stale data.
@@ -148,6 +195,7 @@ e2e-relaunch-loop GAP="10" RUNS="5":
     run=0
     while [ "$run" -lt {{ RUNS }} ]; do
         run=$((run + 1))
+        if [ "$run" -gt 1 ]; then sleep "$pause"; fi
         if TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= just e2e-relaunch {{ GAP }}; then
             :
         else
@@ -158,11 +206,49 @@ e2e-relaunch-loop GAP="10" RUNS="5":
     done
     just ring-stats --scenario freenet_relaunch_cold --since "$started"
     just ring-stats --scenario freenet_relaunch_warm --since "$started"
+    cold="$(python3 scripts/ring_stats.py --scenario freenet_relaunch_cold --since "$started" --summary --batch "e2e-relaunch-loop GAP={{ GAP }} pairs $((run - failed)) of {{ RUNS }} cold")"
+    warm="$(python3 scripts/ring_stats.py --scenario freenet_relaunch_warm --since "$started" --summary --batch "e2e-relaunch-loop GAP={{ GAP }} pairs $((run - failed)) of {{ RUNS }} warm")"
+    E2E_SUMMARY="$(printf '%s\n%s' "$cold" "$warm")" just _e2e-notify-text
+    just _e2e-notify-clips freenet_relaunch_cold "$started"
+    just _e2e-notify-clips freenet_relaunch_warm "$started"
     if [ "$failed" -ne 0 ]; then
         echo "e2e-relaunch-loop: run $run of {{ RUNS }} FAILED (GAP={{ GAP }})" >&2
         exit 1
     fi
     echo "e2e-relaunch-loop: all {{ RUNS }} runs passed (GAP={{ GAP }})"
+
+# Internal: send one batch summary via Telegram. The text arrives in E2E_SUMMARY
+# (an argument would re-enter just interpolation); the send is best-effort and
+# never fails the caller. E2E_LOOP_NOTIFY=0 prints but does not send.
+_e2e-notify-text:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf '%s\n' "$E2E_SUMMARY"
+    if [ "${E2E_LOOP_NOTIFY:-1}" = "0" ]; then
+        echo "(telegram send skipped: E2E_LOOP_NOTIFY=0)" >&2
+        exit 0
+    fi
+    if ! cargo run -q --example telegram_send -- --text "$E2E_SUMMARY"; then
+        echo "warning: telegram summary failed" >&2
+    fi
+
+# Internal: send the clip.mp4 of each failed run in SCENARIO since SINCE via
+# Telegram, captioned with the run name and failure reason. Best-effort and
+# never fails the caller. E2E_LOOP_NOTIFY=0 skips the send.
+_e2e-notify-clips SCENARIO SINCE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "${E2E_LOOP_NOTIFY:-1}" = "0" ]; then
+        echo "(telegram clips skipped: E2E_LOOP_NOTIFY=0)" >&2
+        exit 0
+    fi
+    clips="$(python3 scripts/ring_stats.py --scenario "{{ SCENARIO }}" --since "{{ SINCE }}" --failed-clips || true)"
+    while IFS="$(printf '\t')" read -r clip caption; do
+        [ -n "$clip" ] || continue
+        if ! cargo run -q --example telegram_send -- --video "$clip" --caption "$caption"; then
+            echo "warning: telegram clip send failed ($clip)" >&2
+        fi
+    done <<<"$clips"
 
 e2e-join:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture

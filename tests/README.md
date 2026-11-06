@@ -10,13 +10,13 @@ each), record the screen, and send the clip to Telegram.
 just e2e-discovery   # 3 lobby_room peers: all discover the created room
 just e2e-discovery 5 # the same with 5 peers (E2E_PEERS=2..5)
 just e2e-ring 3      # freenet ring health alone: N embedded nodes join the ring
-just e2e-ring-loop 3 # the same 5 times; stop at the first failure, then ring-stats
+just e2e-ring-loop 3 # the same 5 times, 90 s apart; stop at the first failure, then ring-stats
 just e2e-ring-check  # N=1 5 times, then N=3 5 times; stop at the first failure
 just e2e-ring-ladder # freenet ring health alone, 2 then 3 then 4 then 5 peers
 just e2e-join        # 5 lobby_room peers: discover, join, full mesh
 just e2e-room        # 3 lobby_room peers: discover, join, full mesh, all-to-all room gossipsub
 just e2e-relaunch   # 1 lobby_room peer, cold then warm with the same node folder and token
-just e2e-relaunch-loop # the same up to 5 pairs; stop at the first failure, then ring-stats both
+just e2e-relaunch-loop # the same up to 5 pairs, 90 s apart; stop at the first failure, then ring-stats both
 just e2e-starboard   # 3 starboard peers paint/erase, plus a 4th that joins late
 just e2e-history     # the Kademlia history scenarios S4a, S4b, S4c
 ```
@@ -27,6 +27,33 @@ runs: `ring_join_s` (first `connect driver: joined peer`), `first_ring_peers_s`
 `cached_reconnect` (whether the log shows freenet's peer-cache
 `Attempting fast reconnection`). `--scenario freenet_relaunch_cold` and
 `--scenario freenet_relaunch_warm` select the relaunch pair's runs.
+`--summary --batch "..."` prints one compact paragraph instead (pass count,
+`lobby_ready_s`/`ring_join_s` p50 and max, deployers per run, and each failed
+run with its reason); `--failed-clips` prints the `clip.mp4` of each failed
+run that still has one, tab-separated from its caption.
+
+## Loop pauses and the one batch summary
+
+`e2e-ring-loop`, `e2e-relaunch-loop` and `e2e-ring-check` wait PAUSE seconds
+(default 90, `just e2e-ring-loop 3 5 0 30` or `E2E_LOOP_PAUSE_SECS=30`) BETWEEN
+runs: never before the first, never after the last. The pause lets the
+previous run's peers leave the mainnet ring before the next run joins: with a
+90 s pause 8 of 8 runs passed (5 of 24 peers over 30 s to join); back-to-back
+runs gave 7 of 8 (11 of 24 peers slow or never joined), because the previous
+run's peers had just exited. `e2e-ring-check` takes the same PAUSE and also
+waits it between its N=1 and N=3 halves.
+
+Each batch sends exactly ONE Telegram summary at the end: recipe name, N/GAP,
+runs passed of total, `lobby_ready_s`/`ring_join_s` p50 and max, deployers per
+run, and for a failed run its name and failure reason — plus that run's
+`clip.mp4`. Passing runs send nothing else. Per-run Telegram stays silent as
+today (empty creds are an inline prefix on the per-run call only, so the
+summary still uses the real credentials, read via `telegram-bot-helper`'s
+`from_env`). Sending is best-effort: a Telegram failure only prints a warning
+and never fails the loop. `e2e-ring-check` sends one combined summary for both
+halves; the halves themselves stay silent (`E2E_LOOP_NOTIFY=0`). Direct runs
+such as `just e2e-ring 3` are unchanged and still send their own clip and
+result.
 
 Direct equivalent:
 
