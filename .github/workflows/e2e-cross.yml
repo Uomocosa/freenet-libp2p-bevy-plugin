@@ -85,7 +85,7 @@ jobs:
           rustup toolchain install
           cargo build --profile ci-min --features e2e --example starboard --example e2e_check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $lines = cargo test --test e2e --no-run --features e2e --profile ci-min 2>&1
+          $lines = cmd /c 'cargo test --test e2e --no-run --features e2e --profile ci-min 2>&1'
           if ($LASTEXITCODE -ne 0) { $lines; exit $LASTEXITCODE }
           $testBin = ($lines | Select-String 'Executable tests/e2e/main\.rs \((.*)\)' | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1)
           if ([string]::IsNullOrEmpty($testBin)) { Write-Output '::error::e2e test binary not found'; exit 1 }
