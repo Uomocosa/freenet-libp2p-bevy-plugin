@@ -24,11 +24,11 @@ host our own relay — that would defeat the purpose of Freenet.
 | X7 | Name reuse | A dead room's name is reusable as a fresh room: new `created_at` → new history key, empty board. |
 | X8 | Local history file | None. Optional explicit export/import later. |
 | X9 | Slow Windows | All waits × `E2E_TIME_SCALE` (default 1, Windows ≈ 4, tune). The game scales its lease and history timings; `scripts/e2e_cross_scenario.sh` scales each script's `@Ns` deadlines. |
-| X10 | Video | Recorded on both machines: Linux ffmpeg x11grab (existing), Windows ffmpeg gdigrab (low fps/resolution). |
+| X10 | Video | Each machine records its own desktop (Linux ffmpeg x11grab, Windows ffmpeg gdigrab, low fps/resolution) and sends the clip to Telegram. |
 | X11 | Runners | Both online on this repo since 2026-11-07: `windows-e2e` (`C:\actions-runner`) and `linux-e2e` (`~/actions-runner-freenet`). Never a service: they must run in the logged-in desktop session, screen unlocked. A runner offline for about 14 days is deleted by GitHub and must be registered again. |
 | X12 | Repo / branch | `freenet-libp2p-bevy-plugin`, branch `main`. |
 | X13 | Windows firewall | At most one allow prompt, ever. Rules match by program path, so the workflow always runs the game from `C:\e2e\bundle\starboard.exe`, which has an inbound allow rule. Never run it from a per-run path. |
-| X14 | Public repo | `workflow_dispatch` only; fork PR approval is `all_external_contributors`. Artifacts are public, so video is off by default (`record_video`) and Freenet node folders are never uploaded, only their logs. |
+| X14 | Public repo | `workflow_dispatch` only; fork PR approval is `all_external_contributors`. Artifacts are public, so videos are never uploaded as artifacts and go to Telegram through the TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID repo secrets; Freenet node folders are never uploaded, only their logs. |
 
 ## 2. Test mechanics
 
@@ -42,7 +42,7 @@ host our own relay — that would defeat the purpose of Freenet.
 - **Checker.** Reads every machine's `result.json` + logs and prints one table per scenario:
   `expected | actual | PASS/FAIL`. The example `cargo run --example e2e_check -- --results-dir <dir> --peer <name>... --expect converge --expect min-members:N --expect may-crash:<user> --expect join-must-fail:<user>` does this.
 - **Logs.** Each peers job uploads `results-windows` / `results-linux`, one `<peer>/` folder each
-  (game log, Freenet node logs, `result.json`), plus the video when `record_video` is on.
+  (game log, Freenet node logs, `result.json`). Videos go to Telegram, not artifacts.
   Read with `gh run download <run-id>`.
 
 ## 3. Scenarios (W = Windows peer, L1/L2 = Linux peers)
