@@ -23,7 +23,7 @@ host our own relay — that would defeat the purpose of Freenet.
 | X6 | Room deletion | When the last holder quits (clean or not), the room dies and disappears from the lobby. Holders refresh a lease in the lobby contract every 30 s; room dead after 90 s with no fresh lease (both × `E2E_TIME_SCALE`). |
 | X7 | Name reuse | A dead room's name is reusable as a fresh room: new `created_at` → new history key, empty board. |
 | X8 | Local history file | None. Optional explicit export/import later. |
-| X9 | Slow Windows | All waits × `E2E_TIME_SCALE` (default 1, Windows ≈ 4, tune). The game scales its lease and history timings; `scripts/e2e_cross_scenario.sh` scales each script's `@Ns` deadlines. |
+| X9 | Slow Windows | All waits × `E2E_TIME_SCALE` (default 1; raise it only for a specific slow run, since 4 can take an hour to fail). The game scales its lease and history timings; `scripts/e2e_cross_scenario.sh` scales each script's `@Ns` deadlines. |
 | X10 | Video | Each machine records its own desktop (Linux ffmpeg x11grab, Windows ffmpeg gdigrab, low fps/resolution) and sends the clip to Telegram. |
 | X11 | Runners | Both online on this repo since 2026-11-07: `windows-e2e` (`C:\actions-runner`) and `linux-e2e` (`~/actions-runner-freenet`). Never a service: they must run in the logged-in desktop session, screen unlocked. A runner offline for about 14 days is deleted by GitHub and must be registered again. |
 | X12 | Repo / branch | `freenet-libp2p-bevy-plugin`, branch `main`. |

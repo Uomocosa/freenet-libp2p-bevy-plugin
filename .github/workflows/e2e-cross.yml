@@ -22,7 +22,7 @@ on:
       time_scale:
         description: E2E_TIME_SCALE, applied to the game and to every script deadline
         type: string
-        default: "4"
+        default: "1"
       build_host:
         description: Where the Windows bundle is built
         type: choice
@@ -115,7 +115,7 @@ jobs:
     needs: [prepare, build-windows, build-linux]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: [self-hosted, windows-e2e]
-    timeout-minutes: 120
+    timeout-minutes: 30
     steps:
       # C:\e2e\bundle is the path of the firewall allow rule: never run the game elsewhere.
       - shell: powershell
@@ -192,7 +192,7 @@ jobs:
     needs: [prepare, build-windows, build-linux]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: [self-hosted, linux-e2e]
-    timeout-minutes: 120
+    timeout-minutes: 30
     steps:
       - uses: actions/download-artifact@v8
         with:
