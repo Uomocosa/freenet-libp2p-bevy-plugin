@@ -16,5 +16,11 @@ pub use peer_addr::PeerAddr;
 mod peer_id;
 pub use peer_id::PeerId;
 
+mod saved_keypair;
+pub use saved_keypair::SavedKeypair;
+
+mod saved_keypair_error;
+pub use saved_keypair_error::SavedKeypairError;
+
 mod topic;
 pub use topic::Topic;

@@ -126,7 +126,7 @@ Each phase leaves `just clippy`, `just lint`, `just bevy-lint`, `just fmt` and `
 
 - [x] **0. Fix the cross-OS click.** Run `42386802626` failed because the two Linux windows were stacked (the user saw it), so `l2`'s click never landed. Tile them in `e2e-cross.yml`, or otherwise stop them overlapping. Re-run S1 with `time_scale=1`, reusing the bundle with `bundle_run_id` if the game did not change. Done when `check` passes on `lan`. Also confirm both videos reach Telegram.
 - [x] **1. Research, no code.** Read the current rust-libp2p docs on dialing known addresses, retry and backoff, storing peer addresses, and any peer-store support. Follow what libp2p suggests where it fits this shape, and record the findings in this file.
-- [ ] **2. Persistent identity.** `SavedKeypair`, `.with_keypair`, `--identity-file`. `P2PPlugin` currently generates a new keypair every launch, so nothing below can work first. Each test peer gets its own identity. Keys never go into artifacts.
+- [x] **2. Persistent identity.** `SavedKeypair`, `.with_keypair`, `--identity-file`. `P2PPlugin` currently generates a new keypair every launch, so nothing below can work first. Each test peer gets its own identity. Keys never go into artifacts.
 - [ ] **3. Friends.** `Peer` parsing, Friends tab, add and remove, saved to disk, connected or offline per row.
 - [ ] **4. Known peers and dialing.** `DialState` with unit tests for backoff and dropping, the peer book, the adapter and `direct_dial::Plugin`. It must not block or replace Freenet discovery.
 - [ ] **5. Tests.** Add the `direct-dial` network, per-test network pinning, and address passing through `Orchestrator` on one machine. Add the tests in the table below.
@@ -161,6 +161,13 @@ Research against rust-libp2p 0.57.1 (`Cargo.lock`: `libp2p 0.57.1`, `libp2p-swar
 6. Repo today: swarm is built in `methods/runner_config/build_swarm.rs` (already `with_existing_identity`, but the key comes from a fresh `Keypair::generate_ed25519()` in `methods/p2p_plugin/build_plugin.rs:38`); `plugin::Config` (`src/plugin/config.rs`) has no `with_keypair`. `Libp2pCommand::Dial(identity::Peer)` flows `dispatch_libp2p_command` (`src/p2p/swarm_loop_state.rs:115-119`) -> `dial_peer` (`methods/swarm_loop_state/dial_peer.rs`: parses addrs, silently skips empty/unparseable sets, `DisconnectedAndNotDialing`, concurrency 1; unparsable peer id falls back to address-only dials; sync `dial` errors become `DialFailed`).
    - What must change for the `DialState` adapter: new `direct_dial` module (`DialState` sans-IO, `PeerBook` load/save, adapter mapping `DialFailed`/`PeerConnected` by peer id to `Input::DialFailed`/connected and emitting `Libp2pCommand::Dial`), `SavedKeypair` + `Config::with_keypair`, Friends tab UI, test `CheckpointBoard` hooks. Nothing in the existing dial path needs to change.
    - Fits the plan.
+
+## Cross-OS baseline (before Phase 6)
+
+S1 over mainnet discovery on `lan`, `time_scale=1`:
+
+- Build: `build-windows` 27 min, `build-linux` under 1 min with a warm cache (run `42386802626`).
+- Run with reused bundles: peers about 65 s, whole workflow 107 s (run `42399468572`).
 
 ## Tests we want
 

@@ -35,7 +35,7 @@ pub fn build_plugin<Payload: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<Payloa
         app.add_systems(Update, p2p::bevy_systems::poll_p2p_events::<Payload>);
         return;
     }
-    let keypair = libp2p::identity::Keypair::generate_ed25519();
+    let keypair = p2p_plugin.runner_keypair();
     let config = p2p::RunnerConfig {
         mode: p2p_plugin.mode,
         mdns: p2p_plugin.mdns,

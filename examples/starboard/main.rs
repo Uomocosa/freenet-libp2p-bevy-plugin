@@ -69,13 +69,23 @@ fn run_starboard(
     app.add_plugins(
         testing::FakeNetworkPlugin::<starboard::room::CursorUpdate>::from(&args.network),
     );
-    app.add_plugins(plugin::P2PPlugin(
-        plugin::Config::<starboard::room::CursorUpdate>::new(
-            args::transport_mode(args.transport),
-            p2p::MdnsMode::Disabled,
-        )
-        .with_game(game.clone()),
-    ));
+    let base = plugin::Config::<starboard::room::CursorUpdate>::new(
+        args::transport_mode(args.transport),
+        p2p::MdnsMode::Disabled,
+    )
+    .with_game(game.clone());
+    if let Some(path) = &args.identity_file {
+        let saved = match identity::SavedKeypair::try_from(path.as_path()) {
+            Ok(saved) => saved,
+            Err(error) => {
+                eprintln!("identity file: {error}");
+                return bevy::app::AppExit::error();
+            }
+        };
+        app.add_plugins(plugin::P2PPlugin(base.with_keypair(saved)));
+    } else {
+        app.add_plugins(plugin::P2PPlugin(base));
+    }
     app.add_plugins(discovery::Plugins(discovery::Config {
         display_name: identity::Username::from(args.username.clone()),
         game: game.clone(),

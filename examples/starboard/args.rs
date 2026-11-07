@@ -25,6 +25,8 @@ pub struct Args {
     /// Folder the embedded Freenet node keeps its config, data and logs in (default: a temp dir).
     #[arg(long)]
     pub freenet_node_dir: Option<PathBuf>,
+    #[arg(long)]
+    pub identity_file: Option<PathBuf>,
     #[command(flatten)]
     pub network: NetworkArgs,
     #[command(flatten)]
@@ -74,6 +76,22 @@ mod tests {
                 identity::RoomName::from("room-1")
             )))
         );
+    }
+
+    #[test]
+    fn identity_file_is_optional_and_parses() {
+        use std::path::PathBuf;
+        let args = super::Args::try_parse_from(["starboard", "--username", "p1"]).expect("args");
+        assert_eq!(args.identity_file, None);
+        let args = super::Args::try_parse_from([
+            "starboard",
+            "--username",
+            "p1",
+            "--identity-file",
+            "/tmp/p1.identity",
+        ])
+        .expect("args");
+        assert_eq!(args.identity_file, Some(PathBuf::from("/tmp/p1.identity")));
     }
 
     #[test]

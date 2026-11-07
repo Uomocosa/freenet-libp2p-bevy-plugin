@@ -122,6 +122,16 @@ impl Orchestrator {
         Some(format!("sleep:{}s", self.scaled_sleep_secs(secs)))
     }
 
+    pub(crate) fn peer_identity_file(&self, token: &str, peer: &str) -> std::path::PathBuf {
+        let safe_token = token.replace('/', "-");
+        let file = format!(
+            "{}-{safe_token}-pid{}-{peer}.identity",
+            self.game,
+            std::process::id()
+        );
+        std::env::temp_dir().join(file)
+    }
+
     pub(crate) const fn cap(&self) -> std::time::Duration {
         match self.network {
             testing::Network::Fake => std::time::Duration::from_secs(300),
@@ -244,6 +254,9 @@ impl Orchestrator {
             let node_dir = dir.join(format!("{}-freenet", peer.name));
             args.push("--freenet-node-dir".to_string());
             args.push(node_dir.display().to_string());
+            let identity_file = self.peer_identity_file(token, &peer.name);
+            args.push("--identity-file".to_string());
+            args.push(identity_file.display().to_string());
             let result_path = dir.join(&peer.name).join("result.json");
             args.push("--result-json".to_string());
             args.push(result_path.display().to_string());
@@ -332,5 +345,22 @@ mod tests {
             .expect_canvases_converge();
         assert_eq!(orchestrator.peers.len(), 1);
         assert!(orchestrator.should_check_canvas_convergence);
+    }
+
+    #[test]
+    fn peer_identity_files_are_distinct_and_outside_results() {
+        use std::path::PathBuf;
+        let orchestrator =
+            Orchestrator::from_game_and_network("starboard".to_string(), testing::Network::Fake);
+        let results = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".local-run");
+        let alice = orchestrator.peer_identity_file("lobby-e2e/123", "alice");
+        let bob = orchestrator.peer_identity_file("lobby-e2e/123", "bob");
+        assert_ne!(alice, bob);
+        assert_eq!(
+            alice.extension().and_then(|ext| ext.to_str()),
+            Some("identity")
+        );
+        assert!(!alice.starts_with(&results));
+        assert!(!bob.starts_with(&results));
     }
 }
