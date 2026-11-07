@@ -1,78 +1,34 @@
 use crate::discovery;
 use crate::identity;
-use discovery::state_machine::{DiscoveryState, Input};
 
 pub async fn run(
     config: &discovery::Config,
     endpoint: discovery::FreenetPort,
-    channels: discovery::RunChannels,
+    mut channels: discovery::RunChannels,
 ) {
-    let discovery::RunChannels {
-        mut swarm,
-        mut commands,
-        statuses,
-        events,
-    } = channels;
-    let Some(ready) = identity::Peer::wait_ready(&mut swarm.ready).await else {
+    let (target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
+    let (lobby_tx, lobbies) = tokio::sync::mpsc::unbounded_channel();
+    let (peers_tx, peers) = tokio::sync::mpsc::unbounded_channel();
+    let Some(ready) = identity::Peer::wait_ready(&mut channels.swarm.ready).await else {
         return;
     };
-    let me = identity::Peer {
-        addrs: identity::PeerAddr::dialable(ready.addrs),
-        id: ready.id,
-    };
-    let mut state = DiscoveryState::new(me.clone());
-    state.display_name = config.display_name.clone();
-    state.lease_limits = discovery::LobbyLeaseLimits {
-        lease_ttl: config.lease.ttl,
-        remote_clock_skew_margin: config.lease.remote_clock_skew_margin,
-    };
-    state.game = config.game.clone();
-    state.history_size_limits = config.history_size_limits;
-    let (target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
-    let (lobby_tx, mut lobbies) = tokio::sync::mpsc::unbounded_channel();
-    let (peers_tx, mut peers) = tokio::sync::mpsc::unbounded_channel();
     let freenet_config = discovery::freenet::Config {
         host: "127.0.0.1".to_string(),
         port: *endpoint,
-        me: me.id.clone(),
+        me: ready.id.clone(),
         params: config.game.contract_params(),
         discovery: config.clone(),
     };
-    let peers_config = freenet_config.clone();
-    tokio::spawn(async move { peers_config.poll_peers(peers_tx).await });
-    tokio::spawn(async move {
-        let client = freenet_config.connect_retry(&target_rx).await;
-        freenet_config
-            .run_lobby_sync_loop(client, target_rx, lobby_tx)
-            .await;
-    });
-    let mut interval = tokio::time::interval(discovery::TICK);
-    loop {
-        let input = tokio::select! {
-            Some(command) = commands.recv() => Input::Command(command),
-            Ok(event) = swarm.events.recv() => Input::Libp2pEvent(event),
-            Some(lobby) = lobbies.recv() => Input::LobbyUpdated(lobby),
-            Some(connected) = peers.recv() => Input::FreenetPeers(connected),
-            Ok(()) = swarm.observed.changed() => {
-                let Some(addrs) = swarm.observed.borrow_and_update().clone() else {
-                    continue;
-                };
-                Input::OwnAddrsChanged(identity::PeerAddr::dialable(addrs))
-            }
-            _ = interval.tick() => Input::Tick,
-        };
-        let outputs = state.update(input, discovery::UnixTime::now());
-        discovery::Config::flush(outputs, &swarm.commands, &events);
-        let target = state.heartbeat_targets();
-        target_tx.send_if_modified(|current| {
-            let changed = *current != target;
-            if changed {
-                current.clone_from(&target);
-            }
-            changed
-        });
-        let _ = statuses.send(state.status());
-    }
+    freenet_config
+        .spawn_lobby_tasks(discovery::LobbyTaskChannels {
+            heartbeat_targets: target_rx,
+            lobbies: lobby_tx,
+            freenet_peers: peers_tx,
+        })
+        .await;
+    config
+        .run_event_loop(channels, target_tx, lobbies, peers)
+        .await;
 }
 
 #[cfg(test)]

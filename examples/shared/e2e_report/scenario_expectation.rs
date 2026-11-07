@@ -336,8 +336,8 @@ mod tests {
 
         use super::super::super::freenet_layer_result::FreenetLayerResult;
         use super::super::super::peer_run_result::PeerRunResult;
-        use super::super::super::step_timing::StepTiming;
         use super::super::ScenarioExpectation;
+        use freenet_libp2p_bevy_plugin::testing::StepTiming;
         use freenet_libp2p_bevy_plugin::{identity, p2p};
 
         fn expectation() -> ScenarioExpectation {

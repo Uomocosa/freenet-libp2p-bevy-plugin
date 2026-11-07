@@ -1,0 +1,80 @@
+use std::collections::HashMap;
+
+use atomic_delegate_macros::atomic_delegates;
+use tokio::sync::mpsc::UnboundedSender;
+
+use crate::discovery;
+use crate::identity;
+use crate::testing;
+
+pub struct OrchestratorShared {
+    pub routers: HashMap<identity::GameId, testing::PeerMessageRouter>,
+    pub senders: HashMap<identity::PeerId, Vec<UnboundedSender<testing::FakeWireServerFrame>>>,
+    pub peer_games: HashMap<identity::PeerId, identity::GameId>,
+}
+
+impl OrchestratorShared {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            routers: HashMap::new(),
+            senders: HashMap::new(),
+            peer_games: HashMap::new(),
+        }
+    }
+}
+
+#[rustfmt::skip]
+impl OrchestratorShared {
+    pub fn router_for(&mut self, game: &identity::GameId) -> &mut testing::PeerMessageRouter {
+        self.routers
+            .entry(game.clone())
+            .or_insert_with(|| testing::PeerMessageRouter::new(game.clone()))
+    }
+    pub fn add_sender(
+        &mut self,
+        peer: &identity::PeerId,
+        game: &identity::GameId,
+        sender: UnboundedSender<testing::FakeWireServerFrame>,
+    ) {
+        self.peer_games.insert(peer.clone(), game.clone());
+        self.senders.entry(peer.clone()).or_default().push(sender);
+    }
+}
+
+#[atomic_delegates]
+impl OrchestratorShared {
+    pub(crate) fn handle_client_frame(
+        &mut self,
+        peer: &identity::PeerId,
+        frame: testing::FakeWireClientFrame,
+        now: discovery::UnixTime,
+    ) -> (Vec<testing::RoutedEvent>, Option<discovery::Lobby>) {
+    }
+    pub(crate) fn remove_connection(
+        &mut self,
+        peer: &identity::PeerId,
+    ) -> Vec<testing::RoutedEvent> {
+    }
+    pub(crate) fn hello_lobby(
+        &mut self,
+        peer: &identity::Peer,
+        game: &identity::GameId,
+        sender: tokio::sync::mpsc::UnboundedSender<testing::FakeWireServerFrame>,
+    ) -> discovery::Lobby {
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::OrchestratorShared;
+    use crate::identity;
+
+    #[test]
+    fn test_usage() {
+        let mut shared = OrchestratorShared::new();
+        let game = identity::GameId::from("game");
+        shared.router_for(&game);
+        assert!(shared.routers.contains_key(&game));
+    }
+}

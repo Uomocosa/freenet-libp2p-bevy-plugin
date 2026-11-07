@@ -55,6 +55,11 @@ path = "tests/starboard_scenarios.rs"
 required-features = ["e2e"]
 
 [[test]]
+name = "e2e"
+path = "tests/e2e/main.rs"
+required-features = ["e2e"]
+
+[[test]]
 name = "contract_wire"
 path = "tests/contract_wire.rs"
 
@@ -118,9 +123,11 @@ discovery = [
     "dep:http",
 ]
 default_ui = ["discovery"]
-e2e = ["discovery", "default_ui", "dep:serde_json"]
+testing = ["discovery", "tokio/net"]
+e2e = ["discovery", "default_ui", "dep:serde_json", "testing"]
 
 [dev-dependencies]
+e2e_macros = { path = "tests/e2e/macros" }
 telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.14" }
 lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.14" }
 rstest = "=0.28.0"

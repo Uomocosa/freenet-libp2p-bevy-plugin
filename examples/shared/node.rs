@@ -10,7 +10,21 @@ use super::freenet_node_dir::FreenetNodeDir;
 
 pub async fn start_embedded_freenet_node(
     freenet_node_dir: Option<PathBuf>,
+    network: &freenet_libp2p_bevy_plugin::testing::NetworkArgs,
 ) -> Result<(FreenetNodeDir, u16), String> {
+    if matches!(
+        network.network,
+        freenet_libp2p_bevy_plugin::testing::Network::Fake
+    ) {
+        let node_dir = if let Some(path) = freenet_node_dir {
+            std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+            FreenetNodeDir::Kept(path)
+        } else {
+            let tmp = tempfile::tempdir().map_err(|e| e.to_string())?;
+            FreenetNodeDir::Temporary(tmp)
+        };
+        return Ok((node_dir, 0));
+    }
     let node_dir = if let Some(path) = freenet_node_dir {
         std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
         FreenetNodeDir::Kept(path)

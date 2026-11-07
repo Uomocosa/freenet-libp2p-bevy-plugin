@@ -12,11 +12,18 @@ pub use basic::constants::*;
 pub use basic::enums::{HowRoomWasEntered, JoinPhase, RoomMembership};
 pub use basic::messages::{Command, Event};
 pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, StatusReceiver};
-pub use basic::structs::{JoinedRoom, LobbyLeaseLimits, RoomMember, RunChannels};
+pub use basic::structs::{
+    JoinedRoom, LobbyLeaseLimits, LobbyTaskChannels, RoomMember, RunChannels,
+};
 pub use basic::type_aliases::Members;
 
 mod lobby;
 pub use lobby::Lobby;
+
+#[cfg(feature = "testing")]
+mod lobby_task_override;
+#[cfg(feature = "testing")]
+pub use lobby_task_override::LobbyTaskOverride;
 
 mod lobby_room;
 pub use lobby_room::LobbyRoom;

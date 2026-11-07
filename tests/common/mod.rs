@@ -17,8 +17,6 @@ mod freenet_layer_result;
 mod peer_run_result;
 #[path = "../../examples/shared/e2e_report/scenario_expectation.rs"]
 mod scenario_expectation;
-#[path = "../../examples/shared/script/step_timing.rs"]
-mod step_timing;
 
 mod finish_record;
 pub use finish_record::finish_record;

@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use bevy::prelude::Resource;
+use freenet_libp2p_bevy_plugin::testing::StepTiming;
 use freenet_libp2p_bevy_plugin::{identity, p2p};
 use serde::{Deserialize, Serialize};
 
 use super::freenet_layer_result::FreenetLayerResult;
-use super::step_timing::StepTiming;
 
 #[derive(Resource, Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PeerRunResult {

@@ -4,11 +4,37 @@ use bevy::prelude::*;
 
 use crate::p2p;
 use crate::plugin;
+#[cfg(feature = "testing")]
+use crate::testing;
 
 pub fn build_plugin<Payload: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<Payload>, app: &mut App) {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
     let (libp2p_tx, libp2p_rx) = tokio::sync::mpsc::unbounded_channel();
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+    #[cfg(feature = "testing")]
+    if let Some(task_override) = app
+        .world_mut()
+        .remove_resource::<p2p::SwarmTaskOverride<Payload>>()
+    {
+        let game = p2p_plugin.game.clone();
+        let handle = task_override.spawn_fake_swarm_task(cmd_rx, libp2p_rx, event_tx, game);
+        if let Some(mut handles) = app
+            .world_mut()
+            .get_resource_mut::<testing::FakeTaskHandles>()
+        {
+            handles.swarm = Some(handle);
+        }
+        app.insert_resource(p2p::Events::<Payload>::default());
+        app.insert_resource(p2p::Commands::<Payload>::default());
+        app.insert_resource(p2p::PendingLibp2pCommands::default());
+        app.insert_resource(p2p::ReadyChannel::default());
+        app.insert_resource(p2p::Libp2pEventChannel::default());
+        app.insert_resource(p2p::CommandSender(cmd_tx));
+        app.insert_resource(p2p::EventReceiver(Mutex::new(Some(event_rx))));
+        app.insert_resource(p2p::Libp2pCommandSender(libp2p_tx));
+        app.add_systems(Update, p2p::bevy_systems::poll_p2p_events::<Payload>);
+        return;
+    }
     let keypair = libp2p::identity::Keypair::generate_ed25519();
     let config = p2p::RunnerConfig {
         mode: p2p_plugin.mode,

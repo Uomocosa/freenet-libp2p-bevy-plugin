@@ -9,6 +9,25 @@ use crate::result::ResultJsonPath;
 /// script ends in `stay` (never `AppExit`) still leave a result behind.
 const RESULT_SNAPSHOT_EVERY: Duration = Duration::from_secs(5);
 
+/// How often a running peer snapshots on this run, scaled by `E2E_TIME_SCALE`
+/// so a crashing peer still leaves members behind on the fast fake network.
+fn snapshot_every() -> Duration {
+    let scale = std::env::var("E2E_TIME_SCALE")
+        .ok()
+        .and_then(|raw| raw.parse::<f64>().ok())
+        .filter(|scale| scale.is_finite() && *scale > 0.0)
+        .unwrap_or(1.0);
+    if scale >= 1.0 {
+        RESULT_SNAPSHOT_EVERY
+    } else if scale.to_bits() == 0.2_f64.to_bits() {
+        Duration::from_secs(1)
+    } else if scale.to_bits() == 0.1_f64.to_bits() {
+        Duration::from_millis(500)
+    } else {
+        RESULT_SNAPSHOT_EVERY
+    }
+}
+
 /// A staying peer that never joined a room leaves no `result.json`, exactly
 /// as before snapshots existed: watchers (`wait-lobby-room, stay`) are
 /// excused through `may_crash`, and their empty result would only trip the
@@ -32,9 +51,9 @@ pub fn write_peer_run_result(
             AppExit::Error(code) => code.get(),
         };
     } else {
-        let snapshot_due = last_snapshot_secs.is_none_or(|last| {
-            time.elapsed_secs_f64() - last >= RESULT_SNAPSHOT_EVERY.as_secs_f64()
-        });
+        let every = snapshot_every().as_secs_f64();
+        let snapshot_due =
+            last_snapshot_secs.is_none_or(|last| time.elapsed_secs_f64() - last >= every);
         if !snapshot_due || !has_room_evidence(&result) {
             return;
         }

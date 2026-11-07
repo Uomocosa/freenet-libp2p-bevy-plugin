@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
+use freenet_libp2p_bevy_plugin::testing::{E2EArgs, NetworkArgs};
 
-use crate::script::StarboardScriptStep;
-use crate::shared::script::timed_script_step::{TimedScriptStep, parse_timed_script_step};
+use crate::script::StarboardStep;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum TransportArg {
@@ -18,13 +18,6 @@ pub enum TransportArg {
 pub struct Args {
     #[arg(long)]
     pub username: String,
-    /// The scripted session, a comma-separated list of `verb[:arg][@Ns]` steps.
-    #[arg(
-        long,
-        value_delimiter = ',',
-        value_parser = parse_timed_script_step::<StarboardScriptStep>
-    )]
-    pub script: Option<Vec<TimedScriptStep<StarboardScriptStep>>>,
     #[arg(long)]
     pub token: Option<String>,
     #[arg(long, value_enum, default_value = "both")]
@@ -32,9 +25,10 @@ pub struct Args {
     /// Folder the embedded Freenet node keeps its config, data and logs in (default: a temp dir).
     #[arg(long)]
     pub freenet_node_dir: Option<PathBuf>,
-    /// Where to write this peer's result.json on exit (default: not written).
-    #[arg(long)]
-    pub result_json: Option<PathBuf>,
+    #[command(flatten)]
+    pub network: NetworkArgs,
+    #[command(flatten)]
+    pub e2e: E2EArgs<StarboardStep>,
 }
 
 #[must_use]
@@ -48,11 +42,12 @@ pub const fn transport_mode(arg: TransportArg) -> TransportMode {
 
 #[cfg(test)]
 mod tests {
-    use super::{StarboardScriptStep, TransportArg, transport_mode};
-    use crate::shared::script::shared_script_step::SharedScriptStep;
+    use super::{TransportArg, transport_mode};
+    use crate::script::StarboardStep;
     use clap::Parser;
     use freenet_libp2p_bevy_plugin::identity;
     use freenet_libp2p_bevy_plugin::p2p::TransportMode;
+    use freenet_libp2p_bevy_plugin::testing::E2EStep;
 
     #[test]
     fn test_usage() {
@@ -71,11 +66,11 @@ mod tests {
             "create:room-1, wait-join-succeeded:room-1@60s, paint-from-to:10.20-30.102, exit-app",
         ])
         .expect("args");
-        let steps = args.script.expect("script");
+        let steps = args.e2e.parsed_script().expect("parsed").expect("script");
         assert_eq!(steps.len(), 4);
         assert_eq!(
             steps.first().map(|timed| &timed.step),
-            Some(&StarboardScriptStep::Shared(SharedScriptStep::CreateRoom(
+            Some(&StarboardStep::Shared(E2EStep::CreateRoom(
                 identity::RoomName::from("room-1")
             )))
         );
@@ -83,14 +78,15 @@ mod tests {
 
     #[test]
     fn a_bad_step_is_rejected_with_the_reason() {
-        let error = super::Args::try_parse_from([
+        let args = super::Args::try_parse_from([
             "starboard",
             "--username",
             "p1",
             "--script",
             "paint-from-to:10.20-9999.5",
         ])
-        .expect_err("bad stroke");
-        assert!(error.to_string().contains("outside the canvas"));
+        .expect("args");
+        let error = args.e2e.parsed_script().expect_err("bad stroke");
+        assert!(error.contains("outside the canvas"));
     }
 }

@@ -4,6 +4,8 @@ use bevy::prelude::*;
 use tracing::error;
 
 use crate::discovery;
+#[cfg(feature = "testing")]
+use crate::testing;
 
 pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.init_resource::<discovery::Status>();
@@ -30,6 +32,53 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         error!(target: "discovery", "discovery: p2p resources missing, discovery disabled");
         return;
     };
+    #[cfg(feature = "testing")]
+    if let Some(task_override) = app
+        .world_mut()
+        .remove_resource::<discovery::LobbyTaskOverride>()
+    {
+        let endpoint = app
+            .world()
+            .get_resource::<discovery::FreenetPort>()
+            .copied()
+            .unwrap_or(discovery::FreenetPort(0));
+        let _ = endpoint;
+        app.add_systems(
+            Update,
+            discovery::bevy_systems::follow_room.after(discovery::bevy_systems::drain_events),
+        );
+        let channels = discovery::RunChannels {
+            swarm,
+            commands: command_rx,
+            statuses: status_tx,
+            events: event_tx,
+        };
+        let config = (**plugin).clone();
+        let game = config.game.clone();
+        let (target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
+        let (lobby_tx, lobbies) = tokio::sync::mpsc::unbounded_channel();
+        let (peers_tx, peers) = tokio::sync::mpsc::unbounded_channel();
+        let handle = task_override.spawn_fake_lobby_task(
+            discovery::LobbyTaskChannels {
+                heartbeat_targets: target_rx,
+                lobbies: lobby_tx,
+                freenet_peers: peers_tx,
+            },
+            game,
+        );
+        if let Some(mut handles) = app
+            .world_mut()
+            .get_resource_mut::<testing::FakeTaskHandles>()
+        {
+            handles.lobby = Some(handle);
+        }
+        tokio::spawn(async move {
+            config
+                .run_event_loop(channels, target_tx, lobbies, peers)
+                .await;
+        });
+        return;
+    }
     let Some(endpoint) = app
         .world()
         .get_resource::<discovery::FreenetPort>()

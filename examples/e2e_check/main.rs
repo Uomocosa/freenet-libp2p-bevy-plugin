@@ -14,8 +14,6 @@ mod freenet_layer_result;
 mod peer_run_result;
 #[path = "../shared/e2e_report/scenario_expectation.rs"]
 mod scenario_expectation;
-#[path = "../shared/script/step_timing.rs"]
-mod step_timing;
 
 use crate::expectation_result::ExpectationResult;
 use crate::peer_run_result::PeerRunResult;

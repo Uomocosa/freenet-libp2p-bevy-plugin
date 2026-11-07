@@ -31,6 +31,7 @@ impl Config {
         target: &Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
     ) -> discovery::freenet::LobbyContractSubscription {
     }
+    pub(crate) async fn spawn_lobby_tasks(&self, channels: discovery::LobbyTaskChannels) {}
     pub(crate) fn seed_lobby_for_deploy(
         me: &identity::PeerId,
         room_size: discovery::RoomSize,

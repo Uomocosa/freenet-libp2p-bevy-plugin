@@ -79,8 +79,8 @@ mod tests {
     use super::record_peer_run_result;
     use crate::peer_run_result::PeerRunResult;
     use crate::script_runner::StarboardScriptRunner;
-    use crate::shared::script::timed_script_step::parse_timed_script_step;
     use crate::starboard;
+    use freenet_libp2p_bevy_plugin::testing::TimedScriptStep;
 
     fn app() -> App {
         let mut app = App::new();
@@ -92,7 +92,7 @@ mod tests {
         let steps = ["sleep:1s"]
             .iter()
             .map(|raw| {
-                parse_timed_script_step::<crate::script::StarboardScriptStep>(raw).expect("step")
+                TimedScriptStep::<crate::script::StarboardStep>::try_from(*raw).expect("step")
             })
             .collect();
         app.insert_resource(StarboardScriptRunner::new(steps));

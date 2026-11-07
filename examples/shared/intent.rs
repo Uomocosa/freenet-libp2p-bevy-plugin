@@ -11,8 +11,7 @@ use bevy::ui::UiGlobalTransform;
 use bevy::window::{PrimaryWindow, WindowEvent};
 use freenet_libp2p_bevy_plugin::discovery;
 use freenet_libp2p_bevy_plugin::identity;
-
-use crate::shared::action::Action;
+use freenet_libp2p_bevy_plugin::testing::{Action, PendingAction};
 
 /// One scripted interaction, driven through **real** Bevy input.
 ///
@@ -23,14 +22,6 @@ use crate::shared::action::Action;
 /// window mouse-button event) and the click is retried, after a cooldown, until the
 /// room is actually joined — the cooldown avoids toggling back out, since a
 /// second press on the joined room is a `Leave`.
-/// The action the intent should drive next, one scripted step at a time.
-/// A scripted session writes it when it wants to create a room, join one, or
-/// join one again after a leave. `script_input` takes it (`take()`) and always
-/// re-arms the intent, even for a repeated `Join`, so a rejoin after a leave
-/// clicks again.
-#[derive(Resource, Default, Debug, Clone)]
-pub struct PendingAction(pub Option<Action>);
-
 #[derive(Resource)]
 pub struct Intent {
     action: Option<Action>,
@@ -242,8 +233,8 @@ mod tests {
     use freenet_libp2p_bevy_plugin::discovery;
     use freenet_libp2p_bevy_plugin::identity;
 
-    use super::{Intent, PendingAction, arm_with_pending, script_input};
-    use crate::shared::action::Action;
+    use super::{Intent, arm_with_pending, script_input};
+    use freenet_libp2p_bevy_plugin::testing::{Action, PendingAction};
 
     fn join(room: &str) -> Action {
         Action::Join(identity::RoomName::from(room))

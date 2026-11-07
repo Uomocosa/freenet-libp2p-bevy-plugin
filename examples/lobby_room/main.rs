@@ -9,23 +9,29 @@ mod ring;
 mod script_runner;
 mod ui;
 
-#[path = "../shared/script/step_timing.rs"]
-mod step_timing;
-
 use bevy::prelude::*;
 use clap::Parser;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin};
+use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, testing};
 
 #[tokio::main]
 async fn main() -> bevy::app::AppExit {
     let args = args::Args::parse();
     init_tracing();
+    if let Err(error) = args.network.validate() {
+        eprintln!("{error}");
+        return bevy::app::AppExit::error();
+    }
     let Ok((_node_guard, ws_port)) =
-        shared::node::start_embedded_freenet_node(args.freenet_node_dir.clone()).await
+        shared::node::start_embedded_freenet_node(args.freenet_node_dir.clone(), &args.network)
+            .await
     else {
         eprintln!("failed to start embedded freenet node");
         return bevy::app::AppExit::error();
     };
+    run_lobby(&args, ws_port)
+}
+
+fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
     let transport = args::transport_mode(args.transport);
     let mut app = App::new();
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -38,19 +44,29 @@ async fn main() -> bevy::app::AppExit {
     }));
     app.insert_resource(discovery::FreenetPort(ws_port));
     let ring = ring::RingPeers::new();
-    ring::spawn_ring_poller(ws_port, ring.clone());
+    if matches!(args.network.network, testing::Network::Fake) {
+        ring.set(1);
+    } else {
+        ring::spawn_ring_poller(ws_port, ring.clone());
+    }
     app.insert_resource(ring);
     let username = identity::Username::from(args.username.clone());
     app.insert_resource(shared::status::LocalUser(username.clone()));
     app.insert_resource(ping::IsRoomPingEnabled(args.is_room_ping_enabled));
     app.insert_resource(shared::intent::Intent::new(None));
-    app.insert_resource(shared::intent::PendingAction::default());
+    app.insert_resource(testing::PendingAction::default());
     app.init_resource::<ping::RoomMessageSenders>();
-    if let Some(steps) = args.script.clone() {
+    if let Some(steps) = match args.e2e.parsed_script() {
+        Ok(steps) => steps,
+        Err(error) => {
+            eprintln!("{error}");
+            return bevy::app::AppExit::error();
+        }
+    } {
         app.insert_resource(script_runner::LobbyScriptRunner::new(steps));
         app.add_systems(
             Update,
-            script_runner::run_script
+            testing::bevy_systems::run_script::<script_runner::LobbyStep>
                 .after(discovery::bevy_systems::drain_status)
                 .after(ping::log_room_messages),
         );
@@ -59,6 +75,9 @@ async fn main() -> bevy::app::AppExit {
         || freenet_libp2p_bevy_plugin::game_id!(),
         identity::GameId::from,
     );
+    app.add_plugins(testing::FakeNetworkPlugin::<ping::PingPayload>::from(
+        &args.network,
+    ));
     app.add_plugins(plugin::P2PPlugin(
         plugin::Config::<ping::PingPayload>::new(transport, p2p::MdnsMode::Disabled)
             .with_game(game.clone()),

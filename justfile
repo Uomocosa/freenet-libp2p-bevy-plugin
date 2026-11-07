@@ -12,7 +12,7 @@ _lavapipe := `ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -n1`
 # Shared e2e log filter: lobby_room=info keeps the script/tick markers the
 # scenario checks read; freenet::config=info keeps the mainnet/local caption
 # detection truthful.
-e2e_log_filter := "warn,discovery=info,lobby_room=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug"
+e2e_log_filter := "warn,script=info,starboard=info,discovery=info,lobby_room=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug"
 
 build:
     cargo build --all-targets --all-features
@@ -267,6 +267,34 @@ e2e-history:
 # Real, visual e2e: S3, S5, S6, S7 on one machine.
 e2e-scenarios:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test starboard_scenarios --all-features --run-ignored all -- --nocapture
+
+# UI layer on the fake network: fast, for reviewing the UI; Telegram stays silent.
+e2e-ui-no-network TEST="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Headless-safe display defaults (overridable); the e2e peers need X.
+    export DISPLAY="${DISPLAY:-:0}"
+    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+    if [ -n "{{ TEST }}" ]; then
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
+    else
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
+    fi
+
+# The same scenarios on the public network: the real proof; Telegram sends as usual.
+e2e-mainnet TEST="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
+    export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-{{ e2e_log_filter }}}"
+    # Headless-safe display defaults (overridable); the e2e peers need X.
+    export DISPLAY="${DISPLAY:-:0}"
+    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+    if [ -n "{{ TEST }}" ]; then
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
+    else
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
+    fi
 
 # Run the starboard example detached (no terminal tie-up; only the app window).
 # Extra args: --username, --token, --transport.

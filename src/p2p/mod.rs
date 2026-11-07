@@ -65,4 +65,9 @@ pub use libp2p_event_channel::Libp2pEventChannel;
 pub mod pending_libp2p_commands;
 pub use pending_libp2p_commands::PendingLibp2pCommands;
 
+#[cfg(feature = "testing")]
+mod swarm_task_override;
+#[cfg(feature = "testing")]
+pub use swarm_task_override::SwarmTaskOverride;
+
 pub mod bevy_systems;

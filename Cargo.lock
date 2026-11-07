@@ -3703,6 +3703,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
+name = "e2e_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "ed25519"
 version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4198,6 +4207,7 @@ dependencies = [
  "blake3",
  "clap",
  "derive_more",
+ "e2e_macros",
  "freenet",
  "freenet-contract-harness",
  "freenet-stdlib",

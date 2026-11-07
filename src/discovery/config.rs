@@ -31,6 +31,16 @@ impl Default for Config {
 #[atomic_delegates]
 impl Config {
     pub async fn run(&self, endpoint: discovery::FreenetPort, channels: discovery::RunChannels) {}
+    pub(crate) async fn run_event_loop(
+        &self,
+        channels: discovery::RunChannels,
+        heartbeat_targets: tokio::sync::watch::Sender<
+            Vec<discovery::state_machine::HeartbeatTarget>,
+        >,
+        lobbies: tokio::sync::mpsc::UnboundedReceiver<discovery::Lobby>,
+        freenet_peers: tokio::sync::mpsc::UnboundedReceiver<Vec<identity::FreenetPeer>>,
+    ) {
+    }
 }
 
 #[rustfmt::skip]

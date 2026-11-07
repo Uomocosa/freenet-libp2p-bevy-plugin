@@ -3,6 +3,7 @@ use std::time::Duration;
 use bevy::prelude::Reflect;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::watch::Receiver;
 
 use crate::discovery;
 use crate::identity;
@@ -35,4 +36,10 @@ pub struct RunChannels {
     pub commands: UnboundedReceiver<discovery::Command>,
     pub statuses: UnboundedSender<discovery::Status>,
     pub events: UnboundedSender<discovery::Event>,
+}
+
+pub struct LobbyTaskChannels {
+    pub heartbeat_targets: Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
+    pub lobbies: UnboundedSender<discovery::Lobby>,
+    pub freenet_peers: UnboundedSender<Vec<identity::FreenetPeer>>,
 }

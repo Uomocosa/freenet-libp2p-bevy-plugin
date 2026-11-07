@@ -1,5 +1,17 @@
 # Discovery e2e tests
 
+## Test layers
+
+`just e2e-ui-no-network` runs the `e2e` test target on the fake network: fast,
+for reviewing the UI. `just e2e-mainnet` runs the same target on the public
+network: the real proof. The network is chosen at run time via `E2E_NETWORK`
+(`fake` or `mainnet`); a plain test run with no `E2E_NETWORK` set defaults to
+fake, so it can never reach mainnet by accident.
+
+```
+just e2e-ui-no-network starboard_late_join
+```
+
 Real, visual, `#[ignore]`d end-to-end tests for the Freenet room lobby + libp2p mesh.
 They spawn real `lobby_room` (or `starboard`) windows (one embedded Freenet node
 each), record the screen, and send the clip to Telegram.
@@ -132,6 +144,9 @@ Adding any such shortcut invalidates the test even if it makes it pass.
 - Log markers (keep them stable, or update `common/log_parse.rs`):
   - `script step done step=<i>/<n> <step>`, `script done steps=<n>`,
     `script failed step=<i>/<n> <step> reason=<why>`, `script crash-app`
+  - `script checkpoint completed name=<name>` — a peer finished
+    `mark-completed:<name>`; `Orchestrator` starts peers waiting on that
+    checkpoint once this line appears
   - `lobby tick rooms=<a,b|none> room=<r|none> members=<k> connected=<c>` — libp2p/app layer
   - `freenet node status ring_peers=<n> transport_peers=<m> ring_location=<l>` — embedded Freenet
     node, on change and every 30 s; a gateway-only node reports `ring_peers=0 transport_peers=2`

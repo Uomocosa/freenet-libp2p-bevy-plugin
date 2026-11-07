@@ -1,14 +1,10 @@
 use std::time::Duration;
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::{discovery, testing};
 
-use crate::script::StarboardScriptStep;
-use crate::shared::script::poll_shared_script_step::{SharedStepView, poll_shared_script_step};
-use crate::shared::script::script_runner::{
-    ScriptRunner, StepClock, StepOutcome, app_exit_for_verdict,
-};
-use crate::shared::script::shared_step_effect_sink::SharedStepEffectSink;
+use crate::script::StarboardStep;
 use crate::starboard;
 
 /// How long the canvas must keep one hash before `wait-canvas-stable` is done.
@@ -21,69 +17,97 @@ pub struct CanvasHashSince {
     pub since: Duration,
 }
 
-pub type StarboardScriptRunner = ScriptRunner<StarboardScriptStep>;
+pub type StarboardScriptRunner = testing::ScriptRunner<StarboardStep>;
 
-pub fn run_script(
-    time: Res<Time>,
-    status: Res<discovery::Status>,
-    join_error: Option<Res<discovery::ui::JoinError>>,
-    canvas: Res<starboard::canvas::Canvas>,
-    brush: Res<starboard::input::OwnBrush>,
-    mut runner: ResMut<StarboardScriptRunner>,
-    mut draws: MessageWriter<starboard::input::PendingLocalDraw>,
-    mut effects: SharedStepEffectSink,
-    mut exits: MessageWriter<AppExit>,
-    mut stable: Local<Option<CanvasHashSince>>,
-) {
-    let status = status.into_inner();
-    let canvas = canvas.into_inner();
-    let brush = *brush.into_inner();
-    let view = SharedStepView {
-        status,
-        join_error: join_error
-            .map(Res::into_inner)
-            .and_then(|error| error.as_deref()),
-        room_message_senders: 0,
-    };
-    let verdict = runner.advance(time.into_inner().delta(), |step, clock| match step {
-        StarboardScriptStep::Shared(shared) => {
-            let poll = poll_shared_script_step(shared, clock, &view);
-            if let Some(effect) = poll.effect {
-                effects.apply(effect);
+#[derive(SystemParam)]
+pub struct StarboardStepParam<'w, 's> {
+    status: Res<'w, discovery::Status>,
+    join_error: Option<Res<'w, discovery::ui::JoinError>>,
+    canvas: Res<'w, starboard::canvas::Canvas>,
+    brush: Res<'w, starboard::input::OwnBrush>,
+    draws: MessageWriter<'w, starboard::input::PendingLocalDraw>,
+    effects: testing::E2EStepEffectSink<'w>,
+    stable: Local<'s, Option<CanvasHashSince>>,
+}
+
+impl testing::PollableScriptStep for StarboardStep {
+    type Param<'w, 's> = StarboardStepParam<'w, 's>;
+
+    fn poll(
+        step: &Self,
+        clock: testing::StepClock,
+        param: &mut Self::Param<'_, '_>,
+    ) -> testing::StepOutcome {
+        match step {
+            Self::Shared(shared) => {
+                let view = testing::E2EStepView {
+                    status: &param.status,
+                    join_error: param
+                        .join_error
+                        .as_deref()
+                        .and_then(|error| error.as_deref()),
+                    room_message_senders: 0,
+                };
+                let poll = shared.poll_shared_script_step(clock, &view);
+                if let Some(effect) = poll.effect {
+                    param.effects.apply(effect);
+                }
+                poll.outcome
             }
-            poll.outcome
-        }
-        StarboardScriptStep::PaintFromTo(stroke) => {
-            let action = starboard::canvas::DrawAction::Paint(brush.color);
-            draw_stroke(action, *stroke, status, brush, &mut draws)
-        }
-        StarboardScriptStep::EraseFromTo(stroke) => draw_stroke(
-            starboard::canvas::DrawAction::Erase,
-            *stroke,
-            status,
-            brush,
-            &mut draws,
-        ),
-        StarboardScriptStep::WaitCanvasNonEmpty => {
-            if canvas.tiles.iter().any(Option::is_some) {
-                StepOutcome::Done
-            } else {
-                StepOutcome::Pending
+            Self::Paint(strokes) => {
+                for stroke in strokes {
+                    let action = starboard::canvas::DrawAction::Paint(param.brush.color);
+                    let outcome = draw_stroke(
+                        action,
+                        crate::script::to_canvas_stroke(*stroke),
+                        &param.status,
+                        *param.brush,
+                        &mut param.draws,
+                    );
+                    if outcome != testing::StepOutcome::Done {
+                        return outcome;
+                    }
+                }
+                testing::StepOutcome::Done
+            }
+            Self::Erase(strokes) => {
+                for stroke in strokes {
+                    let outcome = draw_stroke(
+                        starboard::canvas::DrawAction::Erase,
+                        crate::script::to_canvas_stroke(*stroke),
+                        &param.status,
+                        *param.brush,
+                        &mut param.draws,
+                    );
+                    if outcome != testing::StepOutcome::Done {
+                        return outcome;
+                    }
+                }
+                testing::StepOutcome::Done
+            }
+            Self::WaitCanvasNonEmpty => {
+                if param.canvas.tiles.iter().any(Option::is_some) {
+                    testing::StepOutcome::Done
+                } else {
+                    testing::StepOutcome::Pending
+                }
+            }
+            Self::WaitCanvasStable => is_canvas_stable(
+                &mut param.stable,
+                starboard::canvas::hash_canvas(&param.canvas),
+                clock,
+            ),
+            Self::WaitCellPainted(pos) => {
+                if starboard::canvas::read_cell(&param.canvas, crate::script::to_canvas_cell(*pos))
+                    .color
+                    .is_some()
+                {
+                    testing::StepOutcome::Done
+                } else {
+                    testing::StepOutcome::Pending
+                }
             }
         }
-        StarboardScriptStep::WaitCanvasStable => {
-            is_canvas_stable(&mut stable, starboard::canvas::hash_canvas(canvas), clock)
-        }
-        StarboardScriptStep::WaitCellPainted(pos) => {
-            if starboard::canvas::read_cell(canvas, *pos).color.is_some() {
-                StepOutcome::Done
-            } else {
-                StepOutcome::Pending
-            }
-        }
-    });
-    if let Some(exit) = app_exit_for_verdict(verdict) {
-        exits.write(exit);
     }
 }
 
@@ -94,22 +118,22 @@ fn draw_stroke(
     status: &discovery::Status,
     brush: starboard::input::OwnBrush,
     draws: &mut MessageWriter<starboard::input::PendingLocalDraw>,
-) -> StepOutcome {
+) -> testing::StepOutcome {
     if !starboard::room::is_in_room(status) {
-        return StepOutcome::Failed("cannot draw outside a room".to_string());
+        return testing::StepOutcome::Failed("cannot draw outside a room".to_string());
     }
     draws.write(starboard::input::PendingLocalDraw(
         starboard::input::draw_op(brush, action, stroke),
     ));
-    StepOutcome::Done
+    testing::StepOutcome::Done
 }
 
 // needed helper: whether the canvas hash has held for CANVAS_STABLE_FOR within this step
 fn is_canvas_stable(
     stable: &mut Option<CanvasHashSince>,
     hash: u64,
-    clock: StepClock,
-) -> StepOutcome {
+    clock: testing::StepClock,
+) -> testing::StepOutcome {
     let held = match *stable {
         Some(seen) if seen.hash == hash && !clock.is_first_poll => seen,
         _ => CanvasHashSince {
@@ -119,9 +143,9 @@ fn is_canvas_stable(
     };
     *stable = Some(held);
     if clock.elapsed.saturating_sub(held.since) >= CANVAS_STABLE_FOR {
-        StepOutcome::Done
+        testing::StepOutcome::Done
     } else {
-        StepOutcome::Pending
+        testing::StepOutcome::Pending
     }
 }
 
@@ -130,30 +154,27 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::discovery;
+    use freenet_libp2p_bevy_plugin::{discovery, testing};
 
-    use super::{StarboardScriptRunner, run_script};
-    use crate::script::StarboardScriptStep;
-    use crate::shared::intent::PendingAction;
-    use crate::shared::script::script_runner::ScriptVerdict;
-    use crate::shared::script::timed_script_step::parse_timed_script_step;
+    use super::StarboardScriptRunner;
+    use crate::script::StarboardStep;
     use crate::starboard;
 
     fn app(script: &[&str]) -> App {
         let steps = script
             .iter()
-            .map(|raw| parse_timed_script_step::<StarboardScriptStep>(raw).expect("step"))
+            .map(|raw| testing::TimedScriptStep::<StarboardStep>::try_from(*raw).expect("step"))
             .collect();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.init_resource::<discovery::Status>();
         app.init_resource::<starboard::canvas::Canvas>();
         app.init_resource::<starboard::input::OwnBrush>();
-        app.insert_resource(PendingAction::default());
+        app.insert_resource(testing::PendingAction::default());
         app.add_message::<starboard::input::PendingLocalDraw>();
         app.add_message::<discovery::Command>();
         app.insert_resource(StarboardScriptRunner::new(steps));
-        app.add_systems(Update, run_script);
+        app.add_systems(Update, testing::bevy_systems::run_script::<StarboardStep>);
         app
     }
 
@@ -171,7 +192,7 @@ mod tests {
         app.update();
         assert_eq!(
             app.world().resource::<StarboardScriptRunner>().verdict,
-            ScriptVerdict::Failed
+            testing::ScriptVerdict::Failed
         );
     }
 
@@ -179,11 +200,8 @@ mod tests {
     fn a_join_step_arms_the_intent_with_the_room() {
         let mut app = app(&["join:room-1", "stay"]);
         app.update();
-        let pending = app.world().resource::<PendingAction>();
-        assert!(matches!(
-            pending.0,
-            Some(crate::shared::action::Action::Join(_))
-        ));
+        let pending = app.world().resource::<testing::PendingAction>();
+        assert!(matches!(pending.0, Some(testing::Action::Join(_))));
     }
 
     #[test]
