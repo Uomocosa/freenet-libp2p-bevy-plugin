@@ -3,6 +3,7 @@ pub mod chunked_snapshot;
 pub mod client;
 #[cfg(feature = "discovery")]
 pub mod config;
+pub mod connected_peers;
 pub mod connection_kind;
 #[cfg(all(feature = "discovery", feature = "default_ui"))]
 pub mod default_ui_plugin;
@@ -36,6 +37,7 @@ pub mod orchestrator;
 pub mod orchestrator_shared;
 pub mod p2p_plugin;
 pub mod peer;
+pub mod peer_book;
 pub mod peer_id;
 #[cfg(feature = "testing")]
 pub mod peer_message_router;

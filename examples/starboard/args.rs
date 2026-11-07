@@ -27,6 +27,8 @@ pub struct Args {
     pub freenet_node_dir: Option<PathBuf>,
     #[arg(long)]
     pub identity_file: Option<PathBuf>,
+    #[arg(long)]
+    pub peer_book_file: Option<PathBuf>,
     #[command(flatten)]
     pub network: NetworkArgs,
     #[command(flatten)]
@@ -83,15 +85,22 @@ mod tests {
         use std::path::PathBuf;
         let args = super::Args::try_parse_from(["starboard", "--username", "p1"]).expect("args");
         assert_eq!(args.identity_file, None);
+        assert_eq!(args.peer_book_file, None);
         let args = super::Args::try_parse_from([
             "starboard",
             "--username",
             "p1",
             "--identity-file",
             "/tmp/p1.identity",
+            "--peer-book-file",
+            "/tmp/p1.friends.json",
         ])
         .expect("args");
         assert_eq!(args.identity_file, Some(PathBuf::from("/tmp/p1.identity")));
+        assert_eq!(
+            args.peer_book_file,
+            Some(PathBuf::from("/tmp/p1.friends.json"))
+        );
     }
 
     #[test]

@@ -10,6 +10,9 @@ pub use game_id::GameId;
 mod peer;
 pub use peer::Peer;
 
+mod peer_error;
+pub use peer_error::PeerError;
+
 mod peer_addr;
 pub use peer_addr::PeerAddr;
 

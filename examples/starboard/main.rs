@@ -18,7 +18,9 @@ mod peer_run_result;
 
 use bevy::prelude::*;
 use clap::Parser;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, room_sync, testing};
+use freenet_libp2p_bevy_plugin::{
+    direct_dial, discovery, identity, p2p, plugin, room_sync, testing,
+};
 
 use crate::peer_run_result::PeerRunResult;
 
@@ -74,18 +76,21 @@ fn run_starboard(
         p2p::MdnsMode::Disabled,
     )
     .with_game(game.clone());
-    if let Some(path) = &args.identity_file {
-        let saved = match identity::SavedKeypair::try_from(path.as_path()) {
-            Ok(saved) => saved,
+    let keyed = if let Some(path) = &args.identity_file {
+        match load_keypair(path) {
+            Ok(saved) => base.with_keypair(saved),
             Err(error) => {
-                eprintln!("identity file: {error}");
+                eprintln!("{error}");
                 return bevy::app::AppExit::error();
             }
-        };
-        app.add_plugins(plugin::P2PPlugin(base.with_keypair(saved)));
+        }
     } else {
-        app.add_plugins(plugin::P2PPlugin(base));
-    }
+        base
+    };
+    app.add_plugins(plugin::P2PPlugin(keyed));
+    app.add_plugins(direct_dial::Plugin::new(direct_dial::Config::from(
+        args.peer_book_file.clone(),
+    )));
     app.add_plugins(discovery::Plugins(discovery::Config {
         display_name: identity::Username::from(args.username.clone()),
         game: game.clone(),
@@ -136,24 +141,34 @@ fn run_starboard(
         ),
     );
     if let Some(path) = args.e2e.result_json.clone() {
-        app.insert_resource(PeerRunResult {
-            username: args.username.clone(),
-            ..PeerRunResult::default()
-        });
-        app.insert_resource(result::ResultJsonPath(path));
-        app.add_systems(
-            Update,
-            result::record_peer_run_result
-                .after(testing::bevy_systems::run_script::<script::StarboardStep>)
-                .run_if(resource_exists::<script_runner::StarboardScriptRunner>),
-        );
-        app.add_systems(Last, result::write_peer_run_result);
+        add_result_recording(&mut app, args, path);
     }
     app.run()
 }
 
 fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
+}
+
+// needed helper: load a saved keypair, naming the failure
+fn load_keypair(path: &std::path::Path) -> Result<identity::SavedKeypair, String> {
+    identity::SavedKeypair::try_from(path).map_err(|error| format!("identity file: {error}"))
+}
+
+// needed helper: record the run result for the e2e harness
+fn add_result_recording(app: &mut App, args: &args::Args, path: std::path::PathBuf) {
+    app.insert_resource(PeerRunResult {
+        username: args.username.clone(),
+        ..PeerRunResult::default()
+    });
+    app.insert_resource(result::ResultJsonPath(path));
+    app.add_systems(
+        Update,
+        result::record_peer_run_result
+            .after(testing::bevy_systems::run_script::<script::StarboardStep>)
+            .run_if(resource_exists::<script_runner::StarboardScriptRunner>),
+    );
+    app.add_systems(Last, result::write_peer_run_result);
 }
 
 // needed helper: the run's time scale, from E2E_TIME_SCALE
