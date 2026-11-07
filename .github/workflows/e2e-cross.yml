@@ -227,8 +227,14 @@ jobs:
               --freenet-node-dir "$RUNNER_TEMP/node-$1" --result-json "$results/$1/result.json" \
               > "$results/$1/instance-$1.log" 2>&1
           }
+          place_window() {
+            timeout 120 xdotool search --sync --onlyvisible --name "^starboard-$1$" windowmove %@ "$2" 40 || echo "::warning::place_window $1 failed"
+          }
           run_peer l1 "$SCRIPT_L1" & first=$!
           run_peer l2 "$SCRIPT_L2" & second=$!
+          # Tile windows side by side so scripted clicks land on the right peer.
+          place_window l1 0 &
+          place_window l2 960 &
           failed=0
           wait "$first" || failed=1
           wait "$second" || failed=1
