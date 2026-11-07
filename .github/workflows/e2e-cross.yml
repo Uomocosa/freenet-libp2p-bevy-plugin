@@ -143,10 +143,16 @@ jobs:
           New-Item -ItemType Directory -Force $videoDir | Out-Null
           $recording = $null
           if ($env:RECORD_VIDEO -eq 'true') {
-            $recording = Start-Process ffmpeg -PassThru -WindowStyle Hidden -ArgumentList "-nostats -loglevel error -y -f gdigrab -framerate 5 -i desktop -vf scale=960:-2 -c:v libx264 -preset ultrafast -crf 32 `"$videoMkv`""
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = 'ffmpeg'
+            $psi.Arguments = "-nostats -loglevel error -y -f gdigrab -framerate 5 -i desktop -vf scale=960:-2 -c:v libx264 -preset ultrafast -crf 32 `"$videoMkv`""
+            $psi.UseShellExecute = $false
+            $psi.CreateNoWindow = $true
+            $psi.RedirectStandardInput = $true
+            $recording = [System.Diagnostics.Process]::Start($psi)
           }
           $game = Start-Process C:\e2e\bundle\starboard.exe -PassThru -Wait -RedirectStandardOutput "$peer\instance-w.log" -RedirectStandardError "$peer\instance-w.err.log" -ArgumentList "--username w --token `"$env:TOKEN`" --transport both --script `"$env:SCRIPT`" --freenet-node-dir `"$node`" --result-json `"$peer\result.json`""
-          if ($recording) { Stop-Process -Id $recording.Id -Force -ErrorAction SilentlyContinue }
+          if ($recording) { $recording.StandardInput.Write('q'); $recording.StandardInput.Flush(); if (-not $recording.WaitForExit(20000)) { $recording.Kill() } }
           Get-ChildItem $node -Recurse -Filter *.log -ErrorAction SilentlyContinue | Copy-Item -Destination $peer
           exit $game.ExitCode
       - name: Send Windows video to Telegram
