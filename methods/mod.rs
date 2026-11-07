@@ -7,6 +7,7 @@ pub mod connected_peers;
 pub mod connection_kind;
 #[cfg(all(feature = "discovery", feature = "default_ui"))]
 pub mod default_ui_plugin;
+pub mod dial_state;
 #[cfg(feature = "discovery")]
 pub mod discovery_state;
 #[cfg(feature = "testing")]

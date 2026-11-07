@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::direct_dial;
+use crate::discovery;
 use crate::p2p;
 
 pub fn build_friends_plugin(plugin: &direct_dial::Plugin, app: &mut App) {
@@ -48,6 +49,15 @@ pub fn build_friends_plugin(plugin: &direct_dial::Plugin, app: &mut App) {
     if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
         app.insert_resource(direct_dial::FriendEventTap(channel.subscribe()));
     }
+    let now = discovery::UnixTime::now();
+    let book_now = app.world().resource::<direct_dial::PeerBook>().clone();
+    app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
+        &book_now, now,
+    ));
+    if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
+        app.insert_resource(direct_dial::DialEventTap(channel.subscribe()));
+    }
+    app.add_systems(Update, direct_dial::bevy_systems::drive_dial_state);
     #[cfg(feature = "default_ui")]
     {
         use direct_dial::ui::bevy_systems as friends;

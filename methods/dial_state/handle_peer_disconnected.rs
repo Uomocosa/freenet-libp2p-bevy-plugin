@@ -1,0 +1,47 @@
+use crate::direct_dial;
+use crate::discovery;
+use crate::identity;
+
+pub fn handle_peer_disconnected(
+    state: &mut direct_dial::state_machine::DialState,
+    id: &identity::PeerId,
+    now: discovery::UnixTime,
+) -> Vec<direct_dial::state_machine::Output> {
+    state.connected.remove(id);
+    state.dial_in_flight.remove(id);
+    let current = state
+        .entries
+        .iter()
+        .find(|entry| entry.peer.id == *id)
+        .map(|entry| (entry.kind, entry.failed_attempts));
+    if let Some((kind, failed_attempts)) = current {
+        let wait = state.backoff_for(&kind, failed_attempts);
+        if let Some(entry) = state.entries.iter_mut().find(|entry| entry.peer.id == *id)
+            && let Some(next) = now
+                .as_secs()
+                .checked_add(wait.as_secs())
+                .map(discovery::UnixTime::from)
+        {
+            entry.next_attempt_at = next;
+        }
+    }
+    Vec::new()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::handle_peer_disconnected;
+    use crate::direct_dial;
+    use crate::discovery;
+    use crate::identity;
+
+    #[test]
+    fn test_usage() {
+        let now = discovery::UnixTime::from(5);
+        let mut state = direct_dial::state_machine::DialState::default();
+        let _ = state.handle_peer_connected(&identity::PeerId::from("alice"), now);
+        let outputs = handle_peer_disconnected(&mut state, &identity::PeerId::from("alice"), now);
+        assert_eq!(outputs, Vec::new());
+        assert!(!state.connected.contains(&identity::PeerId::from("alice")));
+    }
+}

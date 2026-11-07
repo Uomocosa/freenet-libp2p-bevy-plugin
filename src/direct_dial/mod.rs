@@ -2,11 +2,15 @@
 pub mod basic;
 
 pub use basic::enums::KnownPeerKind;
-pub use basic::resources::{Config, FriendAddressError, FriendEventTap};
+pub use basic::resources::{Config, DialEventTap, FriendAddressError, FriendEventTap};
 pub use basic::structs::KnownPeer;
 
 mod connected_peers;
 pub use connected_peers::ConnectedPeers;
+
+pub mod state_machine;
+
+pub mod bevy_systems;
 
 mod peer_book;
 pub use peer_book::PeerBook;

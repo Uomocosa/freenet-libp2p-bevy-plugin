@@ -394,13 +394,27 @@ pub fn handle_swarm_event(&mut self, event: SwarmEvent<p2p::behaviour::Behaviour
                 .ok();
         }
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Identify(
-            identify::Event::Received { info, .. },
+            identify::Event::Received { peer_id, info, .. },
         )) => {
             self.event_tx
                 .send(p2p::Event::Libp2p(p2p::Libp2pEvent::ObservedAddr(
                     identity::PeerAddr(info.observed_addr.to_string()),
                 )))
                 .ok();
+            let reported: Vec<identity::PeerAddr> = info
+                .listen_addrs
+                .iter()
+                .map(|addr| identity::PeerAddr::from(addr.to_string()))
+                .collect();
+            let dialable = identity::PeerAddr::dialable(reported);
+            if !dialable.is_empty() {
+                self.event_tx
+                    .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerListenAddrs {
+                        peer_id: identity::PeerId::from(peer_id.to_string()),
+                        addrs: dialable,
+                    }))
+                    .ok();
+            }
         }
         SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Mdns(mdns::Event::Discovered(
             peers,

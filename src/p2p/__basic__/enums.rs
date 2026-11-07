@@ -12,6 +12,10 @@ pub enum Libp2pEvent {
     ObservedAddr(identity::PeerAddr),
     PeerConnected(identity::PeerId),
     PeerDisconnected(identity::PeerId),
+    PeerListenAddrs {
+        peer_id: identity::PeerId,
+        addrs: Vec<identity::PeerAddr>,
+    },
     Libp2pConnectionEstablished {
         peer_id: identity::PeerId,
         kind: p2p::ConnectionKind,
