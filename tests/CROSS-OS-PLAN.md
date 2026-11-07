@@ -34,8 +34,11 @@ host our own relay — that would defeat the purpose of Freenet.
 
 - **Step script.** `--script` is a comma-separated list of `verb[:arg][@Ns]` steps, e.g.
   `wait-members:3@420s, paint-from-to:200.300-260.300, wait-canvas-stable@60s, exit-app`.
-  Every wait carries a deadline. No cross-machine control channel: the room is the
-  synchronisation point.
+  Every wait carries a deadline. The mainnet discovery scenarios (S1–S7) share
+  nothing across machines: the room is the synchronisation point. The
+  direct-dial scenario instead shares live addresses and checkpoints through
+  the GitHub checkpoint board (commit statuses, one status per address);
+  mainnet discovery tests may not.
 - **`result.json`** per peer: final canvas hash + tile count, members seen, Freenet layer status
   (gateway, time to join network), libp2p connection kind per peer (tcp/quic/hole-punched/none),
   per-step timings, errors, exit code.
@@ -72,16 +75,37 @@ observed addresses through the contract, dial simultaneously) — a separate pla
 
 ## 5. Workflow — `.github/workflows/e2e-cross.yml` (`workflow_dispatch`)
 
-Inputs: `scenarios` (only `s1` so far), `bundle_run_id` (optional, skip builds), `network_label`
-(`lan` | `5g`, reporting only), `time_scale`, `build_host` (`self-hosted` | `github`),
-`record_video`.
+Inputs: `scenarios` (`s1` | `direct-dial`), `bundle_run_id` (optional, skip builds),
+`network_label` (`lan` | `5g`, reporting only), `time_scale`, `build_host`
+(`self-hosted` | `github`), `record_video`.
 
-Jobs:
+Jobs for `s1` (unchanged: the mainnet proof, no board, no placement):
+
 1. `prepare` — generates the room token and each peer's script.
 2. `build-windows` and `build-linux` — only when `bundle_run_id` is empty; upload the bundles.
 3. `peers-windows` and `peers-linux` — run concurrently, share scenario id + room token.
 4. `check` — runs `e2e_check.exe` on `windows-e2e` over every machine's results, prints the
    tables, fails on any FAIL.
+
+Jobs for `direct-dial` (routine cross-OS run, no Freenet node):
+
+1. The same builds, plus the compiled `e2e` test program joins each bundle as
+   `e2e-direct-dial(.exe)`, so later runs need no cargo.
+2. `peers-windows-direct` (`E2E_MACHINE=w`) and `peers-linux-direct`
+   (`E2E_MACHINE=l`) run concurrently with `E2E_PLACEMENT=alice=w,bob=l`,
+   `E2E_BOARD=github`, and `E2E_GAME_BIN` pointing at the bundled `starboard`.
+   Each runs `direct_dial` then `friends_reconnect` under its own board
+   namespace (`E2E_BOARD_RUN_ID=<run>-<attempt>-<test>`).
+3. `check-direct` merges both machines' `results-*-direct` artifacts and runs
+   the test program with `E2E_ROLE=check` (and `E2E_RESULTS_DIR` at the merged
+   results) over both tests.
+
+The board is commit statuses on the workflow commit (`statuses: write`): one
+status per address (`<run>/peer/<name>/<index>`, each `addr/p2p/id` fits the
+140-character description limit, two do not) and one per checkpoint
+(`<run>/checkpoint/<name>`, state `success`). LAN addresses may appear on the
+board; never keys. Reads are cached for 10 s, and remote-peer lookup only runs
+while a local peer still waits to spawn. S1 stays the mainnet proof.
 
 ## 6. Order of work
 

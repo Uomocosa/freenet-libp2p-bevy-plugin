@@ -1,4 +1,4 @@
-# E2E layers plan — one test file, three networks, cross-OS
+# E2E layers plan — one test file, four networks, cross-OS
 
 ## 0. Goal
 
@@ -9,6 +9,17 @@ just e2e-ui-no-network <test>    fake network, fast, for reviewing the UI
 just e2e-local-gateways <test>   private Freenet network on localhost
 just e2e-mainnet <test>          the public network: the real proof
 ```
+
+A fourth network covers peers that already know each other:
+
+```text
+#[e2e_test(game = "starboard", network = "direct-dial")]   real libp2p, no Freenet node
+```
+
+The pin beats `E2E_NETWORK`. The direct-dial tests (`direct_dial`,
+`friends_reconnect`, `known_peers`) dial known addresses and prove dialing,
+friending and reconnecting work. Mainnet stays the only proof of connecting
+with no prior knowledge.
 
 The same test also runs across Linux and Windows from a GitHub workflow.
 
@@ -27,12 +38,12 @@ The same test also runs across Linux and Windows from a GitHub workflow.
 | L9 | Seams | `p2p::SwarmTaskOverride` and `discovery::LobbyTaskOverride`, compiled only with the `testing` feature. |
 | L10 | Feature | `src/testing/` is behind a `testing` feature, enabled by `e2e`. It adds no heavy dependency: `freenet` stays a dev-dependency and `start_embedded_freenet_node` stays in `examples/shared/`. |
 | L11 | Default network | Tests default to no-network, so a plain test run can never reach mainnet by accident. An app run alone defaults to `--network mainnet`, because the fake needs an `Orchestrator`. |
-| L12 | Cross-OS | Every machine runs the same test with its own `Orchestrator` and only its own peers (`E2E_MACHINE`, `E2E_PLACEMENT`). Only checkpoint names are shared, through a `CheckpointBoard`; never peer ids or addresses. `tests/CROSS-OS-PLAN.md` must drop "no cross-machine control channel". |
+| L12 | Cross-OS | Every machine runs the same test with its own `Orchestrator` and only its own peers (`E2E_MACHINE`, `E2E_PLACEMENT`). Discovery tests share only checkpoint names through a `CheckpointBoard`; direct-dial tests also share peer addresses through it. |
 | L13 | Board | `CheckpointBoard` trait and `LocalCheckpointBoard` in `src/testing/`; `GitHubCheckpointBoard` in `tests/e2e/`, probably on commit statuses (untested). |
 | L14 | Verdict | The `check` job runs the same test with `E2E_ROLE=check`: it starts no peers and evaluates the test's expectations over the downloaded results. |
 | L15 | Bundle | The compiled `tests/e2e` program joins the bundle, so later runs need no cargo. One worker on the Windows PC. |
 
-The HARD RULE in `tests/README.md` applies to `e2e-mainnet` and `e2e-local-gateways`: peers meet only through the lobby contract. In the fake layer, the same rule holds through the fake lobby.
+The HARD RULE in `tests/README.md` applies to `e2e-mainnet` and `e2e-local-gateways`: peers meet only through the lobby contract. In the fake layer, the same rule holds through the fake lobby. Direct-dial tests are exempt: they dial known addresses on purpose.
 
 ## 2. Test method names
 

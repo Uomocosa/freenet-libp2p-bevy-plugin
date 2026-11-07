@@ -6,7 +6,9 @@
 for reviewing the UI. `just e2e-mainnet` runs the same target on the public
 network: the real proof. The network is chosen at run time via `E2E_NETWORK`
 (`fake` or `mainnet`); a plain test run with no `E2E_NETWORK` set defaults to
-fake, so it can never reach mainnet by accident.
+fake, so it can never reach mainnet by accident. Tests pinned with
+`network = "direct-dial"` always run on real libp2p with no Freenet node,
+whatever `E2E_NETWORK` says.
 
 ```
 just e2e-ui-no-network starboard_late_join
@@ -81,11 +83,12 @@ Prerequisites: an X session, `xterm`, `xdotool`, `wmctrl`, `ffmpeg` (with `x11gr
 `xdpyinfo`, and network access to the public Freenet mainnet. Telegram credentials are
 optional (video send is best-effort).
 
-## HARD RULE — no out-of-band peer discovery
+## HARD RULE — no out-of-band peer discovery (mainnet discovery tests only)
 
-These tests exist to prove that app-level peers know **nothing** about each other and
-meet **only** through the Freenet lobby contract, exactly as if they were on
-different machines/networks. Do **NOT** add any shortcut, in the example or the tests:
+The mainnet discovery tests exist to prove that app-level peers know **nothing**
+about each other and meet **only** through the Freenet lobby contract, exactly
+as if they were on different machines/networks. Do **NOT** add any shortcut, in
+the example or the tests:
 
 - Do **not** enable mDNS (the example hardcodes `mdns = false`; keep it that way).
 - Do **not** seed Kademlia (`AddKadPeer`) or call `bootstrap()` with known addresses.
@@ -96,6 +99,39 @@ different machines/networks. Do **NOT** add any shortcut, in the example or the 
   peers read that row and `Dial`. Nothing else.
 
 Adding any such shortcut invalidates the test even if it makes it pass.
+
+This ban covers the mainnet discovery tests only. The direct-dial tests below
+may use known addresses: that is what they are for.
+
+## Direct-dial tests
+
+Three tests prove dialing peers that already know each other. Each pins
+`network = "direct-dial"` in its `#[e2e_test]`, which beats `E2E_NETWORK`: the
+game starts with `--network direct-dial` (real libp2p, no Freenet node) and a
+`--peer-book-file`. `expect_no_freenet_node()` fails the test if the log shows
+`lobby freenet node started`. The Orchestrator reads each peer's live addresses
+from its log, substitutes peer names in `dial:` and `add-friend:` steps, and
+waits to spawn a peer until the address it needs is known. Split runs share
+addresses through the checkpoint board instead.
+
+| Test | What it proves |
+|---|---|
+| `direct_dial` | Alice dials Bob's live address once, with no friend entry. Both see each other connected; Alice exits, Bob sees her leave. |
+| `friends_reconnect` | Alice adds Bob as a friend and they connect. Bob restarts with the same identity and book while Alice keeps running, and reconnects with no re-add. Then Alice restarts while Bob runs, and reconnects the same way. The book holds Alice→Bob as friend, Bob→Alice as previously connected. |
+| `known_peers` | Alice dials Bob once with no friend entry, so both books learn a previously connected peer. Alice stops, relaunches with the same identity and book while Bob keeps running, and reaches him with no add or dial step. Both sides stay previously connected. |
+
+Run one locally (needs X; `E2E_NETWORK` is ignored):
+
+```
+just e2e-ui-no-network direct_dial
+```
+
+Or prove the split path on one machine: `scripts/e2e_direct_dial_split.sh`
+runs `direct_dial` and `friends_reconnect` with two Orchestrator processes
+(`E2E_MACHINE=a/b`, `E2E_PLACEMENT="alice=a,bob=b"`) sharing one local board
+directory, then re-runs each test with `E2E_ROLE=check` over the merged
+results. It takes one test name or `all`. `known_peers` has no split run; the
+plain command above covers it.
 
 ## How it works (harness = `common/`)
 
