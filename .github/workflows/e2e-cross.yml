@@ -87,8 +87,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $lines = cmd /c 'cargo test --test e2e --no-run --features e2e --profile ci-min 2>&1'
           if ($LASTEXITCODE -ne 0) { $lines; exit $LASTEXITCODE }
-          $testBin = ($lines | Select-String 'Executable tests/e2e/main\.rs \((.*)\)' | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1)
-          if ([string]::IsNullOrEmpty($testBin)) { Write-Output '::error::e2e test binary not found'; exit 1 }
+          $testBin = ($lines | Select-String 'Executable tests[\\/]e2e[\\/]main\.rs \((.*)\)' | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1)
+          if ([string]::IsNullOrEmpty($testBin)) { $lines; Write-Output '::error::e2e test binary not found'; exit 1 }
           $bundle = Join-Path $env:RUNNER_TEMP bundle
           New-Item -ItemType Directory -Force $bundle | Out-Null
           Copy-Item C:\e2e\target\ci-min\examples\starboard.exe, C:\e2e\target\ci-min\examples\e2e_check.exe $bundle
