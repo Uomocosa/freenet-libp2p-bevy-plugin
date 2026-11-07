@@ -1,5 +1,5 @@
 use e2e_macros::e2e_test;
-use freenet_libp2p_bevy_plugin::testing::Checkpoint;
+use freenet_libp2p_bevy_plugin::testing::ScriptCheckpoint;
 
 use crate::starboard_steps::{
     Cell, Stroke, create_room, exit_app, join_room, mark_completed, paint,
@@ -10,7 +10,7 @@ const STROKES: &[Stroke] = &[
     Stroke::new(Cell::new(200, 300), Cell::new(260, 300)),
     Stroke::new(Cell::new(230, 309), Cell::new(290, 309)),
 ];
-const PAINTING_DONE: Checkpoint = Checkpoint::new("painting-done");
+const PAINTING_DONE: ScriptCheckpoint = ScriptCheckpoint::new("painting-done");
 
 #[e2e_test(game = "starboard")]
 fn starboard_late_join(test: &mut Orchestrator) {

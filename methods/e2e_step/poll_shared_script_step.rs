@@ -292,7 +292,7 @@ mod tests {
         tracing::subscriber::with_default(subscriber, || {
             let status = discovery::Status::default();
             let poll = poll_shared_script_step(
-                &testing::E2EStep::MarkCompleted(testing::Checkpoint::new("probe")),
+                &testing::E2EStep::MarkCompleted(testing::ScriptCheckpoint::new("probe")),
                 FIRST,
                 &view(&status),
             );

@@ -4201,6 +4201,7 @@ dependencies = [
 name = "freenet-libp2p-bevy-plugin"
 version = "0.0.8"
 dependencies = [
+ "async-trait",
  "atomic-delegate-macros",
  "bevy",
  "bincode",
@@ -4217,6 +4218,7 @@ dependencies = [
  "lele-bevy-preview",
  "libp2p",
  "lobby_contract",
+ "reqwest",
  "rstest",
  "serde",
  "serde_json",

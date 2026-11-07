@@ -30,8 +30,10 @@ mod starboard_steps;
 
 mod direct_dial;
 mod friends_reconnect;
+mod github_checkpoint_board;
 mod harness;
 mod known_peers;
+mod local_checkpoint_board;
 mod starboard_bad_token;
 mod starboard_e2e;
 mod starboard_history_holder_killed;

@@ -95,6 +95,7 @@ module_inception = "allow"
 missing_errors_doc = "allow"
 
 [dependencies]
+async-trait = "=0.1.92"
 atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.11" }
 bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
 derive_more = { version = "=2.1.1", features = ["deref", "deref_mut", "display", "from"] }
@@ -128,6 +129,7 @@ e2e = ["discovery", "default_ui", "testing"]
 
 [dev-dependencies]
 e2e_macros = { path = "tests/e2e/macros" }
+reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
 telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.14" }
 lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.14" }
 rstest = "=0.28.0"

@@ -1,7 +1,7 @@
 use crate::testing;
 
 #[must_use]
-pub fn prepare_peer_spawn(
+pub async fn prepare_peer_spawn(
     orchestrator: &testing::Orchestrator,
     index: usize,
     room: &str,
@@ -15,21 +15,34 @@ pub fn prepare_peer_spawn(
     if already {
         return None;
     }
+    if !orchestrator.runs_here(index) {
+        return None;
+    }
     let starts_after = orchestrator
         .peers
         .get(index)
         .and_then(|peer| peer.starts_after);
-    let due = starts_after.is_none_or(|checkpoint| {
-        let needle = format!(
-            "{}{checkpoint}",
-            testing::SCRIPT_CHECKPOINT_COMPLETED_PREFIX
-        );
-        running.iter().any(|peer| {
-            std::fs::read_to_string(&peer.log)
-                .unwrap_or_default()
-                .contains(&needle)
-        })
-    });
+    let due = match starts_after {
+        None => true,
+        Some(checkpoint) => {
+            let needle = format!(
+                "{}{checkpoint}",
+                testing::SCRIPT_CHECKPOINT_COMPLETED_PREFIX
+            );
+            let seen = running.iter().any(|peer| {
+                std::fs::read_to_string(&peer.log)
+                    .unwrap_or_default()
+                    .contains(&needle)
+            });
+            if seen {
+                true
+            } else if let Some(board) = orchestrator.board.clone() {
+                board.has_completed(&checkpoint).await.unwrap_or(false)
+            } else {
+                false
+            }
+        }
+    };
     if !due {
         return None;
     }
@@ -75,8 +88,8 @@ mod tests {
         testing::Orchestrator::from_game_and_network("starboard".to_string(), network)
     }
 
-    #[test]
-    fn test_usage() {
+    #[tokio::test]
+    async fn test_usage() {
         let mut orchestrator = orchestrator(testing::Network::Fake);
         orchestrator.peer("alice");
         let _ = testing::Orchestrator::runs(
@@ -97,6 +110,7 @@ mod tests {
             &[],
             dir.path(),
         )
+        .await
         .expect("ready peer");
         assert!(prepared.0.contains("stay"));
         assert!(prepared.1.ends_with("instance-alice.log"));
@@ -110,13 +124,14 @@ mod tests {
                 &[],
                 &[],
                 dir.path()
-            ),
+            )
+            .await,
             None
         );
     }
 
-    #[test]
-    fn direct_dial_defers_until_addresses_are_known() {
+    #[tokio::test]
+    async fn direct_dial_defers_until_addresses_are_known() {
         let mut orchestrator = orchestrator(testing::Network::DirectDial);
         let mut builder = testing::PeerBuilder::new("alice".to_string());
         builder.steps.push(testing::StoredStep {
@@ -136,7 +151,8 @@ mod tests {
                 &[],
                 &[],
                 dir.path()
-            ),
+            )
+            .await,
             None
         );
     }

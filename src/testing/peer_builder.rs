@@ -3,7 +3,7 @@ use crate::testing;
 pub struct PeerBuilder {
     pub(crate) name: String,
     pub(crate) steps: Vec<testing::StoredStep>,
-    pub(crate) starts_after: Option<testing::Checkpoint>,
+    pub(crate) starts_after: Option<testing::ScriptCheckpoint>,
     pub(crate) starts_after_exit_of: Option<String>,
     pub(crate) token_override: Option<String>,
 }

@@ -8,6 +8,11 @@ pub struct Orchestrator {
     pub(crate) network: testing::Network,
     pub(crate) game: String,
     pub(crate) peers: Vec<testing::PeerBuilder>,
+    pub(crate) board: Option<std::sync::Arc<dyn testing::CheckpointBoard>>,
+    pub(crate) published_board_peers: std::collections::HashMap<String, String>,
+    pub(crate) marked_board_checkpoints: std::collections::HashSet<String>,
+    pub(crate) machine: String,
+    pub(crate) placement: Vec<(String, String)>,
     pub should_check_canvas_convergence: bool,
     pub should_check_history_written: bool,
     pub should_forbid_freenet_node: bool,
@@ -19,11 +24,16 @@ pub struct Orchestrator {
 
 impl Orchestrator {
     #[must_use]
-    pub const fn from_game_and_network(game: String, network: testing::Network) -> Self {
+    pub fn from_game_and_network(game: String, network: testing::Network) -> Self {
         Self {
             game,
             network,
             peers: Vec::new(),
+            board: None,
+            published_board_peers: std::collections::HashMap::new(),
+            marked_board_checkpoints: std::collections::HashSet::new(),
+            machine: String::new(),
+            placement: Vec::new(),
             should_check_canvas_convergence: false,
             should_check_history_written: false,
             should_forbid_freenet_node: false,
@@ -32,6 +42,14 @@ impl Orchestrator {
             may_crash: std::collections::BTreeSet::new(),
             join_must_fail: std::collections::BTreeSet::new(),
         }
+    }
+
+    pub fn set_checkpoint_board(
+        &mut self,
+        board: std::sync::Arc<dyn testing::CheckpointBoard>,
+    ) -> &mut Self {
+        self.board = Some(board);
+        self
     }
 
     pub fn peer(&mut self, name: &str) -> &mut Self {
@@ -54,7 +72,7 @@ impl Orchestrator {
         self
     }
 
-    pub fn starts_after(&mut self, checkpoint: testing::Checkpoint) -> &mut Self {
+    pub fn starts_after(&mut self, checkpoint: testing::ScriptCheckpoint) -> &mut Self {
         if let Some(last) = self.peers.last_mut() {
             last.starts_after = Some(checkpoint);
         }
@@ -111,6 +129,15 @@ impl Orchestrator {
 impl Orchestrator {
     #[must_use]
     pub fn peer_names(&self) -> Vec<String> { self.peers.iter().map(|peer| peer.name.clone()).collect() }
+
+    #[must_use]
+    pub fn local_peer_names(&self) -> Vec<String> {
+        self.peers
+            .iter()
+            .filter(|peer| Self::peer_runs_here(&peer.name, &self.machine, &self.placement))
+            .map(|peer| peer.name.clone())
+            .collect()
+    }
 }
 
 #[atomic_delegates]
@@ -161,12 +188,75 @@ impl Orchestrator {
     ) -> Option<String> {
     }
 
-    pub(crate) fn check_book_kind(
+    pub(crate) fn wait_peer_id(
+        &self,
+        name: &str,
+        token: &str,
+        live: &[testing::LivePeer],
+    ) -> Option<identity::PeerId> {
+    }
+
+    pub(crate) async fn check_book_kind(
         &self,
         token: &str,
         expected: &testing::BookKindExpectation,
     ) -> testing::ReportCheck {
     }
+
+    pub(crate) fn runs_here(&self, index: usize) -> bool {}
+
+    pub(crate) fn is_remote_peer(&self, name: &str) -> bool {}
+
+    pub(crate) fn discover_lan_ip() -> Option<String> {}
+
+    pub(crate) fn routable_board_peer(peer: &testing::LivePeer) -> identity::Peer {}
+
+    pub(crate) fn parse_machine_placement(raw: &str) -> Result<Vec<(String, String)>, String> {}
+
+    pub(crate) async fn publish_ready_peers(
+        &mut self,
+        running: &[testing::RunningPeer],
+        token: &str,
+    ) {
+    }
+
+    pub(crate) async fn remote_board_peers(
+        &self,
+        running: &[testing::RunningPeer],
+    ) -> Vec<testing::LivePeer> {
+    }
+
+    pub(crate) async fn run_check_role(
+        &self,
+        dir: &std::path::Path,
+    ) -> testing::OrchestratorReport {
+    }
+
+    pub(crate) fn check_peer_dir(&self, dir: &std::path::Path, name: &str) -> testing::ReportCheck {
+    }
+
+    pub(crate) fn check_results_dir() -> Result<std::path::PathBuf, String> {}
+}
+
+impl Orchestrator {
+    pub(crate) fn peer_runs_here(
+        peer: &str,
+        machine: &str,
+        placement: &[(String, String)],
+    ) -> bool {
+        if placement.is_empty() {
+            return true;
+        }
+        placement
+            .iter()
+            .any(|(placed_peer, placed_machine)| placed_peer == peer && placed_machine == machine)
+    }
+}
+
+#[rustfmt::skip]
+impl Orchestrator {
+    pub(crate) fn this_machine() -> String { std::env::var("E2E_MACHINE").map_or_else(|_| String::new(), |raw| raw.trim().to_string()) }
+    pub(crate) fn is_check_role() -> bool { std::env::var("E2E_ROLE").is_ok_and(|raw| raw.trim() == "check") }
 }
 
 #[rustfmt::skip]
@@ -289,7 +379,7 @@ impl Orchestrator {
     ) {
     }
 
-    pub(crate) fn prepare_peer_spawn(
+    pub(crate) async fn prepare_peer_spawn(
         &self,
         index: usize,
         room: &str,
@@ -305,7 +395,7 @@ impl Orchestrator {
 
     pub(crate) fn build_game_binary(&self) -> Result<std::path::PathBuf, String> {}
 
-    pub(crate) fn build_checks(
+    pub(crate) async fn build_checks(
         &self,
         running: &[testing::RunningPeer],
         token: &str,
@@ -355,7 +445,7 @@ mod tests {
             Orchestrator::from_game_and_network("starboard".to_string(), testing::Network::Fake);
         orchestrator
             .peer("painter")
-            .starts_after(testing::Checkpoint::new("painting-done"))
+            .starts_after(testing::ScriptCheckpoint::new("painting-done"))
             .expect_canvases_converge();
         assert_eq!(orchestrator.peers.len(), 1);
         assert!(orchestrator.should_check_canvas_convergence);
@@ -374,6 +464,42 @@ mod tests {
             Some("bob".to_string())
         );
         assert!(orchestrator.peers[0].starts_after_exit_of.is_none());
+    }
+
+    #[test]
+    fn local_peer_names_follow_placement() {
+        let mut orchestrator =
+            Orchestrator::from_game_and_network("starboard".to_string(), testing::Network::Fake);
+        orchestrator.peer("alice");
+        orchestrator.peer("bob");
+        assert_eq!(
+            orchestrator.local_peer_names(),
+            vec!["alice".to_string(), "bob".to_string()]
+        );
+        orchestrator.machine = "a".to_string();
+        orchestrator.placement = vec![
+            ("alice".to_string(), "a".to_string()),
+            ("bob".to_string(), "b".to_string()),
+        ];
+        assert_eq!(orchestrator.local_peer_names(), vec!["alice".to_string()]);
+    }
+
+    #[test]
+    fn peers_run_here_without_a_split() {
+        assert!(Orchestrator::peer_runs_here("alice", "", &[]));
+        assert!(Orchestrator::peer_runs_here("alice", "a", &[]));
+    }
+
+    #[test]
+    fn peers_run_only_on_their_placed_machine() {
+        let placement = vec![
+            ("alice".to_string(), "a".to_string()),
+            ("bob".to_string(), "b".to_string()),
+        ];
+        assert!(Orchestrator::peer_runs_here("alice", "a", &placement));
+        assert!(!Orchestrator::peer_runs_here("alice", "b", &placement));
+        assert!(!Orchestrator::peer_runs_here("bob", "a", &placement));
+        assert!(!Orchestrator::peer_runs_here("mallory", "a", &placement));
     }
 
     #[test]

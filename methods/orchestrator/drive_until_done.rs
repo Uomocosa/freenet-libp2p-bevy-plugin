@@ -31,6 +31,7 @@ pub async fn drive_until_done(
             )
             .await;
         testing::Orchestrator::poll_exits(running);
+        orchestrator.publish_ready_peers(running, token).await;
         let failed = running.iter().any(|peer| {
             let text = std::fs::read_to_string(&peer.log).unwrap_or_default();
             text.contains(testing::SCRIPT_FAILED_MARKER)
@@ -38,11 +39,13 @@ pub async fn drive_until_done(
         });
         let done = !running.is_empty()
             && running.iter().enumerate().all(|(index, peer)| {
-                let started = peer.child.is_some() || peer.exit.is_some();
-                let stays = orchestrator.peers.get(index).is_some_and(|builder| {
-                    builder.steps.last().is_some_and(|step| step.text == "stay")
-                });
-                started && (stays || peer.exit.is_some())
+                !orchestrator.runs_here(index) || {
+                    let started = peer.child.is_some() || peer.exit.is_some();
+                    let stays = orchestrator.peers.get(index).is_some_and(|builder| {
+                        builder.steps.last().is_some_and(|step| step.text == "stay")
+                    });
+                    started && (stays || peer.exit.is_some())
+                }
             });
         if failed || done || started.elapsed() >= cap {
             break;

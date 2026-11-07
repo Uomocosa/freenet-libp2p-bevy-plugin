@@ -13,10 +13,12 @@ pub async fn spawn_due_peers(
 ) {
     const SPAWN_GAP: std::time::Duration = std::time::Duration::from_millis(300);
     const DEFAULT_RUST_LOG: &str = "info,lobby_room=debug,starboard=debug,p2p=debug,discovery=debug,freenet_libp2p_bevy_plugin=debug";
-    let live = orchestrator.live_peer_addresses(running);
+    let mut live = orchestrator.live_peer_addresses(running);
+    live.extend(orchestrator.remote_board_peers(running).await);
     for index in 0..orchestrator.peers.len() {
-        let Some((script, log)) =
-            orchestrator.prepare_peer_spawn(index, room, scripts, token, running, &live, dir)
+        let Some((script, log)) = orchestrator
+            .prepare_peer_spawn(index, room, scripts, token, running, &live, dir)
+            .await
         else {
             continue;
         };

@@ -1,5 +1,5 @@
 use e2e_macros::e2e_test;
-use freenet_libp2p_bevy_plugin::testing::Checkpoint;
+use freenet_libp2p_bevy_plugin::testing::ScriptCheckpoint;
 
 use crate::starboard_steps::{
     Cell, Stroke, create_room, exit_app, join_room, leave_room, mark_completed, paint,
@@ -18,7 +18,7 @@ const STROKES: &[Stroke] = &[
     Stroke::new(Cell::new(350, 345), Cell::new(410, 345)),
 ];
 
-const HOLDERS_LEFT: Checkpoint = Checkpoint::new("holders-left");
+const HOLDERS_LEFT: ScriptCheckpoint = ScriptCheckpoint::new("holders-left");
 
 #[e2e_test(game = "starboard")]
 fn starboard_history_restore(test: &mut Orchestrator) {
@@ -30,7 +30,7 @@ fn starboard_history_restore(test: &mut Orchestrator) {
         sleep_for_secs(45),
         leave_room(),
         wait_until_left_room(),
-        mark_completed(Checkpoint::new("holder1-left")),
+        mark_completed(ScriptCheckpoint::new("holder1-left")),
         stay(),
     ]);
     test.peer("holder2").runs([

@@ -8,7 +8,7 @@ on:
       scenarios:
         description: Scenario to run
         type: choice
-        options: [s1]
+        options: [s1, direct-dial]
         default: s1
       bundle_run_id:
         description: Reuse the bundles of this run and skip both builds
@@ -36,6 +36,7 @@ on:
 permissions:
   contents: read
   actions: read
+  statuses: write
 
 concurrency:
   group: e2e-cross
@@ -62,6 +63,7 @@ jobs:
           echo "token=lobby-e2e/cross-$id" >> "$GITHUB_OUTPUT"
           echo "room=room-$id" >> "$GITHUB_OUTPUT"
       - id: scenario
+        if: ${{ inputs.scenarios == 's1' }}
         env:
           SCENARIO: ${{ inputs.scenarios }}
           ROOM: ${{ steps.ids.outputs.room }}
@@ -83,9 +85,14 @@ jobs:
           rustup toolchain install
           cargo build --profile ci-min --features e2e --example starboard --example e2e_check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $lines = cargo test --test e2e --no-run --features e2e --profile ci-min 2>&1
+          if ($LASTEXITCODE -ne 0) { $lines; exit $LASTEXITCODE }
+          $testBin = ($lines | Select-String 'Executable tests/e2e/main\.rs \((.*)\)' | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1)
+          if ([string]::IsNullOrEmpty($testBin)) { Write-Output '::error::e2e test binary not found'; exit 1 }
           $bundle = Join-Path $env:RUNNER_TEMP bundle
           New-Item -ItemType Directory -Force $bundle | Out-Null
           Copy-Item C:\e2e\target\ci-min\examples\starboard.exe, C:\e2e\target\ci-min\examples\e2e_check.exe $bundle
+          Copy-Item $testBin (Join-Path $bundle 'e2e-direct-dial.exe')
       - uses: actions/upload-artifact@v7
         with:
           name: bundle-windows
@@ -102,8 +109,12 @@ jobs:
       - run: |
           export CARGO_TARGET_DIR="$HOME/.cache/cargo-target/freenet-libp2p-bevy-plugin"
           cargo build --features e2e --example starboard
+          test_bin=$(cargo test --test e2e --no-run --features e2e 2>&1 | tee /dev/stderr | sed -n 's/^ *Executable tests\/e2e\/main\.rs (\(.*\))$/\1/p' | head -n1)
+          if [ ! -x "$test_bin" ]; then echo "::error::e2e test binary not found"; exit 1; fi
           mkdir -p "$RUNNER_TEMP/bundle"
           cp "$CARGO_TARGET_DIR/debug/examples/starboard" "$RUNNER_TEMP/bundle/"
+          cp "$test_bin" "$RUNNER_TEMP/bundle/e2e-direct-dial"
+          ls "$RUNNER_TEMP/bundle"
       - uses: actions/upload-artifact@v7
         with:
           name: bundle-linux
@@ -113,7 +124,7 @@ jobs:
 
   peers-windows:
     needs: [prepare, build-windows, build-linux]
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && inputs.scenarios == 's1' }}
     runs-on: [self-hosted, windows-e2e]
     timeout-minutes: 30
     steps:
@@ -196,7 +207,7 @@ jobs:
 
   peers-linux:
     needs: [prepare, build-windows, build-linux]
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && inputs.scenarios == 's1' }}
     runs-on: [self-hosted, linux-e2e]
     timeout-minutes: 30
     steps:
@@ -286,7 +297,7 @@ jobs:
 
   check:
     needs: [prepare, peers-windows, peers-linux]
-    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && inputs.scenarios == 's1' }}
     runs-on: [self-hosted, windows-e2e]
     timeout-minutes: 10
     steps:
@@ -310,6 +321,214 @@ jobs:
           $arguments = @('--results-dir', (Join-Path $env:RUNNER_TEMP results), '--peer', 'w', '--peer', 'l1', '--peer', 'l2')
           foreach ($expectation in $env:EXPECT -split ' ') { $arguments += @('--expect', $expectation) }
           $table = & C:\e2e\bundle\e2e_check.exe @arguments
+          $code = $LASTEXITCODE
+          $table
+          "## $env:SCENARIO on $env:NETWORK_LABEL" | Add-Content $env:GITHUB_STEP_SUMMARY
+          $table | Add-Content $env:GITHUB_STEP_SUMMARY
+          exit $code
+
+  peers-windows-direct:
+    needs: [build-windows, build-linux]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && inputs.scenarios == 'direct-dial' }}
+    runs-on: [self-hosted, windows-e2e]
+    timeout-minutes: 30
+    steps:
+      # C:\e2e\bundle is the path of the firewall allow rule: never run the game elsewhere.
+      - shell: powershell
+        run: |
+          Stop-Process -Name starboard -Force -ErrorAction SilentlyContinue
+          Remove-Item C:\e2e\bundle\* -Force -ErrorAction SilentlyContinue
+          Remove-Item (Join-Path $env:RUNNER_TEMP results) -Recurse -Force -ErrorAction SilentlyContinue
+      - uses: actions/download-artifact@v8
+        with:
+          name: bundle-windows
+          path: C:\e2e\bundle
+          run-id: ${{ env.BUNDLE_RUN_ID }}
+          github-token: ${{ github.token }}
+      - shell: powershell
+        env:
+          E2E_MACHINE: w
+          E2E_PLACEMENT: alice=w,bob=l
+          E2E_BOARD: github
+          E2E_GAME_BIN: C:\e2e\bundle\starboard.exe
+          E2E_TIME_SCALE: ${{ inputs.time_scale }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RECORD_VIDEO: ${{ inputs.record_video }}
+        run: |
+          $results = Join-Path $env:RUNNER_TEMP results
+          $env:E2E_RUN_DIR = $results
+          $videoDir = Join-Path $env:RUNNER_TEMP video
+          $videoMkv = Join-Path $videoDir windows.mkv
+          New-Item -ItemType Directory -Force $results | Out-Null
+          New-Item -ItemType Directory -Force $videoDir | Out-Null
+          $testBin = 'C:\e2e\bundle\e2e-direct-dial.exe'
+          $recording = $null
+          if ($env:RECORD_VIDEO -eq 'true') {
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = 'ffmpeg'
+            $psi.Arguments = "-nostats -loglevel error -y -f gdigrab -framerate 5 -i desktop -vf scale=960:-2 -c:v libx264 -preset ultrafast -crf 32 `"$videoMkv`""
+            $psi.UseShellExecute = $false
+            $psi.CreateNoWindow = $true
+            $psi.RedirectStandardInput = $true
+            $recording = [System.Diagnostics.Process]::Start($psi)
+          }
+          $env:E2E_BOARD_RUN_ID = "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-direct_dial"
+          & $testBin direct_dial --ignored --nocapture
+          $first = $LASTEXITCODE
+          $env:E2E_BOARD_RUN_ID = "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-friends_reconnect"
+          & $testBin friends_reconnect --ignored --nocapture
+          $second = $LASTEXITCODE
+          if ($recording) { $recording.StandardInput.Write('q'); $recording.StandardInput.Flush(); if (-not $recording.WaitForExit(20000)) { $recording.Kill() } }
+          if ($first -ne 0) { exit $first }
+          exit $second
+      - name: Send Windows video to Telegram
+        if: ${{ always() && inputs.record_video }}
+        shell: powershell
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SCENARIO: ${{ inputs.scenarios }}
+          NETWORK_LABEL: ${{ inputs.network_label }}
+        run: |
+          $videoDir = Join-Path $env:RUNNER_TEMP video
+          $videoMkv = Join-Path $videoDir windows.mkv
+          $videoMp4 = Join-Path $videoDir windows.mp4
+          if ([string]::IsNullOrEmpty($env:TELEGRAM_BOT_TOKEN) -or [string]::IsNullOrEmpty($env:TELEGRAM_CHAT_ID)) {
+            Write-Output '::warning::Telegram secrets not set, skipping video upload'
+            exit 0
+          }
+          if (-not (Test-Path $videoMkv)) {
+            Write-Output '::warning::Video file missing, skipping Telegram upload'
+            exit 0
+          }
+          & ffmpeg -nostats -loglevel error -y -i $videoMkv -c copy -movflags +faststart $videoMp4
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output '::warning::ffmpeg remux failed, skipping Telegram upload'
+            exit 0
+          }
+          $caption = "$env:SCENARIO on $env:NETWORK_LABEL, windows, run $env:GITHUB_RUN_ID"
+          & curl.exe -sS --fail -o NUL -X POST "https://api.telegram.org/bot$env:TELEGRAM_BOT_TOKEN/sendVideo" -F "chat_id=$env:TELEGRAM_CHAT_ID" -F "caption=$caption" -F "video=@$videoMp4"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output '::warning::Telegram sendVideo failed (bot upload limit is 50 MB), video not delivered'
+            exit 0
+          }
+          exit 0
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: results-windows-direct
+          path: ${{ runner.temp }}/results
+          retention-days: 7
+
+  peers-linux-direct:
+    needs: [build-windows, build-linux]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && inputs.scenarios == 'direct-dial' }}
+    runs-on: [self-hosted, linux-e2e]
+    timeout-minutes: 30
+    steps:
+      - run: |
+          rm -rf "$RUNNER_TEMP/results"
+      - uses: actions/download-artifact@v8
+        with:
+          name: bundle-linux
+          path: ${{ runner.temp }}/bundle
+          run-id: ${{ env.BUNDLE_RUN_ID }}
+          github-token: ${{ github.token }}
+      - env:
+          E2E_MACHINE: l
+          E2E_PLACEMENT: alice=w,bob=l
+          E2E_BOARD: github
+          E2E_TIME_SCALE: ${{ inputs.time_scale }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RECORD_VIDEO: ${{ inputs.record_video }}
+        run: |
+          bin="$RUNNER_TEMP/bundle/e2e-direct-dial"
+          game="$RUNNER_TEMP/bundle/starboard"
+          results="$RUNNER_TEMP/results"
+          export E2E_GAME_BIN="$game" E2E_RUN_DIR="$results"
+          video_dir="$RUNNER_TEMP/video"
+          video_mkv="$video_dir/linux.mkv"
+          chmod +x "$bin" "$game"
+          mkdir -p "$results" "$video_dir"
+          VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -n1)
+          export VK_ICD_FILENAMES
+          recording=""
+          if [ "$RECORD_VIDEO" = "true" ]; then
+            size=$(xdpyinfo | awk '/dimensions:/ {print $2}')
+            ffmpeg -nostats -loglevel error -y -f x11grab -framerate 5 -video_size "$size" -i "$DISPLAY" \
+              -vf scale=960:-2 -c:v libx264 -preset ultrafast -crf 32 "$video_mkv" &
+            recording=$!
+          fi
+          export E2E_BOARD_RUN_ID="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-direct_dial"
+          "$bin" direct_dial --ignored --nocapture
+          first=$?
+          export E2E_BOARD_RUN_ID="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-friends_reconnect"
+          "$bin" friends_reconnect --ignored --nocapture
+          second=$?
+          if [ -n "$recording" ]; then kill "$recording" || true; fi
+          if [ "$first" -ne 0 ]; then exit "$first"; fi
+          exit "$second"
+      - name: Send Linux video to Telegram
+        if: ${{ always() && inputs.record_video }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SCENARIO: ${{ inputs.scenarios }}
+          NETWORK_LABEL: ${{ inputs.network_label }}
+        run: |
+          mkv="$RUNNER_TEMP/video/linux.mkv"
+          mp4="$RUNNER_TEMP/video/linux.mp4"
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::Telegram secrets not set, skipping video upload"
+            exit 0
+          fi
+          if [ ! -f "$mkv" ]; then
+            echo "::warning::Video file missing, skipping Telegram upload"
+            exit 0
+          fi
+          if ! ffmpeg -nostats -loglevel error -y -i "$mkv" -c copy -movflags +faststart "$mp4"; then
+            echo "::warning::ffmpeg remux failed, skipping Telegram upload"
+            exit 0
+          fi
+          caption="$SCENARIO on $NETWORK_LABEL, linux, run $GITHUB_RUN_ID"
+          if ! curl -sS --fail -o /dev/null -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendVideo" -F "chat_id=$TELEGRAM_CHAT_ID" -F "caption=$caption" -F "video=@$mp4"; then
+            echo "::warning::Telegram sendVideo failed (bot upload limit is 50 MB), video not delivered"
+            exit 0
+          fi
+          exit 0
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: results-linux-direct
+          path: ${{ runner.temp }}/results
+          retention-days: 7
+
+  check-direct:
+    needs: [peers-windows-direct, peers-linux-direct]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && inputs.scenarios == 'direct-dial' }}
+    runs-on: [self-hosted, windows-e2e]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: bundle-windows
+          path: C:\e2e\bundle
+          run-id: ${{ env.BUNDLE_RUN_ID }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: results-*-direct
+          path: ${{ runner.temp }}/results
+          merge-multiple: true
+      - shell: powershell
+        env:
+          SCENARIO: ${{ inputs.scenarios }}
+          NETWORK_LABEL: ${{ inputs.network_label }}
+        run: |
+          $env:E2E_ROLE = 'check'
+          $env:E2E_RESULTS_DIR = Join-Path $env:RUNNER_TEMP results
+          $testBin = 'C:\e2e\bundle\e2e-direct-dial.exe'
+          $table = & $testBin direct_dial friends_reconnect --ignored --nocapture 2>&1
           $code = $LASTEXITCODE
           $table
           "## $env:SCENARIO on $env:NETWORK_LABEL" | Add-Content $env:GITHUB_STEP_SUMMARY

@@ -1,5 +1,5 @@
 use e2e_macros::e2e_test;
-use freenet_libp2p_bevy_plugin::testing::Checkpoint;
+use freenet_libp2p_bevy_plugin::testing::ScriptCheckpoint;
 
 use crate::starboard_steps::{
     Cell, Stroke, crash_app, create_room, exit_app, join_room_named, mark_completed, paint,
@@ -18,7 +18,7 @@ const STROKES: &[Stroke] = &[
     Stroke::new(Cell::new(350, 345), Cell::new(410, 345)),
 ];
 
-const HOLDER_DYING: Checkpoint = Checkpoint::new("holder-dying");
+const HOLDER_DYING: ScriptCheckpoint = ScriptCheckpoint::new("holder-dying");
 
 #[e2e_test(game = "starboard")]
 fn starboard_history_holder_killed(test: &mut Orchestrator) {

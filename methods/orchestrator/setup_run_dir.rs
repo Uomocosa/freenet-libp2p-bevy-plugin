@@ -10,9 +10,14 @@ pub fn setup_run_dir(
         .map_or(0, |elapsed| elapsed.as_secs());
     let room = format!("room-{stamp}");
     let token = format!("lobby-e2e/{stamp}");
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join(".local-run")
-        .join(format!("{}-{stamp}", orchestrator.game));
+    let forced = std::env::var("E2E_RUN_DIR").unwrap_or_default();
+    let dir = if forced.trim().is_empty() {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join(".local-run")
+            .join(format!("{}-{stamp}", orchestrator.game))
+    } else {
+        PathBuf::from(forced.trim())
+    };
     std::fs::create_dir_all(&dir).map_err(|_| format!("create dir {} failed", dir.display()))?;
     Ok((dir, room, token))
 }

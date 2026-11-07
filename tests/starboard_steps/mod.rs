@@ -22,7 +22,7 @@ use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::identity::{PeerId, RoomName};
 use freenet_libp2p_bevy_plugin::testing::{
-    Checkpoint, E2EStep, MemberCount, OrchestratedStep, ROOM_PLACEHOLDER, ScriptStep,
+    E2EStep, MemberCount, OrchestratedStep, ROOM_PLACEHOLDER, ScriptCheckpoint, ScriptStep,
     StepWithDeadline,
 };
 
@@ -355,7 +355,7 @@ pub fn wait_until_canvas_stops_changing() -> Vec<StepWithDeadline<StarboardStep>
 
 /// Completes `checkpoint` so peers waiting on it can start.
 #[must_use]
-pub fn mark_completed(checkpoint: Checkpoint) -> Vec<StepWithDeadline<StarboardStep>> {
+pub fn mark_completed(checkpoint: ScriptCheckpoint) -> Vec<StepWithDeadline<StarboardStep>> {
     vec![StepWithDeadline::from(StarboardStep::Shared(
         E2EStep::MarkCompleted(checkpoint),
     ))]
@@ -409,7 +409,7 @@ pub fn wait_until_friend_is_disconnected(peer: &str) -> Vec<StepWithDeadline<Sta
 #[cfg(test)]
 mod tests {
     use freenet_libp2p_bevy_plugin::testing::{
-        Checkpoint, OrchestratedStep, ScriptStep, StepWithDeadline, TimedScriptStep,
+        OrchestratedStep, ScriptCheckpoint, ScriptStep, StepWithDeadline, TimedScriptStep,
     };
 
     use super::{
@@ -471,7 +471,7 @@ mod tests {
         assert_eq!(
             step("mark-completed:painting-done"),
             Ok(StarboardStep::Shared(
-                freenet_libp2p_bevy_plugin::testing::E2EStep::MarkCompleted(Checkpoint::new(
+                freenet_libp2p_bevy_plugin::testing::E2EStep::MarkCompleted(ScriptCheckpoint::new(
                     "painting-done"
                 ))
             ))
@@ -502,7 +502,7 @@ mod tests {
             "wait-canvas-stable"
         );
         assert_eq!(
-            rendered(&mark_completed(Checkpoint::new("done"))),
+            rendered(&mark_completed(ScriptCheckpoint::new("done"))),
             "mark-completed:done"
         );
         assert_eq!(rendered(&exit_app()), "exit-app");

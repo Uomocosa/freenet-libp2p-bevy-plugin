@@ -2,7 +2,7 @@ use crate::direct_dial;
 use crate::testing;
 
 #[must_use]
-pub fn check_book_kind(
+pub async fn check_book_kind(
     orchestrator: &testing::Orchestrator,
     token: &str,
     expected: &testing::BookKindExpectation,
@@ -20,8 +20,19 @@ pub fn check_book_kind(
         ok: false,
         detail,
     };
-    let Ok(id) = orchestrator.peer_id_for_name(token, &expected.peer) else {
-        return fail(format!("no identity for {}", expected.peer));
+    let id = if orchestrator.is_remote_peer(&expected.peer) {
+        let Some(board) = orchestrator.board.clone() else {
+            return fail(format!("no board to resolve {}", expected.peer));
+        };
+        match board.find_peer(&expected.peer).await {
+            Ok(Some(found)) => found.id,
+            _ => return fail(format!("no identity for {}", expected.peer)),
+        }
+    } else {
+        let Ok(id) = orchestrator.peer_id_for_name(token, &expected.peer) else {
+            return fail(format!("no identity for {}", expected.peer));
+        };
+        id
     };
     let path = orchestrator.peer_book_file(token, &expected.owner);
     let Ok(book) = direct_dial::PeerBook::try_from(path.as_path()) else {
@@ -59,8 +70,8 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_usage() {
+    #[tokio::test]
+    async fn test_usage() {
         let id = orchestrator()
             .peer_id_for_name("kind-token", "bob")
             .expect("identity");
@@ -78,13 +89,15 @@ mod tests {
             &orchestrator(),
             "kind-token",
             &expectation(direct_dial::KnownPeerKind::PreviouslyConnected),
-        );
+        )
+        .await;
         assert!(check.ok, "unexpected failure: {}", check.detail);
         let check = check_book_kind(
             &orchestrator(),
             "kind-token",
             &expectation(direct_dial::KnownPeerKind::Friend),
-        );
+        )
+        .await;
         assert!(!check.ok);
         assert!(check.detail.contains("PreviouslyConnected"));
         std::fs::remove_file(&path).expect("cleanup");

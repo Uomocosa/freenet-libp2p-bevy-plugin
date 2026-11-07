@@ -20,7 +20,7 @@ pub enum E2EStep {
     WaitRingJoined,
     WaitLobbyReady,
     Sleep(std::time::Duration),
-    MarkCompleted(testing::Checkpoint),
+    MarkCompleted(testing::ScriptCheckpoint),
     ExitApp,
     CrashApp,
     Stay,
@@ -159,12 +159,12 @@ impl E2EStep {
             .map_err(|_| format!("step '{verb}' needs a count, got '{arg}'"))
     }
 
-    pub(crate) fn checkpoint(verb: &str, arg: &str) -> Result<testing::Checkpoint, String> {
+    pub(crate) fn checkpoint(verb: &str, arg: &str) -> Result<testing::ScriptCheckpoint, String> {
         let name = arg.trim();
         if name.is_empty() {
             return Err(format!("step '{verb}' needs a checkpoint name"));
         }
-        Ok(testing::Checkpoint::new(Box::leak(
+        Ok(testing::ScriptCheckpoint::new(Box::leak(
             name.to_owned().into_boxed_str(),
         )))
     }

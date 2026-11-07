@@ -1,5 +1,5 @@
 use e2e_macros::e2e_test;
-use freenet_libp2p_bevy_plugin::testing::Checkpoint;
+use freenet_libp2p_bevy_plugin::testing::ScriptCheckpoint;
 
 use crate::starboard_steps::{
     create_room, exit_app, join_room_named, mark_completed, sleep_for_secs, stay,
@@ -7,7 +7,7 @@ use crate::starboard_steps::{
 };
 
 // S7: a bad token and a missing room both fail to join.
-const CREATOR_READY: Checkpoint = Checkpoint::new("creator-ready");
+const CREATOR_READY: ScriptCheckpoint = ScriptCheckpoint::new("creator-ready");
 
 #[e2e_test(game = "starboard")]
 fn starboard_bad_token(test: &mut Orchestrator) {

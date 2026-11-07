@@ -1,13 +1,16 @@
 use crate::testing;
 
 #[must_use]
-pub fn build_checks(
+pub async fn build_checks(
     orchestrator: &testing::Orchestrator,
     running: &[testing::RunningPeer],
     token: &str,
 ) -> Vec<testing::ReportCheck> {
     let mut checks: Vec<testing::ReportCheck> = Vec::new();
     for (index, slot) in running.iter().enumerate() {
+        if !orchestrator.runs_here(index) {
+            continue;
+        }
         let name = orchestrator.peers.get(index).map_or_else(
             || format!("p{}", index.saturating_add(1)),
             |peer| peer.name.clone(),
@@ -59,7 +62,16 @@ pub fn build_checks(
         });
     }
     for expected in &orchestrator.book_kind_expectations {
-        checks.push(orchestrator.check_book_kind(token, expected));
+        if !orchestrator.placement.is_empty()
+            && !testing::Orchestrator::peer_runs_here(
+                &expected.owner,
+                &orchestrator.machine,
+                &orchestrator.placement,
+            )
+        {
+            continue;
+        }
+        checks.push(orchestrator.check_book_kind(token, expected).await);
     }
     checks
 }

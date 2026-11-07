@@ -9,6 +9,9 @@ pub fn substitute_fragment(
 ) -> Option<String> {
     if let Some(name) = fragment.strip_prefix("add-friend:") {
         let found = live.iter().find(|entry| entry.name == name)?;
+        if found.peer.addrs.is_empty() {
+            return None;
+        }
         let rendered = found
             .peer
             .addrs
@@ -20,6 +23,9 @@ pub fn substitute_fragment(
     }
     if let Some(name) = fragment.strip_prefix("dial:") {
         let found = live.iter().find(|entry| entry.name == name)?;
+        if found.peer.addrs.is_empty() {
+            return None;
+        }
         let rendered = found
             .peer
             .addrs
@@ -31,14 +37,14 @@ pub fn substitute_fragment(
     }
     if let Some(rest) = fragment.strip_prefix("wait-friend-connected:")
         && let Some((name, deadline)) = rest.rsplit_once('@')
-        && let Ok(id) = orchestrator.peer_id_for_name(token, name)
     {
+        let id = orchestrator.wait_peer_id(name, token, live)?;
         return Some(format!("wait-friend-connected:{id}@{deadline}"));
     }
     if let Some(rest) = fragment.strip_prefix("wait-friend-disconnected:")
         && let Some((name, deadline)) = rest.rsplit_once('@')
-        && let Ok(id) = orchestrator.peer_id_for_name(token, name)
     {
+        let id = orchestrator.wait_peer_id(name, token, live)?;
         return Some(format!("wait-friend-disconnected:{id}@{deadline}"));
     }
     Some(fragment.to_string())
@@ -95,23 +101,51 @@ mod tests {
     }
 
     #[test]
-    fn waits_resolve_names_to_stable_ids() {
+    fn unknown_remote_waits_defer_the_peer() {
+        let mut orchestrator = orchestrator();
+        orchestrator.machine = "a".to_string();
+        orchestrator.placement = vec![
+            ("alice".to_string(), "a".to_string()),
+            ("bob".to_string(), "b".to_string()),
+        ];
+        assert_eq!(
+            substitute_fragment(
+                &orchestrator,
+                "wait-friend-connected:bob@420s",
+                "token",
+                &[]
+            ),
+            None
+        );
+        assert_eq!(
+            substitute_fragment(
+                &orchestrator,
+                "wait-friend-disconnected:bob@60s",
+                "token",
+                &[]
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn waits_prefer_live_ids_and_fall_back_to_stable_ids() {
         let rendered = substitute_fragment(
             &orchestrator(),
             "wait-friend-connected:bob@420s",
             "token",
             &live(),
         )
-        .expect("stable id");
+        .expect("live id");
+        assert_eq!(rendered, "wait-friend-connected:bob-id@420s");
         let id = orchestrator()
             .peer_id_for_name("token", "bob")
             .expect("identity");
-        assert_eq!(rendered, format!("wait-friend-connected:{id}@420s"));
         let rendered = substitute_fragment(
             &orchestrator(),
             "wait-friend-disconnected:bob@60s",
             "token",
-            &live(),
+            &[],
         )
         .expect("stable id");
         assert_eq!(rendered, format!("wait-friend-disconnected:{id}@60s"));

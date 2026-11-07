@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-use freenet_libp2p_bevy_plugin::testing::{Orchestrator, OrchestratorReport, ReportCheck};
+use freenet_libp2p_bevy_plugin::testing::{
+    CheckpointBoard, Orchestrator, OrchestratorReport, ReportCheck,
+};
 
 use crate::check_layer::CheckLayer;
 use crate::peer_run_result::PeerRunResult;
@@ -37,7 +39,39 @@ impl AssertAll for OrchestratorReport {
 /// tiles the peer windows as they appear, runs the peers to completion, stops
 /// the recording into a sped-up clip, appends the `result.json` expectation
 /// rows, and best-effort sends the clip unless Telegram has no credentials.
+///
+/// In `E2E_ROLE=check` the orchestrator only reads a merged results directory,
+/// so there is no display, recording or clip: the report comes straight back.
+/// The checkpoint board defaults to a local directory; `E2E_BOARD=github`
+/// selects commit statuses. A set `E2E_MACHINE` means this run shares the
+/// machine with another orchestrator process, so the stale-process cleanup is
+/// skipped: it would kill the other process's peers.
 pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> OrchestratorReport {
+    if std::env::var("E2E_ROLE").is_ok_and(|raw| raw.trim() == "check") {
+        return run_merged_results_check(orchestrator).await;
+    }
+    if std::env::var("E2E_MACHINE")
+        .unwrap_or_default()
+        .trim()
+        .is_empty()
+    {
+        crate::cleanup_stale::cleanup_stale();
+    }
+    let board = match select_board() {
+        Ok(board) => board,
+        Err(detail) => {
+            return OrchestratorReport {
+                checks: vec![ReportCheck {
+                    name: "setup".to_string(),
+                    ok: false,
+                    detail,
+                }],
+                logs_dir: PathBuf::new(),
+                caption: "e2e setup failed".to_string(),
+            };
+        }
+    };
+    orchestrator.set_checkpoint_board(board);
     crate::wakeup_screen::wakeup_screen();
     if let Err(detail) = crate::require_x11::require_x11() {
         return OrchestratorReport {
@@ -50,7 +84,6 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
             caption: "e2e setup failed".to_string(),
         };
     }
-    crate::cleanup_stale::cleanup_stale();
     let peer_names = orchestrator.peer_names();
     let check_canvas = orchestrator.should_check_canvas_convergence;
     let check_history = orchestrator.should_check_history_written;
@@ -89,9 +122,12 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
             .and_then(|child| crate::finish_record::finish_record(child, &raw))
             .and_then(|raw| crate::speed_clip::speed_clip(&raw, &report.logs_dir.join("clip.mp4")))
     };
+    // Only the peers placed on this machine leave files here; the merged
+    // check role covers every peer.
+    let present_names = orchestrator.local_peer_names();
     append_expectations(
         &mut report,
-        &peer_names,
+        &present_names,
         check_canvas,
         check_history,
         min_members,
@@ -102,6 +138,40 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
     eprintln!("{}", report.caption);
     send_clip(clip.as_deref(), &report.caption).await;
     report
+}
+
+// needed helper: reads the merged results directory without any display,
+// recording or clip, then appends the expectation rows
+async fn run_merged_results_check(orchestrator: &mut Orchestrator) -> OrchestratorReport {
+    let mut report = orchestrator.run().await;
+    append_expectations(
+        &mut report,
+        &orchestrator.peer_names(),
+        orchestrator.should_check_canvas_convergence,
+        orchestrator.should_check_history_written,
+        orchestrator
+            .min_members_override
+            .unwrap_or_else(|| orchestrator.peer_names().len()),
+        orchestrator.should_forbid_freenet_node,
+        orchestrator.may_crash.clone(),
+        orchestrator.join_must_fail.clone(),
+    );
+    eprintln!("{}", report.caption);
+    report
+}
+
+// needed helper: picks the checkpoint board for this run: commit statuses
+// when E2E_BOARD=github, otherwise a local directory of files
+fn select_board() -> Result<std::sync::Arc<dyn CheckpointBoard>, String> {
+    if std::env::var("E2E_BOARD").unwrap_or_default().trim() == "github" {
+        let board = crate::github_checkpoint_board::GitHubCheckpointBoard::from_env()?;
+        Ok(std::sync::Arc::new(board))
+    } else {
+        let dir = crate::local_checkpoint_board::LocalCheckpointBoard::board_dir_from_env();
+        Ok(std::sync::Arc::new(
+            crate::local_checkpoint_board::LocalCheckpointBoard::new(dir),
+        ))
+    }
 }
 
 // needed helper: appends the result.json expectation rows for one run

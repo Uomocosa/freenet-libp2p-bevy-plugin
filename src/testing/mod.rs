@@ -20,8 +20,8 @@ pub use basic::structs::{
 mod action;
 pub use action::Action;
 
-mod checkpoint;
-pub use checkpoint::Checkpoint;
+mod checkpoint_board;
+pub use checkpoint_board::CheckpointBoard;
 
 mod e2e_args;
 pub use e2e_args::E2EArgs;
@@ -72,6 +72,9 @@ pub use peer_message_router::PeerMessageRouter;
 
 mod pollable_script_step;
 pub use pollable_script_step::PollableScriptStep;
+
+mod script_checkpoint;
+pub use script_checkpoint::ScriptCheckpoint;
 
 mod script_runner;
 pub use script_runner::ScriptRunner;
