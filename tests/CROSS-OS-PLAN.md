@@ -16,31 +16,34 @@ host our own relay — that would defeat the purpose of Freenet.
 | # | Topic | Decision |
 |---|---|---|
 | X1 | Binary name | `starboard_gossip` example → `starboard` (`starboard.exe` on Windows). |
-| X2 | Shipped artifact | Build once on Windows; upload `starboard.exe` + the Freenet node + the checker as one bundle. Later runs reuse it via `bundle_run_id` — no cargo invocation. |
+| X2 | Shipped artifact | Build once per OS: `bundle-windows` (`starboard.exe` + `e2e_check.exe`, Freenet is in-process) and `bundle-linux` (`starboard`, built on `linux-e2e`). Later runs reuse both via `bundle_run_id` — no cargo invocation. |
 | X3 | Freenet shipping | Decided: in-process node (`freenet` crate, `examples/shared` `start_embedded_freenet_node`); `--freenet-node-dir` keeps its config/data/logs. |
 | X4 | NAT | No relay of our own. The report separates **Freenet layer** (joined network, saw room/members) from **libp2p layer** (direct connection, how). |
 | X5 | History | Kademlia room history (Part C, `examples/starboard/PLAN_HISTORY.md`) lands **before** S4. A player who joined a room and did not quit the game holds and serves its history. |
 | X6 | Room deletion | When the last holder quits (clean or not), the room dies and disappears from the lobby. Holders refresh a lease in the lobby contract every 30 s; room dead after 90 s with no fresh lease (both × `E2E_TIME_SCALE`). |
 | X7 | Name reuse | A dead room's name is reusable as a fresh room: new `created_at` → new history key, empty board. |
 | X8 | Local history file | None. Optional explicit export/import later. |
-| X9 | Slow Windows | All waits × `E2E_TIME_SCALE` (default 1, Windows ≈ 4, tune). |
+| X9 | Slow Windows | All waits × `E2E_TIME_SCALE` (default 1, Windows ≈ 4, tune). The game scales its lease and history timings; `scripts/e2e_cross_scenario.sh` scales each script's `@Ns` deadlines. |
 | X10 | Video | Recorded on both machines: Linux ffmpeg x11grab (existing), Windows ffmpeg gdigrab (low fps/resolution). |
-| X11 | Runners | Windows self-hosted runner (exists) + this Linux machine registered as `linux-e2e`. |
+| X11 | Runners | Both online on this repo since 2026-11-07: `windows-e2e` (`C:\actions-runner`) and `linux-e2e` (`~/actions-runner-freenet`). Never a service: they must run in the logged-in desktop session, screen unlocked. A runner offline for about 14 days is deleted by GitHub and must be registered again. |
 | X12 | Repo / branch | `freenet-libp2p-bevy-plugin`, branch `main`. |
+| X13 | Windows firewall | At most one allow prompt, ever. Rules match by program path, so the workflow always runs the game from `C:\e2e\bundle\starboard.exe`, which has an inbound allow rule. Never run it from a per-run path. |
+| X14 | Public repo | `workflow_dispatch` only; fork PR approval is `all_external_contributors`. Artifacts are public, so video is off by default (`record_video`) and Freenet node folders are never uploaded, only their logs. |
 
 ## 2. Test mechanics
 
-- **Step script.** `--script` becomes a `;`-separated list of event-driven steps, e.g.
-  `wait-members:2; paint:6; leave; wait-secs:20; rejoin; wait-converged; exit`.
-  Every wait is scaled by `E2E_TIME_SCALE`. No cross-machine control channel: the room is the
+- **Step script.** `--script` is a comma-separated list of `verb[:arg][@Ns]` steps, e.g.
+  `wait-members:3@420s, paint-from-to:200.300-260.300, wait-canvas-stable@60s, exit-app`.
+  Every wait carries a deadline. No cross-machine control channel: the room is the
   synchronisation point.
 - **`result.json`** per peer: final canvas hash + tile count, members seen, Freenet layer status
   (gateway, time to join network), libp2p connection kind per peer (tcp/quic/hole-punched/none),
   per-step timings, errors, exit code.
 - **Checker.** Reads every machine's `result.json` + logs and prints one table per scenario:
   `expected | actual | PASS/FAIL`. The example `cargo run --example e2e_check -- --results-dir <dir> --peer <name>... --expect converge --expect min-members:N --expect may-crash:<user> --expect join-must-fail:<user>` does this.
-- **Logs.** Each job uploads `.local-run/<scenario>/` (game logs, Freenet node log,
-  `result.json`, video). Read with `gh run download <run-id>`.
+- **Logs.** Each peers job uploads `results-windows` / `results-linux`, one `<peer>/` folder each
+  (game log, Freenet node logs, `result.json`), plus the video when `record_video` is on.
+  Read with `gh run download <run-id>`.
 
 ## 3. Scenarios (W = Windows peer, L1/L2 = Linux peers)
 
@@ -63,18 +66,22 @@ observed addresses through the contract, dial simultaneously) — a separate pla
 ## 4. Windows minimum-resources profile
 
 - `[profile.ci-min]`: opt-level 0 everywhere, `debug = false`, `incremental = false`.
-- `CARGO_BUILD_JOBS=1`, `rust-lld` linker, nextest `-j 1`.
+- `CARGO_BUILD_JOBS=1`, `rust-lld` linker, nextest `-j 1`. Never more than one worker on this PC.
+- The PC has 7.4 GB RAM. If the build runs out of memory, set `build_host=github`.
 - Windows runs 1 game window + 1 Freenet node; Linux hosts the other peers.
 
 ## 5. Workflow — `.github/workflows/e2e-cross.yml` (`workflow_dispatch`)
 
-Inputs: `scenarios` (default all), `bundle_run_id` (optional, skip build), `network_label`
-(`lan` | `5g`, reporting only).
+Inputs: `scenarios` (only `s1` so far), `bundle_run_id` (optional, skip builds), `network_label`
+(`lan` | `5g`, reporting only), `time_scale`, `build_host` (`self-hosted` | `github`),
+`record_video`.
 
 Jobs:
-1. `build-windows` — only when `bundle_run_id` is empty; uploads the bundle.
-2. `peers-windows` and `peers-linux` — run concurrently, share scenario id + room token.
-3. `check` — downloads every machine's results, prints the tables, fails on any FAIL.
+1. `prepare` — generates the room token and each peer's script.
+2. `build-windows` and `build-linux` — only when `bundle_run_id` is empty; upload the bundles.
+3. `peers-windows` and `peers-linux` — run concurrently, share scenario id + room token.
+4. `check` — runs `e2e_check.exe` on `windows-e2e` over every machine's results, prints the
+   tables, fails on any FAIL.
 
 ## 6. Order of work
 
@@ -88,14 +95,18 @@ Jobs:
 - [x] 5. S1–S7 green on Linux alone.
    - 2026-10-29 live: 8/9 green — S1 219s, S2 142s, S3 86s, S4a 199s, S4b 236s, S4c 48s, S6 163s, S7 332s; S5 FAILS: canvases diverge when both peers paint right after a join (anti-entropy did not repair). Headless repro: examples/starboard/app/starboard_plugin.rs two_apps_painting_the_same_cells_right_after_joining_converge. Root cause: concurrent dialing of a peer's addresses created short-lived duplicate connections; gossipsub's one-time subscription exchange rode a closed one, so the joiner never learned the creator's room topics (312x NoPeersSubscribedToTopic live). Fix: DIAL_CONCURRENCY_FACTOR = 1 in dial_peer.
    - 2026-11-06 live: 9/9 green on mainnet — S1 45s, S2 129s, S3 144s, S4a 273s, S4b 140s, S4c 52s, S5 152s, S6 55s, S7 266s. S6 needed a test fix: the crashing peer now waits for all members, so it cannot crash before the last peer joins.
-6. `ci-min` profile + Windows build-and-bundle job.
-7. Register `linux-e2e` runner; two-machine workflow green on `lan`.
+6. `ci-min` profile + Windows build-and-bundle job (written 2026-11-07, not yet run).
+7. Two-machine workflow green on `lan`: S1 first, then port S2–S7 to `scripts/e2e_cross_scenario.sh`.
 8. Windows to 5G; re-run with `bundle_run_id`, `network_label=5g`.
 9. Read layer 1 / layer 2 results; decide on Freenet-coordinated hole punching.
 
 ## 7. Open
 
 - ~~X3: sidecar `freenet.exe` (recommended) vs in-process node.~~
+- S2, S3, S4 start a peer after another peer's step (`PeerStart::AfterStepDone`), which needs a
+  local orchestrator. Across machines this has to become script waits on room state.
+- `ci-min` runs every dependency at opt-level 0, while local runs use 1. Check the game still
+  keeps up on the Windows PC; if not, this is what to change first.
 - Does the current setup use Freenet's public gateways? The 5G test must run against the public network. Yes: `skip_load_from_network = false` loads https://freenet.org/keys/gateways.toml (freenet 0.2.132 config.rs:80).
 - Verify Freenet's current NAT-traversal behaviour (gateways, UDP hole punching, symmetric
   CGNAT) against up-to-date sources before step 8.

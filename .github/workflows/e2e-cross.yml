@@ -1,0 +1,240 @@
+# Cross-OS e2e, see tests/CROSS-OS-PLAN.md. Manual trigger only: the peers run on
+# self-hosted machines, and this repo is public.
+name: e2e-cross
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenarios:
+        description: Scenario to run
+        type: choice
+        options: [s1]
+        default: s1
+      bundle_run_id:
+        description: Reuse the bundles of this run and skip both builds
+        type: string
+        required: false
+      network_label:
+        description: Reporting only
+        type: choice
+        options: [lan, 5g]
+        default: lan
+      time_scale:
+        description: E2E_TIME_SCALE, applied to the game and to every script deadline
+        type: string
+        default: "4"
+      build_host:
+        description: Where the Windows bundle is built
+        type: choice
+        options: [self-hosted, github]
+        default: self-hosted
+      record_video:
+        description: Record both desktops. Artifacts of a public repo are public
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: e2e-cross
+
+env:
+  E2E_TIME_SCALE: ${{ inputs.time_scale }}
+  RUST_LOG: info,starboard=debug,p2p=debug,discovery=debug,freenet_libp2p_bevy_plugin=debug
+  BUNDLE_RUN_ID: ${{ inputs.bundle_run_id || github.run_id }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      token: ${{ steps.ids.outputs.token }}
+      script_w: ${{ steps.scenario.outputs.script_w }}
+      script_l1: ${{ steps.scenario.outputs.script_l1 }}
+      script_l2: ${{ steps.scenario.outputs.script_l2 }}
+      expect: ${{ steps.scenario.outputs.expect }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: ids
+        run: |
+          id="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          echo "token=lobby-e2e/cross-$id" >> "$GITHUB_OUTPUT"
+          echo "room=room-$id" >> "$GITHUB_OUTPUT"
+      - id: scenario
+        env:
+          SCENARIO: ${{ inputs.scenarios }}
+          ROOM: ${{ steps.ids.outputs.room }}
+        run: bash scripts/e2e_cross_scenario.sh "$SCENARIO" "$E2E_TIME_SCALE" "$ROOM" >> "$GITHUB_OUTPUT"
+
+  build-windows:
+    if: ${{ inputs.bundle_run_id == '' }}
+    runs-on: ${{ inputs.build_host == 'github' && 'windows-latest' || fromJSON('["self-hosted", "windows-e2e"]') }}
+    timeout-minutes: 350
+    env:
+      # The self-hosted PC is old and low on RAM: one worker, always.
+      CARGO_BUILD_JOBS: ${{ inputs.build_host == 'github' && '4' || '1' }}
+      CARGO_TARGET_DIR: C:\e2e\target
+      RUSTFLAGS: -Clinker=rust-lld
+    steps:
+      - uses: actions/checkout@v7
+      - shell: powershell
+        run: |
+          rustup toolchain install
+          cargo build --profile ci-min --features e2e --example starboard --example e2e_check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $bundle = Join-Path $env:RUNNER_TEMP bundle
+          New-Item -ItemType Directory -Force $bundle | Out-Null
+          Copy-Item C:\e2e\target\ci-min\examples\starboard.exe, C:\e2e\target\ci-min\examples\e2e_check.exe $bundle
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundle-windows
+          path: ${{ runner.temp }}/bundle
+          if-no-files-found: error
+          retention-days: 30
+
+  build-linux:
+    if: ${{ inputs.bundle_run_id == '' }}
+    runs-on: [self-hosted, linux-e2e]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          export CARGO_TARGET_DIR="$HOME/.cache/cargo-target/freenet-libp2p-bevy-plugin"
+          cargo build --features e2e --example starboard
+          mkdir -p "$RUNNER_TEMP/bundle"
+          cp "$CARGO_TARGET_DIR/debug/examples/starboard" "$RUNNER_TEMP/bundle/"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bundle-linux
+          path: ${{ runner.temp }}/bundle
+          if-no-files-found: error
+          retention-days: 30
+
+  peers-windows:
+    needs: [prepare, build-windows, build-linux]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    runs-on: [self-hosted, windows-e2e]
+    timeout-minutes: 120
+    steps:
+      # C:\e2e\bundle is the path of the firewall allow rule: never run the game elsewhere.
+      - shell: powershell
+        run: |
+          Stop-Process -Name starboard -Force -ErrorAction SilentlyContinue
+          Remove-Item C:\e2e\bundle\* -Force -ErrorAction SilentlyContinue
+      - uses: actions/download-artifact@v8
+        with:
+          name: bundle-windows
+          path: C:\e2e\bundle
+          run-id: ${{ env.BUNDLE_RUN_ID }}
+          github-token: ${{ github.token }}
+      - shell: powershell
+        env:
+          TOKEN: ${{ needs.prepare.outputs.token }}
+          SCRIPT: ${{ needs.prepare.outputs.script_w }}
+          RECORD_VIDEO: ${{ inputs.record_video }}
+        run: |
+          $results = Join-Path $env:RUNNER_TEMP results
+          $peer = Join-Path $results w
+          $node = Join-Path $env:RUNNER_TEMP node-w
+          New-Item -ItemType Directory -Force $peer | Out-Null
+          $recording = $null
+          if ($env:RECORD_VIDEO -eq 'true') {
+            $recording = Start-Process ffmpeg -PassThru -WindowStyle Hidden -ArgumentList "-nostats -loglevel error -y -f gdigrab -framerate 5 -i desktop -vf scale=960:-2 -c:v libx264 -preset ultrafast -crf 32 `"$results\video-windows.mkv`""
+          }
+          $game = Start-Process C:\e2e\bundle\starboard.exe -PassThru -Wait -RedirectStandardOutput "$peer\instance-w.log" -RedirectStandardError "$peer\instance-w.err.log" -ArgumentList "--username w --token `"$env:TOKEN`" --transport both --script `"$env:SCRIPT`" --freenet-node-dir `"$node`" --result-json `"$peer\result.json`""
+          if ($recording) { Stop-Process -Id $recording.Id -Force -ErrorAction SilentlyContinue }
+          Get-ChildItem $node -Recurse -Filter *.log -ErrorAction SilentlyContinue | Copy-Item -Destination $peer
+          exit $game.ExitCode
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: results-windows
+          path: ${{ runner.temp }}/results
+          retention-days: 7
+
+  peers-linux:
+    needs: [prepare, build-windows, build-linux]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    runs-on: [self-hosted, linux-e2e]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: bundle-linux
+          path: ${{ runner.temp }}/bundle
+          run-id: ${{ env.BUNDLE_RUN_ID }}
+          github-token: ${{ github.token }}
+      - env:
+          TOKEN: ${{ needs.prepare.outputs.token }}
+          SCRIPT_L1: ${{ needs.prepare.outputs.script_l1 }}
+          SCRIPT_L2: ${{ needs.prepare.outputs.script_l2 }}
+          RECORD_VIDEO: ${{ inputs.record_video }}
+        run: |
+          bin="$RUNNER_TEMP/bundle/starboard"
+          results="$RUNNER_TEMP/results"
+          chmod +x "$bin"
+          mkdir -p "$results"
+          VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -n1)
+          export VK_ICD_FILENAMES
+          recording=""
+          if [ "$RECORD_VIDEO" = "true" ]; then
+            size=$(xdpyinfo | awk '/dimensions:/ {print $2}')
+            ffmpeg -nostats -loglevel error -y -f x11grab -framerate 5 -video_size "$size" -i "$DISPLAY" \
+              -vf scale=960:-2 -c:v libx264 -preset ultrafast -crf 32 "$results/video-linux.mkv" &
+            recording=$!
+          fi
+          run_peer() {
+            mkdir -p "$results/$1"
+            "$bin" --username "$1" --token "$TOKEN" --transport both --script "$2" \
+              --freenet-node-dir "$RUNNER_TEMP/node-$1" --result-json "$results/$1/result.json" \
+              > "$results/$1/instance-$1.log" 2>&1
+          }
+          run_peer l1 "$SCRIPT_L1" & first=$!
+          run_peer l2 "$SCRIPT_L2" & second=$!
+          failed=0
+          wait "$first" || failed=1
+          wait "$second" || failed=1
+          if [ -n "$recording" ]; then kill "$recording" || true; fi
+          for peer in l1 l2; do
+            find "$RUNNER_TEMP/node-$peer" -name '*.log' -exec cp -t "$results/$peer" {} + || true
+          done
+          exit "$failed"
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: results-linux
+          path: ${{ runner.temp }}/results
+          retention-days: 7
+
+  check:
+    needs: [prepare, peers-windows, peers-linux]
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
+    runs-on: [self-hosted, windows-e2e]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: bundle-windows
+          path: C:\e2e\bundle
+          run-id: ${{ env.BUNDLE_RUN_ID }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: results-*
+          path: ${{ runner.temp }}/results
+          merge-multiple: true
+      - shell: powershell
+        env:
+          EXPECT: ${{ needs.prepare.outputs.expect }}
+          SCENARIO: ${{ inputs.scenarios }}
+          NETWORK_LABEL: ${{ inputs.network_label }}
+        run: |
+          $arguments = @('--results-dir', (Join-Path $env:RUNNER_TEMP results), '--peer', 'w', '--peer', 'l1', '--peer', 'l2')
+          foreach ($expectation in $env:EXPECT -split ' ') { $arguments += @('--expect', $expectation) }
+          $table = & C:\e2e\bundle\e2e_check.exe @arguments
+          $code = $LASTEXITCODE
+          $table
+          "## $env:SCENARIO on $env:NETWORK_LABEL" | Add-Content $env:GITHUB_STEP_SUMMARY
+          $table | Add-Content $env:GITHUB_STEP_SUMMARY
+          exit $code

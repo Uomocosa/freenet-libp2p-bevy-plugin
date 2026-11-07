@@ -152,3 +152,15 @@ opt-level = 0
 
 [profile.dev.package.freenet]
 opt-level = 0
+
+# CROSS-OS-PLAN §4: the Windows bundle build. The machine is old and low on RAM,
+# so nothing is optimised and no debug or incremental data is kept.
+[profile.ci-min]
+inherits = "dev"
+opt-level = 0
+debug = false
+incremental = false
+
+[profile.ci-min.package."*"]
+opt-level = 0
+debug = false
