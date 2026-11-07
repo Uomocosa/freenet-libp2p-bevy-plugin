@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use crate::testing;
 
 pub async fn run(orchestrator: &mut testing::Orchestrator) -> testing::OrchestratorReport {
@@ -37,22 +35,19 @@ pub async fn run(orchestrator: &mut testing::Orchestrator) -> testing::Orchestra
             exit: None,
         })
         .collect();
-    let started = Instant::now();
-    let cap = orchestrator.cap();
     orchestrator
         .drive_until_done(
             &mut running,
             &dir,
             &bin,
+            &room,
             &scripts,
             &token,
             &transport,
             orchestrator_port,
-            cap,
-            started,
         )
         .await;
-    let checks = orchestrator.build_checks(&running);
+    let checks = orchestrator.build_checks(&running, &token);
     testing::Orchestrator::finalize_run(&game, &room, &transport, dir, &mut running, checks)
 }
 

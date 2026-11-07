@@ -5,6 +5,7 @@ use clap::ValueEnum;
 pub enum Network {
     Mainnet,
     LocalGateways,
+    DirectDial,
     Fake,
 }
 
@@ -24,6 +25,10 @@ mod tests {
         assert_eq!(
             Network::from_str("mainnet", false).expect("mainnet"),
             Network::Mainnet
+        );
+        assert_eq!(
+            Network::from_str("direct-dial", false).expect("direct-dial"),
+            Network::DirectDial
         );
         assert_eq!(
             Network::from_str("fake", false).expect("fake"),

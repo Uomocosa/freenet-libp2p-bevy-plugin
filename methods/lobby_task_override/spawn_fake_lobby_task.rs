@@ -8,7 +8,12 @@ pub fn spawn_fake_lobby_task(
     channels: discovery::LobbyTaskChannels,
     game: identity::GameId,
 ) -> tokio::task::JoinHandle<()> {
-    let port = task_override.orchestrator_port;
+    let Some(port) = task_override.orchestrator_port else {
+        return tokio::spawn(async move {
+            let _ = (channels, game);
+            std::future::pending::<()>().await;
+        });
+    };
     tokio::spawn(async move {
         let discovery::LobbyTaskChannels {
             mut heartbeat_targets,
@@ -89,7 +94,7 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let task_override = discovery::LobbyTaskOverride {
-            orchestrator_port: 1,
+            orchestrator_port: Some(1),
             peer: identity::Peer {
                 id: identity::PeerId::from("peer"),
                 addrs: Vec::new(),

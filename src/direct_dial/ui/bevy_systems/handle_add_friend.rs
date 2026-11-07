@@ -34,7 +34,7 @@ pub fn handle_add_friend(
             **error = Some(String::from("that is your own address"));
             continue;
         }
-        if !book.add_friend(peer) {
+        if !book.add_friend(peer.clone()) && !book.update_peer_addrs(&peer) {
             **error = Some(String::from("already a friend"));
             continue;
         }
@@ -153,6 +153,48 @@ mod tests {
             app.world()
                 .resource::<direct_dial::FriendAddressError>()
                 .is_some()
+        );
+    }
+
+    #[test]
+    fn fresh_addresses_for_a_known_friend_merge_without_an_error() {
+        let id = libp2p::PeerId::random();
+        let mut app = app_with(friend_text(&id).as_str(), None);
+        app.update();
+        assert_eq!(app.world().resource::<direct_dial::PeerBook>().len(), 1);
+        let second = format!("/ip4/127.0.0.1/tcp/5001/p2p/{id}");
+        {
+            let world = app.world_mut();
+            let mut inputs = world
+                .query_filtered::<&mut EditableText, With<direct_dial::ui::FriendAddressInput>>();
+            if let Ok(mut input) = inputs.single_mut(world) {
+                *input = EditableText::new(second);
+            } else {
+                panic!("friend input missing");
+            }
+        }
+        app.update();
+        let button = app
+            .world_mut()
+            .query_filtered::<Entity, With<direct_dial::ui::AddFriendButton>>()
+            .single(app.world())
+            .expect("add button");
+        app.world_mut().entity_mut(button).remove::<Pressed>();
+        app.update();
+        app.world_mut().entity_mut(button).insert(Pressed);
+        app.update();
+        let book = app.world().resource::<direct_dial::PeerBook>();
+        assert_eq!(book.len(), 1);
+        assert_eq!(
+            book[0].peer.addrs,
+            vec![identity::PeerAddr::from(format!(
+                "/ip4/127.0.0.1/tcp/5001/p2p/{id}"
+            ))]
+        );
+        assert!(
+            app.world()
+                .resource::<direct_dial::FriendAddressError>()
+                .is_none()
         );
     }
 }

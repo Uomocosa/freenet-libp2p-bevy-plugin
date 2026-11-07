@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+use crate::direct_dial;
 use crate::discovery;
 use crate::identity;
 use crate::p2p;
@@ -64,4 +65,17 @@ pub struct RunningPeer {
     pub log: PathBuf,
     pub child: Option<std::process::Child>,
     pub exit: Option<testing::PeerExit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BookKindExpectation {
+    pub owner: String,
+    pub peer: String,
+    pub kind: direct_dial::KnownPeerKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LivePeer {
+    pub name: String,
+    pub peer: identity::Peer,
 }

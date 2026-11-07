@@ -7,6 +7,7 @@ pub fn from_env() -> testing::Network {
     match trimmed.as_str() {
         "mainnet" => testing::Network::Mainnet,
         "local-gateways" | "local_gateways" | "local" => testing::Network::LocalGateways,
+        "direct-dial" | "direct_dial" | "direct" => testing::Network::DirectDial,
         _ => testing::Network::Fake,
     }
 }
@@ -21,7 +22,10 @@ mod tests {
         let network = testing::Network::from_env();
         assert!(matches!(
             network,
-            testing::Network::Fake | testing::Network::Mainnet | testing::Network::LocalGateways
+            testing::Network::Fake
+                | testing::Network::Mainnet
+                | testing::Network::LocalGateways
+                | testing::Network::DirectDial
         ));
         assert_eq!(from_env(), testing::Network::from_env());
     }

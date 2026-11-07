@@ -5,6 +5,7 @@ mod starboard;
 mod shared;
 
 mod args;
+mod friend_intent;
 mod result;
 mod scaled_timings;
 mod script;
@@ -68,6 +69,8 @@ fn run_starboard(
     )));
     app.insert_resource(shared::intent::Intent::new(None));
     app.insert_resource(testing::PendingAction::default());
+    app.insert_resource(friend_intent::FriendIntent::default());
+    app.add_systems(Update, friend_intent::drive_friend_intent);
     app.add_plugins(
         testing::FakeNetworkPlugin::<starboard::room::CursorUpdate>::from(&args.network),
     );

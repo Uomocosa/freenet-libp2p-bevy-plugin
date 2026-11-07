@@ -20,7 +20,7 @@
 
 use std::time::Duration;
 
-use freenet_libp2p_bevy_plugin::identity::RoomName;
+use freenet_libp2p_bevy_plugin::identity::{PeerId, RoomName};
 use freenet_libp2p_bevy_plugin::testing::{
     Checkpoint, E2EStep, MemberCount, OrchestratedStep, ROOM_PLACEHOLDER, ScriptStep,
     StepWithDeadline,
@@ -63,6 +63,10 @@ pub enum StarboardStep {
     WaitCanvasNonEmpty,
     WaitCanvasStable,
     WaitCellPainted(Cell),
+    AddFriend(String),
+    Dial(String),
+    WaitFriendConnected(PeerId),
+    WaitFriendDisconnected(PeerId),
 }
 
 /// Mirrors `starboard::canvas::CANVAS_SIDE`; the game rejects cells at or above
@@ -74,7 +78,8 @@ impl ScriptStep for StarboardStep {
         wait-join-succeeded, wait-join-failed, wait-left, wait-members, \
         wait-members-are-strictly-less-than, wait-members-are-less-or-equal-to, wait-room-messages, \
         wait-ring-joined, wait-lobby-ready, sleep, mark-completed, exit-app, crash-app, stay, paint-from-to, \
-        erase-from-to, wait-canvas-nonempty, wait-canvas-stable, wait-cell-painted";
+        erase-from-to, wait-canvas-nonempty, wait-canvas-stable, wait-cell-painted, add-friend, dial, \
+        wait-friend-connected, wait-friend-disconnected";
 
     fn parse_verb(verb: &str, arg: &str) -> Option<Result<Self, String>> {
         match verb {
@@ -83,6 +88,10 @@ impl ScriptStep for StarboardStep {
             "wait-canvas-nonempty" => Some(Ok(Self::WaitCanvasNonEmpty)),
             "wait-canvas-stable" => Some(Ok(Self::WaitCanvasStable)),
             "wait-cell-painted" => Some(parse_cell(arg).map(Self::WaitCellPainted)),
+            "add-friend" => Some(Ok(Self::AddFriend(arg.to_string()))),
+            "dial" => Some(Ok(Self::Dial(arg.to_string()))),
+            "wait-friend-connected" => Some(Ok(Self::WaitFriendConnected(PeerId::from(arg)))),
+            "wait-friend-disconnected" => Some(Ok(Self::WaitFriendDisconnected(PeerId::from(arg)))),
             _ => E2EStep::parse_verb(verb, arg).map(|step| step.map(Self::Shared)),
         }
     }
@@ -90,8 +99,12 @@ impl ScriptStep for StarboardStep {
     fn is_wait(&self) -> bool {
         match self {
             Self::Shared(step) => step.is_wait(),
-            Self::WaitCanvasNonEmpty | Self::WaitCanvasStable | Self::WaitCellPainted(_) => true,
-            Self::Paint(_) | Self::Erase(_) => false,
+            Self::WaitCanvasNonEmpty
+            | Self::WaitCanvasStable
+            | Self::WaitCellPainted(_)
+            | Self::WaitFriendConnected(_)
+            | Self::WaitFriendDisconnected(_) => true,
+            Self::Paint(_) | Self::Erase(_) | Self::AddFriend(_) | Self::Dial(_) => false,
         }
     }
 }
@@ -123,6 +136,10 @@ impl OrchestratedStep for StarboardStep {
             Self::WaitCanvasNonEmpty => "wait-canvas-nonempty".to_string(),
             Self::WaitCanvasStable => "wait-canvas-stable".to_string(),
             Self::WaitCellPainted(cell) => format!("wait-cell-painted:{}.{}", cell.x, cell.y),
+            Self::AddFriend(peer) => format!("add-friend:{peer}"),
+            Self::Dial(peer) => format!("dial:{peer}"),
+            Self::WaitFriendConnected(id) => format!("wait-friend-connected:{id}"),
+            Self::WaitFriendDisconnected(id) => format!("wait-friend-disconnected:{id}"),
         }
     }
 }
@@ -352,6 +369,43 @@ pub fn exit_app() -> Vec<StepWithDeadline<StarboardStep>> {
     ))]
 }
 
+/// Types one of the peer's addresses into the Friends tab and adds it: the
+/// orchestrator replaces the peer name with its live addresses at spawn, so
+/// by the time the app runs every step carries a full multiaddr.
+#[must_use]
+pub fn add_friend(peer: &str) -> Vec<StepWithDeadline<StarboardStep>> {
+    vec![StepWithDeadline::from(StarboardStep::AddFriend(
+        peer.to_string(),
+    ))]
+}
+
+/// Dials one of the peer's addresses once, without adding a friend: the
+/// orchestrator replaces the peer name with its live addresses at spawn.
+#[must_use]
+pub fn dial(peer: &str) -> Vec<StepWithDeadline<StarboardStep>> {
+    vec![StepWithDeadline::from(StarboardStep::Dial(
+        peer.to_string(),
+    ))]
+}
+
+/// Waits until the friend row for the peer shows connected: the orchestrator
+/// replaces the peer name with its stable id at spawn.
+#[must_use]
+pub fn wait_until_friend_is_connected(peer: &str) -> Vec<StepWithDeadline<StarboardStep>> {
+    vec![StepWithDeadline::from(StarboardStep::WaitFriendConnected(
+        PeerId::from(peer),
+    ))]
+}
+
+/// Waits until the friend row for the peer shows offline: the orchestrator
+/// replaces the peer name with its stable id at spawn.
+#[must_use]
+pub fn wait_until_friend_is_disconnected(peer: &str) -> Vec<StepWithDeadline<StarboardStep>> {
+    vec![StepWithDeadline::from(
+        StarboardStep::WaitFriendDisconnected(PeerId::from(peer)),
+    )]
+}
+
 #[cfg(test)]
 mod tests {
     use freenet_libp2p_bevy_plugin::testing::{
@@ -359,9 +413,9 @@ mod tests {
     };
 
     use super::{
-        Cell, StarboardStep, Stroke, create_room, erase, exit_app, join_room, mark_completed,
-        paint, wait_until_canvas_has_content, wait_until_canvas_stops_changing,
-        wait_until_room_has_members,
+        Cell, StarboardStep, Stroke, add_friend, create_room, dial, erase, exit_app, join_room,
+        mark_completed, paint, wait_until_canvas_has_content, wait_until_canvas_stops_changing,
+        wait_until_friend_is_connected, wait_until_room_has_members,
     };
 
     fn step(raw: &str) -> Result<StarboardStep, String> {
@@ -522,6 +576,33 @@ mod tests {
     fn canvas_waits_need_a_deadline() {
         assert!(step("wait-canvas-nonempty").is_err());
         assert!(step("wait-cell-painted:10.20").is_err());
+    }
+
+    #[test]
+    fn friend_steps_round_trip_through_text() {
+        assert_eq!(
+            step("add-friend:bob"),
+            Ok(StarboardStep::AddFriend("bob".to_string()))
+        );
+        assert_eq!(step("dial:bob"), Ok(StarboardStep::Dial("bob".to_string())));
+        assert_eq!(
+            step("wait-friend-connected:peer-1@30s"),
+            Ok(StarboardStep::WaitFriendConnected(
+                freenet_libp2p_bevy_plugin::identity::PeerId::from("peer-1")
+            ))
+        );
+        assert!(step("wait-friend-connected:peer-1").is_err());
+        assert!(step("add-friend:bob@30s").is_err());
+    }
+
+    #[test]
+    fn friend_builders_spell_their_steps() {
+        assert_eq!(rendered(&add_friend("bob")), "add-friend:bob");
+        assert_eq!(rendered(&dial("bob")), "dial:bob");
+        assert_eq!(
+            rendered(&wait_until_friend_is_connected("bob")),
+            "wait-friend-connected:bob"
+        );
     }
 
     #[test]

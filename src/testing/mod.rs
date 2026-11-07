@@ -13,8 +13,8 @@ pub use basic::enums::{
 pub use basic::newtypes::{MemberCount, SenderCount};
 pub use basic::resources::PendingAction;
 pub use basic::structs::{
-    E2EStepPoll, E2EStepView, FakeWireHello, ReportCheck, RoutedEvent, RunningPeer, StepClock,
-    StepTiming, StoredStep,
+    BookKindExpectation, E2EStepPoll, E2EStepView, FakeWireHello, LivePeer, ReportCheck,
+    RoutedEvent, RunningPeer, StepClock, StepTiming, StoredStep,
 };
 
 mod action;

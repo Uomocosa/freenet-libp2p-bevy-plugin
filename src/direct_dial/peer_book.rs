@@ -41,6 +41,17 @@ impl PeerBook {
         self.retain(|entry| entry.peer.id != *id);
         self.len() != before
     }
+    pub fn update_peer_addrs(&mut self, peer: &identity::Peer) -> bool {
+        if let Some(entry) = self.iter_mut().find(|entry| entry.peer.id == peer.id) {
+            let changed = entry.peer.addrs != peer.addrs;
+            if changed {
+                entry.peer.addrs.clone_from(&peer.addrs);
+            }
+            changed
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]
@@ -63,6 +74,32 @@ mod tests {
         assert!(!book.add_friend(friend_peer("alice")));
         assert!(book.remove_friend(&identity::PeerId::from("alice")));
         assert!(!book.remove_friend(&identity::PeerId::from("alice")));
+    }
+
+    #[test]
+    fn same_addresses_are_not_an_update() {
+        let mut book = PeerBook::default();
+        let peer = friend_peer("alice");
+        assert!(book.add_friend(peer.clone()));
+        assert!(!book.update_peer_addrs(&peer));
+    }
+
+    #[test]
+    fn new_addresses_replace_the_old_ones() {
+        let mut book = PeerBook::default();
+        assert!(book.add_friend(friend_peer("alice")));
+        let refreshed = identity::Peer {
+            id: identity::PeerId::from("alice"),
+            addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/5001")],
+        };
+        assert!(book.update_peer_addrs(&refreshed));
+        assert_eq!(book[0].peer.addrs, refreshed.addrs);
+    }
+
+    #[test]
+    fn updating_a_stranger_reports_no_change() {
+        let mut book = PeerBook::default();
+        assert!(!book.update_peer_addrs(&friend_peer("mallory")));
     }
 
     #[test]

@@ -15,6 +15,7 @@ pub async fn start_embedded_freenet_node(
     if matches!(
         network.network,
         freenet_libp2p_bevy_plugin::testing::Network::Fake
+            | freenet_libp2p_bevy_plugin::testing::Network::DirectDial
     ) {
         let node_dir = if let Some(path) = freenet_node_dir {
             std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;

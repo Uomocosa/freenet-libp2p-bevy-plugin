@@ -1,5 +1,7 @@
 use atomic_delegate_macros::atomic_delegates;
 
+use crate::direct_dial;
+use crate::identity;
 use crate::testing;
 
 pub struct Orchestrator {
@@ -8,6 +10,8 @@ pub struct Orchestrator {
     pub(crate) peers: Vec<testing::PeerBuilder>,
     pub should_check_canvas_convergence: bool,
     pub should_check_history_written: bool,
+    pub should_forbid_freenet_node: bool,
+    pub book_kind_expectations: Vec<testing::BookKindExpectation>,
     pub min_members_override: Option<usize>,
     pub may_crash: std::collections::BTreeSet<String>,
     pub join_must_fail: std::collections::BTreeSet<String>,
@@ -22,6 +26,8 @@ impl Orchestrator {
             peers: Vec::new(),
             should_check_canvas_convergence: false,
             should_check_history_written: false,
+            should_forbid_freenet_node: false,
+            book_kind_expectations: Vec::new(),
             min_members_override: None,
             may_crash: std::collections::BTreeSet::new(),
             join_must_fail: std::collections::BTreeSet::new(),
@@ -30,6 +36,14 @@ impl Orchestrator {
 
     pub fn peer(&mut self, name: &str) -> &mut Self {
         self.peers.push(testing::PeerBuilder::new(name.to_string()));
+        self
+    }
+
+    pub fn relaunch(&mut self, name: &str) -> &mut Self {
+        self.peers.push(testing::PeerBuilder::new(name.to_string()));
+        if let Some(last) = self.peers.last_mut() {
+            last.starts_after_exit_of = Some(name.to_string());
+        }
         self
     }
 
@@ -44,6 +58,26 @@ impl Orchestrator {
         if let Some(last) = self.peers.last_mut() {
             last.starts_after = Some(checkpoint);
         }
+        self
+    }
+
+    pub const fn expect_no_freenet_node(&mut self) -> &mut Self {
+        self.should_forbid_freenet_node = true;
+        self
+    }
+
+    pub fn expect_book_kind(
+        &mut self,
+        owner: &str,
+        peer: &str,
+        kind: direct_dial::KnownPeerKind,
+    ) -> &mut Self {
+        self.book_kind_expectations
+            .push(testing::BookKindExpectation {
+                owner: owner.to_string(),
+                peer: peer.to_string(),
+                kind,
+            });
         self
     }
 
@@ -91,6 +125,48 @@ impl Orchestrator {
     }
 
     pub async fn run(&mut self) -> testing::OrchestratorReport {}
+
+    pub(crate) fn peer_id_for_name(
+        &self,
+        token: &str,
+        name: &str,
+    ) -> Result<identity::PeerId, String> {
+    }
+
+    pub(crate) fn live_peer_addresses(
+        &self,
+        running: &[testing::RunningPeer],
+    ) -> Vec<testing::LivePeer> {
+    }
+
+    pub(crate) fn parse_ready_line(
+        line: &str,
+    ) -> Option<(identity::PeerId, Vec<identity::PeerAddr>)> {
+    }
+
+    pub(crate) fn substituted_script(
+        &self,
+        peer_index: usize,
+        room: &str,
+        token: &str,
+        live: &[testing::LivePeer],
+    ) -> Option<String> {
+    }
+
+    pub(crate) fn substitute_fragment(
+        &self,
+        fragment: &str,
+        token: &str,
+        live: &[testing::LivePeer],
+    ) -> Option<String> {
+    }
+
+    pub(crate) fn check_book_kind(
+        &self,
+        token: &str,
+        expected: &testing::BookKindExpectation,
+    ) -> testing::ReportCheck {
+    }
 }
 
 #[rustfmt::skip]
@@ -98,7 +174,7 @@ impl Orchestrator {
     pub(crate) const fn default_wait_deadline(&self) -> std::time::Duration {
         match self.network {
             testing::Network::Fake => std::time::Duration::from_secs(90),
-            testing::Network::Mainnet | testing::Network::LocalGateways => {
+            testing::Network::Mainnet | testing::Network::LocalGateways | testing::Network::DirectDial => {
                 std::time::Duration::from_secs(420)
             }
         }
@@ -109,7 +185,7 @@ impl Orchestrator {
         if let Some(scale) = from_env { return scale; }
         match self.network {
             testing::Network::Fake => 0.2,
-            testing::Network::Mainnet | testing::Network::LocalGateways => 1.0,
+            testing::Network::Mainnet | testing::Network::LocalGateways | testing::Network::DirectDial => 1.0,
         }
     }
 
@@ -132,9 +208,20 @@ impl Orchestrator {
         std::env::temp_dir().join(file)
     }
 
+    pub(crate) fn peer_book_file(&self, token: &str, peer: &str) -> std::path::PathBuf {
+        let safe_token = token.replace('/', "-");
+        let file = format!(
+            "{}-{safe_token}-pid{}-{peer}.friends.json",
+            self.game,
+            std::process::id()
+        );
+        std::env::temp_dir().join(file)
+    }
+
     pub(crate) const fn cap(&self) -> std::time::Duration {
         match self.network {
             testing::Network::Fake => std::time::Duration::from_secs(300),
+            testing::Network::DirectDial => std::time::Duration::from_mins(10),
             testing::Network::Mainnet | testing::Network::LocalGateways => {
                 std::time::Duration::from_mins(20)
             }
@@ -144,6 +231,7 @@ impl Orchestrator {
     pub(crate) fn network_arg(&self) -> String {
         match self.network {
             testing::Network::Fake => "fake".to_string(),
+            testing::Network::DirectDial => "direct-dial".to_string(),
             testing::Network::Mainnet => "mainnet".to_string(),
             testing::Network::LocalGateways => "local-gateways".to_string(),
         }
@@ -182,110 +270,36 @@ impl Orchestrator {
             }
         }
     }
+}
+
+#[atomic_delegates]
+impl Orchestrator {
+    pub(crate) fn peer_script(&self, peer_index: usize, room: &str) -> Result<String, String> {}
 
     pub(crate) async fn spawn_due_peers(
         &self,
         running: &mut [testing::RunningPeer],
         dir: &std::path::Path,
         bin: &std::path::Path,
+        room: &str,
         scripts: &[String],
         token: &str,
         transport: &str,
         orchestrator_port: Option<u16>,
     ) {
-        const SPAWN_GAP: std::time::Duration = std::time::Duration::from_millis(300);
-        const DEFAULT_RUST_LOG: &str =
-            "info,lobby_room=debug,starboard=debug,p2p=debug,discovery=debug,freenet_libp2p_bevy_plugin=debug";
-        for index in 0..self.peers.len() {
-            let already = running
-                .get(index)
-                .is_some_and(|peer| peer.child.is_some());
-            if already {
-                continue;
-            }
-            let starts_after = self
-                .peers
-                .get(index)
-                .and_then(|peer| peer.starts_after);
-            let due = starts_after.is_none_or(|checkpoint| {
-                let needle = format!(
-                    "{}{checkpoint}",
-                    testing::SCRIPT_CHECKPOINT_COMPLETED_PREFIX
-                );
-                running.iter().any(|peer| {
-                    std::fs::read_to_string(&peer.log)
-                        .unwrap_or_default()
-                        .contains(&needle)
-                })
-            });
-            if !due {
-                continue;
-            }
-            let Some(peer) = self.peers.get(index) else {
-                continue;
-            };
-            let Some(script) = scripts.get(index) else {
-                continue;
-            };
-            let log = dir.join(format!("instance-{}.log", peer.name));
-            let Ok(log_file) = std::fs::File::create(&log) else {
-                continue;
-            };
-            let Ok(err_file) = log_file.try_clone() else {
-                continue;
-            };
-            let peer_token = self.peer_token(index, token);
-            let mut args = vec![
-                "--username".to_string(),
-                peer.name.clone(),
-                "--token".to_string(),
-                peer_token,
-                "--transport".to_string(),
-                transport.to_string(),
-                "--script".to_string(),
-                script.clone(),
-                "--network".to_string(),
-                self.network_arg(),
-            ];
-            if let Some(port) = orchestrator_port {
-                args.push("--orchestrator-port".to_string());
-                args.push(port.to_string());
-            }
-            let node_dir = dir.join(format!("{}-freenet", peer.name));
-            args.push("--freenet-node-dir".to_string());
-            args.push(node_dir.display().to_string());
-            let identity_file = self.peer_identity_file(token, &peer.name);
-            args.push("--identity-file".to_string());
-            args.push(identity_file.display().to_string());
-            let result_path = dir.join(&peer.name).join("result.json");
-            args.push("--result-json".to_string());
-            args.push(result_path.display().to_string());
-            let mut rust_log =
-                std::env::var("LOBBY_RUST_LOG").unwrap_or_else(|_| DEFAULT_RUST_LOG.to_string());
-            if !rust_log.contains("room_sync") {
-                rust_log.push(',');
-                rust_log.push_str("room_sync=info");
-            }
-            let scale = self.time_scale();
-            let child = std::process::Command::new(bin)
-                .args(&args)
-                .env("RUST_LOG", rust_log)
-                .env("E2E_TIME_SCALE", scale.to_string())
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::from(log_file))
-                .stderr(std::process::Stdio::from(err_file))
-                .spawn();
-            if let Some(slot) = running.get_mut(index) {
-                slot.child = child.ok();
-            }
-            tokio::time::sleep(SPAWN_GAP).await;
-        }
     }
-}
 
-#[atomic_delegates]
-impl Orchestrator {
-    pub(crate) fn peer_script(&self, peer_index: usize, room: &str) -> Result<String, String> {}
+    pub(crate) fn prepare_peer_spawn(
+        &self,
+        index: usize,
+        room: &str,
+        scripts: &[String],
+        token: &str,
+        running: &[testing::RunningPeer],
+        live: &[testing::LivePeer],
+        dir: &std::path::Path,
+    ) -> Option<(String, std::path::PathBuf)> {
+    }
 
     pub(crate) fn scaled_sleep_secs(&self, secs: u64) -> u64 {}
 
@@ -294,6 +308,7 @@ impl Orchestrator {
     pub(crate) fn build_checks(
         &self,
         running: &[testing::RunningPeer],
+        token: &str,
     ) -> Vec<testing::ReportCheck> {
     }
 
@@ -320,12 +335,11 @@ impl Orchestrator {
         running: &mut [testing::RunningPeer],
         dir: &std::path::Path,
         bin: &std::path::Path,
+        room: &str,
         scripts: &[String],
         token: &str,
         transport: &str,
         orchestrator_port: Option<u16>,
-        cap: std::time::Duration,
-        started: std::time::Instant,
     ) {
     }
 }
@@ -345,6 +359,53 @@ mod tests {
             .expect_canvases_converge();
         assert_eq!(orchestrator.peers.len(), 1);
         assert!(orchestrator.should_check_canvas_convergence);
+    }
+
+    #[test]
+    fn relaunch_reuses_the_peer_name_with_an_exit_gate() {
+        let mut orchestrator =
+            Orchestrator::from_game_and_network("starboard".to_string(), testing::Network::Fake);
+        orchestrator.peer("bob");
+        orchestrator.relaunch("bob");
+        assert_eq!(orchestrator.peers.len(), 2);
+        assert_eq!(orchestrator.peers[1].name, "bob");
+        assert_eq!(
+            orchestrator.peers[1].starts_after_exit_of,
+            Some("bob".to_string())
+        );
+        assert!(orchestrator.peers[0].starts_after_exit_of.is_none());
+    }
+
+    #[test]
+    fn expectations_land_on_the_last_peer() {
+        use crate::direct_dial;
+
+        let mut orchestrator =
+            Orchestrator::from_game_and_network("starboard".to_string(), testing::Network::Fake);
+        orchestrator
+            .peer("alice")
+            .expect_no_freenet_node()
+            .expect_book_kind(
+                "alice",
+                "bob",
+                direct_dial::KnownPeerKind::PreviouslyConnected,
+            );
+        assert!(orchestrator.should_forbid_freenet_node);
+        assert_eq!(orchestrator.book_kind_expectations.len(), 1);
+    }
+
+    #[test]
+    fn peer_book_files_are_distinct_and_outside_results() {
+        use std::path::PathBuf;
+        let orchestrator =
+            Orchestrator::from_game_and_network("starboard".to_string(), testing::Network::Fake);
+        let results = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".local-run");
+        let alice = orchestrator.peer_book_file("lobby-e2e/123", "alice");
+        let bob = orchestrator.peer_book_file("lobby-e2e/123", "bob");
+        assert_ne!(alice, bob);
+        assert_eq!(alice.extension().and_then(|ext| ext.to_str()), Some("json"));
+        assert!(!alice.starts_with(&results));
+        assert!(!bob.starts_with(&results));
     }
 
     #[test]

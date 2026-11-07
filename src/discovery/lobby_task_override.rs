@@ -6,7 +6,7 @@ use crate::identity;
 
 #[derive(Resource, Debug, Clone)]
 pub struct LobbyTaskOverride {
-    pub orchestrator_port: u16,
+    pub orchestrator_port: Option<u16>,
     pub peer: identity::Peer,
 }
 
@@ -28,12 +28,12 @@ mod tests {
     #[test]
     fn test_usage() {
         let task_override = LobbyTaskOverride {
-            orchestrator_port: 4001,
+            orchestrator_port: Some(4001),
             peer: identity::Peer {
                 id: identity::PeerId::from("peer"),
                 addrs: Vec::new(),
             },
         };
-        assert_eq!(task_override.orchestrator_port, 4001);
+        assert_eq!(task_override.orchestrator_port, Some(4001));
     }
 }

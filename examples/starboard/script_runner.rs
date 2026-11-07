@@ -2,8 +2,9 @@ use std::time::Duration;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::{discovery, testing};
+use freenet_libp2p_bevy_plugin::{direct_dial, discovery, identity, p2p, testing};
 
+use crate::friend_intent::FriendIntent;
 use crate::script::StarboardStep;
 use crate::starboard;
 
@@ -28,6 +29,9 @@ pub struct StarboardStepParam<'w, 's> {
     draws: MessageWriter<'w, starboard::input::PendingLocalDraw>,
     effects: testing::E2EStepEffectSink<'w>,
     stable: Local<'s, Option<CanvasHashSince>>,
+    friend_intent: ResMut<'w, FriendIntent>,
+    pending_dials: ResMut<'w, p2p::PendingLibp2pCommands>,
+    connected: Res<'w, direct_dial::ConnectedPeers>,
 }
 
 impl testing::PollableScriptStep for StarboardStep {
@@ -107,7 +111,54 @@ impl testing::PollableScriptStep for StarboardStep {
                     testing::StepOutcome::Pending
                 }
             }
+            Self::AddFriend(addr) => poll_add_friend(addr, clock, param),
+            Self::Dial(addrs) => poll_dial(addrs, param),
+            Self::WaitFriendConnected(id) => {
+                if param.connected.contains(id) {
+                    testing::StepOutcome::Done
+                } else {
+                    testing::StepOutcome::Pending
+                }
+            }
+            Self::WaitFriendDisconnected(id) => {
+                if param.connected.contains(id) {
+                    testing::StepOutcome::Pending
+                } else {
+                    testing::StepOutcome::Done
+                }
+            }
         }
+    }
+}
+
+// needed helper: arms the friend intent for one address, failing fast on bad
+// addresses and when the tab never accepts the address
+fn poll_add_friend(
+    addr: &str,
+    clock: testing::StepClock,
+    param: &mut StarboardStepParam<'_, '_>,
+) -> testing::StepOutcome {
+    if param.friend_intent.is_done(addr) {
+        return testing::StepOutcome::Done;
+    }
+    if identity::Peer::try_from(addr).is_err() {
+        return testing::StepOutcome::Failed(format!("bad friend address: {addr}"));
+    }
+    if clock.elapsed >= Duration::from_secs(180) {
+        return testing::StepOutcome::Failed(format!("adding {addr} timed out"));
+    }
+    param.friend_intent.arm(addr);
+    testing::StepOutcome::Pending
+}
+
+// needed helper: pushes one one-off dial command without adding a friend
+fn poll_dial(addrs: &str, param: &mut StarboardStepParam<'_, '_>) -> testing::StepOutcome {
+    match dial_peer(addrs) {
+        Ok(peer) => {
+            param.pending_dials.push(p2p::Libp2pCommand::Dial(peer));
+            testing::StepOutcome::Done
+        }
+        Err(reason) => testing::StepOutcome::Failed(reason),
     }
 }
 
@@ -149,14 +200,33 @@ fn is_canvas_stable(
     }
 }
 
+// needed helper: parses one `dial` step into a single one-off dial command
+fn dial_peer(addrs: &str) -> Result<identity::Peer, String> {
+    let mut parsed = Vec::new();
+    for addr in addrs.split_whitespace() {
+        match identity::Peer::try_from(addr) {
+            Ok(peer) => parsed.push(peer),
+            Err(error) => return Err(format!("bad dial address {addr}: {error}")),
+        }
+    }
+    let Some(first) = parsed.first() else {
+        return Err("dial needs an address".to_string());
+    };
+    Ok(identity::Peer {
+        id: first.id.clone(),
+        addrs: parsed.iter().flat_map(|peer| peer.addrs.clone()).collect(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, testing};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
 
     use super::StarboardScriptRunner;
+    use super::dial_peer;
     use crate::script::StarboardStep;
     use crate::starboard;
 
@@ -171,6 +241,9 @@ mod tests {
         app.init_resource::<starboard::canvas::Canvas>();
         app.init_resource::<starboard::input::OwnBrush>();
         app.insert_resource(testing::PendingAction::default());
+        app.insert_resource(crate::friend_intent::FriendIntent::default());
+        app.insert_resource(freenet_libp2p_bevy_plugin::p2p::PendingLibp2pCommands::default());
+        app.insert_resource(freenet_libp2p_bevy_plugin::direct_dial::ConnectedPeers::default());
         app.add_message::<starboard::input::PendingLocalDraw>();
         app.add_message::<discovery::Command>();
         app.insert_resource(StarboardScriptRunner::new(steps));
@@ -232,6 +305,44 @@ mod tests {
         for _ in 0..20 {
             app.update();
         }
+        assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 1);
+    }
+
+    #[test]
+    fn dial_merges_every_address_into_one_peer() {
+        let id = libp2p::PeerId::random();
+        let text =
+            format!("/ip4/127.0.0.1/tcp/4001/p2p/{id} /ip4/127.0.0.1/udp/4002/quic-v1/p2p/{id}");
+        let peer = dial_peer(&text).expect("dial");
+        assert_eq!(peer.id, identity::PeerId::from(id.to_string()));
+        assert_eq!(peer.addrs.len(), 2);
+        assert!(dial_peer("not a multiaddr").is_err());
+        assert!(dial_peer("   ").is_err());
+    }
+
+    #[test]
+    fn a_dial_step_pushes_a_libp2p_dial_command() {
+        let id = libp2p::PeerId::random();
+        let raw = format!("dial:/ip4/127.0.0.1/tcp/4001/p2p/{id}");
+        let mut app = app(&[raw.as_str()]);
+        app.update();
+        assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 1);
+        let pending = app
+            .world()
+            .resource::<freenet_libp2p_bevy_plugin::p2p::PendingLibp2pCommands>();
+        assert_eq!(pending.len(), 1);
+    }
+
+    #[test]
+    fn a_friend_wait_is_done_once_the_peer_connects() {
+        let raw = "wait-friend-connected:peer-1@30s";
+        let mut app = app(&[raw]);
+        app.update();
+        assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 0);
+        app.world_mut()
+            .resource_mut::<freenet_libp2p_bevy_plugin::direct_dial::ConnectedPeers>()
+            .insert(identity::PeerId::from("peer-1"));
+        app.update();
         assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 1);
     }
 }

@@ -81,6 +81,7 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
     });
     let mut report = orchestrator.run().await;
     tiler.abort();
+    let skip_lobby_fetch = orchestrator.should_forbid_freenet_node;
     let clip = if report.logs_dir.as_os_str().is_empty() {
         None
     } else {
@@ -94,6 +95,7 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
         check_canvas,
         check_history,
         min_members,
+        skip_lobby_fetch,
         may_crash,
         join_must_fail,
     );
@@ -109,6 +111,7 @@ fn append_expectations(
     check_canvas: bool,
     check_history: bool,
     min_members: usize,
+    skip_lobby_fetch: bool,
     may_crash: BTreeSet<String>,
     join_must_fail: BTreeSet<String>,
 ) {
@@ -129,8 +132,12 @@ fn append_expectations(
         may_crash,
         join_must_fail,
     };
-    let rows = expectation.check_peer_run_results(&results);
-    for row in &rows {
+    let kept: Vec<crate::expectation_result::ExpectationResult> = expectation
+        .check_peer_run_results(&results)
+        .into_iter()
+        .filter(|row| !(skip_lobby_fetch && row.layer == CheckLayer::Freenet))
+        .collect();
+    for row in &kept {
         let layer = match row.layer {
             CheckLayer::Scenario => "scenario",
             CheckLayer::Freenet => "freenet",
@@ -142,7 +149,7 @@ fn append_expectations(
             detail: format!("expected {} | actual {}", row.expected, row.actual),
         });
     }
-    let tables = crate::expectation_result::ExpectationResult::render_markdown_tables(&rows);
+    let tables = crate::expectation_result::ExpectationResult::render_markdown_tables(&kept);
     if !tables.is_empty() {
         report.caption.push('\n');
         report.caption.push_str(&tables);

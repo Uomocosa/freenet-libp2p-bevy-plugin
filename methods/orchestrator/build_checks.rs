@@ -4,6 +4,7 @@ use crate::testing;
 pub fn build_checks(
     orchestrator: &testing::Orchestrator,
     running: &[testing::RunningPeer],
+    token: &str,
 ) -> Vec<testing::ReportCheck> {
     let mut checks: Vec<testing::ReportCheck> = Vec::new();
     for (index, slot) in running.iter().enumerate() {
@@ -20,6 +21,18 @@ pub fn build_checks(
             continue;
         }
         let text = std::fs::read_to_string(&slot.log).unwrap_or_default();
+        if orchestrator.should_forbid_freenet_node {
+            let started = text.contains("lobby freenet node started");
+            checks.push(testing::ReportCheck {
+                name: format!("{name} no freenet node"),
+                ok: !started,
+                detail: if started {
+                    "the embedded freenet node started".to_string()
+                } else {
+                    "no freenet node started".to_string()
+                },
+            });
+        }
         let failed = text.contains(testing::SCRIPT_FAILED_MARKER);
         let done = text.contains(testing::SCRIPT_DONE_MARKER);
         let last_is_stay = orchestrator
@@ -44,6 +57,9 @@ pub fn build_checks(
             ok,
             detail: format!("exit={:?} failed={failed} done={done}", slot.exit),
         });
+    }
+    for expected in &orchestrator.book_kind_expectations {
+        checks.push(orchestrator.check_book_kind(token, expected));
     }
     checks
 }

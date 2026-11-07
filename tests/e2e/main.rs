@@ -28,7 +28,10 @@ mod scenario_expectation;
 #[path = "../starboard_steps/mod.rs"]
 mod starboard_steps;
 
+mod direct_dial;
+mod friends_reconnect;
 mod harness;
+mod known_peers;
 mod starboard_bad_token;
 mod starboard_e2e;
 mod starboard_history_holder_killed;

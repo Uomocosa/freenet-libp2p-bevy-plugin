@@ -3,7 +3,7 @@ use crate::testing;
 pub fn validate(args: &testing::NetworkArgs) -> Result<(), String> {
     let network = args.network;
     match network {
-        testing::Network::Mainnet => Ok(()),
+        testing::Network::Mainnet | testing::Network::DirectDial => Ok(()),
         testing::Network::LocalGateways => {
             Err("local-gateways network is not implemented yet".to_string())
         }
@@ -26,6 +26,11 @@ mod tests {
             orchestrator_port: None,
         };
         assert_eq!(validate(&mainnet), Ok(()));
+        let direct = testing::NetworkArgs {
+            network: testing::Network::DirectDial,
+            orchestrator_port: None,
+        };
+        assert_eq!(validate(&direct), Ok(()));
         let missing = testing::NetworkArgs {
             network: testing::Network::Fake,
             orchestrator_port: None,
