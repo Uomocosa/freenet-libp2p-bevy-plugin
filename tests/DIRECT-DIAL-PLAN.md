@@ -200,3 +200,12 @@ Keep the existing no-network tests for UI review.
 ## Final report
 
 What was done, measured before and after timings for cross-OS, every new public name, anything skipped, and open questions.
+
+## Status at stop (2026-11-08)
+
+Phases 0–5 and 7 done and verified. Phase 6 code is in, but the cross-OS proof is not done:
+
+- `direct-dial` runs reach the dial, but the Linux runner's ufw has `DEFAULT_INPUT_POLICY="DROP"`, so Windows cannot dial Linux.
+- The workflow now places `direct_dial` with Linux dialing Windows; that run was cancelled at stop, so it is unproven.
+- `friends_reconnect` needs both directions: the restarted Windows peer must dial Linux. It needs a ufw rule on the Linux PC, which is the user's call.
+- Reuse bundles from run `42431816831` (`bundle_run_id`) for the next try.
