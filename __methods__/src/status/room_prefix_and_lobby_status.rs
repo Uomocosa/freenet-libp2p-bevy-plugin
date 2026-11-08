@@ -37,13 +37,30 @@ pub fn room_prefix_and_lobby_status(
         |status| {
             let self_peer_id = status.self_peer_id.as_ref();
             let Some(record) = status.lobby.get(room_name) else {
-                let is_the_contract_still_publishing_the_room =
-                    status.room.as_ref().is_some_and(|joined| {
-                        joined.name == *room_name
-                            && matches!(joined.phase, discovery::JoinPhase::Joining { .. })
-                    });
+                let joined = status
+                    .room
+                    .as_ref()
+                    .filter(|joined| &joined.name == room_name);
+                let Some(joined) = joined else {
+                    return room_sync::state_machine::RoomLiveness {
+                        is_room_still_listed: false,
+                        has_other_history_holders: false,
+                    };
+                };
+                if joined.how_entered == discovery::HowRoomWasEntered::Created {
+                    return room_sync::state_machine::RoomLiveness {
+                        is_room_still_listed: true,
+                        has_other_history_holders: false,
+                    };
+                }
+                if !status.is_lobby_fetched {
+                    return room_sync::state_machine::RoomLiveness {
+                        is_room_still_listed: true,
+                        has_other_history_holders: true,
+                    };
+                }
                 return room_sync::state_machine::RoomLiveness {
-                    is_room_still_listed: is_the_contract_still_publishing_the_room,
+                    is_room_still_listed: false,
                     has_other_history_holders: false,
                 };
             };
@@ -291,6 +308,31 @@ mod tests {
         };
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&status), &game, &room);
         assert!(lobby_status.is_room_still_listed);
+        assert!(!lobby_status.has_other_history_holders);
+    }
+
+    #[test]
+    fn late_joiner_with_fetched_empty_lobby_sees_the_room_as_gone() {
+        let game = identity::GameId::from("game");
+        let room = identity::RoomName::from("room");
+        let me = identity::PeerId::from("me");
+        let status = discovery::Status {
+            lobby: discovery::Lobby::default(),
+            room: Some(discovery::JoinedRoom {
+                name: room.clone(),
+                created_at: time::UnixTime::from(0),
+                phase: discovery::JoinPhase::Joining {
+                    since: time::UnixTime::from(0),
+                },
+                members: discovery::Members::new(),
+                how_entered: discovery::HowRoomWasEntered::Joined,
+            }),
+            self_peer_id: Some(me),
+            is_lobby_fetched: true,
+            ..discovery::Status::default()
+        };
+        let (_, lobby_status) = room_prefix_and_lobby_status(Some(&status), &game, &room);
+        assert!(!lobby_status.is_room_still_listed);
         assert!(!lobby_status.has_other_history_holders);
     }
 }
