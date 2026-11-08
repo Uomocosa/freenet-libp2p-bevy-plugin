@@ -123,8 +123,15 @@ impl GitHubCheckpointBoard {
         for (_, status) in indexed {
             let description = status.description.as_deref().unwrap_or("");
             if let Ok(peer) = identity::Peer::try_from(description) {
-                id = Some(peer.id.clone());
-                addrs.extend(peer.addrs);
+                let suffix = format!("/p2p/{}", peer.id);
+                if id.is_none() {
+                    id = Some(peer.id.clone());
+                }
+                for addr in peer.addrs {
+                    let text = addr.to_string();
+                    let bare = text.strip_suffix(suffix.as_str()).unwrap_or(text.as_str());
+                    addrs.push(identity::PeerAddr::from(bare));
+                }
             } else if let Some(raw) = description.strip_prefix("peer-id:")
                 && !raw.is_empty()
                 && id.is_none()
@@ -321,7 +328,8 @@ mod tests {
     #[test]
     fn peers_reassemble_from_their_contexts() {
         let prefix = "run-1";
-        let descriptions = GitHubCheckpointBoard::peer_descriptions(&peer());
+        let original = peer();
+        let descriptions = GitHubCheckpointBoard::peer_descriptions(&original);
         let statuses: Vec<BoardStatus> = descriptions
             .iter()
             .enumerate()
@@ -334,8 +342,7 @@ mod tests {
             .collect();
         let found =
             GitHubCheckpointBoard::peer_from_statuses("alice", prefix, &statuses).expect("peer");
-        assert_eq!(found.id.as_str(), peer_id());
-        assert_eq!(found.addrs.len(), 2);
+        assert_eq!(found, original);
         assert!(GitHubCheckpointBoard::peer_from_statuses("mallory", prefix, &statuses).is_none());
         let pending: Vec<BoardStatus> = statuses
             .into_iter()
@@ -374,6 +381,40 @@ mod tests {
             GitHubCheckpointBoard::peer_from_statuses("bob", prefix, &statuses).expect("peer");
         assert_eq!(found.id.as_str(), peer_id());
         assert_eq!(found.addrs.len(), 0);
+    }
+
+    #[test]
+    fn publish_then_find_returns_the_same_peer() {
+        let prefix = "run-1";
+        let original = peer();
+        let descriptions = GitHubCheckpointBoard::peer_descriptions(&original);
+        let statuses: Vec<BoardStatus> = descriptions
+            .iter()
+            .enumerate()
+            .map(|(index, description)| {
+                status(
+                    &GitHubCheckpointBoard::peer_context(prefix, "alice", index),
+                    description,
+                )
+            })
+            .collect();
+        let found =
+            GitHubCheckpointBoard::peer_from_statuses("alice", prefix, &statuses).expect("peer");
+        assert_eq!(found, original);
+    }
+
+    #[test]
+    fn descriptions_stay_within_the_limit() {
+        for description in GitHubCheckpointBoard::peer_descriptions(&peer()) {
+            assert!(description.len() <= DESCRIPTION_LIMIT, "{description}");
+        }
+        let id_only = identity::Peer {
+            id: identity::PeerId::from(peer_id()),
+            addrs: Vec::new(),
+        };
+        for description in GitHubCheckpointBoard::peer_descriptions(&id_only) {
+            assert!(description.len() <= DESCRIPTION_LIMIT, "{description}");
+        }
     }
 
     #[test]

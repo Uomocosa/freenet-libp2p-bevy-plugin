@@ -113,13 +113,28 @@ mod tests {
         assert!(board.find_peer("alice").await.expect("find").is_none());
         board.publish_peer("alice", &peer()).await.expect("publish");
         assert_eq!(
-            board
-                .find_peer("alice")
-                .await
-                .expect("find")
-                .expect("peer")
-                .id,
-            peer().id
+            board.find_peer("alice").await.expect("find").expect("peer"),
+            peer()
+        );
+    }
+
+    #[tokio::test]
+    async fn publish_then_find_returns_the_same_peer() {
+        let (_dir, board) = board();
+        let original = identity::Peer {
+            id: identity::PeerId::from("peer-1"),
+            addrs: vec![
+                identity::PeerAddr::from("/ip4/192.168.1.20/tcp/51234"),
+                identity::PeerAddr::from("/ip4/192.168.1.20/udp/51235/quic-v1"),
+            ],
+        };
+        board
+            .publish_peer("alice", &original)
+            .await
+            .expect("publish");
+        assert_eq!(
+            board.find_peer("alice").await.expect("find").expect("peer"),
+            original
         );
     }
 

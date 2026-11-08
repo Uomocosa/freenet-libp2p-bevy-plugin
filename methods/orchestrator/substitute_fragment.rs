@@ -12,11 +12,19 @@ pub fn substitute_fragment(
         if found.peer.addrs.is_empty() {
             return None;
         }
+        let suffix = format!("/p2p/{}", found.peer.id);
         let rendered = found
             .peer
             .addrs
             .iter()
-            .map(|addr| format!("add-friend:{addr}/p2p/{}", found.peer.id))
+            .map(|addr| {
+                let text = addr.to_string();
+                if text.ends_with(suffix.as_str()) {
+                    format!("add-friend:{text}")
+                } else {
+                    format!("add-friend:{text}{suffix}")
+                }
+            })
             .collect::<Vec<String>>()
             .join(", ");
         return Some(rendered);
@@ -26,11 +34,19 @@ pub fn substitute_fragment(
         if found.peer.addrs.is_empty() {
             return None;
         }
+        let suffix = format!("/p2p/{}", found.peer.id);
         let rendered = found
             .peer
             .addrs
             .iter()
-            .map(|addr| format!("{addr}/p2p/{}", found.peer.id))
+            .map(|addr| {
+                let text = addr.to_string();
+                if text.ends_with(suffix.as_str()) {
+                    text
+                } else {
+                    format!("{text}{suffix}")
+                }
+            })
             .collect::<Vec<String>>()
             .join(" ");
         return Some(format!("dial:{rendered}"));
@@ -98,6 +114,78 @@ mod tests {
             substitute_fragment(&orchestrator(), "stay", "token", &live()),
             Some("stay".to_string())
         );
+    }
+
+    #[test]
+    fn dial_renders_each_suffix_once_and_parses() {
+        let id = libp2p::PeerId::random().to_string();
+        let live = vec![testing::LivePeer {
+            name: "bob".to_string(),
+            peer: identity::Peer {
+                id: identity::PeerId::from(id.clone()),
+                addrs: vec![
+                    identity::PeerAddr::from("/ip4/127.0.0.1/tcp/5001"),
+                    identity::PeerAddr::from("/ip4/127.0.0.1/udp/5002/quic-v1"),
+                ],
+            },
+        }];
+        let rendered =
+            substitute_fragment(&orchestrator(), "dial:bob", "token", &live).expect("known peer");
+        let suffix = format!("/p2p/{id}");
+        let addrs = rendered
+            .strip_prefix("dial:")
+            .expect("dial prefix")
+            .split_whitespace()
+            .collect::<Vec<&str>>();
+        assert_eq!(addrs.len(), 2);
+        for addr in &addrs {
+            assert!(addr.ends_with(suffix.as_str()), "missing suffix: {addr}");
+            assert_eq!(addr.matches("/p2p/").count(), 1, "doubled suffix: {addr}");
+            identity::Peer::try_from(*addr).expect("parses");
+        }
+    }
+
+    #[test]
+    fn suffixed_board_addrs_do_not_double_the_suffix() {
+        let id = libp2p::PeerId::random().to_string();
+        let bare = vec![testing::LivePeer {
+            name: "bob".to_string(),
+            peer: identity::Peer {
+                id: identity::PeerId::from(id.clone()),
+                addrs: vec![
+                    identity::PeerAddr::from("/ip4/127.0.0.1/tcp/5001"),
+                    identity::PeerAddr::from("/ip4/127.0.0.1/udp/5002/quic-v1"),
+                ],
+            },
+        }];
+        let suffixed = vec![testing::LivePeer {
+            name: "bob".to_string(),
+            peer: identity::Peer {
+                id: identity::PeerId::from(id.clone()),
+                addrs: vec![
+                    identity::PeerAddr::from(format!("/ip4/127.0.0.1/tcp/5001/p2p/{id}")),
+                    identity::PeerAddr::from(format!("/ip4/127.0.0.1/udp/5002/quic-v1/p2p/{id}")),
+                ],
+            },
+        }];
+        let from_bare =
+            substitute_fragment(&orchestrator(), "dial:bob", "token", &bare).expect("bare");
+        let from_suffixed =
+            substitute_fragment(&orchestrator(), "dial:bob", "token", &suffixed).expect("suffixed");
+        assert_eq!(from_bare, from_suffixed);
+        assert!(!from_suffixed.contains(&format!("/p2p/{id}/p2p/")));
+        let from_bare_friend =
+            substitute_fragment(&orchestrator(), "add-friend:bob", "token", &bare)
+                .expect("bare friend");
+        let from_suffixed_friend =
+            substitute_fragment(&orchestrator(), "add-friend:bob", "token", &suffixed)
+                .expect("suffixed friend");
+        assert_eq!(from_bare_friend, from_suffixed_friend);
+        for fragment in from_suffixed_friend.split(", ") {
+            let addr = fragment.strip_prefix("add-friend:").expect("friend prefix");
+            assert_eq!(addr.matches("/p2p/").count(), 1, "{addr}");
+            identity::Peer::try_from(addr).expect("parses");
+        }
     }
 
     #[test]
