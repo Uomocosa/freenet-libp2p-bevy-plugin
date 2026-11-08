@@ -6,6 +6,7 @@ use crate::discovery;
 use crate::identity;
 use crate::p2p;
 use crate::testing;
+use crate::time;
 
 pub struct PeerMessageRouter {
     pub(crate) game: identity::GameId,
@@ -55,7 +56,7 @@ impl PeerMessageRouter {
         &mut self,
         peer: &identity::PeerId,
         targets: &[discovery::state_machine::HeartbeatTarget],
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> discovery::Lobby {
     }
     pub fn route_joined_room_bytes(
@@ -275,7 +276,6 @@ impl PeerMessageRouter {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;

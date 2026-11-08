@@ -9,17 +9,16 @@ pub fn handle_friend_removed(
     state.dial_in_flight.remove(id);
     Vec::new()
 }
-
 #[cfg(test)]
 mod tests {
     use super::handle_friend_removed;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     #[test]
     fn test_usage() {
-        let now = discovery::UnixTime::from(5);
+        let now = time::UnixTime::from(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let peer = identity::Peer {
             id: identity::PeerId::from("alice"),

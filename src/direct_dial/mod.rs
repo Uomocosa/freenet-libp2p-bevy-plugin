@@ -18,8 +18,8 @@ pub use peer_book::PeerBook;
 mod peer_book_error;
 pub use peer_book_error::PeerBookError;
 
-mod plugin;
-pub use plugin::Plugin;
+mod friends_plugin;
+pub use friends_plugin::FriendsPlugin;
 
 #[cfg(feature = "default_ui")]
 pub mod ui;

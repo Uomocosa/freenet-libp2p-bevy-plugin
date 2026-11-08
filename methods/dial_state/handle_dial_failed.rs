@@ -1,11 +1,11 @@
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
+use crate::time;
 
 pub fn handle_dial_failed(
     state: &mut direct_dial::state_machine::DialState,
     peer: &identity::Peer,
-    now: discovery::UnixTime,
+    now: time::UnixTime,
 ) -> Vec<direct_dial::state_machine::Output> {
     state.dial_in_flight.remove(&peer.id);
     if state.connected.contains(&peer.id) {
@@ -39,23 +39,22 @@ pub fn handle_dial_failed(
         && let Some(next) = now
             .as_secs()
             .checked_add(wait.as_secs())
-            .map(discovery::UnixTime::from)
+            .map(time::UnixTime::from)
     {
         entry.next_attempt_at = next;
     }
     Vec::new()
 }
-
 #[cfg(test)]
 mod tests {
     use super::handle_dial_failed;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     #[test]
     fn test_usage() {
-        let now = discovery::UnixTime::from(5);
+        let now = time::UnixTime::from(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let peer = identity::Peer {
             id: identity::PeerId::from("alice"),

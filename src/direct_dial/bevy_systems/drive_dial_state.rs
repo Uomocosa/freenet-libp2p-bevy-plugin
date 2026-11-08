@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
 use crate::p2p;
+use crate::time;
 use direct_dial::state_machine::{DialState, Input};
 
 pub fn drive_dial_state(
@@ -26,7 +26,7 @@ pub fn drive_dial_state(
     let Some(pending) = pending.as_deref_mut() else {
         return;
     };
-    let now = discovery::UnixTime::now();
+    let now = time::UnixTime::now();
     let mut inputs: Vec<Input> = Vec::new();
     while let Ok(event) = tap_rx.try_recv() {
         match event {
@@ -97,16 +97,15 @@ pub fn drive_dial_state(
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
 
     use super::drive_dial_state;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::time;
 
     fn peer_with(name: &str, addr: &str) -> identity::Peer {
         identity::Peer {
@@ -123,7 +122,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(channel);
-        let now = discovery::UnixTime::now();
+        let now = time::UnixTime::now();
         app.insert_resource(book.clone());
         app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
             book, now,

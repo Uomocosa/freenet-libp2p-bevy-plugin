@@ -145,7 +145,7 @@ Goal: rooms carry the unix time they were created; it is immutable once set.
   `room(peer, updated_at, created_at)` and a new
   `merge_keeps_min_created_at_both_orders` test.
 - `src/discovery/__basic__/structs.rs` — `Room` and `JoinedRoom` each gain
-  `created_at: discovery::UnixTime` (same position: after `room_size` / after `name`).
+  `created_at: time::UnixTime` (same position: after `room_size` / after `name`).
 - `src/discovery/freenet/merge_room.rs` — plugin-side `min` (mirrors the contract);
   usage test now asserts `merged.created_at == min(200, 100)`.
 - `src/discovery/state_machine/handle_command.rs` — `join()` derives

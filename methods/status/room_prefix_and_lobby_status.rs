@@ -2,6 +2,7 @@ use crate::discovery;
 use crate::identity;
 use crate::p2p;
 use crate::room_sync;
+use crate::time;
 
 #[must_use]
 pub fn room_prefix_and_lobby_status(
@@ -26,7 +27,7 @@ pub fn room_prefix_and_lobby_status(
                         .map(|joined| joined.created_at)
                 })
         })
-        .unwrap_or_else(|| discovery::UnixTime::from(0));
+        .unwrap_or_else(|| time::UnixTime::from(0));
     let prefix = p2p::HistoryKeyPrefix::new(game, room_name, created_at);
     let lobby_status = status.map_or(
         room_sync::state_machine::LobbyRoomStatus {
@@ -86,13 +87,13 @@ pub fn room_prefix_and_lobby_status(
     );
     (prefix, lobby_status)
 }
-
 #[cfg(test)]
 mod tests {
     use super::room_prefix_and_lobby_status;
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::time;
 
     #[test]
     fn test_usage() {
@@ -101,7 +102,7 @@ mod tests {
         let (prefix, lobby_status) = room_prefix_and_lobby_status(None, &game, &room);
         assert_eq!(
             prefix,
-            p2p::HistoryKeyPrefix::new(&game, &room, discovery::UnixTime::from(0))
+            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(0))
         );
         assert!(lobby_status.is_room_alive_in_lobby);
         assert!(!lobby_status.has_other_lobby_holders);
@@ -124,7 +125,7 @@ mod tests {
             room.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::from([(
                     holder.clone(),
                     discovery::RoomMember {
@@ -132,7 +133,7 @@ mod tests {
                             id: holder,
                             addrs: Vec::new(),
                         },
-                        updated_at: discovery::UnixTime::from(0),
+                        updated_at: time::UnixTime::from(0),
                         display_name: None,
                         membership: discovery::RoomMembership::Departed,
                     },
@@ -157,7 +158,7 @@ mod tests {
         let room = identity::RoomName::from("room");
         let holder = identity::PeerId::from("holder");
         let me = identity::PeerId::from("me");
-        let seen_at = discovery::UnixTime::from(10);
+        let seen_at = time::UnixTime::from(10);
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
@@ -196,13 +197,13 @@ mod tests {
         let room = identity::RoomName::from("room");
         let me = identity::PeerId::from("me");
         let gone = identity::PeerId::from("gone");
-        let seen_at = discovery::UnixTime::from(10);
+        let seen_at = time::UnixTime::from(10);
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::from([
                     (
                         me.clone(),
@@ -235,7 +236,7 @@ mod tests {
             lobby,
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Joined,
@@ -255,13 +256,13 @@ mod tests {
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room");
         let me = identity::PeerId::from("me");
-        let seen_at = discovery::UnixTime::from(10);
+        let seen_at = time::UnixTime::from(10);
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::from([(
                     me.clone(),
                     discovery::RoomMember {
@@ -280,7 +281,7 @@ mod tests {
             lobby,
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,

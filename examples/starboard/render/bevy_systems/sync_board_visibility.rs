@@ -25,6 +25,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use bevy::prelude::*;
+    use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::sync_board_visibility;
@@ -34,7 +35,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
@@ -84,7 +85,7 @@ mod tests {
             identity::RoomName::from("alpha"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::new(),
             },
         );

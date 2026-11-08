@@ -1,11 +1,11 @@
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
+use crate::time;
 
 pub fn handle_peer_listen_addrs(
     state: &mut direct_dial::state_machine::DialState,
     peer: &identity::Peer,
-    now: discovery::UnixTime,
+    now: time::UnixTime,
 ) -> Vec<direct_dial::state_machine::Output> {
     if peer.addrs.is_empty() {
         return Vec::new();
@@ -38,17 +38,16 @@ pub fn handle_peer_listen_addrs(
         state.to_peer_book(),
     )]
 }
-
 #[cfg(test)]
 mod tests {
     use super::handle_peer_listen_addrs;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     #[test]
     fn test_usage() {
-        let now = discovery::UnixTime::from(5);
+        let now = time::UnixTime::from(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let _ = state.handle_peer_connected(&identity::PeerId::from("alice"), now);
         let outputs = handle_peer_listen_addrs(

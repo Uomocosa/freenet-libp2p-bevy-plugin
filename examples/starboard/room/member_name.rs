@@ -12,6 +12,7 @@ pub fn member_name(status: &discovery::Status, peer: &identity::PeerId) -> Strin
 
 #[cfg(test)]
 mod tests {
+    use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::member_name;
@@ -27,7 +28,7 @@ mod tests {
                     id: peer.clone(),
                     addrs: Vec::new(),
                 },
-                updated_at: discovery::UnixTime::from(0),
+                updated_at: time::UnixTime::from(0),
                 display_name: Some(identity::Username::from("ada")),
                 membership: discovery::RoomMembership::Occupant,
             },
@@ -35,7 +36,7 @@ mod tests {
         let status = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,

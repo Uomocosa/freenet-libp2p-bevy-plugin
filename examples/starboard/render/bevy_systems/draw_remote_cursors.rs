@@ -91,6 +91,7 @@ fn remote_brush_image(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::draw_remote_cursors;
@@ -106,7 +107,7 @@ mod tests {
                         id: identity::PeerId::from(*peer),
                         addrs: Vec::new(),
                     },
-                    updated_at: discovery::UnixTime::from(0),
+                    updated_at: time::UnixTime::from(0),
                     display_name: None,
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -119,8 +120,8 @@ mod tests {
         let mut brushes = starboard::room::RoomBrushes::default();
         brushes.0 = starboard::identity::room_brushes(
             members.keys(),
-            discovery::UnixTime::from(0),
-            discovery::UnixTime::from(1),
+            time::UnixTime::from(0),
+            time::UnixTime::from(1),
         );
         brushes
     }

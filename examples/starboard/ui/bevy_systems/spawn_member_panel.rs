@@ -32,6 +32,7 @@ pub fn spawn_member_panel(mut commands: Commands) {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::spawn_member_panel;
@@ -47,7 +48,7 @@ mod tests {
                         id: identity::PeerId::from(format!("peer-{index}").as_str()),
                         addrs: Vec::new(),
                     },
-                    updated_at: discovery::UnixTime::from(0),
+                    updated_at: time::UnixTime::from(0),
                     display_name: Some(identity::Username::from(format!("user{index}").as_str())),
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -56,7 +57,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from(1),
+                created_at: time::UnixTime::from(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,
@@ -74,13 +75,10 @@ mod tests {
         let created_at = status
             .room
             .as_ref()
-            .map_or(discovery::UnixTime::from(0), |room| room.created_at);
+            .map_or(time::UnixTime::from(0), |room| room.created_at);
         let mut brushes = starboard::room::RoomBrushes::default();
-        brushes.0 = starboard::identity::room_brushes(
-            members.keys(),
-            created_at,
-            discovery::UnixTime::from(2),
-        );
+        brushes.0 =
+            starboard::identity::room_brushes(members.keys(), created_at, time::UnixTime::from(2));
         brushes
     }
 

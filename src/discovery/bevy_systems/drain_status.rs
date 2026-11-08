@@ -18,7 +18,6 @@ pub fn drain_status(feed: Res<discovery::StatusReceiver>, mut current: ResMut<di
         *current = status;
     }
 }
-
 #[cfg(test)]
 mod tests {
     use crate::identity;
@@ -28,6 +27,7 @@ mod tests {
 
     use super::drain_status;
     use crate::discovery;
+    use crate::time;
 
     #[test]
     fn test_usage() {
@@ -41,7 +41,7 @@ mod tests {
             lobby: discovery::Lobby::default(),
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("r"),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,

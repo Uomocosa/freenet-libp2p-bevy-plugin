@@ -122,7 +122,6 @@ pub fn drive<Replica: room_sync::RoomState>(
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -137,6 +136,7 @@ mod tests {
     use crate::p2p;
     use crate::plugin;
     use crate::room_sync;
+    use crate::time;
 
     const SETTLE: Duration = Duration::from_millis(20);
     const MAX_ROUNDS: usize = 400;
@@ -255,7 +255,7 @@ mod tests {
 
     fn status_with_created_at(
         room: &identity::RoomName,
-        created_at: discovery::UnixTime,
+        created_at: time::UnixTime,
         connected_members: Vec<identity::PeerId>,
         lobby_members: BTreeMap<identity::PeerId, discovery::RoomMembership>,
     ) -> discovery::Status {
@@ -325,7 +325,7 @@ mod tests {
             .iter()
             .map(|peer| (peer.clone(), discovery::RoomMembership::Occupant))
             .collect();
-        status_with_created_at(room, discovery::UnixTime::now(), members, lobby_members)
+        status_with_created_at(room, time::UnixTime::now(), members, lobby_members)
     }
 
     fn join(app: &mut App, room: &identity::RoomName, members: Vec<identity::PeerId>) {
@@ -561,7 +561,7 @@ mod tests {
             .subscribe();
         connect_and_seed_kad(&mut peer_b, &a);
 
-        let gen1 = discovery::UnixTime::now();
+        let gen1 = time::UnixTime::now();
         let lobby_ab = BTreeMap::from([
             (a.id.clone(), discovery::RoomMembership::Occupant),
             (b.id.clone(), discovery::RoomMembership::Occupant),
@@ -648,7 +648,7 @@ mod tests {
         let history = Some(room_sync::HistoryConfig::default());
         let mut peer_d = node_with(&game, None, history);
         let d = wait_ready(&mut peer_d);
-        let generation = discovery::UnixTime::now();
+        let generation = time::UnixTime::now();
         let mut status = status_with_created_at(
             &room,
             generation,
@@ -690,15 +690,11 @@ mod tests {
         let history = Some(room_sync::HistoryConfig::default());
         let mut creator = node_with(&game, None, history);
         wait_ready(&mut creator);
-        let mut status = status_with_created_at(
-            &room,
-            discovery::UnixTime::from(1),
-            Vec::new(),
-            BTreeMap::new(),
-        );
+        let mut status =
+            status_with_created_at(&room, time::UnixTime::from(1), Vec::new(), BTreeMap::new());
         if let Some(joined) = status.room.as_mut() {
             joined.phase = discovery::JoinPhase::Joining {
-                since: discovery::UnixTime::from(0),
+                since: time::UnixTime::from(0),
             };
         }
         creator.insert_resource(status);
@@ -751,12 +747,12 @@ mod tests {
         });
         let mut joiner = node_with(&game, None, history);
         let joiner_peer = wait_ready(&mut joiner);
-        let seen_at = discovery::UnixTime::from(100);
+        let seen_at = time::UnixTime::from(100);
         let lobby = discovery::Lobby::from([(
             room.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::from([(
                     identity::PeerId::from("dead-holder"),
                     discovery::RoomMember {
@@ -773,7 +769,7 @@ mod tests {
         )]);
         let mut pruned = discovery::state_machine::DiscoveryState::new(joiner_peer);
         pruned.handle_lobby(lobby, seen_at);
-        pruned.tick(discovery::UnixTime::from(500));
+        pruned.tick(time::UnixTime::from(500));
         assert!(pruned.lobby.is_empty());
         joiner.insert_resource(pruned.status());
         joiner
@@ -817,13 +813,13 @@ mod tests {
         });
         let mut joiner = node_with(&game, None, history);
         let joiner_peer = wait_ready(&mut joiner);
-        let seen_at = discovery::UnixTime::from(10);
+        let seen_at = time::UnixTime::from(10);
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::from([(
                     joiner_peer.id.clone(),
                     discovery::RoomMember {
@@ -842,7 +838,7 @@ mod tests {
             lobby,
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Joined,
@@ -895,7 +891,7 @@ mod tests {
         wait_ready(&mut joiner);
         joiner.insert_resource(status_with_created_at(
             &room,
-            discovery::UnixTime::from(1),
+            time::UnixTime::from(1),
             Vec::new(),
             BTreeMap::new(),
         ));
@@ -918,7 +914,7 @@ mod tests {
         let mut mid_joiner = node_with(&game, None, history);
         wait_ready(&mut mid_joiner);
         let holder_id = identity::PeerId::from("holder");
-        let generation = discovery::UnixTime::now();
+        let generation = time::UnixTime::now();
         mid_joiner.insert_resource(status_with_created_at(
             &room,
             generation,

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::discovery;
 use crate::identity;
+use crate::time;
 
 pub fn drop_members_whose_lease_lapsed(
     lobby: &mut discovery::Lobby,
@@ -9,7 +10,7 @@ pub fn drop_members_whose_lease_lapsed(
         (identity::RoomName, identity::PeerId),
         discovery::state_machine::ObservedLobbyHeartbeat,
     >,
-    now: discovery::UnixTime,
+    now: time::UnixTime,
     limits: discovery::LobbyLeaseLimits,
 ) {
     let stale = limits
@@ -35,7 +36,6 @@ pub fn drop_members_whose_lease_lapsed(
     }
     lobby.retain(|_, record| !record.members.is_empty());
 }
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -44,9 +44,10 @@ mod tests {
     use super::drop_members_whose_lease_lapsed;
     use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     fn room_member(
-        updated_at: discovery::UnixTime,
+        updated_at: time::UnixTime,
         membership: discovery::RoomMembership,
     ) -> discovery::RoomMember {
         discovery::RoomMember {
@@ -65,7 +66,7 @@ mod tests {
             identity::RoomName::from(room),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::from([(identity::PeerId::from(peer), member)]),
             },
         )])
@@ -84,14 +85,14 @@ mod tests {
             "r",
             "p",
             room_member(
-                discovery::UnixTime::from(190),
+                time::UnixTime::from(190),
                 discovery::RoomMembership::Occupant,
             ),
         );
         drop_members_whose_lease_lapsed(
             &mut lobby,
             &BTreeMap::new(),
-            discovery::UnixTime::from(200),
+            time::UnixTime::from(200),
             limits(),
         );
         assert_eq!(lobby.len(), 1);
@@ -99,8 +100,8 @@ mod tests {
 
     #[test]
     fn holder_with_skewed_clock_dies_one_lease_after_its_last_observed_heartbeat() {
-        let remote_updated_at = discovery::UnixTime::from(1000);
-        let first_seen = discovery::UnixTime::from(700);
+        let remote_updated_at = time::UnixTime::from(1000);
+        let first_seen = time::UnixTime::from(700);
         let observed = BTreeMap::from([(
             (identity::RoomName::from("r"), identity::PeerId::from("p")),
             discovery::state_machine::ObservedLobbyHeartbeat {
@@ -112,7 +113,7 @@ mod tests {
             identity::RoomName::from("r"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::from([(
                     identity::PeerId::from("p"),
                     discovery::RoomMember {
@@ -127,26 +128,16 @@ mod tests {
                 )]),
             },
         )]);
-        drop_members_whose_lease_lapsed(
-            &mut lobby,
-            &observed,
-            discovery::UnixTime::from(789),
-            limits(),
-        );
+        drop_members_whose_lease_lapsed(&mut lobby, &observed, time::UnixTime::from(789), limits());
         assert_eq!(lobby.len(), 1);
-        drop_members_whose_lease_lapsed(
-            &mut lobby,
-            &observed,
-            discovery::UnixTime::from(791),
-            limits(),
-        );
+        drop_members_whose_lease_lapsed(&mut lobby, &observed, time::UnixTime::from(791), limits());
         assert!(lobby.is_empty());
     }
 
     #[test]
     fn holder_five_minutes_behind_that_keeps_advancing_stays_alive() {
-        let now = discovery::UnixTime::from(1000);
-        let remote_updated_at = discovery::UnixTime::from(700);
+        let now = time::UnixTime::from(1000);
+        let remote_updated_at = time::UnixTime::from(700);
         let observed = BTreeMap::from([(
             (identity::RoomName::from("r"), identity::PeerId::from("p")),
             discovery::state_machine::ObservedLobbyHeartbeat {
@@ -173,12 +164,12 @@ mod tests {
 
     #[test]
     fn first_sighting_of_a_timestamp_older_than_lease_plus_margin_is_dropped_at_once() {
-        let now = discovery::UnixTime::from(1000);
+        let now = time::UnixTime::from(1000);
         let mut lobby = lobby_with(
             "r",
             "p",
             room_member(
-                discovery::UnixTime::from(0),
+                time::UnixTime::from(0),
                 discovery::RoomMembership::HistoryHolder,
             ),
         );

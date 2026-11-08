@@ -14,18 +14,18 @@ pub fn hello_lobby(
     shared.add_sender(&peer.id, game, sender);
     shared.router_for(game).shared_lobby.clone()
 }
-
 #[cfg(test)]
 mod tests {
     use super::hello_lobby;
     use crate::discovery;
     use crate::identity;
     use crate::testing;
+    use crate::time;
 
     fn heartbeat(room: &str) -> discovery::state_machine::HeartbeatTarget {
         discovery::state_machine::HeartbeatTarget {
             room: identity::RoomName::from(room),
-            created_at: discovery::UnixTime::from(10),
+            created_at: time::UnixTime::from(10),
             addrs: vec![identity::PeerAddr::from("/ip4/1/tcp/4001")],
             display_name: identity::Username::from("someone"),
             membership: discovery::RoomMembership::Occupant,
@@ -59,7 +59,7 @@ mod tests {
         shared.router_for(&game).refresh_lobby(
             &first.id,
             &[heartbeat("room-a")],
-            discovery::UnixTime::from(20),
+            time::UnixTime::from(20),
         );
         let late = identity::Peer {
             id: identity::PeerId::from("b"),

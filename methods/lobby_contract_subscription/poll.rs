@@ -24,7 +24,6 @@ pub async fn poll(
     }
     Ok(state.lobby.clone())
 }
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -36,6 +35,7 @@ mod tests {
     };
 
     use super::poll;
+    use crate::time;
     use crate::{discovery, freenet, identity};
 
     fn contract_key() -> ContractKey {
@@ -51,7 +51,7 @@ mod tests {
             identity::RoomName::from("room-a"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::from([(
                     identity::PeerId::from("peer"),
                     discovery::RoomMember {
@@ -59,7 +59,7 @@ mod tests {
                             id: identity::PeerId::from("peer"),
                             addrs: Vec::new(),
                         },
-                        updated_at: discovery::UnixTime::from(1),
+                        updated_at: time::UnixTime::from(1),
                         display_name: None,
                         membership: discovery::RoomMembership::Occupant,
                     },

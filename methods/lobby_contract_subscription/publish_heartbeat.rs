@@ -5,6 +5,7 @@ use freenet_stdlib::prelude::{StateDelta, UpdateData};
 
 use crate::discovery;
 use crate::identity;
+use crate::time;
 
 pub fn publish_heartbeat(
     state: &mut discovery::LobbyContractSubscription,
@@ -12,7 +13,7 @@ pub fn publish_heartbeat(
     me: &identity::PeerId,
     room_member: discovery::RoomMember,
     room_size: discovery::RoomSize,
-    created_at: discovery::UnixTime,
+    created_at: time::UnixTime,
 ) -> Result<(), discovery::Error> {
     let members = BTreeMap::from([(me.clone(), room_member)]);
     let update = discovery::Lobby::from([(
@@ -30,7 +31,6 @@ pub fn publish_heartbeat(
     state.client.send(&ClientRequest::ContractOp(request))?;
     Ok(())
 }
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -38,6 +38,7 @@ mod tests {
     use freenet_stdlib::prelude::{ContractCode, ContractKey, Parameters, WrappedContract};
 
     use super::publish_heartbeat;
+    use crate::time;
     use crate::{discovery, freenet, identity};
 
     fn contract_key() -> ContractKey {
@@ -62,7 +63,7 @@ mod tests {
                 id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             },
-            updated_at: discovery::UnixTime::from(1),
+            updated_at: time::UnixTime::from(1),
             display_name: None,
             membership: discovery::RoomMembership::Occupant,
         };
@@ -73,7 +74,7 @@ mod tests {
                 &identity::PeerId::from("me"),
                 room_member,
                 discovery::RoomSize::DEFAULT,
-                discovery::UnixTime::from(0),
+                time::UnixTime::from(0),
             )
             .is_ok()
         );

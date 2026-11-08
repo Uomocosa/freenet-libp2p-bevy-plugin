@@ -19,7 +19,6 @@ impl DefaultUiPlugin {
     pub fn build_plugin(&self, app: &mut App) {}
     pub fn finish_plugin(&self, app: &mut App) {}
 }
-
 #[cfg(test)]
 mod tests {
     use crate::identity;
@@ -27,6 +26,7 @@ mod tests {
     use bevy::prelude::*;
 
     use crate::discovery;
+    use crate::time;
 
     fn preview_build(app: &mut App) {
         app.add_message::<discovery::Command>();
@@ -55,7 +55,7 @@ mod tests {
                 discovery::LobbyRoom {
                     room_size: discovery::RoomSize::try_from(room_size)
                         .expect("fixture room size is non-zero"),
-                    created_at: discovery::UnixTime::from(0),
+                    created_at: time::UnixTime::from(0),
                     members: std::collections::BTreeMap::new(),
                 },
             );

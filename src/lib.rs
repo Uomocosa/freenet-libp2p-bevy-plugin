@@ -13,3 +13,4 @@ pub mod plugin;
 pub mod room_sync;
 #[cfg(feature = "testing")]
 pub mod testing;
+pub mod time;

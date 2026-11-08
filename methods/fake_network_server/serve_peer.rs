@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use tokio::io::AsyncReadExt;
 
-use crate::discovery;
 use crate::testing;
+use crate::time;
 
 pub async fn serve_peer(
     task: testing::FakeNetworkServer,
@@ -60,7 +60,7 @@ pub async fn serve_peer(
         };
         let (events, lobby) = {
             let mut guard = shared.lock().await;
-            guard.handle_client_frame(&peer_id, frame, discovery::UnixTime::now())
+            guard.handle_client_frame(&peer_id, frame, time::UnixTime::now())
         };
         task.send_routed_events(&shared, events).await;
         if let Some(lobby) = lobby {
@@ -74,7 +74,6 @@ pub async fn serve_peer(
     };
     task.send_routed_events(&shared, leftovers).await;
 }
-
 #[cfg(test)]
 mod tests {
     use crate::testing;

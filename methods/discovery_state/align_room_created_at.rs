@@ -13,7 +13,6 @@ pub fn align_room_created_at(state: &mut DiscoveryState) {
         room.created_at = lobby_created_at;
     }
 }
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -21,6 +20,7 @@ mod tests {
     use super::align_room_created_at;
     use crate::discovery;
     use crate::identity;
+    use crate::time;
     use discovery::state_machine::DiscoveryState;
 
     #[test]
@@ -32,9 +32,9 @@ mod tests {
         let room = identity::RoomName::from("r");
         state.room = Some(discovery::JoinedRoom {
             name: room.clone(),
-            created_at: discovery::UnixTime::from(500),
+            created_at: time::UnixTime::from(500),
             phase: discovery::JoinPhase::Joining {
-                since: discovery::UnixTime::from(0),
+                since: time::UnixTime::from(0),
             },
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -43,14 +43,14 @@ mod tests {
             room,
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(100),
+                created_at: time::UnixTime::from(100),
                 members: BTreeMap::new(),
             },
         );
         align_room_created_at(&mut state);
         assert_eq!(
             state.room.as_ref().map(|room| room.created_at),
-            Some(discovery::UnixTime::from(100))
+            Some(time::UnixTime::from(100))
         );
     }
 
@@ -62,9 +62,9 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from(500),
+            created_at: time::UnixTime::from(500),
             phase: discovery::JoinPhase::Joining {
-                since: discovery::UnixTime::from(0),
+                since: time::UnixTime::from(0),
             },
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -72,7 +72,7 @@ mod tests {
         align_room_created_at(&mut state);
         assert_eq!(
             state.room.as_ref().map(|room| room.created_at),
-            Some(discovery::UnixTime::from(500))
+            Some(time::UnixTime::from(500))
         );
     }
 }

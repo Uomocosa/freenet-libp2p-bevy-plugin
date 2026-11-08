@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::discovery;
 use crate::identity;
+use crate::time;
 
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, Deref, DerefMut, From,
@@ -24,7 +25,7 @@ impl Lobby {
             (identity::RoomName, identity::PeerId),
             discovery::state_machine::ObservedLobbyHeartbeat,
         >,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
         limits: discovery::LobbyLeaseLimits,
     ) {
     }
@@ -52,13 +53,13 @@ impl Lobby {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 
     use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     #[test]
     fn test_usage() {
@@ -67,7 +68,7 @@ mod tests {
                 id: identity::PeerId::from("peer"),
                 addrs: Vec::new(),
             },
-            updated_at: discovery::UnixTime::from(1),
+            updated_at: time::UnixTime::from(1),
             display_name: None,
             membership: discovery::RoomMembership::Occupant,
         };
@@ -75,7 +76,7 @@ mod tests {
             identity::RoomName::from("room-a"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members: BTreeMap::from([(identity::PeerId::from("peer"), room_member)]),
             },
         )]);
@@ -85,7 +86,7 @@ mod tests {
         let lease = discovery::HolderHeartbeatIntervals::default();
         lobby.drop_members_whose_lease_lapsed(
             &BTreeMap::new(),
-            discovery::UnixTime::from(1000),
+            time::UnixTime::from(1000),
             discovery::LobbyLeaseLimits {
                 lease_ttl: lease.ttl,
                 remote_clock_skew_margin: lease.remote_clock_skew_margin,

@@ -1,11 +1,11 @@
 use bevy::prelude::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::discovery;
+use crate::time;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
 pub enum JoinPhase {
-    Joining { since: discovery::UnixTime },
+    Joining { since: time::UnixTime },
     Ready,
 }
 

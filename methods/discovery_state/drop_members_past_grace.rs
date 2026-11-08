@@ -1,10 +1,8 @@
 use crate::discovery;
+use crate::time;
 use discovery::state_machine::{DiscoveryState, Output};
 
-pub fn drop_members_past_grace(
-    state: &mut DiscoveryState,
-    now: discovery::UnixTime,
-) -> Vec<Output> {
+pub fn drop_members_past_grace(state: &mut DiscoveryState, now: time::UnixTime) -> Vec<Output> {
     let grace = discovery::state_machine::MEMBER_GRACE;
     let connected = &state.connected;
     let Some(room) = state.room.as_mut() else {
@@ -28,12 +26,12 @@ pub fn drop_members_past_grace(
         vec![Output::Notify(discovery::Event::RoomMembersUpdated)]
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::drop_members_past_grace;
     use crate::discovery;
     use crate::identity;
+    use crate::time;
     use discovery::state_machine::DiscoveryState;
 
     #[test]
@@ -51,7 +49,7 @@ mod tests {
                         id: identity::PeerId::from(peer),
                         addrs: Vec::new(),
                     },
-                    updated_at: discovery::UnixTime::from(0),
+                    updated_at: time::UnixTime::from(0),
                     display_name: None,
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -59,13 +57,13 @@ mod tests {
         }
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from(0),
+            created_at: time::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members,
             how_entered: discovery::HowRoomWasEntered::Created,
         });
         state.connected.insert(identity::PeerId::from("live"));
-        let _ = drop_members_past_grace(&mut state, discovery::UnixTime::from(100));
+        let _ = drop_members_past_grace(&mut state, time::UnixTime::from(100));
         let left: Vec<_> = state
             .room
             .as_ref()

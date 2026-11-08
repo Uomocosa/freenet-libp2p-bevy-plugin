@@ -61,6 +61,7 @@ mod tests {
     use bevy::prelude::*;
     use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, RoomState};
+    use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::StarboardPlugin;
@@ -71,7 +72,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,

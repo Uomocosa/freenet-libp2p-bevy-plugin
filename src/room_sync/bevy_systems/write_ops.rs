@@ -48,7 +48,6 @@ pub fn write_ops<Replica: room_sync::RoomState>(
         });
     }
 }
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -62,6 +61,7 @@ mod tests {
     use crate::p2p;
     use crate::plugin;
     use crate::room_sync;
+    use crate::time;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     struct Op {
@@ -111,7 +111,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,

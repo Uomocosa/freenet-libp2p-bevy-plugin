@@ -1,14 +1,15 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use freenet_libp2p_bevy_plugin::{discovery, identity};
+use freenet_libp2p_bevy_plugin::identity;
+use freenet_libp2p_bevy_plugin::time;
 
 use crate::starboard;
 
 #[must_use]
 pub fn room_brushes<'a>(
     members: impl IntoIterator<Item = &'a identity::PeerId>,
-    created_at: discovery::UnixTime,
-    now: discovery::UnixTime,
+    created_at: time::UnixTime,
+    now: time::UnixTime,
 ) -> BTreeMap<identity::PeerId, starboard::identity::DailyBrush> {
     let sorted_peers: BTreeSet<&identity::PeerId> = members.into_iter().collect();
     let mut taken = BTreeSet::new();
@@ -47,8 +48,8 @@ pub fn room_brushes<'a>(
 mod tests {
     use std::collections::BTreeSet;
 
-    use freenet_libp2p_bevy_plugin::discovery::UnixTime;
     use freenet_libp2p_bevy_plugin::identity::PeerId;
+    use freenet_libp2p_bevy_plugin::time::UnixTime;
 
     use super::room_brushes;
     use crate::starboard;

@@ -1,11 +1,11 @@
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
+use crate::time;
 
 pub fn handle_friend_added(
     state: &mut direct_dial::state_machine::DialState,
     peer: identity::Peer,
-    now: discovery::UnixTime,
+    now: time::UnixTime,
 ) -> Vec<direct_dial::state_machine::Output> {
     match state
         .entries
@@ -33,17 +33,16 @@ pub fn handle_friend_added(
     }
     state.dial_due(now)
 }
-
 #[cfg(test)]
 mod tests {
     use super::handle_friend_added;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     #[test]
     fn test_usage() {
-        let now = discovery::UnixTime::from(5);
+        let now = time::UnixTime::from(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let outputs = handle_friend_added(
             &mut state,

@@ -1,12 +1,13 @@
-use freenet_libp2p_bevy_plugin::{discovery, identity};
+use freenet_libp2p_bevy_plugin::identity;
+use freenet_libp2p_bevy_plugin::time;
 
 use crate::starboard;
 
 #[must_use]
 pub fn daily_brush(
     peer_id: &identity::PeerId,
-    created_at: discovery::UnixTime,
-    now: discovery::UnixTime,
+    created_at: time::UnixTime,
+    now: time::UnixTime,
 ) -> starboard::identity::DailyBrush {
     let day = starboard::identity::day_index(created_at, now);
     let mut hasher = blake3::Hasher::new();
@@ -28,8 +29,8 @@ pub fn daily_brush(
 mod tests {
     use std::collections::BTreeSet;
 
-    use freenet_libp2p_bevy_plugin::discovery::UnixTime;
     use freenet_libp2p_bevy_plugin::identity::PeerId;
+    use freenet_libp2p_bevy_plugin::time::UnixTime;
 
     use super::daily_brush;
     use crate::starboard;

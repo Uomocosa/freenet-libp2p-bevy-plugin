@@ -57,7 +57,7 @@ pub struct DialKnownPeer {
     pub peer: identity::Peer,
     pub kind: KnownPeerKind,
     pub failed_attempts: u32,
-    pub next_attempt_at: discovery::UnixTime,
+    pub next_attempt_at: time::UnixTime,
 }
 
 pub enum Input {
@@ -74,13 +74,13 @@ pub enum Output {
 }
 
 impl DialState {
-    pub fn update(&mut self, input: Input, now: discovery::UnixTime) -> Vec<Output> {}
+    pub fn update(&mut self, input: Input, now: time::UnixTime) -> Vec<Output> {}
 }
 
 // libp2p's failure event carries only the id: the thin adapter looks up the full Peer.
 
 // The app adds one plugin beside the existing ones. It only sends p2p::Libp2pCommand::Dial.
-app.add_plugins(direct_dial::Plugin::new(direct_dial::Config {
+app.add_plugins(direct_dial::FriendsPlugin::new(direct_dial::Config {
     peer_book_file: args.peer_book_file.clone(),
 }));
 
@@ -128,7 +128,7 @@ Each phase leaves `just clippy`, `just lint`, `just bevy-lint`, `just fmt` and `
 - [x] **1. Research, no code.** Read the current rust-libp2p docs on dialing known addresses, retry and backoff, storing peer addresses, and any peer-store support. Follow what libp2p suggests where it fits this shape, and record the findings in this file.
 - [x] **2. Persistent identity.** `SavedKeypair`, `.with_keypair`, `--identity-file`. `P2PPlugin` currently generates a new keypair every launch, so nothing below can work first. Each test peer gets its own identity. Keys never go into artifacts.
 - [x] **3. Friends.** `Peer` parsing, Friends tab, add and remove, saved to disk, connected or offline per row.
-- [x] **4. Known peers and dialing.** `DialState` with unit tests for backoff and dropping, the peer book, the adapter and `direct_dial::Plugin`. It must not block or replace Freenet discovery.
+- [x] **4. Known peers and dialing.** `DialState` with unit tests for backoff and dropping, the peer book, the adapter and `direct_dial::FriendsPlugin`. It must not block or replace Freenet discovery.
 - [x] **5. Tests.** Add the `direct-dial` network, per-test network pinning, and address passing through `Orchestrator` on one machine. Add the tests in the table below.
 - [ ] **6. Fast cross-OS.** Minimal version only: `CheckpointBoard`, `LocalCheckpointBoard`, `GitHubCheckpointBoard` in `tests/e2e/`, machine placement (`E2E_MACHINE`, `E2E_PLACEMENT`), `E2E_ROLE=check`, and the test program in the bundle. Try commit statuses first (`statuses: write`); descriptions are short (about 140 characters), so verify several addresses fit, and otherwise pick another GitHub mechanism. Poll about every 10 seconds, only while waiting. Routine cross-OS runs use direct dial, and the mainnet run stays as a separate proof.
 - [x] **7. Docs.** Update `tests/README.md`, `tests/CROSS-OS-PLAN.md` (L12 and "no cross-machine control channel" change: direct-dial tests may share addresses; mainnet discovery tests may not) and `tests/E2E-LAYERS-PLAN.md`.

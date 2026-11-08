@@ -24,7 +24,6 @@ pub fn spawn_joining_room(mut commands: Commands, status: Res<discovery::Status>
         children![(Text::new(label), TextColor(Color::WHITE))],
     ));
 }
-
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
@@ -32,14 +31,15 @@ mod tests {
     use super::spawn_joining_room;
     use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     fn snapshot_in(room: &str) -> discovery::Status {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Joining {
-                    since: discovery::UnixTime::from(0),
+                    since: time::UnixTime::from(0),
                 },
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,

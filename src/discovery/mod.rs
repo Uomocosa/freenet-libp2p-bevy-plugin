@@ -35,9 +35,6 @@ pub use lobby_room::LobbyRoom;
 mod room_size;
 pub use room_size::RoomSize;
 
-mod unix_time;
-pub use unix_time::UnixTime;
-
 mod status;
 pub use status::Status;
 

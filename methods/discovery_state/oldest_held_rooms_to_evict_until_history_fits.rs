@@ -52,7 +52,6 @@ pub fn oldest_held_rooms_to_evict_until_history_fits(
         )
         .collect()
 }
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -61,6 +60,7 @@ mod tests {
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::time;
     use discovery::state_machine::DiscoveryState;
 
     fn state_with_held(rooms: &[(&str, u64)]) -> DiscoveryState {
@@ -72,8 +72,8 @@ mod tests {
             state.held_rooms.insert(
                 identity::RoomName::from(*name),
                 discovery::state_machine::HeldRoomHistory {
-                    created_at: discovery::UnixTime::from(0),
-                    left_at: discovery::UnixTime::from(*left_at),
+                    created_at: time::UnixTime::from(0),
+                    left_at: time::UnixTime::from(*left_at),
                 },
             );
         }

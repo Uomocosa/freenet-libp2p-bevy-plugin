@@ -9,7 +9,6 @@ pub fn merge(lobby: &mut discovery::Lobby, incoming: discovery::Lobby) {
     lobby.drop_rooms_where_every_member_quit();
     lobby.evict_oldest_rooms_until_lobby_fits_capacity(discovery::MAX_LOBBY_ROOMS);
 }
-
 #[cfg(test)]
 mod tests {
     use crate::identity;
@@ -17,8 +16,9 @@ mod tests {
 
     use super::merge;
     use crate::discovery;
+    use crate::time;
 
-    fn record(peer: &str, updated_at: discovery::UnixTime) -> discovery::LobbyRoom {
+    fn record(peer: &str, updated_at: time::UnixTime) -> discovery::LobbyRoom {
         let mut members = BTreeMap::new();
         members.insert(
             identity::PeerId::from(peer),
@@ -34,12 +34,12 @@ mod tests {
         );
         discovery::LobbyRoom {
             room_size: discovery::RoomSize::DEFAULT,
-            created_at: discovery::UnixTime::from(0),
+            created_at: time::UnixTime::from(0),
             members,
         }
     }
 
-    fn departed_room(updated_at: discovery::UnixTime) -> discovery::LobbyRoom {
+    fn departed_room(updated_at: time::UnixTime) -> discovery::LobbyRoom {
         let mut record = record("peer", updated_at);
         for room_member in record.members.values_mut() {
             room_member.membership = discovery::RoomMembership::Departed;
@@ -50,8 +50,8 @@ mod tests {
     #[test]
     fn drops_a_room_when_every_member_is_departed_in_either_merge_order() {
         let room = identity::RoomName::from("room-a");
-        let live = record("peer", discovery::UnixTime::from(5));
-        let departed = departed_room(discovery::UnixTime::from(9));
+        let live = record("peer", time::UnixTime::from(5));
+        let departed = departed_room(time::UnixTime::from(9));
         let pairs = [(live.clone(), departed.clone()), (departed, live)];
         for (base_room, incoming_room) in pairs {
             let mut base = discovery::Lobby::from([(room.clone(), base_room)]);
@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn evicts_the_oldest_room_when_over_capacity() {
         let newest_at = |index: usize| {
-            discovery::UnixTime::from(u64::try_from(index).unwrap_or_default().saturating_add(1))
+            time::UnixTime::from(u64::try_from(index).unwrap_or_default().saturating_add(1))
         };
         let mut lobby = discovery::Lobby::from(
             (0..discovery::MAX_LOBBY_ROOMS)
@@ -92,16 +92,16 @@ mod tests {
     fn test_usage() {
         let room = identity::RoomName::from("room-a");
         let mut base = discovery::Lobby::default();
-        base.insert(room.clone(), record("peer", discovery::UnixTime::from(5)));
+        base.insert(room.clone(), record("peer", time::UnixTime::from(5)));
         let mut incoming = discovery::Lobby::default();
-        incoming.insert(room.clone(), record("peer", discovery::UnixTime::from(9)));
+        incoming.insert(room.clone(), record("peer", time::UnixTime::from(9)));
         merge(&mut base, incoming);
         let row = base
             .get(&room)
             .and_then(|record| record.members.get(&identity::PeerId::from("peer")));
         assert_eq!(
             row.map(|room_member| room_member.updated_at),
-            Some(discovery::UnixTime::from(9))
+            Some(time::UnixTime::from(9))
         );
     }
 }

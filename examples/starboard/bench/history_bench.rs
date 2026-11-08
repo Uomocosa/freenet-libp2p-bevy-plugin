@@ -2,7 +2,8 @@ use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 use freenet_libp2p_bevy_plugin::room_sync::RoomState;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, room_sync};
+use freenet_libp2p_bevy_plugin::time;
+use freenet_libp2p_bevy_plugin::{identity, p2p, room_sync};
 
 use crate::starboard;
 
@@ -90,7 +91,7 @@ pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
         &starboard::app::test_harness::dialable(&peers[0]),
     );
 
-    let prefix = p2p::HistoryKeyPrefix::new(&game, &room, discovery::UnixTime::from(1));
+    let prefix = p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(1));
     paint(&mut writer, board);
     let (snapshot_bytes, commands) = write_commands(&mut writer, &prefix);
     let (record_bytes, chunk_count) = command_sizes(&commands);

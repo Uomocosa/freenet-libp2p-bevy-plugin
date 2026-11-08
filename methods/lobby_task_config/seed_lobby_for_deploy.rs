@@ -1,5 +1,6 @@
 use crate::discovery;
 use crate::identity;
+use crate::time;
 
 #[must_use]
 pub fn seed_lobby_for_deploy(
@@ -15,7 +16,7 @@ pub fn seed_lobby_for_deploy(
             id: me.clone(),
             addrs: target.addrs.clone(),
         },
-        updated_at: discovery::UnixTime::now(),
+        updated_at: time::UnixTime::now(),
         display_name: Some(target.display_name.clone()),
         membership: target.membership,
     };
@@ -29,12 +30,12 @@ pub fn seed_lobby_for_deploy(
         },
     )])
 }
-
 #[cfg(test)]
 mod tests {
     use super::seed_lobby_for_deploy;
     use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     #[test]
     fn test_usage() {
@@ -46,7 +47,7 @@ mod tests {
             addrs: Vec::new(),
             display_name: identity::Username::from("me"),
             membership: discovery::RoomMembership::Occupant,
-            created_at: discovery::UnixTime::from(1),
+            created_at: time::UnixTime::from(1),
         };
         let seeded = seed_lobby_for_deploy(&me, discovery::RoomSize::DEFAULT, Some(&target));
         assert_eq!(seeded.len(), 1);

@@ -91,7 +91,7 @@ fn run_starboard(
         base
     };
     app.add_plugins(plugin::P2PPlugin(keyed));
-    app.add_plugins(direct_dial::Plugin::new(direct_dial::Config::from(
+    app.add_plugins(direct_dial::FriendsPlugin::new(direct_dial::Config::from(
         args.peer_book_file.clone(),
     )));
     app.add_plugins(discovery::Plugins(discovery::Config {

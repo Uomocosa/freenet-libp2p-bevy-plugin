@@ -1,9 +1,10 @@
 use crate::discovery;
 use crate::p2p;
+use crate::time;
 use discovery::state_machine::{DiscoveryState, Output};
 
 #[must_use]
-pub fn tick(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output> {
+pub fn tick(state: &mut DiscoveryState, now: time::UnixTime) -> Vec<Output> {
     let mut outputs = state.dial_candidates(now);
     let handshake_due = state
         .last_handshake_at
@@ -21,13 +22,13 @@ pub fn tick(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output>
     ));
     outputs
 }
-
 #[cfg(test)]
 mod tests {
     use super::tick;
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::time;
     use discovery::state_machine::DiscoveryState;
 
     #[test]
@@ -39,17 +40,14 @@ mod tests {
         state.connected.insert(identity::PeerId::from("a"));
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from(0),
+            created_at: time::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
         });
-        let mut outputs = tick(&mut state, discovery::UnixTime::from(100));
-        outputs.extend(tick(&mut state, discovery::UnixTime::from(101)));
-        assert_eq!(
-            state.last_handshake_at,
-            Some(discovery::UnixTime::from(100))
-        );
+        let mut outputs = tick(&mut state, time::UnixTime::from(100));
+        outputs.extend(tick(&mut state, time::UnixTime::from(101)));
+        assert_eq!(state.last_handshake_at, Some(time::UnixTime::from(100)));
         let measures = outputs
             .iter()
             .filter(|output| {

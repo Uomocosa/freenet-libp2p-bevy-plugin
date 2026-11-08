@@ -4,8 +4,8 @@ use atomic_delegate_macros::atomic_delegates;
 use bevy::prelude::Resource;
 
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
+use crate::time;
 
 #[derive(Resource, Debug, Default, Clone)]
 pub struct DialState {
@@ -16,13 +16,13 @@ pub struct DialState {
 
 #[atomic_delegates]
 impl DialState {
-    pub fn from_peer_book(book: &direct_dial::PeerBook, now: discovery::UnixTime) -> Self {}
+    pub fn from_peer_book(book: &direct_dial::PeerBook, now: time::UnixTime) -> Self {}
     pub fn to_peer_book(&self) -> direct_dial::PeerBook {}
 }
 
 #[rustfmt::skip]
 impl DialState {
-    pub fn update(&mut self, input: direct_dial::state_machine::Input, now: discovery::UnixTime) -> Vec<direct_dial::state_machine::Output> {
+    pub fn update(&mut self, input: direct_dial::state_machine::Input, now: time::UnixTime) -> Vec<direct_dial::state_machine::Output> {
         match input {
             direct_dial::state_machine::Input::Tick => self.dial_due(now),
             direct_dial::state_machine::Input::FriendAdded(peer) => self.handle_friend_added(peer, now),
@@ -39,13 +39,13 @@ impl DialState {
 impl DialState {
     pub(crate) fn dial_due(
         &mut self,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<direct_dial::state_machine::Output> {
     }
     pub(crate) fn handle_friend_added(
         &mut self,
         peer: identity::Peer,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<direct_dial::state_machine::Output> {
     }
     pub(crate) fn handle_friend_removed(
@@ -56,25 +56,25 @@ impl DialState {
     pub(crate) fn handle_peer_connected(
         &mut self,
         id: &identity::PeerId,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<direct_dial::state_machine::Output> {
     }
     pub(crate) fn handle_peer_disconnected(
         &mut self,
         id: &identity::PeerId,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<direct_dial::state_machine::Output> {
     }
     pub(crate) fn handle_dial_failed(
         &mut self,
         peer: &identity::Peer,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<direct_dial::state_machine::Output> {
     }
     pub(crate) fn handle_peer_listen_addrs(
         &mut self,
         peer: &identity::Peer,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<direct_dial::state_machine::Output> {
     }
     pub(crate) fn backoff_for(
@@ -84,13 +84,12 @@ impl DialState {
     ) -> std::time::Duration {
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::DialState;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     #[test]
     fn test_usage() {
@@ -114,7 +113,7 @@ mod tests {
     #[test]
     fn update_dispatches_friend_added() {
         let mut state = fresh_state();
-        let now = discovery::UnixTime::from(10);
+        let now = time::UnixTime::from(10);
         let outputs = state.update(
             direct_dial::state_machine::Input::FriendAdded(friend_peer("alice")),
             now,
@@ -136,7 +135,7 @@ mod tests {
     #[test]
     fn friend_never_dropped() {
         let mut state = fresh_state();
-        let mut now = discovery::UnixTime::from(10);
+        let mut now = time::UnixTime::from(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -144,7 +143,7 @@ mod tests {
         );
         for _ in 0..10 {
             state.dial_in_flight.remove(&peer.id);
-            now = discovery::UnixTime::from(now.as_secs().saturating_add(1000));
+            now = time::UnixTime::from(now.as_secs().saturating_add(1000));
             let outputs = state.update(
                 direct_dial::state_machine::Input::DialFailed(peer.clone()),
                 now,
@@ -160,7 +159,7 @@ mod tests {
     #[test]
     fn known_peer_dropped_after_limit_with_save() {
         let mut state = fresh_state();
-        let mut now = discovery::UnixTime::from(10);
+        let mut now = time::UnixTime::from(10);
         let id = identity::PeerId::from("bob");
         let _ = state.update(
             direct_dial::state_machine::Input::PeerConnected(id.clone()),
@@ -182,7 +181,7 @@ mod tests {
         let mut saved = false;
         for _ in 0..direct_dial::state_machine::KNOWN_MAX_FAILURES {
             state.dial_in_flight.remove(&id);
-            now = discovery::UnixTime::from(now.as_secs().saturating_add(1000));
+            now = time::UnixTime::from(now.as_secs().saturating_add(1000));
             let outputs = state.update(
                 direct_dial::state_machine::Input::DialFailed(peer.clone()),
                 now,
@@ -201,7 +200,7 @@ mod tests {
     #[test]
     fn no_dial_while_connected_or_in_flight() {
         let mut state = fresh_state();
-        let now = discovery::UnixTime::from(10);
+        let now = time::UnixTime::from(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -225,7 +224,7 @@ mod tests {
     #[test]
     fn disconnect_schedules_redial() {
         let mut state = fresh_state();
-        let now = discovery::UnixTime::from(10);
+        let now = time::UnixTime::from(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -235,7 +234,7 @@ mod tests {
             direct_dial::state_machine::Input::PeerConnected(peer.id.clone()),
             now,
         );
-        let later = discovery::UnixTime::from(20);
+        let later = time::UnixTime::from(20);
         let _ = state.update(
             direct_dial::state_machine::Input::PeerDisconnected(peer.id.clone()),
             later,
@@ -243,7 +242,7 @@ mod tests {
         assert!(!state.connected.contains(&peer.id));
         let outputs = state.update(
             direct_dial::state_machine::Input::Tick,
-            discovery::UnixTime::from(1000),
+            time::UnixTime::from(1000),
         );
         assert!(outputs.iter().any(|output| matches!(
             output,
@@ -254,7 +253,7 @@ mod tests {
     #[test]
     fn connect_resets_failures() {
         let mut state = fresh_state();
-        let now = discovery::UnixTime::from(10);
+        let now = time::UnixTime::from(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -288,7 +287,7 @@ mod tests {
     #[test]
     fn never_demotes_a_friend() {
         let mut state = fresh_state();
-        let now = discovery::UnixTime::from(10);
+        let now = time::UnixTime::from(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -314,7 +313,7 @@ mod tests {
     #[test]
     fn removed_friend_no_longer_dials() {
         let mut state = fresh_state();
-        let now = discovery::UnixTime::from(10);
+        let now = time::UnixTime::from(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -326,7 +325,7 @@ mod tests {
         );
         let outputs = state.update(
             direct_dial::state_machine::Input::Tick,
-            discovery::UnixTime::from(1000),
+            time::UnixTime::from(1000),
         );
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.entries, Vec::new());
@@ -336,7 +335,7 @@ mod tests {
     fn saved_book_dials_on_start() {
         let mut book = direct_dial::PeerBook::default();
         assert!(book.add_friend(friend_peer("alice")));
-        let now = discovery::UnixTime::from(10);
+        let now = time::UnixTime::from(10);
         let mut state = DialState::from_peer_book(&book, now);
         let outputs = state.update(direct_dial::state_machine::Input::Tick, now);
         assert_eq!(outputs.len(), 1);

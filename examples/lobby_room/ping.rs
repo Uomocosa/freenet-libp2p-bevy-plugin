@@ -72,6 +72,7 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
+    use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
     use super::{IsRoomPingEnabled, PingPayload, log_room_messages, publish_room_ping};
@@ -91,7 +92,7 @@ mod tests {
                     id: identity::PeerId::from("peer-b"),
                     addrs: Vec::new(),
                 },
-                updated_at: discovery::UnixTime::from(0),
+                updated_at: time::UnixTime::from(0),
                 display_name: Some(identity::Username::from("bob")),
                 membership: discovery::RoomMembership::Occupant,
             },
@@ -99,7 +100,7 @@ mod tests {
         app.insert_resource(discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,

@@ -39,7 +39,6 @@ pub fn remove_peer(
     router.shared_lobby.drop_rooms_where_every_member_quit();
     events
 }
-
 #[cfg(test)]
 mod tests {
     use super::remove_peer;
@@ -47,6 +46,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::testing;
+    use crate::time;
 
     fn registered(router: &mut testing::PeerMessageRouter, id: &str) -> identity::PeerId {
         let peer = identity::Peer {
@@ -63,7 +63,7 @@ mod tests {
     ) -> discovery::state_machine::HeartbeatTarget {
         discovery::state_machine::HeartbeatTarget {
             room: identity::RoomName::from(room),
-            created_at: discovery::UnixTime::from(10),
+            created_at: time::UnixTime::from(10),
             addrs: Vec::new(),
             display_name: identity::Username::from("someone"),
             membership,
@@ -152,7 +152,7 @@ mod tests {
         router.refresh_lobby(
             &holder,
             &[heartbeat("room-a", discovery::RoomMembership::Occupant)],
-            discovery::UnixTime::from(20),
+            time::UnixTime::from(20),
         );
         remove_peer(&mut router, &holder);
         assert!(
@@ -171,7 +171,7 @@ mod tests {
         router.refresh_lobby(
             &quitter,
             &[heartbeat("room-a", discovery::RoomMembership::Departed)],
-            discovery::UnixTime::from(20),
+            time::UnixTime::from(20),
         );
         remove_peer(&mut router, &quitter);
         assert!(

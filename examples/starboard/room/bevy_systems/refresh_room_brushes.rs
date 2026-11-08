@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use freenet_libp2p_bevy_plugin::time;
 use freenet_libp2p_bevy_plugin::{discovery, p2p};
 
 use crate::starboard;
@@ -20,7 +21,7 @@ pub fn refresh_room_brushes(
     let Some(joined) = status.as_ref().and_then(|status| status.room.as_ref()) else {
         return;
     };
-    let now = discovery::UnixTime::now();
+    let now = time::UnixTime::now();
     let next = starboard::identity::room_brushes(joined.members.keys(), joined.created_at, now);
     if next != brushes.0 {
         brushes.0 = next;
@@ -39,6 +40,7 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
+    use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
     use super::refresh_room_brushes;
@@ -54,7 +56,7 @@ mod tests {
                         id: identity::PeerId::from(peer),
                         addrs: Vec::new(),
                     },
-                    updated_at: discovery::UnixTime::from(0),
+                    updated_at: time::UnixTime::from(0),
                     display_name: None,
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -63,7 +65,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from(1),
+                created_at: time::UnixTime::from(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,

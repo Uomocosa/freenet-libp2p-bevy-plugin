@@ -1,12 +1,13 @@
 use crate::discovery;
 use crate::identity;
 use crate::testing;
+use crate::time;
 
 pub fn handle_client_frame(
     shared: &mut testing::orchestrator_shared::OrchestratorShared,
     peer: &identity::PeerId,
     frame: testing::FakeWireClientFrame,
-    now: discovery::UnixTime,
+    now: time::UnixTime,
 ) -> (Vec<testing::RoutedEvent>, Option<discovery::Lobby>) {
     let Some(game) = shared.peer_games.get(peer).cloned() else {
         return (Vec::new(), None);
@@ -31,13 +32,12 @@ pub fn handle_client_frame(
         ),
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::handle_client_frame;
-    use crate::discovery;
     use crate::identity;
     use crate::testing;
+    use crate::time;
 
     #[test]
     fn test_usage() {
@@ -53,7 +53,7 @@ mod tests {
             &mut shared,
             &peer.id,
             testing::FakeWireClientFrame::JoinedRoomBytes(Vec::new()),
-            discovery::UnixTime::from(1),
+            time::UnixTime::from(1),
         );
         assert_eq!(events, Vec::new());
         assert_eq!(lobby, None);

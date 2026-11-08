@@ -1,8 +1,8 @@
 use derive_more::{Deref, From};
 use serde::{Deserialize, Serialize};
 
-use crate::discovery;
 use crate::identity;
+use crate::time;
 
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref, From,
@@ -15,7 +15,7 @@ impl HistoryKeyPrefix {
     pub fn new(
         game: &identity::GameId,
         room: &identity::RoomName,
-        created_at: discovery::UnixTime,
+        created_at: time::UnixTime,
     ) -> Self {
         let digest = blake3::hash(
             format!(
@@ -29,19 +29,18 @@ impl HistoryKeyPrefix {
         Self::from(digest.to_hex().to_string())
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::HistoryKeyPrefix;
-    use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     #[test]
     fn test_usage() {
         let prefix = HistoryKeyPrefix::new(
             &identity::GameId::from("game"),
             &identity::RoomName::from("room"),
-            discovery::UnixTime::from(7),
+            time::UnixTime::from(7),
         );
         assert_eq!(prefix.len(), 64);
     }

@@ -4,6 +4,7 @@ use freenet_stdlib::prelude::ContractKey;
 use crate::discovery;
 use crate::freenet;
 use crate::identity;
+use crate::time;
 
 pub struct LobbyContractSubscription {
     pub client: freenet::Client,
@@ -20,7 +21,7 @@ impl LobbyContractSubscription {
         me: &identity::PeerId,
         room_member: discovery::RoomMember,
         room_size: discovery::RoomSize,
-        created_at: discovery::UnixTime,
+        created_at: time::UnixTime,
     ) -> Result<(), discovery::Error> {
     }
     pub async fn poll(&mut self) -> Result<discovery::Lobby, discovery::Error> {}

@@ -1,9 +1,9 @@
-use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::time;
 
 use crate::starboard;
 
 #[must_use]
-pub fn day_index(created_at: discovery::UnixTime, now: discovery::UnixTime) -> u64 {
+pub fn day_index(created_at: time::UnixTime, now: time::UnixTime) -> u64 {
     now.elapsed_since(created_at)
         .as_secs()
         .checked_div(starboard::identity::SECONDS_PER_DAY)
@@ -12,7 +12,7 @@ pub fn day_index(created_at: discovery::UnixTime, now: discovery::UnixTime) -> u
 
 #[cfg(test)]
 mod tests {
-    use freenet_libp2p_bevy_plugin::discovery::UnixTime;
+    use freenet_libp2p_bevy_plugin::time::UnixTime;
 
     use super::day_index;
 

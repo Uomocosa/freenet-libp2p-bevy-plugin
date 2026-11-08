@@ -1,11 +1,11 @@
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
+use crate::time;
 
 pub fn handle_peer_connected(
     state: &mut direct_dial::state_machine::DialState,
     id: &identity::PeerId,
-    now: discovery::UnixTime,
+    now: time::UnixTime,
 ) -> Vec<direct_dial::state_machine::Output> {
     state.connected.insert(id.clone());
     state.dial_in_flight.remove(id);
@@ -29,17 +29,16 @@ pub fn handle_peer_connected(
     }
     Vec::new()
 }
-
 #[cfg(test)]
 mod tests {
     use super::handle_peer_connected;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
+    use crate::time;
 
     #[test]
     fn test_usage() {
-        let now = discovery::UnixTime::from(5);
+        let now = time::UnixTime::from(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let outputs = handle_peer_connected(&mut state, &identity::PeerId::from("alice"), now);
         assert_eq!(outputs, Vec::new());

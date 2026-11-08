@@ -28,13 +28,13 @@ pub fn pick_screen(
         next.set(wanted);
     }
 }
-
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
 
     use super::pick_screen;
+    use crate::time;
     use crate::{discovery, identity};
 
     fn ready_peers() -> Vec<identity::FreenetPeer> {
@@ -73,9 +73,9 @@ mod tests {
         let joining = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Joining {
-                    since: discovery::UnixTime::from(0),
+                    since: time::UnixTime::from(0),
                 },
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
@@ -86,7 +86,7 @@ mod tests {
         let joined = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,

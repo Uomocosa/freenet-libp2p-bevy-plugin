@@ -1,12 +1,13 @@
 use crate::discovery;
 use crate::identity;
+use crate::time;
 use discovery::state_machine::{DiscoveryState, Output};
 
 pub fn join(
     state: &mut DiscoveryState,
     room: identity::RoomName,
     how_entered: discovery::HowRoomWasEntered,
-    now: discovery::UnixTime,
+    now: time::UnixTime,
 ) -> Vec<Output> {
     let mut outputs = state.leave(now);
     state.held_rooms.remove(&room);
@@ -29,12 +30,12 @@ pub fn join(
     outputs.push(Output::Notify(discovery::Event::Joined(room)));
     outputs
 }
-
 #[cfg(test)]
 mod tests {
     use super::join;
     use crate::discovery;
     use crate::identity;
+    use crate::time;
     use discovery::state_machine::DiscoveryState;
 
     #[test]
@@ -47,7 +48,7 @@ mod tests {
             &mut state,
             identity::RoomName::from("r"),
             discovery::HowRoomWasEntered::Joined,
-            discovery::UnixTime::from(1),
+            time::UnixTime::from(1),
         );
         assert!(state.room.is_some());
         assert!(outputs.iter().any(|output| matches!(

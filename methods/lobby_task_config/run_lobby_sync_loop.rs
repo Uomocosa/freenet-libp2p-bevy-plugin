@@ -6,6 +6,7 @@ use tokio::sync::watch::Receiver;
 use crate::discovery;
 use crate::freenet;
 use crate::identity;
+use crate::time;
 
 pub async fn run_lobby_sync_loop(
     state: &discovery::LobbyTaskConfig,
@@ -81,7 +82,7 @@ pub async fn run_lobby_sync_loop(
                         id: state.me.clone(),
                         addrs: current.addrs,
                     },
-                    updated_at: discovery::UnixTime::now(),
+                    updated_at: time::UnixTime::now(),
                     display_name: Some(current.display_name),
                     membership: current.membership,
                 };
@@ -105,7 +106,6 @@ pub async fn run_lobby_sync_loop(
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::run_lobby_sync_loop;

@@ -17,12 +17,12 @@ pub fn drop_member_who_left_room(
     tracing::info!(target: "discovery", peer = %peer.as_str(), "discovery member left");
     vec![Output::Notify(discovery::Event::RoomMembersUpdated)]
 }
-
 #[cfg(test)]
 mod tests {
     use super::drop_member_who_left_room;
     use crate::discovery;
     use crate::identity;
+    use crate::time;
     use discovery::state_machine::DiscoveryState;
 
     fn state_in_room() -> DiscoveryState {
@@ -32,7 +32,7 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from(0),
+            created_at: time::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -52,7 +52,7 @@ mod tests {
                     id: peer.clone(),
                     addrs: Vec::new(),
                 },
-                updated_at: discovery::UnixTime::from(1),
+                updated_at: time::UnixTime::from(1),
                 display_name: None,
                 membership: discovery::RoomMembership::Occupant,
             },

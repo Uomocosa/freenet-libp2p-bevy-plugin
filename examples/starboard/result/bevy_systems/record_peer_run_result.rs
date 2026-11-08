@@ -81,6 +81,7 @@ mod tests {
     use crate::script_runner::StarboardScriptRunner;
     use crate::starboard;
     use freenet_libp2p_bevy_plugin::testing::TimedScriptStep;
+    use freenet_libp2p_bevy_plugin::time;
 
     fn app() -> App {
         let mut app = App::new();
@@ -175,7 +176,7 @@ mod tests {
                     addrs: Vec::new(),
                 },
                 display_name: None,
-                updated_at: discovery::UnixTime::from(0),
+                updated_at: time::UnixTime::from(0),
                 membership: discovery::RoomMembership::Occupant,
             },
         );
@@ -183,7 +184,7 @@ mod tests {
             let mut status = app.world_mut().resource_mut::<discovery::Status>();
             status.room = Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("room-1"),
-                created_at: discovery::UnixTime::from(1),
+                created_at: time::UnixTime::from(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Joined,

@@ -1,6 +1,7 @@
 use crate::discovery;
 use crate::identity;
 use crate::p2p;
+use crate::time;
 use discovery::state_machine::{Handshake, HeartbeatTarget, Input, ObservedLobbyHeartbeat, Output};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -12,14 +13,14 @@ pub struct DiscoveryState {
     pub room: Option<discovery::JoinedRoom>,
     pub connected: BTreeSet<identity::PeerId>,
     pub candidates: BTreeMap<identity::PeerId, discovery::state_machine::Candidate>,
-    pub last_dialed_at: BTreeMap<identity::PeerId, discovery::UnixTime>,
-    pub last_handshake_at: Option<discovery::UnixTime>,
+    pub last_dialed_at: BTreeMap<identity::PeerId, time::UnixTime>,
+    pub last_handshake_at: Option<time::UnixTime>,
     pub freenet_peers: Vec<identity::FreenetPeer>,
     pub is_lobby_fetched: bool,
     pub display_name: identity::Username,
     pub game: identity::GameId,
     pub held_rooms: BTreeMap<identity::RoomName, discovery::state_machine::HeldRoomHistory>,
-    pub evicted_rooms: BTreeMap<identity::RoomName, discovery::UnixTime>,
+    pub evicted_rooms: BTreeMap<identity::RoomName, time::UnixTime>,
     pub history_size_limits: discovery::HistorySizeLimits,
     pub lease_limits: discovery::LobbyLeaseLimits,
     pub observed_lobby_heartbeats:
@@ -61,15 +62,11 @@ impl DiscoveryState {
     pub fn align_room_created_at(&mut self) {}
     pub fn broadcast_handshake(&self) -> Vec<Output> {}
     pub fn collect_room_peers_from_lobby(&mut self) -> Vec<Output> {}
-    pub fn dial_candidates(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
-    pub fn drop_expired_candidates(&mut self, now: discovery::UnixTime) {}
-    pub fn drop_lobby_members_whose_lease_lapsed(
-        &mut self,
-        now: discovery::UnixTime,
-    ) -> Vec<Output> {
-    }
+    pub fn dial_candidates(&mut self, now: time::UnixTime) -> Vec<Output> {}
+    pub fn drop_expired_candidates(&mut self, now: time::UnixTime) {}
+    pub fn drop_lobby_members_whose_lease_lapsed(&mut self, now: time::UnixTime) -> Vec<Output> {}
     pub fn drop_member_who_left_room(&mut self, peer: &identity::PeerId) -> Vec<Output> {}
-    pub fn drop_members_past_grace(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
+    pub fn drop_members_past_grace(&mut self, now: time::UnixTime) -> Vec<Output> {}
     pub fn evict_held_rooms_over_history_limit(
         &mut self,
         bytes_by_prefix: &BTreeMap<p2p::HistoryKeyPrefix, p2p::HistoryByteCount>,
@@ -79,35 +76,30 @@ impl DiscoveryState {
         &mut self,
         from: &identity::PeerId,
         data: &[u8],
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<Output> {
     }
-    pub fn handle_lobby(
-        &mut self,
-        lobby: discovery::Lobby,
-        now: discovery::UnixTime,
-    ) -> Vec<Output> {
-    }
+    pub fn handle_lobby(&mut self, lobby: discovery::Lobby, now: time::UnixTime) -> Vec<Output> {}
     pub fn handshake(&self) -> Handshake {}
     pub fn heartbeat_targets(&self) -> Vec<HeartbeatTarget> {}
     pub fn join(
         &mut self,
         room: identity::RoomName,
         how_entered: discovery::HowRoomWasEntered,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<Output> {
     }
-    pub fn leave(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
+    pub fn leave(&mut self, now: time::UnixTime) -> Vec<Output> {}
     pub fn oldest_held_rooms_to_evict_until_history_fits(
         &self,
         history_bytes_by_held_room: &BTreeMap<identity::RoomName, p2p::HistoryByteCount>,
         current_room_history_bytes: p2p::HistoryByteCount,
     ) -> Vec<identity::RoomName> {
     }
-    pub fn record_lobby_heartbeats(&mut self, lobby: &discovery::Lobby, now: discovery::UnixTime) {}
+    pub fn record_lobby_heartbeats(&mut self, lobby: &discovery::Lobby, now: time::UnixTime) {}
     pub fn send_handshake(&self, peer: &identity::PeerId) -> Vec<Output> {}
-    pub fn tick(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
-    pub fn wait_for_contract_self_heal(&mut self, now: discovery::UnixTime) -> Vec<Output> {}
+    pub fn tick(&mut self, now: time::UnixTime) -> Vec<Output> {}
+    pub fn wait_for_contract_self_heal(&mut self, now: time::UnixTime) -> Vec<Output> {}
 }
 
 #[rustfmt::skip]
@@ -115,7 +107,7 @@ impl DiscoveryState {
     pub fn add_candidates(
         &mut self,
         peers: impl IntoIterator<Item = identity::Peer>,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) {
         for peer in peers {
             if peer.id == self.me.id || peer.id.is_empty() || peer.addrs.is_empty() {
@@ -133,7 +125,7 @@ impl DiscoveryState {
     pub fn handle_command(
         &mut self,
         command: discovery::Command,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<Output> {
         let (room, how_entered) = match command {
             discovery::Command::Create(room) => (room, discovery::HowRoomWasEntered::Created),
@@ -151,7 +143,7 @@ impl DiscoveryState {
     pub fn handle_libp2p_event(
         &mut self,
         event: p2p::Libp2pEvent,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<Output> {
         let mut outputs = match event {
             p2p::Libp2pEvent::PeerConnected(peer) => {
@@ -187,7 +179,7 @@ impl DiscoveryState {
             self_peer_id: Some(self.me.id.clone()),
         }
     }
-    pub fn update(&mut self, input: Input, now: discovery::UnixTime) -> Vec<Output> {
+    pub fn update(&mut self, input: Input, now: time::UnixTime) -> Vec<Output> {
         match input {
             Input::Command(command) => self.handle_command(command, now),
             Input::Libp2pEvent(event) => self.handle_libp2p_event(event, now),
@@ -206,7 +198,7 @@ impl DiscoveryState {
             Input::Tick => self.tick(now),
         }
     }
-    pub(crate) fn quit(&mut self, now: discovery::UnixTime) -> Vec<Output> {
+    pub(crate) fn quit(&mut self, now: time::UnixTime) -> Vec<Output> {
         let outputs = self.leave(now);
         self.is_quitting = true;
         outputs
@@ -214,7 +206,7 @@ impl DiscoveryState {
     pub(crate) fn refresh_grace(
         &mut self,
         peer: &identity::PeerId,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> Vec<Output> {
         let Some(member) = self
             .room
@@ -227,7 +219,6 @@ impl DiscoveryState {
         vec![Output::Notify(discovery::Event::RoomMembersUpdated)]
     }
 }
-
 #[cfg(test)]
 mod tests {
 
@@ -235,6 +226,7 @@ mod tests {
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::time;
     use discovery::state_machine::{Input, Output};
 
     #[test]
@@ -266,7 +258,7 @@ mod tests {
                 addrs: Vec::new(),
             },
         ];
-        state.add_candidates(peers, discovery::UnixTime::from(1));
+        state.add_candidates(peers, time::UnixTime::from(1));
         assert_eq!(state.candidates.len(), 1);
         assert!(state.candidates.contains_key(&identity::PeerId::from("a")));
     }
@@ -279,13 +271,10 @@ mod tests {
         });
         state.connected.insert(identity::PeerId::from("a"));
         let room = identity::RoomName::from("r");
-        let mut outputs = state.handle_command(
-            discovery::Command::Create(room),
-            discovery::UnixTime::from(1),
-        );
+        let mut outputs =
+            state.handle_command(discovery::Command::Create(room), time::UnixTime::from(1));
         assert!(state.room.is_some());
-        outputs
-            .extend(state.handle_command(discovery::Command::Leave, discovery::UnixTime::from(2)));
+        outputs.extend(state.handle_command(discovery::Command::Leave, time::UnixTime::from(2)));
         assert!(state.room.is_none());
         assert!(matches!(
             outputs.as_slice(),
@@ -306,7 +295,7 @@ mod tests {
         });
         let outputs = state.handle_command(
             discovery::Command::Create(identity::RoomName::from("   ")),
-            discovery::UnixTime::from(1),
+            time::UnixTime::from(1),
         );
         assert_eq!(outputs.len(), 0);
         assert!(state.room.is_none());
@@ -320,7 +309,7 @@ mod tests {
         });
         let outputs = state.handle_libp2p_event(
             p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("a")),
-            discovery::UnixTime::from(1),
+            time::UnixTime::from(1),
         );
         assert!(state.connected.contains(&identity::PeerId::from("a")));
         assert!(matches!(
@@ -329,7 +318,7 @@ mod tests {
         ));
         let _ = state.handle_libp2p_event(
             p2p::Libp2pEvent::PeerDisconnected(identity::PeerId::from("a")),
-            discovery::UnixTime::from(2),
+            time::UnixTime::from(2),
         );
         assert!(state.connected.is_empty());
     }
@@ -356,7 +345,7 @@ mod tests {
         let room = identity::RoomName::from("r");
         let outputs = state.update(
             Input::Command(discovery::Command::Join(room.clone())),
-            discovery::UnixTime::from(1),
+            time::UnixTime::from(1),
         );
         assert_eq!(
             outputs,
@@ -373,7 +362,7 @@ mod tests {
         let addrs = vec![identity::PeerAddr::from("/ip4/2")];
         state.update(
             Input::OwnAddrsChanged(addrs.clone()),
-            discovery::UnixTime::from(1),
+            time::UnixTime::from(1),
         );
         assert_eq!(state.me.addrs, addrs);
     }

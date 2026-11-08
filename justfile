@@ -17,6 +17,13 @@ e2e_log_filter := "warn,script=info,starboard=info,discovery=info,lobby_room=inf
 build:
     cargo build --all-targets --all-features
 
+# every feature combination users can pick must compile
+features:
+    cargo check --no-default-features
+    cargo check --no-default-features --features discovery
+    cargo check
+    cargo check --all-targets --all-features
+
 clippy:
     cargo clippy --all-targets --all-features -- -D warnings
 
@@ -379,4 +386,4 @@ setup:
 check:
     prek run --all-files
 
-ci: build check
+ci: build features check

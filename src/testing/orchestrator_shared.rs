@@ -6,6 +6,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::discovery;
 use crate::identity;
 use crate::testing;
+use crate::time;
 
 pub struct OrchestratorShared {
     pub routers: HashMap<identity::GameId, testing::PeerMessageRouter>,
@@ -48,7 +49,7 @@ impl OrchestratorShared {
         &mut self,
         peer: &identity::PeerId,
         frame: testing::FakeWireClientFrame,
-        now: discovery::UnixTime,
+        now: time::UnixTime,
     ) -> (Vec<testing::RoutedEvent>, Option<discovery::Lobby>) {
     }
     pub(crate) fn remove_connection(
@@ -64,7 +65,6 @@ impl OrchestratorShared {
     ) -> discovery::Lobby {
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::OrchestratorShared;

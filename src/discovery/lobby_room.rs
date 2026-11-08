@@ -5,11 +5,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::discovery;
 use crate::identity;
+use crate::time;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct LobbyRoom {
     pub room_size: discovery::RoomSize,
-    pub created_at: discovery::UnixTime,
+    pub created_at: time::UnixTime,
     pub members: BTreeMap<identity::PeerId, discovery::RoomMember>,
 }
 
@@ -35,12 +36,12 @@ impl LobbyRoom {
 #[rustfmt::skip]
 impl LobbyRoom {
     #[must_use]
-    pub(crate) fn newest_room_member(&self) -> discovery::UnixTime {
+    pub(crate) fn newest_room_member(&self) -> time::UnixTime {
         self.members
             .values()
             .map(|room_member| room_member.updated_at)
             .max()
-            .unwrap_or_else(|| discovery::UnixTime::from(0))
+            .unwrap_or_else(|| time::UnixTime::from(0))
     }
 
     #[must_use]

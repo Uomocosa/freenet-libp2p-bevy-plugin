@@ -1,5 +1,6 @@
 use crate::discovery;
 use crate::identity;
+use crate::time;
 use discovery::state_machine::{DiscoveryState, Input};
 
 pub async fn run_event_loop(
@@ -45,7 +46,7 @@ pub async fn run_event_loop(
             }
             _ = interval.tick() => Input::Tick,
         };
-        let outputs = state.update(input, discovery::UnixTime::now());
+        let outputs = state.update(input, time::UnixTime::now());
         discovery::Config::flush(outputs, &swarm.commands, &events);
         let target = state.heartbeat_targets();
         heartbeat_targets.send_if_modified(|current| {
@@ -58,7 +59,6 @@ pub async fn run_event_loop(
         let _ = statuses.send(state.status());
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::run_event_loop;

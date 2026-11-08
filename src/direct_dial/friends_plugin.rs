@@ -5,9 +5,9 @@ use derive_more::Deref;
 use crate::direct_dial;
 
 #[derive(Deref)]
-pub struct Plugin(pub direct_dial::Config);
+pub struct FriendsPlugin(pub direct_dial::Config);
 
-impl Plugin {
+impl FriendsPlugin {
     #[must_use]
     pub const fn new(config: direct_dial::Config) -> Self {
         Self(config)
@@ -15,14 +15,14 @@ impl Plugin {
 }
 
 #[rustfmt::skip]
-impl bevy::prelude::Plugin for Plugin {
+impl bevy::prelude::Plugin for FriendsPlugin {
     fn build(&self, app: &mut App) {
         self.build_friends_plugin(app);
     }
 }
 
 #[atomic_delegates]
-impl Plugin {
+impl FriendsPlugin {
     pub fn build_friends_plugin(&self, app: &mut App) {}
 }
 
@@ -30,14 +30,14 @@ impl Plugin {
 mod tests {
     use bevy::prelude::*;
 
-    use super::Plugin;
+    use super::FriendsPlugin;
     use crate::direct_dial;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.add_plugins(Plugin::new(direct_dial::Config::from(None)));
+        app.add_plugins(FriendsPlugin::new(direct_dial::Config::from(None)));
         app.update();
         assert!(
             app.world()

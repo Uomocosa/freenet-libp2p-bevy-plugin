@@ -8,6 +8,7 @@ use tokio::sync::watch::Receiver;
 use crate::discovery;
 use crate::identity;
 use crate::p2p;
+use crate::time;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LobbyLeaseLimits {
@@ -19,14 +20,14 @@ pub struct LobbyLeaseLimits {
 pub struct RoomMember {
     pub peer: identity::Peer,
     pub display_name: Option<identity::Username>,
-    pub updated_at: discovery::UnixTime,
+    pub updated_at: time::UnixTime,
     pub membership: discovery::RoomMembership,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct JoinedRoom {
     pub name: identity::RoomName,
-    pub created_at: discovery::UnixTime,
+    pub created_at: time::UnixTime,
     pub phase: discovery::JoinPhase,
     pub members: discovery::Members,
     pub how_entered: discovery::HowRoomWasEntered,

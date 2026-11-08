@@ -1,10 +1,8 @@
 use crate::discovery;
+use crate::time;
 use discovery::state_machine::{DiscoveryState, Output};
 
-pub fn wait_for_contract_self_heal(
-    state: &mut DiscoveryState,
-    now: discovery::UnixTime,
-) -> Vec<Output> {
+pub fn wait_for_contract_self_heal(state: &mut DiscoveryState, now: time::UnixTime) -> Vec<Output> {
     let Some(room) = state.room.as_ref() else {
         return Vec::new();
     };
@@ -29,7 +27,6 @@ pub fn wait_for_contract_self_heal(
     }
     vec![Output::Notify(discovery::Event::RoomReady(name))]
 }
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -37,6 +34,7 @@ mod tests {
     use super::wait_for_contract_self_heal;
     use crate::discovery;
     use crate::identity;
+    use crate::time;
     use discovery::state_machine::{DiscoveryState, Output};
 
     fn state_in(created_at: u64) -> DiscoveryState {
@@ -46,9 +44,9 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from(created_at),
+            created_at: time::UnixTime::from(created_at),
             phase: discovery::JoinPhase::Joining {
-                since: discovery::UnixTime::from(0),
+                since: time::UnixTime::from(0),
             },
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -61,7 +59,7 @@ mod tests {
             identity::RoomName::from("r"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(created_at),
+                created_at: time::UnixTime::from(created_at),
                 members: BTreeMap::new(),
             },
         );
@@ -75,7 +73,7 @@ mod tests {
     fn test_usage() {
         let mut waiting = state_in(100);
         assert_eq!(
-            wait_for_contract_self_heal(&mut waiting, discovery::UnixTime::from(1)),
+            wait_for_contract_self_heal(&mut waiting, time::UnixTime::from(1)),
             Vec::new()
         );
         assert!(matches!(
@@ -85,7 +83,7 @@ mod tests {
 
         let mut healed = state_in(100);
         with_record(&mut healed, 100);
-        let outputs = wait_for_contract_self_heal(&mut healed, discovery::UnixTime::from(1));
+        let outputs = wait_for_contract_self_heal(&mut healed, time::UnixTime::from(1));
         assert_eq!(
             outputs,
             vec![Output::Notify(discovery::Event::RoomReady(
@@ -100,7 +98,7 @@ mod tests {
         let mut state = state_in(100);
         let outputs = wait_for_contract_self_heal(
             &mut state,
-            discovery::UnixTime::from(discovery::state_machine::JOIN_HEAL_TIMEOUT.as_secs()),
+            time::UnixTime::from(discovery::state_machine::JOIN_HEAL_TIMEOUT.as_secs()),
         );
         assert_eq!(
             outputs,
@@ -119,7 +117,7 @@ mod tests {
             room.phase = discovery::JoinPhase::Ready;
         }
         assert_eq!(
-            wait_for_contract_self_heal(&mut state, discovery::UnixTime::from(1)),
+            wait_for_contract_self_heal(&mut state, time::UnixTime::from(1)),
             Vec::new()
         );
         assert_eq!(phase(&state), Some(discovery::JoinPhase::Ready));

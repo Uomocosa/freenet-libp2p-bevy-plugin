@@ -79,7 +79,6 @@ pub async fn run<Payload: p2p::Message>(
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -91,6 +90,7 @@ mod tests {
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::time;
 
     const SUBSCRIPTION_SETTLE: Duration = Duration::from_millis(500);
 
@@ -397,12 +397,12 @@ mod tests {
         state.game = game.clone();
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(1);
         let room = identity::RoomName::from("old-room");
-        let created_at = discovery::UnixTime::from(7);
+        let created_at = time::UnixTime::from(7);
         state.held_rooms.insert(
             room.clone(),
             discovery::state_machine::HeldRoomHistory {
                 created_at,
-                left_at: discovery::UnixTime::from(8),
+                left_at: time::UnixTime::from(8),
             },
         );
         let prefix = p2p::HistoryKeyPrefix::new(&game, &room, created_at);

@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
 use crate::direct_dial;
-use crate::discovery;
 use crate::p2p;
+use crate::time;
 
-pub fn build_friends_plugin(plugin: &direct_dial::Plugin, app: &mut App) {
+pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) {
     let config: direct_dial::Config = (**plugin).clone();
     let mut startup_error: Option<String> = None;
     let book = config
@@ -49,7 +49,7 @@ pub fn build_friends_plugin(plugin: &direct_dial::Plugin, app: &mut App) {
     if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
         app.insert_resource(direct_dial::FriendEventTap(channel.subscribe()));
     }
-    let now = discovery::UnixTime::now();
+    let now = time::UnixTime::now();
     let book_now = app.world().resource::<direct_dial::PeerBook>().clone();
     app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
         &book_now, now,
@@ -72,7 +72,7 @@ mod tests {
     fn test_usage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        let plugin = direct_dial::Plugin::new(direct_dial::Config::from(None));
+        let plugin = direct_dial::FriendsPlugin::new(direct_dial::Config::from(None));
         build_friends_plugin(&plugin, &mut app);
         assert!(
             app.world()
@@ -88,7 +88,7 @@ mod tests {
         std::fs::write(&path, b"not json").expect("write");
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        let plugin = direct_dial::Plugin::new(direct_dial::Config::from(Some(path.clone())));
+        let plugin = direct_dial::FriendsPlugin::new(direct_dial::Config::from(Some(path.clone())));
         build_friends_plugin(&plugin, &mut app);
         assert!(app.world().resource::<direct_dial::PeerBook>().is_empty());
         assert!(

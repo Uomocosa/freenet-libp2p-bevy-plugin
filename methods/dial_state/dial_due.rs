@@ -1,10 +1,10 @@
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
+use crate::time;
 
 pub fn dial_due(
     state: &mut direct_dial::state_machine::DialState,
-    now: discovery::UnixTime,
+    now: time::UnixTime,
 ) -> Vec<direct_dial::state_machine::Output> {
     let mut due_ids: Vec<identity::PeerId> = Vec::new();
     for entry in &state.entries {
@@ -26,15 +26,14 @@ pub fn dial_due(
     }
     outputs
 }
-
 #[cfg(test)]
 mod tests {
     use super::dial_due;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
+    use crate::time;
 
-    fn friend_state(now: discovery::UnixTime) -> direct_dial::state_machine::DialState {
+    fn friend_state(now: time::UnixTime) -> direct_dial::state_machine::DialState {
         let mut book = direct_dial::PeerBook::default();
         assert!(book.add_friend(identity::Peer {
             id: identity::PeerId::from("alice"),
@@ -45,7 +44,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let now = discovery::UnixTime::from(10);
+        let now = time::UnixTime::from(10);
         let mut state = friend_state(now);
         let outputs = dial_due(&mut state, now);
         assert_eq!(outputs.len(), 1);

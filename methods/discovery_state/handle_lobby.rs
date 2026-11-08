@@ -1,10 +1,11 @@
 use crate::discovery;
+use crate::time;
 use discovery::state_machine::{DiscoveryState, Output};
 
 pub fn handle_lobby(
     state: &mut DiscoveryState,
     mut lobby: discovery::Lobby,
-    now: discovery::UnixTime,
+    now: time::UnixTime,
 ) -> Vec<Output> {
     state.record_lobby_heartbeats(&lobby, now);
     lobby.drop_members_whose_lease_lapsed(
@@ -22,7 +23,6 @@ pub fn handle_lobby(
     outputs.push(Output::Notify(discovery::Event::LobbyUpdated));
     outputs
 }
-
 #[cfg(test)]
 mod tests {
     use crate::identity;
@@ -30,6 +30,7 @@ mod tests {
 
     use super::handle_lobby;
     use crate::discovery;
+    use crate::time;
     use discovery::state_machine::{DiscoveryState, Output};
 
     #[test]
@@ -40,7 +41,7 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from(0),
+            created_at: time::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -54,7 +55,7 @@ mod tests {
                         id: identity::PeerId::from(peer),
                         addrs: vec![identity::PeerAddr::from("/ip4/1")],
                     },
-                    updated_at: discovery::UnixTime::from(3),
+                    updated_at: time::UnixTime::from(3),
                     display_name: None,
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -65,12 +66,12 @@ mod tests {
             identity::RoomName::from("r"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: discovery::UnixTime::from(0),
+                created_at: time::UnixTime::from(0),
                 members,
             },
         );
         assert_eq!(
-            handle_lobby(&mut state, lobby.clone(), discovery::UnixTime::from(10)),
+            handle_lobby(&mut state, lobby.clone(), time::UnixTime::from(10)),
             vec![
                 Output::Libp2pCommand(crate::p2p::Libp2pCommand::AddKadPeer(identity::Peer {
                     id: identity::PeerId::from("a"),
@@ -81,7 +82,7 @@ mod tests {
         );
         assert_eq!(state.candidates.len(), 1);
         assert_eq!(
-            handle_lobby(&mut state, lobby, discovery::UnixTime::from(10)),
+            handle_lobby(&mut state, lobby, time::UnixTime::from(10)),
             Vec::new()
         );
     }

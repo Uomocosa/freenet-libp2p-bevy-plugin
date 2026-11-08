@@ -1,10 +1,11 @@
 use crate::discovery;
 use crate::identity;
 use crate::p2p;
+use crate::time;
 use discovery::state_machine::{DiscoveryState, Output};
 
 #[must_use]
-pub fn dial_candidates(state: &mut DiscoveryState, now: discovery::UnixTime) -> Vec<Output> {
+pub fn dial_candidates(state: &mut DiscoveryState, now: time::UnixTime) -> Vec<Output> {
     if state.room.is_none() {
         return Vec::new();
     }
@@ -32,13 +33,13 @@ pub fn dial_candidates(state: &mut DiscoveryState, now: discovery::UnixTime) -> 
     }
     outputs
 }
-
 #[cfg(test)]
 mod tests {
     use super::dial_candidates;
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::time;
     use discovery::state_machine::{DiscoveryState, Output};
 
     #[test]
@@ -49,7 +50,7 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: discovery::UnixTime::from(0),
+            created_at: time::UnixTime::from(0),
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -64,16 +65,16 @@ mod tests {
                 addrs: vec![identity::PeerAddr::from("/ip4/2")],
             },
         ];
-        state.add_candidates(peers, discovery::UnixTime::from(1));
+        state.add_candidates(peers, time::UnixTime::from(1));
         state.connected.insert(identity::PeerId::from("b"));
-        let mut outputs = dial_candidates(&mut state, discovery::UnixTime::from(10));
-        outputs.extend(dial_candidates(&mut state, discovery::UnixTime::from(10)));
+        let mut outputs = dial_candidates(&mut state, time::UnixTime::from(10));
+        outputs.extend(dial_candidates(&mut state, time::UnixTime::from(10)));
         assert!(matches!(
             outputs.as_slice(),
             [Output::Libp2pCommand(p2p::Libp2pCommand::Dial(peer))] if peer.id.as_str() == "a"
         ));
         assert_eq!(
-            dial_candidates(&mut state, discovery::UnixTime::from(12)).len(),
+            dial_candidates(&mut state, time::UnixTime::from(12)).len(),
             1
         );
     }

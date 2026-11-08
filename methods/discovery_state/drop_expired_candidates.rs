@@ -1,18 +1,19 @@
 use crate::discovery;
+use crate::time;
 use discovery::state_machine::DiscoveryState;
 
-pub fn drop_expired_candidates(state: &mut DiscoveryState, now: discovery::UnixTime) {
+pub fn drop_expired_candidates(state: &mut DiscoveryState, now: time::UnixTime) {
     let ttl = state.lease_limits.lease_ttl;
     state
         .candidates
         .retain(|_, candidate| now.elapsed_since(candidate.seen_at) <= ttl);
 }
-
 #[cfg(test)]
 mod tests {
     use super::drop_expired_candidates;
     use crate::discovery;
     use crate::identity;
+    use crate::time;
     use discovery::state_machine::DiscoveryState;
 
     #[test]
@@ -26,11 +27,11 @@ mod tests {
                 identity::PeerId::from(peer),
                 discovery::state_machine::Candidate {
                     addrs: vec![identity::PeerAddr::from("/ip4/1")],
-                    seen_at: discovery::UnixTime::from(seen_at),
+                    seen_at: time::UnixTime::from(seen_at),
                 },
             );
         }
-        drop_expired_candidates(&mut state, discovery::UnixTime::from(100));
+        drop_expired_candidates(&mut state, time::UnixTime::from(100));
         let left: Vec<_> = state.candidates.keys().cloned().collect();
         assert_eq!(left, vec![identity::PeerId::from("fresh")]);
     }

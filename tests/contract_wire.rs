@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use freenet_libp2p_bevy_plugin::time;
 use freenet_libp2p_bevy_plugin::{discovery, identity};
 
 // needed helper: one lobby with a named and an unnamed member, as the plugin writes it
@@ -13,7 +14,7 @@ fn plugin_lobby() -> discovery::Lobby {
                     id: identity::PeerId::from(peer),
                     addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/1")],
                 },
-                updated_at: discovery::UnixTime::from(7),
+                updated_at: time::UnixTime::from(7),
                 display_name: name.map(identity::Username::from),
                 membership: discovery::RoomMembership::Occupant,
             },
@@ -23,7 +24,7 @@ fn plugin_lobby() -> discovery::Lobby {
         identity::RoomName::from("room-a"),
         discovery::LobbyRoom {
             room_size: discovery::RoomSize::DEFAULT,
-            created_at: discovery::UnixTime::from(7),
+            created_at: time::UnixTime::from(7),
             members,
         },
     )])
