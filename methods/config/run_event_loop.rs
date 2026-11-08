@@ -63,6 +63,7 @@ pub async fn run_event_loop(
 mod tests {
     use super::run_event_loop;
     use crate::discovery;
+    use crate::p2p;
 
     #[tokio::test]
     async fn test_usage() {
@@ -75,7 +76,7 @@ mod tests {
         let (statuses_tx, _statuses_rx) = tokio::sync::mpsc::unbounded_channel();
         let (events_tx, _events_rx) = tokio::sync::mpsc::unbounded_channel();
         let channels = discovery::RunChannels {
-            swarm: discovery::libp2p::SwarmChannels {
+            swarm: p2p::SwarmChannels {
                 commands: libp2p_commands,
                 events: libp2p_events.subscribe(),
                 ready: ready_rx,

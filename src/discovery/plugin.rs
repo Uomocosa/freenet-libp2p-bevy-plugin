@@ -3,6 +3,7 @@ use bevy::prelude::App;
 use derive_more::Deref;
 
 use crate::discovery;
+use crate::p2p;
 use discovery::Config;
 
 #[derive(Deref)]
@@ -25,6 +26,6 @@ impl bevy::prelude::Plugin for Plugin {
 #[atomic_delegates]
 impl Plugin {
     pub fn build_plugin(&self, app: &mut App) {}
-    pub(crate) fn swarm_channels(app: &App) -> Option<discovery::libp2p::SwarmChannels> {}
+    pub(crate) fn swarm_channels(app: &App) -> Option<p2p::SwarmChannels> {}
 }
 // no test_usage necessary

@@ -7,6 +7,7 @@ use tokio::sync::watch::Receiver;
 
 use crate::discovery;
 use crate::identity;
+use crate::p2p;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LobbyLeaseLimits {
@@ -32,7 +33,7 @@ pub struct JoinedRoom {
 }
 
 pub struct RunChannels {
-    pub swarm: discovery::libp2p::SwarmChannels,
+    pub swarm: p2p::SwarmChannels,
     pub commands: UnboundedReceiver<discovery::Command>,
     pub statuses: UnboundedSender<discovery::Status>,
     pub events: UnboundedSender<discovery::Event>,

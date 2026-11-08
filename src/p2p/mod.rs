@@ -36,11 +36,12 @@ pub mod basic;
 
 pub use basic::constants::*;
 pub use basic::enums::{
-    ChunkError, Command, Event, Libp2pEvent, SnapshotRequest, SnapshotResponse,
+    ChunkError, Command, Event, Libp2pEvent, PeerConnectionStatus, SnapshotRequest,
+    SnapshotResponse,
 };
 pub use basic::newtypes::{ChunkIndex, ContentHash, HistoryByteCount, ReplyId};
 pub use basic::resources::{CommandSender, EventReceiver, Libp2pCommandSender};
-pub use basic::structs::{HistoryChunkId, HistoryManifest};
+pub use basic::structs::{HistoryChunkId, HistoryManifest, SwarmChannels};
 
 pub mod gossipsub_config;
 pub use gossipsub_config::GossipsubConfig;

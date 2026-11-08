@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use bevy::prelude::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::identity;
@@ -154,4 +155,10 @@ pub enum Event<Payload> {
         payload: Payload,
     },
     Error(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
+pub enum PeerConnectionStatus {
+    Connected,
+    NotConnected,
 }

@@ -434,7 +434,7 @@ FetchSnapshot, RespondSnapshot}` / `NetEvent::{SnapshotRequest, SnapshotPart, Sn
 variants. The responder cannot compute `S::Snapshot` in the swarm loop, so the loop holds the
 `ResponseChannel` under a `u64` id and the plugin answers later via `RespondSnapshot`.
 `NetEventChannel` became a **multi-subscriber broadcast bus** (`subscribe()`), so discovery and
-`room_sync` both consume `NetEvent`s; `discovery::libp2p::NetLink.events` and
+`room_sync` both consume `NetEvent`s; `p2p::SwarmChannels.events` and
 `discovery/run.rs` follow.
 
 **`room_sync` domain (new):** `RoomState`, `OpMeta`, `LamportClock`, `peer_author`,

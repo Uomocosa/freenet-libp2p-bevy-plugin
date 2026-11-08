@@ -2,7 +2,7 @@
 //! Reads `discovery::Status` only; the connecting spinner is the plugin's own screen.
 #![allow(clippy::needless_pass_by_value)]
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::{discovery, identity};
+use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
 use crate::shared::status;
 
@@ -138,8 +138,8 @@ fn sync_room_bar(
         .with_children(|rows| {
             for (peer, member) in &room.members {
                 let dot = match status.peer_connection_status(peer) {
-                    discovery::libp2p::PeerConnectionStatus::Connected => CONNECTED_COLOR,
-                    discovery::libp2p::PeerConnectionStatus::NotConnected => LOST_COLOR,
+                    p2p::PeerConnectionStatus::Connected => CONNECTED_COLOR,
+                    p2p::PeerConnectionStatus::NotConnected => LOST_COLOR,
                 };
                 rows.spawn((
                     Node {
@@ -172,10 +172,10 @@ fn sync_room_bar(
         });
 }
 
-const fn status_word(status: discovery::libp2p::PeerConnectionStatus) -> &'static str {
+const fn status_word(status: p2p::PeerConnectionStatus) -> &'static str {
     match status {
-        discovery::libp2p::PeerConnectionStatus::Connected => "connected",
-        discovery::libp2p::PeerConnectionStatus::NotConnected => "lost",
+        p2p::PeerConnectionStatus::Connected => "connected",
+        p2p::PeerConnectionStatus::NotConnected => "lost",
     }
 }
 
@@ -205,7 +205,7 @@ fn short_peer(full: &str) -> String {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
     use super::{Overlay, PeerCard, PeerCount, PeerList, RoomBar, RoomTitle, RoomView, short_peer};
 
@@ -241,17 +241,17 @@ mod tests {
             (
                 "12D3KooWbob000Kd2a",
                 Some("bob"),
-                discovery::libp2p::PeerConnectionStatus::Connected,
+                p2p::PeerConnectionStatus::Connected,
             ),
             (
                 "12D3KooWcarol0Zm9c",
                 Some("carol"),
-                discovery::libp2p::PeerConnectionStatus::Connected,
+                p2p::PeerConnectionStatus::Connected,
             ),
             (
                 "12D3KooWdave00Qx7f",
                 None,
-                discovery::libp2p::PeerConnectionStatus::NotConnected,
+                p2p::PeerConnectionStatus::NotConnected,
             ),
         ] {
             members.insert(

@@ -24,11 +24,11 @@ impl Status {
     pub fn peer_connection_status(
         &self,
         peer: &identity::PeerId,
-    ) -> discovery::libp2p::PeerConnectionStatus {
+    ) -> p2p::PeerConnectionStatus {
         if self.connected.contains(peer) {
-            discovery::libp2p::PeerConnectionStatus::Connected
+            p2p::PeerConnectionStatus::Connected
         } else {
-            discovery::libp2p::PeerConnectionStatus::NotConnected
+            p2p::PeerConnectionStatus::NotConnected
         }
     }
 

@@ -1,6 +1,5 @@
 pub mod bevy_systems;
 pub mod freenet;
-pub mod libp2p;
 pub mod state_machine;
 #[cfg(feature = "default_ui")]
 pub mod ui;

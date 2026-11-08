@@ -1,16 +1,15 @@
 use bevy::prelude::App;
 
-use crate::discovery;
 use crate::p2p;
 
-pub fn swarm_channels(app: &App) -> Option<discovery::libp2p::SwarmChannels> {
+pub fn swarm_channels(app: &App) -> Option<p2p::SwarmChannels> {
     let events = app
         .world()
         .get_resource::<p2p::Libp2pEventChannel>()?
         .subscribe();
     let commands = (**app.world().get_resource::<p2p::Libp2pCommandSender>()?).clone();
     let (ready, observed) = app.world().get_resource::<p2p::ReadyChannel>()?.subscribe();
-    Some(discovery::libp2p::SwarmChannels {
+    Some(p2p::SwarmChannels {
         commands,
         events,
         ready,
