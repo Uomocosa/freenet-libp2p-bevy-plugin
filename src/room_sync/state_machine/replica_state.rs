@@ -30,7 +30,7 @@ impl<Op> Default for ReplicaState<Op> {
             kademlia_history: room_sync::state_machine::KademliaHistoryState {
                 is_enabled: false,
                 prefix: None,
-                lobby_status: room_sync::state_machine::RoomLiveness::default(),
+                liveness: room_sync::state_machine::RoomLiveness::default(),
                 fetch_retries: 0,
                 max_fetch_retries: history_defaults.max_fetch_retries,
                 per_room_bytes: history_defaults.per_room_bytes,
@@ -62,14 +62,14 @@ impl<Op> ReplicaState<Op> {
         room: identity::RoomName,
         prefix: p2p::HistoryKeyPrefix,
         members: Vec<identity::PeerId>,
-        lobby_status: room_sync::state_machine::RoomLiveness,
+        liveness: room_sync::state_machine::RoomLiveness,
     ) -> Vec<room_sync::state_machine::Output<Op>> {
     }
     pub fn handle_members(
         &mut self,
         members: Vec<identity::PeerId>,
         prefix: p2p::HistoryKeyPrefix,
-        lobby_status: room_sync::state_machine::RoomLiveness,
+        liveness: room_sync::state_machine::RoomLiveness,
     ) -> Vec<room_sync::state_machine::Output<Op>> {
     }
     pub fn handle_remote(
@@ -202,13 +202,13 @@ impl<Op> ReplicaState<Op> {
                 room,
                 prefix,
                 members,
-                lobby_status,
-            } => self.handle_joined(room, prefix, members, lobby_status),
+                liveness,
+            } => self.handle_joined(room, prefix, members, liveness),
             room_sync::state_machine::Input::Members {
                 members,
                 prefix,
-                lobby_status,
-            } => self.handle_members(members, prefix, lobby_status),
+                liveness,
+            } => self.handle_members(members, prefix, liveness),
             room_sync::state_machine::Input::Remote { room, meta, op } => {
                 self.handle_remote(&room, meta, op)
             }
@@ -477,7 +477,7 @@ mod tests {
                 room: room.clone(),
                 prefix: prefix(),
                 members: vec![identity::PeerId::from("a")],
-                lobby_status: alive_status(),
+                liveness: alive_status(),
             },
             now(),
         );
@@ -527,7 +527,7 @@ mod tests {
                 room: room.clone(),
                 prefix: prefix(),
                 members: vec![peer.clone()],
-                lobby_status: alive_status(),
+                liveness: alive_status(),
             },
             now(),
         );
@@ -566,7 +566,7 @@ mod tests {
                 room: room.clone(),
                 prefix: prefix(),
                 members: vec![peer.clone()],
-                lobby_status: alive_status(),
+                liveness: alive_status(),
             },
             now(),
         );
@@ -619,7 +619,7 @@ mod tests {
                 room: room.clone(),
                 prefix: prefix(),
                 members: vec![identity::PeerId::from("a")],
-                lobby_status: alive_status(),
+                liveness: alive_status(),
             },
             now(),
         );
@@ -656,7 +656,7 @@ mod tests {
                 room: room.clone(),
                 prefix: prefix(),
                 members: Vec::new(),
-                lobby_status: alive_status(),
+                liveness: alive_status(),
             },
             now(),
         );
@@ -849,7 +849,7 @@ mod tests {
                 room,
                 prefix: prefix(),
                 members: vec![peer.clone()],
-                lobby_status: alive_status(),
+                liveness: alive_status(),
             },
             now(),
         );
@@ -875,7 +875,7 @@ mod tests {
                 room: room.clone(),
                 prefix: prefix(),
                 members: Vec::new(),
-                lobby_status: alive_status(),
+                liveness: alive_status(),
             },
             now(),
         );
@@ -966,7 +966,7 @@ mod tests {
             room: identity::RoomName::from("r"),
             prefix: p2p::HistoryKeyPrefix::from("prefix"),
             members,
-            lobby_status: RoomLiveness::default(),
+            liveness: RoomLiveness::default(),
         }
     }
 
@@ -1026,7 +1026,7 @@ mod tests {
                     Input::Members {
                         members: Vec::new(),
                         prefix: p2p::HistoryKeyPrefix::from("prefix"),
-                        lobby_status: RoomLiveness::default(),
+                        liveness: RoomLiveness::default(),
                     },
                 ],
             ),
@@ -1073,7 +1073,7 @@ mod tests {
         state.phase = Phase::FetchingHistoryFromKademlia;
         state.kademlia_history.is_enabled = true;
         state.kademlia_history.prefix = Some(prefix_value.clone());
-        state.kademlia_history.lobby_status = alive_status();
+        state.kademlia_history.liveness = alive_status();
         state.kademlia_history.fetch_retries = 0;
         state.kademlia_history.pending_fetch = Some(PendingHistoryFetch {
             prefix: prefix_value.clone(),

@@ -1,33 +1,37 @@
 use bevy::prelude::*;
 
-use crate::discovery;
 use crate::identity;
 use crate::p2p;
+use crate::peers;
 use crate::room_sync;
 
 pub fn write_ops<Replica: room_sync::RoomState>(
     mut writer: ResMut<room_sync::PendingOps<Replica>>,
     mut clock: ResMut<room_sync::LamportClock>,
     ready: Res<p2p::ReadyChannel>,
-    status: Option<Res<discovery::Status>>,
+    me_rooms: Query<&peers::InRoom, With<peers::Me>>,
+    room_names: Query<&peers::Room>,
     game: Res<room_sync::SyncGame>,
     mut room: ResMut<Replica>,
     mut pending: ResMut<p2p::PendingLibp2pCommands>,
 ) {
     let ready = ready.into_inner();
-    let status = status.map(Res::into_inner);
     let game = game.into_inner();
     let ops = writer.take_all();
     if ops.is_empty() {
         return;
     }
-    let joined = status.as_ref().and_then(|status| status.room.as_ref());
-    let (Some(joined), Some(me)) = (joined, ready.ready_rx.borrow().clone()) else {
+    let current = me_rooms
+        .iter()
+        .next()
+        .and_then(|in_room| room_names.get(**in_room).ok())
+        .map(|room| (**room).clone());
+    let (Some(room_name), Some(me)) = (current, ready.ready_rx.borrow().clone()) else {
         writer.restore(ops);
         return;
     };
     let author = me.id.peer_author();
-    let topic = identity::Topic::from_room_sync(game, &joined.name);
+    let topic = identity::Topic::from_room_sync(game, &room_name);
     for op in ops {
         let meta = room_sync::OpMeta {
             lamport: clock.tick(),
@@ -35,7 +39,7 @@ pub fn write_ops<Replica: room_sync::RoomState>(
         };
         room.apply(meta, &op);
         let message = room_sync::ReplicaSyncTopicMessage::ApplyThisOp {
-            room: joined.name.clone(),
+            room: room_name.clone(),
             meta,
             op,
         };
@@ -56,12 +60,11 @@ mod tests {
     use derive_more::{Deref, DerefMut};
     use serde::{Deserialize, Serialize};
 
-    use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::peers;
     use crate::plugin;
     use crate::room_sync;
-    use crate::time;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     struct Op {
@@ -107,19 +110,6 @@ mod tests {
         }
     }
 
-    fn joined_status() -> discovery::Status {
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
-                name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::from(0),
-                phase: discovery::JoinPhase::Ready,
-                members: discovery::Members::new(),
-                how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        }
-    }
-
     #[tokio::test(flavor = "multi_thread")]
     async fn test_usage() {
         let game = identity::GameId::from("game");
@@ -130,8 +120,10 @@ mod tests {
                 .with_game(game.clone()),
         ));
         app.add_plugins(room_sync::SyncPlugin::<Map>::new(game));
-        app.add_message::<discovery::Event>();
-        app.insert_resource(joined_status());
+        let room_entity = app
+            .world_mut()
+            .spawn(peers::Room::from(identity::RoomName::from("alpha")))
+            .id();
         let _ = app
             .world()
             .resource::<p2p::ReadyChannel>()
@@ -140,6 +132,11 @@ mod tests {
                 id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             }));
+        app.world_mut().spawn((
+            peers::Peer::from(identity::PeerId::from("me")),
+            peers::Me,
+            peers::InRoom(room_entity),
+        ));
         app.world_mut()
             .resource_mut::<room_sync::PendingOps<Map>>()
             .ops

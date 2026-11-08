@@ -18,12 +18,12 @@ pub enum Input<Op> {
         room: identity::RoomName,
         prefix: p2p::HistoryKeyPrefix,
         members: Vec<identity::PeerId>,
-        lobby_status: room_sync::state_machine::RoomLiveness,
+        liveness: room_sync::state_machine::RoomLiveness,
     },
     Members {
         members: Vec<identity::PeerId>,
         prefix: p2p::HistoryKeyPrefix,
-        lobby_status: room_sync::state_machine::RoomLiveness,
+        liveness: room_sync::state_machine::RoomLiveness,
     },
     Remote {
         room: identity::RoomName,

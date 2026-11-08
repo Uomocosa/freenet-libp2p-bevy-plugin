@@ -33,7 +33,7 @@ mod tests {
                 room: room.clone(),
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![first, second.clone()],
-                lobby_status: RoomLiveness::default(),
+                liveness: RoomLiveness::default(),
             },
             now,
         );

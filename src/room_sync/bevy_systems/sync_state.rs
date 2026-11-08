@@ -1,12 +1,16 @@
 use std::time::Duration;
 
 use atomic_delegate_macros::atomic_delegates;
+use bevy::prelude::Has;
 use bevy::prelude::MessageWriter;
+use bevy::prelude::Query;
 use bevy::prelude::Resource;
+use bevy::prelude::With;
 use derive_more::{Deref, DerefMut};
 
 use crate::identity;
 use crate::p2p;
+use crate::peers;
 use crate::room_sync;
 
 #[derive(Resource, Deref, DerefMut)]
@@ -20,6 +24,17 @@ impl<Op> Default for SyncState<Op> {
 
 #[atomic_delegates]
 impl<Op> SyncState<Op> {
+    pub(crate) fn room_inputs_from_entities(
+        state: &mut Self,
+        game: &identity::GameId,
+        me_rooms: &Query<&peers::InRoom, With<peers::Me>>,
+        room_details: &Query<room_sync::RoomDetails<'_>>,
+        member_peers: &Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>,
+    ) -> (
+        Vec<p2p::Libp2pCommand>,
+        Vec<room_sync::state_machine::Input<Op>>,
+    ) {
+    }
     pub(crate) fn perform<Replica: room_sync::RoomState>(
         output: room_sync::state_machine::Output<Replica::Op>,
         room: &mut Replica,
@@ -41,6 +56,7 @@ impl<Op> SyncState<Op> {
 
 #[rustfmt::skip]
 impl<Op> SyncState<Op> {
+    pub(crate) fn reset_after_leaving(&mut self) { *self = Self(room_sync::state_machine::ReplicaState { slice_anti_entropy: room_sync::state_machine::SliceAntiEntropyState { max_fetches_per_peer: self.slice_anti_entropy.max_fetches_per_peer, ..Default::default() }, kademlia_history: room_sync::state_machine::KademliaHistoryState { is_enabled: self.kademlia_history.is_enabled, max_fetch_retries: self.kademlia_history.max_fetch_retries, per_room_bytes: self.kademlia_history.per_room_bytes, record_ttl: self.kademlia_history.record_ttl, ..Default::default() }, ..Default::default() }); }
     pub(crate) fn libp2p_event_to_input<Replica: room_sync::RoomState>(
         event: &p2p::Libp2pEvent,
         state: &SyncState<Replica::Op>,
@@ -146,4 +162,30 @@ impl<Op> SyncState<Op> {
     }
 }
 
-// no test_usage necessary
+#[cfg(test)]
+mod tests {
+    use super::SyncState;
+    use crate::identity;
+    use crate::room_sync;
+
+    #[test]
+    fn test_usage() {
+        let mut state = SyncState::<u8>(room_sync::state_machine::ReplicaState {
+            room: Some(identity::RoomName::from("room")),
+            slice_anti_entropy: room_sync::state_machine::SliceAntiEntropyState {
+                max_fetches_per_peer: 3,
+                ..Default::default()
+            },
+            kademlia_history: room_sync::state_machine::KademliaHistoryState {
+                is_enabled: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        state.reset_after_leaving();
+        assert_eq!(state.room, None);
+        assert_eq!(state.phase, room_sync::state_machine::Phase::Idle);
+        assert_eq!(state.slice_anti_entropy.max_fetches_per_peer, 3);
+        assert!(state.kademlia_history.is_enabled);
+    }
+}

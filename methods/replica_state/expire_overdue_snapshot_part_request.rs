@@ -66,7 +66,7 @@ mod tests {
                 room: room.clone(),
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![first.clone(), second.clone()],
-                lobby_status: alive_status(),
+                liveness: alive_status(),
             },
             at_secs(0),
         );
@@ -99,7 +99,7 @@ mod tests {
                 room,
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![identity::PeerId::from("a"), identity::PeerId::from("b")],
-                lobby_status: alive_status(),
+                liveness: alive_status(),
             },
             at_secs(0),
         );

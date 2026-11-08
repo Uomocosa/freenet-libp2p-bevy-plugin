@@ -32,7 +32,7 @@ mod tests {
                 room: identity::RoomName::from("r"),
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![identity::PeerId::from("a")],
-                lobby_status: RoomLiveness::default(),
+                liveness: RoomLiveness::default(),
             },
             now,
         );

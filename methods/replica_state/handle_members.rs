@@ -6,17 +6,17 @@ pub fn handle_members<Op>(
     state: &mut room_sync::state_machine::ReplicaState<Op>,
     members: Vec<identity::PeerId>,
     prefix: p2p::HistoryKeyPrefix,
-    lobby_status: room_sync::state_machine::RoomLiveness,
+    liveness: room_sync::state_machine::RoomLiveness,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
     let mut members = members;
     members.sort();
     state.member_snapshot.members = members;
     state.kademlia_history.prefix = Some(prefix);
-    state.kademlia_history.lobby_status = lobby_status;
+    state.kademlia_history.liveness = liveness;
     match state.phase {
         room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember => state.fetch_next(),
         room_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
-            if !lobby_status.is_room_still_listed {
+            if !liveness.is_room_still_listed {
                 let Some(room) = state.room.clone() else {
                     return Vec::new();
                 };

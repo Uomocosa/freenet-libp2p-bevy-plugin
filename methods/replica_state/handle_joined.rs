@@ -7,7 +7,7 @@ pub fn handle_joined<Op>(
     room: identity::RoomName,
     prefix: p2p::HistoryKeyPrefix,
     members: Vec<identity::PeerId>,
-    lobby_status: room_sync::state_machine::RoomLiveness,
+    liveness: room_sync::state_machine::RoomLiveness,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
     state.room = Some(room);
     state.phase = room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember;
@@ -24,7 +24,7 @@ pub fn handle_joined<Op>(
     };
     state.slice_anti_entropy.fetches_awaiting_reply.clear();
     state.kademlia_history.prefix = Some(prefix);
-    state.kademlia_history.lobby_status = lobby_status;
+    state.kademlia_history.liveness = liveness;
     state.kademlia_history.fetch_retries = 0;
     state.kademlia_history.pending_fetch = None;
     let next = state.fetch_next();

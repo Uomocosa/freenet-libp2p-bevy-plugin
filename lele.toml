@@ -24,3 +24,9 @@ name       = "freenet is a generic client"
 why        = "src/freenet knows nothing about lobbies; discovery adapts it (discovery -> freenet, never the reverse)."
 folders    = ["src/freenet"]
 cannot_use = ["crate::discovery"]
+
+[[lele.boundary]]
+name       = "room_sync does not know how rooms are found"
+why        = "discovery (or any other source) projects rooms and members onto peers entities; room_sync reads only those."
+folders    = ["src/room_sync"]
+cannot_use = ["crate::discovery"]

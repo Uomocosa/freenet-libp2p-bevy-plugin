@@ -25,7 +25,7 @@ pub struct PendingHistoryFetch {
 pub struct KademliaHistoryState {
     pub is_enabled: bool,
     pub prefix: Option<p2p::HistoryKeyPrefix>,
-    pub lobby_status: room_sync::state_machine::RoomLiveness,
+    pub liveness: room_sync::state_machine::RoomLiveness,
     pub fetch_retries: u32,
     pub max_fetch_retries: u32,
     pub per_room_bytes: p2p::HistoryByteCount,

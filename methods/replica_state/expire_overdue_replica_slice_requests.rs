@@ -52,7 +52,7 @@ mod tests {
                 room,
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: Vec::new(),
-                lobby_status: RoomLiveness::default(),
+                liveness: RoomLiveness::default(),
             },
             at_secs(0),
         );

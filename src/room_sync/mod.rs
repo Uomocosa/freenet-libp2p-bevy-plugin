@@ -2,6 +2,7 @@
 pub mod basic;
 
 pub use basic::aliases::ReplicaSliceContentHashes;
+pub use basic::aliases::RoomDetails;
 pub use basic::constants::HISTORY_RECORD_REPLY_TIMEOUT;
 pub use basic::constants::PART_BYTES;
 pub use basic::constants::REPLICA_SLICE_REPLY_TIMEOUT;
@@ -38,5 +39,4 @@ pub use sync_plugin::SyncPlugin;
 
 pub mod state_machine;
 
-#[cfg(feature = "discovery")]
 pub mod bevy_systems;

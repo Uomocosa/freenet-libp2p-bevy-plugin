@@ -28,13 +28,12 @@ pub fn handle_history_record_not_found<Op>(
             let Some(room) = state.room.clone() else {
                 return Vec::new();
             };
-            let lobby_status = state.kademlia_history.lobby_status;
-            if !lobby_status.is_room_still_listed {
+            let liveness = state.kademlia_history.liveness;
+            if !liveness.is_room_still_listed {
                 state.phase = room_sync::state_machine::Phase::Failed;
                 return vec![room_sync::state_machine::Output::RoomGone { room }];
             }
-            if !lobby_status.has_other_history_holders && state.kademlia_history.fetch_retries == 0
-            {
+            if !liveness.has_other_history_holders && state.kademlia_history.fetch_retries == 0 {
                 state.phase = room_sync::state_machine::Phase::Ready;
                 let mut outputs = Vec::new();
                 for (meta, op) in state.buffered_ops.drain(..) {
@@ -74,7 +73,7 @@ mod tests {
         state.phase = Phase::FetchingHistoryFromKademlia;
         state.kademlia_history.is_enabled = true;
         state.kademlia_history.prefix = Some(prefix.clone());
-        state.kademlia_history.lobby_status = RoomLiveness {
+        state.kademlia_history.liveness = RoomLiveness {
             is_room_still_listed: false,
             has_other_history_holders: false,
         };

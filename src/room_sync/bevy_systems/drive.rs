@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 
-use crate::discovery;
-use crate::identity;
 use crate::p2p;
+use crate::peers;
 use crate::room_sync;
 
 type ReplicaInputSources<'a, 's, Op> = (
@@ -12,82 +11,28 @@ type ReplicaInputSources<'a, 's, Op> = (
 );
 
 pub fn drive<Replica: room_sync::RoomState>(
-    room_events: Option<MessageReader<discovery::Event>>,
     mut failures: Option<MessageWriter<room_sync::JoinFailure>>,
-    discovery_status: Option<Res<discovery::Status>>,
     (libp2p_events, mut timer_inputs, real_time): ReplicaInputSources<'_, '_, Replica::Op>,
     game: Res<room_sync::SyncGame>,
     mut clock: ResMut<room_sync::LamportClock>,
     mut state: ResMut<room_sync::bevy_systems::SyncState<Replica::Op>>,
     mut room: ResMut<Replica>,
     mut pending: ResMut<p2p::PendingLibp2pCommands>,
+    me_rooms: Query<&peers::InRoom, With<peers::Me>>,
+    room_details: Query<room_sync::RoomDetails<'_>>,
+    member_peers: Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>,
 ) {
-    let discovery_status = discovery_status.map(Res::into_inner);
     let libp2p_events = libp2p_events.into_inner();
     let game = game.into_inner();
-    let members: Vec<identity::PeerId> = discovery_status.map_or_else(Vec::new, |status| {
-        status.connected_members().cloned().collect()
-    });
-    let mut inputs: Vec<room_sync::state_machine::Input<Replica::Op>> = Vec::new();
-    if let Some(mut room_events) = room_events {
-        for event in room_events.read() {
-            match event {
-                discovery::Event::Joined(room_name) => {
-                    pending.push(p2p::Libp2pCommand::Subscribe {
-                        topic: identity::Topic::from_room_sync(game, room_name),
-                    });
-                    let (prefix, lobby_status) = discovery::Status::room_prefix_and_lobby_status(
-                        discovery_status,
-                        game,
-                        room_name,
-                    );
-                    inputs.push(room_sync::state_machine::Input::Joined {
-                        room: room_name.clone(),
-                        prefix,
-                        members: members.clone(),
-                        lobby_status,
-                    });
-                }
-                discovery::Event::Left(room_name) => {
-                    pending.push(p2p::Libp2pCommand::Unsubscribe {
-                        topic: identity::Topic::from_room_sync(game, room_name),
-                    });
-                    *state = room_sync::bevy_systems::SyncState(
-                        room_sync::state_machine::ReplicaState {
-                            slice_anti_entropy: room_sync::state_machine::SliceAntiEntropyState {
-                                max_fetches_per_peer: state.slice_anti_entropy.max_fetches_per_peer,
-                                ..Default::default()
-                            },
-                            kademlia_history: room_sync::state_machine::KademliaHistoryState {
-                                is_enabled: state.kademlia_history.is_enabled,
-                                max_fetch_retries: state.kademlia_history.max_fetch_retries,
-                                per_room_bytes: state.kademlia_history.per_room_bytes,
-                                record_ttl: state.kademlia_history.record_ttl,
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        },
-                    );
-                }
-                discovery::Event::RoomMembersUpdated | discovery::Event::LobbyUpdated => {
-                    if let Some(room_name) = state.room.clone() {
-                        let (prefix, lobby_status) =
-                            discovery::Status::room_prefix_and_lobby_status(
-                                discovery_status,
-                                game,
-                                &room_name,
-                            );
-                        inputs.push(room_sync::state_machine::Input::Members {
-                            members: members.clone(),
-                            prefix,
-                            lobby_status,
-                        });
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
+    let (room_commands, mut inputs) =
+        room_sync::bevy_systems::SyncState::<Replica::Op>::room_inputs_from_entities(
+            &mut state,
+            game,
+            &me_rooms,
+            &room_details,
+            &member_peers,
+        );
+    pending.extend(room_commands);
     for event in libp2p_events.drain() {
         let input = room_sync::bevy_systems::SyncState::<Replica::Op>::libp2p_event_to_input(
             &event, &state, &mut clock, game, &*room,
@@ -128,9 +73,9 @@ mod tests {
     use derive_more::{Deref, DerefMut};
     use serde::{Deserialize, Serialize};
 
-    use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::peers;
     use crate::plugin;
     use crate::room_sync;
     use crate::time;
@@ -224,9 +169,6 @@ mod tests {
                 .with_anti_entropy_config(anti_entropy)
                 .with_history_config(history),
         );
-        app.add_message::<discovery::Event>();
-        app.add_message::<discovery::Command>();
-        app.init_resource::<discovery::Status>();
         app.update();
         app
     }
@@ -250,86 +192,86 @@ mod tests {
             .clone()
     }
 
-    fn status_with_created_at(
+    fn join_with(
+        app: &mut App,
         room: &identity::RoomName,
-        created_at: time::UnixTime,
-        connected_members: Vec<identity::PeerId>,
-        lobby_members: BTreeMap<identity::PeerId, discovery::RoomMembership>,
-    ) -> discovery::Status {
-        let mut lobby = discovery::Lobby::default();
-        if !lobby_members.is_empty() {
-            lobby.insert(
-                room.clone(),
-                discovery::LobbyRoom {
-                    room_size: discovery::RoomSize::DEFAULT,
-                    created_at,
-                    members: lobby_members
-                        .into_iter()
-                        .map(|(peer, membership)| {
-                            (
-                                peer.clone(),
-                                discovery::RoomMember {
-                                    peer: identity::Peer {
-                                        id: peer,
-                                        addrs: Vec::new(),
-                                    },
-                                    updated_at: created_at,
-                                    display_name: None,
-                                    membership,
-                                },
-                            )
-                        })
-                        .collect(),
-                },
-            );
-        }
-        let connected: std::collections::BTreeSet<identity::PeerId> =
-            connected_members.iter().cloned().collect();
-        discovery::Status {
-            lobby,
-            connected,
-            room: Some(discovery::JoinedRoom {
-                name: room.clone(),
-                created_at,
-                phase: discovery::JoinPhase::Ready,
-                members: connected_members
-                    .into_iter()
-                    .map(|peer| {
-                        (
-                            peer.clone(),
-                            discovery::RoomMember {
-                                peer: identity::Peer {
-                                    id: peer,
-                                    addrs: Vec::new(),
-                                },
-                                updated_at: created_at,
-                                display_name: None,
-                                membership: discovery::RoomMembership::Occupant,
-                            },
-                        )
-                    })
-                    .collect(),
-                how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            freenet_peers: Vec::new(),
-            is_lobby_fetched: true,
-            self_peer_id: None,
-        }
-    }
-
-    fn status(room: &identity::RoomName, members: Vec<identity::PeerId>) -> discovery::Status {
-        let lobby_members = members
-            .iter()
-            .map(|peer| (peer.clone(), discovery::RoomMembership::Occupant))
+        members: Vec<identity::PeerId>,
+        prefix: p2p::HistoryKeyPrefix,
+        liveness: room_sync::state_machine::RoomLiveness,
+    ) {
+        let room_entity = app
+            .world_mut()
+            .spawn((peers::Room::from(room.clone()), prefix, liveness))
+            .id();
+        let me_entities: Vec<Entity> = app
+            .world_mut()
+            .query_filtered::<Entity, With<peers::Me>>()
+            .iter(app.world())
             .collect();
-        status_with_created_at(room, time::UnixTime::now(), members, lobby_members)
+        if me_entities.is_empty() {
+            let self_id = ready(app).map_or_else(|| identity::PeerId::from("me"), |peer| peer.id);
+            app.world_mut().spawn((
+                peers::Peer::from(self_id),
+                peers::Me,
+                peers::InRoom(room_entity),
+            ));
+        } else {
+            for entity in me_entities {
+                app.world_mut()
+                    .entity_mut(entity)
+                    .insert(peers::InRoom(room_entity));
+            }
+        }
+        for member in members {
+            app.world_mut().spawn((
+                peers::Peer::from(member),
+                peers::InRoom(room_entity),
+                peers::Connected,
+            ));
+        }
     }
 
-    fn join(app: &mut App, room: &identity::RoomName, members: Vec<identity::PeerId>) {
-        app.insert_resource(status(room, members));
-        app.world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room.clone()));
+    fn join(
+        app: &mut App,
+        game: &identity::GameId,
+        room: &identity::RoomName,
+        members: Vec<identity::PeerId>,
+    ) {
+        let prefix = p2p::HistoryKeyPrefix::new(game, room, time::UnixTime::now());
+        let listed = !members.is_empty();
+        join_with(
+            app,
+            room,
+            members,
+            prefix,
+            room_sync::state_machine::RoomLiveness {
+                is_room_still_listed: listed,
+                has_other_history_holders: listed,
+            },
+        );
+    }
+
+    fn leave(app: &mut App) {
+        let me_entities: Vec<Entity> = app
+            .world_mut()
+            .query_filtered::<Entity, With<peers::Me>>()
+            .iter(app.world())
+            .collect();
+        for entity in me_entities {
+            app.world_mut().entity_mut(entity).remove::<peers::InRoom>();
+        }
+    }
+
+    fn set_liveness(app: &mut App, liveness: room_sync::state_machine::RoomLiveness) {
+        let target: Option<Entity> = app
+            .world_mut()
+            .query_filtered::<&peers::InRoom, With<peers::Me>>()
+            .iter(app.world())
+            .next()
+            .map(|in_room| **in_room);
+        if let Some(entity) = target {
+            app.world_mut().entity_mut(entity).insert(liveness);
+        }
     }
 
     fn wait_ready(app: &mut App) -> identity::Peer {
@@ -399,8 +341,8 @@ mod tests {
             .resource_mut::<Map>()
             .entries
             .insert(7, 42);
-        join(&mut incumbent, &room, Vec::new());
-        join(&mut joiner, &room, vec![a.id.clone()]);
+        join(&mut incumbent, &game, &room, Vec::new());
+        join(&mut joiner, &game, &room, vec![a.id.clone()]);
 
         let mut saw_part = false;
         for _ in 0..MAX_ROUNDS {
@@ -460,7 +402,7 @@ mod tests {
                 .filter(|(other, _)| *other != index)
                 .map(|(_, peer)| peer.id.clone())
                 .collect();
-            join(app, &room, others);
+            join(app, &game, &room, others);
         }
         for _ in 0..50 {
             for app in &mut apps {
@@ -559,36 +501,25 @@ mod tests {
         connect_and_seed_kad(&mut peer_b, &a);
 
         let gen1 = time::UnixTime::now();
-        let lobby_ab = BTreeMap::from([
-            (a.id.clone(), discovery::RoomMembership::Occupant),
-            (b.id.clone(), discovery::RoomMembership::Occupant),
-        ]);
-        peer_a.insert_resource(status_with_created_at(
-            &room,
-            gen1,
-            Vec::new(),
-            BTreeMap::from([(a.id.clone(), discovery::RoomMembership::Occupant)]),
-        ));
-        peer_a
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room.clone()));
+        let prefix = p2p::HistoryKeyPrefix::new(&game, &room, gen1);
+        let present = room_sync::state_machine::RoomLiveness {
+            is_room_still_listed: true,
+            has_other_history_holders: true,
+        };
+        join_with(&mut peer_a, &room, Vec::new(), prefix.clone(), present);
         peer_a
             .world_mut()
             .resource_mut::<Map>()
             .entries
             .insert(9, 99);
 
-        peer_b.insert_resource(status_with_created_at(
+        join_with(
+            &mut peer_b,
             &room,
-            gen1,
             vec![a.id.clone()],
-            lobby_ab,
-        ));
-        peer_b
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room.clone()));
+            prefix.clone(),
+            present,
+        );
 
         let mut stored = false;
         for _ in 0..MAX_ROUNDS {
@@ -607,24 +538,14 @@ mod tests {
         assert_eq!(peer_b.world().resource::<Map>().entries.get(&9), Some(&99));
 
         for app in [&mut peer_a, &mut peer_b] {
-            app.world_mut()
-                .resource_mut::<Messages<discovery::Event>>()
-                .write(discovery::Event::Left(room.clone()));
+            leave(app);
             app.update();
         }
 
         connect_and_seed_kad(&mut peer_c, &a);
         connect_and_seed_kad(&mut peer_c, &b);
 
-        let holders = BTreeMap::from([
-            (a.id.clone(), discovery::RoomMembership::HistoryHolder),
-            (b.id.clone(), discovery::RoomMembership::HistoryHolder),
-        ]);
-        peer_c.insert_resource(status_with_created_at(&room, gen1, Vec::new(), holders));
-        peer_c
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room.clone()));
+        join_with(&mut peer_c, &room, Vec::new(), prefix, present);
 
         for _ in 0..MAX_ROUNDS {
             peer_a.update();
@@ -644,20 +565,18 @@ mod tests {
         let room = identity::RoomName::from("room-recreate");
         let history = Some(room_sync::HistoryConfig::default());
         let mut peer_d = node_with(&game, None, history);
-        let d = wait_ready(&mut peer_d);
+        let _d = wait_ready(&mut peer_d);
         let generation = time::UnixTime::now();
-        let mut status = status_with_created_at(
+        join_with(
+            &mut peer_d,
             &room,
-            generation,
             Vec::new(),
-            BTreeMap::from([(d.id.clone(), discovery::RoomMembership::Occupant)]),
+            p2p::HistoryKeyPrefix::new(&game, &room, generation),
+            room_sync::state_machine::RoomLiveness {
+                is_room_still_listed: true,
+                has_other_history_holders: false,
+            },
         );
-        status.self_peer_id = Some(d.id.clone());
-        peer_d.insert_resource(status);
-        peer_d
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room));
         for _ in 0..30 {
             peer_d.update();
             if peer_d
@@ -687,18 +606,16 @@ mod tests {
         let history = Some(room_sync::HistoryConfig::default());
         let mut creator = node_with(&game, None, history);
         wait_ready(&mut creator);
-        let mut status =
-            status_with_created_at(&room, time::UnixTime::from(1), Vec::new(), BTreeMap::new());
-        if let Some(joined) = status.room.as_mut() {
-            joined.phase = discovery::JoinPhase::Joining {
-                since: time::UnixTime::from(0),
-            };
-        }
-        creator.insert_resource(status);
-        creator
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room.clone()));
+        join_with(
+            &mut creator,
+            &room,
+            Vec::new(),
+            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(1)),
+            room_sync::state_machine::RoomLiveness {
+                is_room_still_listed: true,
+                has_other_history_holders: false,
+            },
+        );
         for _ in 0..30 {
             creator.update();
             tokio::time::sleep(SETTLE).await;
@@ -743,36 +660,17 @@ mod tests {
             max_fetch_retries: 3,
         });
         let mut joiner = node_with(&game, None, history);
-        let joiner_peer = wait_ready(&mut joiner);
-        let seen_at = time::UnixTime::from(100);
-        let lobby = discovery::Lobby::from([(
-            room.clone(),
-            discovery::LobbyRoom {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(0),
-                members: BTreeMap::from([(
-                    identity::PeerId::from("dead-holder"),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from("dead-holder"),
-                            addrs: Vec::new(),
-                        },
-                        updated_at: seen_at,
-                        display_name: None,
-                        membership: discovery::RoomMembership::HistoryHolder,
-                    },
-                )]),
+        let _joiner_peer = wait_ready(&mut joiner);
+        join_with(
+            &mut joiner,
+            &room,
+            Vec::new(),
+            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(0)),
+            room_sync::state_machine::RoomLiveness {
+                is_room_still_listed: false,
+                has_other_history_holders: false,
             },
-        )]);
-        let mut pruned = discovery::state_machine::DiscoveryState::new(joiner_peer);
-        pruned.handle_lobby(lobby, seen_at);
-        pruned.tick(time::UnixTime::from(500));
-        assert!(pruned.lobby.is_empty());
-        joiner.insert_resource(pruned.status());
-        joiner
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room.clone()));
+        );
 
         let mut saw_room_gone = false;
         for _ in 0..MAX_ROUNDS {
@@ -809,46 +707,17 @@ mod tests {
             max_fetch_retries: 3,
         });
         let mut joiner = node_with(&game, None, history);
-        let joiner_peer = wait_ready(&mut joiner);
-        let seen_at = time::UnixTime::from(10);
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            room.clone(),
-            discovery::LobbyRoom {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(0),
-                members: BTreeMap::from([(
-                    joiner_peer.id.clone(),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: joiner_peer.id.clone(),
-                            addrs: Vec::new(),
-                        },
-                        updated_at: seen_at,
-                        display_name: None,
-                        membership: discovery::RoomMembership::Occupant,
-                    },
-                )]),
+        let _joiner_peer = wait_ready(&mut joiner);
+        join_with(
+            &mut joiner,
+            &room,
+            Vec::new(),
+            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(0)),
+            room_sync::state_machine::RoomLiveness {
+                is_room_still_listed: false,
+                has_other_history_holders: false,
             },
         );
-        joiner.insert_resource(discovery::Status {
-            lobby,
-            room: Some(discovery::JoinedRoom {
-                name: room.clone(),
-                created_at: time::UnixTime::from(0),
-                phase: discovery::JoinPhase::Ready,
-                members: discovery::Members::new(),
-                how_entered: discovery::HowRoomWasEntered::Joined,
-            }),
-            connected: std::collections::BTreeSet::new(),
-            freenet_peers: Vec::new(),
-            is_lobby_fetched: true,
-            self_peer_id: Some(joiner_peer.id),
-        });
-        joiner
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room.clone()));
 
         let mut saw_room_gone = false;
         for _ in 0..MAX_ROUNDS {
@@ -886,16 +755,16 @@ mod tests {
         });
         let mut joiner = node_with(&game, None, history);
         wait_ready(&mut joiner);
-        joiner.insert_resource(status_with_created_at(
+        join_with(
+            &mut joiner,
             &room,
-            time::UnixTime::from(1),
             Vec::new(),
-            BTreeMap::new(),
-        ));
-        joiner
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room.clone()));
+            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(1)),
+            room_sync::state_machine::RoomLiveness {
+                is_room_still_listed: false,
+                has_other_history_holders: false,
+            },
+        );
 
         let mut saw_room_gone = false;
         for _ in 0..50 {
@@ -910,18 +779,17 @@ mod tests {
 
         let mut mid_joiner = node_with(&game, None, history);
         wait_ready(&mut mid_joiner);
-        let holder_id = identity::PeerId::from("holder");
         let generation = time::UnixTime::now();
-        mid_joiner.insert_resource(status_with_created_at(
+        join_with(
+            &mut mid_joiner,
             &room,
-            generation,
             Vec::new(),
-            BTreeMap::from([(holder_id, discovery::RoomMembership::HistoryHolder)]),
-        ));
-        mid_joiner
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(room.clone()));
+            p2p::HistoryKeyPrefix::new(&game, &room, generation),
+            room_sync::state_machine::RoomLiveness {
+                is_room_still_listed: true,
+                has_other_history_holders: true,
+            },
+        );
         mid_joiner.update();
         assert_eq!(
             mid_joiner
@@ -931,16 +799,13 @@ mod tests {
             room_sync::state_machine::Phase::FetchingHistoryFromKademlia
         );
 
-        mid_joiner.insert_resource(status_with_created_at(
-            &room,
-            generation,
-            Vec::new(),
-            BTreeMap::new(),
-        ));
-        mid_joiner
-            .world_mut()
-            .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::LobbyUpdated);
+        set_liveness(
+            &mut mid_joiner,
+            room_sync::state_machine::RoomLiveness {
+                is_room_still_listed: false,
+                has_other_history_holders: false,
+            },
+        );
         mid_joiner.update();
         assert!(
             emitted_room_gone(&mut mid_joiner, &room),

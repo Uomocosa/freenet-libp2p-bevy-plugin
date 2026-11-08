@@ -22,7 +22,6 @@ pub mod friends_plugin;
 #[cfg(feature = "default_ui")]
 pub mod friends_ui_plugin;
 pub mod libp2p_command;
-#[cfg(feature = "discovery")]
 pub mod libp2p_events;
 #[cfg(feature = "discovery")]
 pub mod lobby;
@@ -64,7 +63,6 @@ pub mod swarm_loop_state;
 #[cfg(feature = "testing")]
 pub mod swarm_task_override;
 pub mod sync_plugin;
-#[cfg(feature = "discovery")]
 pub mod sync_state;
 pub mod topic;
 pub mod tracking_plugin;

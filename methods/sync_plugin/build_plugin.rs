@@ -2,7 +2,6 @@ use std::sync::Mutex;
 
 use bevy::prelude::*;
 
-use crate::discovery;
 use crate::p2p;
 use crate::room_sync;
 
@@ -71,10 +70,7 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
     app.add_systems(
         Update,
         (
-            room_sync::bevy_systems::drive::<Replica>
-                .after(discovery::bevy_systems::drain_events)
-                .after(discovery::bevy_systems::drain_status)
-                .in_set(room_sync::RoomSyncSet::Drive),
+            room_sync::bevy_systems::drive::<Replica>.in_set(room_sync::RoomSyncSet::Drive),
             room_sync::bevy_systems::write_ops::<Replica>,
         ),
     );
