@@ -348,7 +348,6 @@ jobs:
       - shell: powershell
         env:
           E2E_MACHINE: w
-          E2E_PLACEMENT: alice=w,bob=l
           E2E_BOARD: github
           E2E_GAME_BIN: C:\e2e\bundle\starboard.exe
           E2E_TIME_SCALE: ${{ inputs.time_scale }}
@@ -356,7 +355,6 @@ jobs:
           RECORD_VIDEO: ${{ inputs.record_video }}
         run: |
           $results = Join-Path $env:RUNNER_TEMP results
-          $env:E2E_RUN_DIR = $results
           $videoDir = Join-Path $env:RUNNER_TEMP video
           $videoMkv = Join-Path $videoDir windows.mkv
           New-Item -ItemType Directory -Force $results | Out-Null
@@ -372,10 +370,17 @@ jobs:
             $psi.RedirectStandardInput = $true
             $recording = [System.Diagnostics.Process]::Start($psi)
           }
+          # Linux dials Windows: the Linux runner firewall drops inbound connections.
+          $env:E2E_PLACEMENT = 'alice=l,bob=w'
           $env:E2E_BOARD_RUN_ID = "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-direct_dial"
+          $env:E2E_RUN_DIR = Join-Path $results direct_dial
+          New-Item -ItemType Directory -Force $env:E2E_RUN_DIR | Out-Null
           & $testBin direct_dial --ignored --nocapture
           $first = $LASTEXITCODE
+          $env:E2E_PLACEMENT = 'alice=w,bob=l'
           $env:E2E_BOARD_RUN_ID = "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-friends_reconnect"
+          $env:E2E_RUN_DIR = Join-Path $results friends_reconnect
+          New-Item -ItemType Directory -Force $env:E2E_RUN_DIR | Out-Null
           & $testBin friends_reconnect --ignored --nocapture
           $second = $LASTEXITCODE
           if ($recording) { $recording.StandardInput.Write('q'); $recording.StandardInput.Flush(); if (-not $recording.WaitForExit(20000)) { $recording.Kill() } }
@@ -436,7 +441,6 @@ jobs:
           github-token: ${{ github.token }}
       - env:
           E2E_MACHINE: l
-          E2E_PLACEMENT: alice=w,bob=l
           E2E_BOARD: github
           E2E_TIME_SCALE: ${{ inputs.time_scale }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -445,7 +449,7 @@ jobs:
           bin="$RUNNER_TEMP/bundle/e2e-direct-dial"
           game="$RUNNER_TEMP/bundle/starboard"
           results="$RUNNER_TEMP/results"
-          export E2E_GAME_BIN="$game" E2E_RUN_DIR="$results"
+          export E2E_GAME_BIN="$game"
           video_dir="$RUNNER_TEMP/video"
           video_mkv="$video_dir/linux.mkv"
           chmod +x "$bin" "$game"
@@ -459,10 +463,17 @@ jobs:
               -vf scale=960:-2 -c:v libx264 -preset ultrafast -crf 32 "$video_mkv" &
             recording=$!
           fi
+          # Linux dials Windows: the Linux runner firewall drops inbound connections.
+          export E2E_PLACEMENT=alice=l,bob=w
           export E2E_BOARD_RUN_ID="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-direct_dial"
+          export E2E_RUN_DIR="$results/direct_dial"
+          mkdir -p "$E2E_RUN_DIR"
           "$bin" direct_dial --ignored --nocapture
           first=$?
+          export E2E_PLACEMENT=alice=w,bob=l
           export E2E_BOARD_RUN_ID="$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-friends_reconnect"
+          export E2E_RUN_DIR="$results/friends_reconnect"
+          mkdir -p "$E2E_RUN_DIR"
           "$bin" friends_reconnect --ignored --nocapture
           second=$?
           if [ -n "$recording" ]; then kill "$recording" || true; fi
@@ -526,11 +537,17 @@ jobs:
           NETWORK_LABEL: ${{ inputs.network_label }}
         run: |
           $env:E2E_ROLE = 'check'
-          $env:E2E_RESULTS_DIR = Join-Path $env:RUNNER_TEMP results
+          $results = Join-Path $env:RUNNER_TEMP results
           $testBin = 'C:\e2e\bundle\e2e-direct-dial.exe'
-          $table = & $testBin direct_dial friends_reconnect --ignored --nocapture 2>&1
-          $code = $LASTEXITCODE
-          $table
           "## $env:SCENARIO on $env:NETWORK_LABEL" | Add-Content $env:GITHUB_STEP_SUMMARY
-          $table | Add-Content $env:GITHUB_STEP_SUMMARY
-          exit $code
+          $failed = $false
+          foreach ($test in @('direct_dial', 'friends_reconnect')) {
+            $env:E2E_RESULTS_DIR = Join-Path $results $test
+            $table = cmd /c "`"$testBin`" $test --ignored --nocapture 2>&1"
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+            $table
+            "### $test" | Add-Content $env:GITHUB_STEP_SUMMARY
+            $table | Add-Content $env:GITHUB_STEP_SUMMARY
+          }
+          if ($failed) { exit 1 }
+          exit 0
