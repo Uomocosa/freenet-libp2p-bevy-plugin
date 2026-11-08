@@ -8,7 +8,8 @@ type OrphanPeerRow<'a> = (
     &'a peers::Peer,
     Has<peers::Connected>,
     Has<peers::InRoom>,
-    Has<peers::HoldsHistoryOf>,
+    Has<peers::HeldRooms>,
+    Has<peers::KeepAlive>,
     Has<peers::Me>,
 );
 
@@ -22,10 +23,12 @@ pub fn despawn_orphan_peers(
     };
     let orphans: Vec<(Entity, identity::PeerId)> = found_peers
         .iter()
-        .filter(|(_, _, is_connected, is_in_room, holds_history, is_me)| {
-            !is_connected && !is_in_room && !holds_history && !is_me
-        })
-        .map(|(entity, peer, _, _, _, _)| (entity, (**peer).clone()))
+        .filter(
+            |(_, _, is_connected, is_in_room, holds_history, is_keep_alive, is_me)| {
+                !is_connected && !is_in_room && !holds_history && !is_keep_alive && !is_me
+            },
+        )
+        .map(|(entity, peer, _, _, _, _, _)| (entity, (**peer).clone()))
         .collect();
     for (entity, id) in orphans {
         peer_index.remove(&id);

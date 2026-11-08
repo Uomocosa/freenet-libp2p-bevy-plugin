@@ -1,3 +1,4 @@
+use bevy::prelude::Component;
 use derive_more::{Deref, From};
 use serde::{Deserialize, Serialize};
 
@@ -5,7 +6,18 @@ use crate::identity;
 use crate::time;
 
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref, From,
+    Component,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Deref,
+    From,
 )]
 #[from(forward)]
 pub struct HistoryKeyPrefix(pub String);

@@ -13,7 +13,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::room_sync;
-    use crate::room_sync::state_machine::{Input, LobbyRoomStatus, Output, Phase, ReplicaState};
+    use crate::room_sync::state_machine::{Input, Output, Phase, ReplicaState, RoomLiveness};
 
     #[test]
     fn test_usage() {
@@ -33,7 +33,7 @@ mod tests {
                 room: room.clone(),
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![first, second.clone()],
-                lobby_status: LobbyRoomStatus::default(),
+                lobby_status: RoomLiveness::default(),
             },
             now,
         );

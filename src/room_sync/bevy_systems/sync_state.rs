@@ -5,7 +5,6 @@ use bevy::prelude::MessageWriter;
 use bevy::prelude::Resource;
 use derive_more::{Deref, DerefMut};
 
-use crate::discovery;
 use crate::identity;
 use crate::p2p;
 use crate::room_sync;
@@ -28,7 +27,6 @@ impl<Op> SyncState<Op> {
         per_room_bytes: p2p::HistoryByteCount,
         record_ttl: Duration,
         pending: &mut p2p::PendingLibp2pCommands,
-        command_sender: Option<&discovery::CommandSender>,
         failures: &mut Option<MessageWriter<room_sync::JoinFailure>>,
         game: &identity::GameId,
     ) {

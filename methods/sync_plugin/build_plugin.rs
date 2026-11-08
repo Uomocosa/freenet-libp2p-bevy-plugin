@@ -64,12 +64,17 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
     app.insert_resource(room_sync::bevy_systems::Libp2pEvents {
         receiver: Mutex::new(libp2p_events),
     });
+    app.configure_sets(
+        Update,
+        room_sync::RoomSyncSet::Input.before(room_sync::RoomSyncSet::Drive),
+    );
     app.add_systems(
         Update,
         (
             room_sync::bevy_systems::drive::<Replica>
                 .after(discovery::bevy_systems::drain_events)
-                .after(discovery::bevy_systems::drain_status),
+                .after(discovery::bevy_systems::drain_status)
+                .in_set(room_sync::RoomSyncSet::Drive),
             room_sync::bevy_systems::write_ops::<Replica>,
         ),
     );

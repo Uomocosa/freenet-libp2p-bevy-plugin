@@ -129,6 +129,74 @@ mod tests {
     }
 
     #[test]
+    fn room_kept_only_by_a_holder_survives_the_sweep() {
+        let mut app = app_with_system();
+        let room = app
+            .world_mut()
+            .spawn(peers::Room::from(identity::RoomName::from("archive")))
+            .id();
+        app.world_mut()
+            .resource_mut::<peers::RoomIndex>()
+            .insert(identity::RoomName::from("archive"), room);
+        let holder = app
+            .world_mut()
+            .spawn(peers::Peer::from(identity::PeerId::from("holder")))
+            .id();
+        app.world_mut().spawn((
+            peers::HistoryHold,
+            peers::HeldBy(holder),
+            peers::HoldOf(room),
+        ));
+        app.update();
+        app.update();
+        assert!(app.world().get_entity(room).is_ok());
+        assert!(
+            app.world()
+                .resource::<peers::RoomIndex>()
+                .get(&identity::RoomName::from("archive"))
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn despawned_peer_takes_its_links_with_it() {
+        let mut app = app_with_system();
+        let room = app
+            .world_mut()
+            .spawn(peers::Room::from(identity::RoomName::from("archive")))
+            .id();
+        app.world_mut()
+            .resource_mut::<peers::RoomIndex>()
+            .insert(identity::RoomName::from("archive"), room);
+        let holder = app
+            .world_mut()
+            .spawn(peers::Peer::from(identity::PeerId::from("holder")))
+            .id();
+        let link = app
+            .world_mut()
+            .spawn((
+                peers::HistoryHold,
+                peers::HeldBy(holder),
+                peers::HoldOf(room),
+            ))
+            .id();
+        app.update();
+        assert!(app.world().get_entity(link).is_ok());
+        app.world_mut().despawn(holder);
+        app.update();
+        assert!(app.world().get_entity(link).is_err());
+        app.update();
+        app.update();
+        assert!(app.world().get_entity(room).is_err());
+        assert!(
+            app.world()
+                .resource::<peers::RoomIndex>()
+                .get(&identity::RoomName::from("archive"))
+                .is_none()
+        );
+    }
+
+    #[test]
     fn room_follows_its_last_holder() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
@@ -150,9 +218,14 @@ mod tests {
             .insert(identity::RoomName::from("archive"), room);
         let holder = app
             .world_mut()
+            .spawn(peers::Peer::from(identity::PeerId::from("holder")))
+            .id();
+        let link = app
+            .world_mut()
             .spawn((
-                peers::Peer::from(identity::PeerId::from("holder")),
-                peers::HoldsHistoryOf(room),
+                peers::HistoryHold,
+                peers::HeldBy(holder),
+                peers::HoldOf(room),
             ))
             .id();
         app.world_mut()
@@ -163,7 +236,7 @@ mod tests {
         assert!(
             app.world()
                 .get::<peers::HistoryHolders>(room)
-                .is_some_and(|holders| holders.contains(&holder))
+                .is_some_and(|holders| holders.contains(&link))
         );
         app.world_mut().despawn(holder);
         app.update();

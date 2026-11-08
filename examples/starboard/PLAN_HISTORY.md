@@ -221,7 +221,7 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
 - `room_sync::state_machine::State<Op>` decomposed into `MemberSnapshotFetchState`
   (`received_parts: BTreeMap<u32, Vec<u8>>`), `SliceAntiEntropyState`, `KademliaHistoryState`,
   `PendingHistoryFetch` (`received_chunks: BTreeMap<ChunkIndex, Vec<u8>>`), and
-  `LobbyRoomStatus`.
+  `RoomLiveness`.
 - Parallel `Phase` / `Input` / `Output` naming: `FetchingSnapshotFromRoomMember`,
   `FetchingHistoryFromKademlia`, `Failed`; `SnapshotPartReceivedFromRoomMember`,
   `SnapshotPartRequestedByRoomMember`, `RequestToRoomMemberFailed`, `HistoryWriteTimerFired`,
@@ -438,7 +438,7 @@ board's record is 333 KB in 6 chunks of ≤ 60 KB — far below HD9's 64 MB per-
    tree and fails with this reason).
    **FIXED 2026-10-29:** `room_prefix_and_lobby_status` now uses `UnixTime::now()`
    (not the max heartbeat) for freshness, so a lone expired holder is dead
-   (`is_room_alive_in_lobby = false` → `RoomGone`); `self_peer_id`/`lease_ttl` ride
+   (`is_room_still_listed = false` → `RoomGone`); `self_peer_id`/`lease_ttl` ride
    on `discovery::Status` (populated from `ReadyChannel`/holder lease config), and
    an unknown self counts every live member as other (never subtracts one). New fast
    tests: `expired_holder_alone_means_the_room_is_gone`,
@@ -461,7 +461,7 @@ board's record is 333 KB in 6 chunks of ≤ 60 KB — far below HD9's 64 MB per-
    **FOLLOW-UP 2026-10-29 (created-vs-joined rule, S4b):** a joiner's own heartbeat
    in the lobby no longer counts as "room alive". `JoinedRoom` carries
    `how_entered: HowRoomWasEntered::{Created, Joined}` (set from `Command::Create`/`Join`);
-   with `entry == Joined`, `is_room_alive_in_lobby` requires at least one live
+   with `entry == Joined`, `is_room_still_listed` requires at least one live
    member other than self (own entry does not count), so a joiner whose lobby
    holds only itself reports `RoomGone` instead of accepting an empty board.
    With `entry == Created` the own entry still counts (new room, empty board OK).

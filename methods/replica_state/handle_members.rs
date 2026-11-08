@@ -6,7 +6,7 @@ pub fn handle_members<Op>(
     state: &mut room_sync::state_machine::ReplicaState<Op>,
     members: Vec<identity::PeerId>,
     prefix: p2p::HistoryKeyPrefix,
-    lobby_status: room_sync::state_machine::LobbyRoomStatus,
+    lobby_status: room_sync::state_machine::RoomLiveness,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
     let mut members = members;
     members.sort();
@@ -16,7 +16,7 @@ pub fn handle_members<Op>(
     match state.phase {
         room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember => state.fetch_next(),
         room_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
-            if !lobby_status.is_room_alive_in_lobby {
+            if !lobby_status.is_room_still_listed {
                 let Some(room) = state.room.clone() else {
                     return Vec::new();
                 };
@@ -44,7 +44,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::room_sync::state_machine::{
-        LobbyRoomStatus, Output, PendingHistoryFetch, Phase, ReplicaState,
+        Output, PendingHistoryFetch, Phase, ReplicaState, RoomLiveness,
     };
 
     #[test]
@@ -54,7 +54,7 @@ mod tests {
             &mut state,
             vec![identity::PeerId::from("peer")],
             p2p::HistoryKeyPrefix::from("prefix"),
-            LobbyRoomStatus::default(),
+            RoomLiveness::default(),
         );
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.member_snapshot.members.len(), 1);
@@ -80,9 +80,9 @@ mod tests {
             &mut state,
             vec![painter.clone()],
             prefix,
-            LobbyRoomStatus {
-                is_room_alive_in_lobby: true,
-                has_other_lobby_holders: true,
+            RoomLiveness {
+                is_room_still_listed: true,
+                has_other_history_holders: true,
             },
         );
         assert_eq!(

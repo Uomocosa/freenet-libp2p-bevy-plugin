@@ -1,7 +1,7 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use atomic_delegate_macros::atomic_delegates;
-use bevy::prelude::Resource;
+use bevy::prelude::{Entity, Resource};
 
 use crate::discovery;
 use crate::identity;
@@ -48,7 +48,16 @@ impl Status {
         room_name: &identity::RoomName,
     ) -> (
         p2p::HistoryKeyPrefix,
-        room_sync::state_machine::LobbyRoomStatus,
+        room_sync::state_machine::RoomLiveness,
+    ) {
+    }
+    pub(crate) fn desired_rooms(status: &Self) -> BTreeSet<identity::RoomName> {}
+    pub(crate) fn desired_membership(
+        status: &Self,
+        room_entity_by_name: &BTreeMap<identity::RoomName, Entity>,
+    ) -> (
+        BTreeMap<identity::PeerId, Entity>,
+        BTreeMap<identity::PeerId, BTreeSet<Entity>>,
     ) {
     }
 }

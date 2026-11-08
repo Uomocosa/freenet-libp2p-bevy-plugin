@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use tracing::error;
 
 use crate::discovery;
+use crate::room_sync;
 #[cfg(feature = "testing")]
 use crate::testing;
 
@@ -18,6 +19,16 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
             discovery::bevy_systems::drain_events,
             discovery::bevy_systems::forward_commands,
         ),
+    );
+    app.add_systems(
+        Update,
+        discovery::bevy_systems::project_status_to_entities
+            .after(discovery::bevy_systems::drain_status)
+            .in_set(room_sync::RoomSyncSet::Input),
+    );
+    app.add_systems(
+        Update,
+        discovery::bevy_systems::leave_failed_room.after(room_sync::RoomSyncSet::Drive),
     );
     app.add_systems(Last, discovery::bevy_systems::send_quit_on_exit);
 

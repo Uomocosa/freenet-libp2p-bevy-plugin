@@ -4,12 +4,6 @@ use crate::identity;
 use crate::p2p;
 use crate::room_sync;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct LobbyRoomStatus {
-    pub is_room_alive_in_lobby: bool,
-    pub has_other_lobby_holders: bool,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SliceAntiEntropyState {
     pub fetches_awaiting_reply: BTreeMap<
@@ -31,7 +25,7 @@ pub struct PendingHistoryFetch {
 pub struct KademliaHistoryState {
     pub is_enabled: bool,
     pub prefix: Option<p2p::HistoryKeyPrefix>,
-    pub lobby_status: LobbyRoomStatus,
+    pub lobby_status: room_sync::state_machine::RoomLiveness,
     pub fetch_retries: u32,
     pub max_fetch_retries: u32,
     pub per_room_bytes: p2p::HistoryByteCount,

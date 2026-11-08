@@ -13,7 +13,6 @@ type ReplicaInputSources<'a, 's, Op> = (
 
 pub fn drive<Replica: room_sync::RoomState>(
     room_events: Option<MessageReader<discovery::Event>>,
-    command_sender: Option<Res<discovery::CommandSender>>,
     mut failures: Option<MessageWriter<room_sync::JoinFailure>>,
     discovery_status: Option<Res<discovery::Status>>,
     (libp2p_events, mut timer_inputs, real_time): ReplicaInputSources<'_, '_, Replica::Op>,
@@ -24,7 +23,6 @@ pub fn drive<Replica: room_sync::RoomState>(
     mut pending: ResMut<p2p::PendingLibp2pCommands>,
 ) {
     let discovery_status = discovery_status.map(Res::into_inner);
-    let command_sender = command_sender.map(Res::into_inner);
     let libp2p_events = libp2p_events.into_inner();
     let game = game.into_inner();
     let members: Vec<identity::PeerId> = discovery_status.map_or_else(Vec::new, |status| {
@@ -115,7 +113,6 @@ pub fn drive<Replica: room_sync::RoomState>(
                 per_room_bytes,
                 record_ttl,
                 &mut pending,
-                command_sender,
                 &mut failures,
                 game,
             );

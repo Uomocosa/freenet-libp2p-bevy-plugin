@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use bevy::prelude::MessageWriter;
 
-use crate::discovery;
 use crate::identity;
 use crate::p2p;
 use crate::room_sync;
@@ -14,7 +13,6 @@ pub fn perform<Replica: room_sync::RoomState>(
     per_room_bytes: p2p::HistoryByteCount,
     record_ttl: Duration,
     pending: &mut p2p::PendingLibp2pCommands,
-    command_sender: Option<&discovery::CommandSender>,
     failures: &mut Option<MessageWriter<room_sync::JoinFailure>>,
     game: &identity::GameId,
 ) {
@@ -63,16 +61,10 @@ pub fn perform<Replica: room_sync::RoomState>(
             if let Some(writer) = failures {
                 writer.write(room_sync::JoinFailure::RoomGone(room));
             }
-            if let Some(sender) = command_sender {
-                sender.send(discovery::Command::Leave).ok();
-            }
         }
         Output::HistoryUnavailable { room } => {
             if let Some(writer) = failures {
                 writer.write(room_sync::JoinFailure::HistoryUnavailable(room));
-            }
-            if let Some(sender) = command_sender {
-                sender.send(discovery::Command::Leave).ok();
             }
         }
         Output::PublishSliceContentHashes { room, hashes } => {
@@ -157,7 +149,6 @@ mod tests {
             p2p::HistoryByteCount::from(1_u64),
             std::time::Duration::from_secs(1),
             &mut pending,
-            None,
             &mut None,
             &game,
         );

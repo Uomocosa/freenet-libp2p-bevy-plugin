@@ -11,7 +11,7 @@ pub fn room_prefix_and_lobby_status(
     room_name: &identity::RoomName,
 ) -> (
     p2p::HistoryKeyPrefix,
-    room_sync::state_machine::LobbyRoomStatus,
+    room_sync::state_machine::RoomLiveness,
 ) {
     let created_at = status
         .and_then(|status| {
@@ -30,9 +30,9 @@ pub fn room_prefix_and_lobby_status(
         .unwrap_or_else(|| time::UnixTime::from(0));
     let prefix = p2p::HistoryKeyPrefix::new(game, room_name, created_at);
     let lobby_status = status.map_or(
-        room_sync::state_machine::LobbyRoomStatus {
-            is_room_alive_in_lobby: true,
-            has_other_lobby_holders: false,
+        room_sync::state_machine::RoomLiveness {
+            is_room_still_listed: true,
+            has_other_history_holders: false,
         },
         |status| {
             let self_peer_id = status.self_peer_id.as_ref();
@@ -42,9 +42,9 @@ pub fn room_prefix_and_lobby_status(
                         joined.name == *room_name
                             && matches!(joined.phase, discovery::JoinPhase::Joining { .. })
                     });
-                return room_sync::state_machine::LobbyRoomStatus {
-                    is_room_alive_in_lobby: is_the_contract_still_publishing_the_room,
-                    has_other_lobby_holders: false,
+                return room_sync::state_machine::RoomLiveness {
+                    is_room_still_listed: is_the_contract_still_publishing_the_room,
+                    has_other_history_holders: false,
                 };
             };
             let live_members: Vec<(&identity::PeerId, &discovery::RoomMember)> = record
@@ -58,7 +58,7 @@ pub fn room_prefix_and_lobby_status(
                 joined.name == *room_name
                     && joined.how_entered == discovery::HowRoomWasEntered::Joined
             });
-            let is_room_alive_in_lobby = if is_joined_entry {
+            let is_room_still_listed = if is_joined_entry {
                 self_peer_id.map_or_else(
                     || !live_members.is_empty(),
                     |self_id| live_members.iter().any(|(peer, _)| *peer != self_id),
@@ -79,9 +79,9 @@ pub fn room_prefix_and_lobby_status(
                 let is_other = self_peer_id != Some(*peer);
                 is_other && room_member.membership == discovery::RoomMembership::HistoryHolder
             });
-            room_sync::state_machine::LobbyRoomStatus {
-                is_room_alive_in_lobby,
-                has_other_lobby_holders: other_live_count > 0 || has_other_history_holder,
+            room_sync::state_machine::RoomLiveness {
+                is_room_still_listed,
+                has_other_history_holders: other_live_count > 0 || has_other_history_holder,
             }
         },
     );
@@ -104,12 +104,12 @@ mod tests {
             prefix,
             p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(0))
         );
-        assert!(lobby_status.is_room_alive_in_lobby);
-        assert!(!lobby_status.has_other_lobby_holders);
+        assert!(lobby_status.is_room_still_listed);
+        assert!(!lobby_status.has_other_history_holders);
         let empty = discovery::Status::default();
         let (same_prefix, empty_status) = room_prefix_and_lobby_status(Some(&empty), &game, &room);
         assert_eq!(same_prefix, prefix);
-        assert!(!empty_status.is_room_alive_in_lobby);
+        assert!(!empty_status.is_room_still_listed);
     }
 
     #[test]
@@ -146,8 +146,8 @@ mod tests {
             ..discovery::Status::default()
         };
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&status), &game, &room);
-        assert!(!lobby_status.is_room_alive_in_lobby);
-        assert!(!lobby_status.has_other_lobby_holders);
+        assert!(!lobby_status.is_room_still_listed);
+        assert!(!lobby_status.has_other_history_holders);
     }
 
     #[test]
@@ -185,8 +185,8 @@ mod tests {
             ..discovery::Status::default()
         };
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&status), &game, &room);
-        assert!(lobby_status.is_room_alive_in_lobby);
-        assert!(lobby_status.has_other_lobby_holders);
+        assert!(lobby_status.is_room_still_listed);
+        assert!(lobby_status.has_other_history_holders);
     }
 
     #[test]
@@ -245,8 +245,8 @@ mod tests {
             ..discovery::Status::default()
         };
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&status), &game, &room);
-        assert!(!lobby_status.is_room_alive_in_lobby);
-        assert!(!lobby_status.has_other_lobby_holders);
+        assert!(!lobby_status.is_room_still_listed);
+        assert!(!lobby_status.has_other_history_holders);
     }
 
     #[test]
@@ -290,7 +290,7 @@ mod tests {
             ..discovery::Status::default()
         };
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&status), &game, &room);
-        assert!(lobby_status.is_room_alive_in_lobby);
-        assert!(!lobby_status.has_other_lobby_holders);
+        assert!(lobby_status.is_room_still_listed);
+        assert!(!lobby_status.has_other_history_holders);
     }
 }

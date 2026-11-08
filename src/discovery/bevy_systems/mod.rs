@@ -12,3 +12,9 @@ pub use send_quit_on_exit::send_quit_on_exit;
 
 mod follow_room;
 pub use follow_room::follow_room;
+
+mod leave_failed_room;
+pub use leave_failed_room::leave_failed_room;
+
+mod project_status_to_entities;
+pub use project_status_to_entities::project_status_to_entities;

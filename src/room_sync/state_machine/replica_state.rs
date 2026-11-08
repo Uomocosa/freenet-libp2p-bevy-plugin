@@ -30,7 +30,7 @@ impl<Op> Default for ReplicaState<Op> {
             kademlia_history: room_sync::state_machine::KademliaHistoryState {
                 is_enabled: false,
                 prefix: None,
-                lobby_status: room_sync::state_machine::LobbyRoomStatus::default(),
+                lobby_status: room_sync::state_machine::RoomLiveness::default(),
                 fetch_retries: 0,
                 max_fetch_retries: history_defaults.max_fetch_retries,
                 per_room_bytes: history_defaults.per_room_bytes,
@@ -62,14 +62,14 @@ impl<Op> ReplicaState<Op> {
         room: identity::RoomName,
         prefix: p2p::HistoryKeyPrefix,
         members: Vec<identity::PeerId>,
-        lobby_status: room_sync::state_machine::LobbyRoomStatus,
+        lobby_status: room_sync::state_machine::RoomLiveness,
     ) -> Vec<room_sync::state_machine::Output<Op>> {
     }
     pub fn handle_members(
         &mut self,
         members: Vec<identity::PeerId>,
         prefix: p2p::HistoryKeyPrefix,
-        lobby_status: room_sync::state_machine::LobbyRoomStatus,
+        lobby_status: room_sync::state_machine::RoomLiveness,
     ) -> Vec<room_sync::state_machine::Output<Op>> {
     }
     pub fn handle_remote(
@@ -404,7 +404,7 @@ mod tests {
     use crate::p2p;
     use crate::room_sync;
     use crate::room_sync::state_machine::{
-        Input, LobbyRoomStatus, Output, PendingHistoryFetch, Phase, ReplicaState,
+        Input, Output, PendingHistoryFetch, Phase, ReplicaState, RoomLiveness,
     };
     use std::collections::BTreeMap;
 
@@ -461,10 +461,10 @@ mod tests {
         room_sync::ElapsedSinceAppStart::default()
     }
 
-    fn alive_status() -> LobbyRoomStatus {
-        LobbyRoomStatus {
-            is_room_alive_in_lobby: true,
-            has_other_lobby_holders: true,
+    fn alive_status() -> RoomLiveness {
+        RoomLiveness {
+            is_room_still_listed: true,
+            has_other_history_holders: true,
         }
     }
 
@@ -966,7 +966,7 @@ mod tests {
             room: identity::RoomName::from("r"),
             prefix: p2p::HistoryKeyPrefix::from("prefix"),
             members,
-            lobby_status: LobbyRoomStatus::default(),
+            lobby_status: RoomLiveness::default(),
         }
     }
 
@@ -1026,7 +1026,7 @@ mod tests {
                     Input::Members {
                         members: Vec::new(),
                         prefix: p2p::HistoryKeyPrefix::from("prefix"),
-                        lobby_status: LobbyRoomStatus::default(),
+                        lobby_status: RoomLiveness::default(),
                     },
                 ],
             ),

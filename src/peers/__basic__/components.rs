@@ -13,6 +13,9 @@ pub struct Me;
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct Connected;
 
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct KeepAlive;
+
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref, From)]
 pub struct Room(pub identity::RoomName);
 
@@ -24,10 +27,21 @@ pub struct InRoom(pub Entity);
 #[relationship_target(relationship = InRoom)]
 pub struct RoomMembers(Vec<Entity>);
 
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct HistoryHold;
+
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
-#[relationship(relationship_target = HistoryHolders)]
-pub struct HoldsHistoryOf(pub Entity);
+#[relationship(relationship_target = HeldRooms)]
+pub struct HeldBy(pub Entity);
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, Deref)]
-#[relationship_target(relationship = HoldsHistoryOf)]
+#[relationship_target(relationship = HeldBy, linked_spawn)]
+pub struct HeldRooms(Vec<Entity>);
+
+#[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
+#[relationship(relationship_target = HistoryHolders)]
+pub struct HoldOf(pub Entity);
+
+#[derive(Component, Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, Deref)]
+#[relationship_target(relationship = HoldOf, linked_spawn)]
 pub struct HistoryHolders(Vec<Entity>);

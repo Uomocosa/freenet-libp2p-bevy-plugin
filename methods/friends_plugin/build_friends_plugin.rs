@@ -57,7 +57,13 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
     if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
         app.insert_resource(direct_dial::DialEventTap(channel.subscribe()));
     }
-    app.add_systems(Update, direct_dial::bevy_systems::drive_dial_state);
+    app.add_systems(
+        Update,
+        (
+            direct_dial::bevy_systems::drive_dial_state,
+            direct_dial::bevy_systems::project_friends_to_entities,
+        ),
+    );
 }
 
 #[cfg(test)]

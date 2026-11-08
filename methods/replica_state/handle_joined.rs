@@ -7,7 +7,7 @@ pub fn handle_joined<Op>(
     room: identity::RoomName,
     prefix: p2p::HistoryKeyPrefix,
     members: Vec<identity::PeerId>,
-    lobby_status: room_sync::state_machine::LobbyRoomStatus,
+    lobby_status: room_sync::state_machine::RoomLiveness,
 ) -> Vec<room_sync::state_machine::Output<Op>> {
     state.room = Some(room);
     state.phase = room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember;
@@ -42,7 +42,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::room_sync;
-    use crate::room_sync::state_machine::{LobbyRoomStatus, ReplicaState};
+    use crate::room_sync::state_machine::{ReplicaState, RoomLiveness};
 
     #[test]
     fn test_usage() {
@@ -52,7 +52,7 @@ mod tests {
             identity::RoomName::from("room"),
             p2p::HistoryKeyPrefix::from("prefix"),
             vec![identity::PeerId::from("peer")],
-            LobbyRoomStatus::default(),
+            RoomLiveness::default(),
         );
         assert_eq!(outputs.len(), 1);
         assert_eq!(
@@ -70,7 +70,7 @@ mod tests {
             room.clone(),
             p2p::HistoryKeyPrefix::from("prefix"),
             Vec::new(),
-            LobbyRoomStatus::default(),
+            RoomLiveness::default(),
         );
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.phase, room_sync::state_machine::Phase::Ready);

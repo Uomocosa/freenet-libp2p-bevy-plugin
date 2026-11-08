@@ -21,7 +21,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::room_sync;
-    use crate::room_sync::state_machine::{Input, LobbyRoomStatus, Output, ReplicaState};
+    use crate::room_sync::state_machine::{Input, Output, ReplicaState, RoomLiveness};
 
     #[test]
     fn test_usage() {
@@ -37,10 +37,10 @@ mod tests {
         room_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
     }
 
-    fn alive_status() -> LobbyRoomStatus {
-        LobbyRoomStatus {
-            is_room_alive_in_lobby: true,
-            has_other_lobby_holders: true,
+    fn alive_status() -> RoomLiveness {
+        RoomLiveness {
+            is_room_still_listed: true,
+            has_other_history_holders: true,
         }
     }
 

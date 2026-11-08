@@ -29,11 +29,12 @@ pub fn handle_history_record_not_found<Op>(
                 return Vec::new();
             };
             let lobby_status = state.kademlia_history.lobby_status;
-            if !lobby_status.is_room_alive_in_lobby {
+            if !lobby_status.is_room_still_listed {
                 state.phase = room_sync::state_machine::Phase::Failed;
                 return vec![room_sync::state_machine::Output::RoomGone { room }];
             }
-            if !lobby_status.has_other_lobby_holders && state.kademlia_history.fetch_retries == 0 {
+            if !lobby_status.has_other_history_holders && state.kademlia_history.fetch_retries == 0
+            {
                 state.phase = room_sync::state_machine::Phase::Ready;
                 let mut outputs = Vec::new();
                 for (meta, op) in state.buffered_ops.drain(..) {
@@ -61,7 +62,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::room_sync::state_machine::{
-        LobbyRoomStatus, Output, PendingHistoryFetch, Phase, ReplicaState,
+        Output, PendingHistoryFetch, Phase, ReplicaState, RoomLiveness,
     };
 
     #[test]
@@ -73,9 +74,9 @@ mod tests {
         state.phase = Phase::FetchingHistoryFromKademlia;
         state.kademlia_history.is_enabled = true;
         state.kademlia_history.prefix = Some(prefix.clone());
-        state.kademlia_history.lobby_status = LobbyRoomStatus {
-            is_room_alive_in_lobby: false,
-            has_other_lobby_holders: false,
+        state.kademlia_history.lobby_status = RoomLiveness {
+            is_room_still_listed: false,
+            has_other_history_holders: false,
         };
         state.kademlia_history.pending_fetch = Some(PendingHistoryFetch {
             prefix: prefix.clone(),
