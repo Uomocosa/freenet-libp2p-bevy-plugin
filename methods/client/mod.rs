@@ -1,6 +1,6 @@
 mod connected_peers;
 mod fetch_and_subscribe;
-mod fetch_or_deploy_lobby;
+mod fetch_or_deploy;
 mod node_status;
 mod reconnect_delay;
 mod send;
@@ -8,7 +8,7 @@ mod try_from_host_and_port;
 mod wait_until_node_reachable;
 pub use connected_peers::connected_peers;
 pub use fetch_and_subscribe::fetch_and_subscribe;
-pub use fetch_or_deploy_lobby::fetch_or_deploy_lobby;
+pub use fetch_or_deploy::fetch_or_deploy;
 pub use node_status::node_status;
 pub use reconnect_delay::reconnect_delay;
 pub use send::send;

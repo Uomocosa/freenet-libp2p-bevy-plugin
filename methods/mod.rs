@@ -25,6 +25,8 @@ pub mod libp2p_events;
 pub mod lobby;
 #[cfg(feature = "discovery")]
 pub mod lobby_contract_subscription;
+#[cfg(feature = "discovery")]
+pub mod lobby_task_config;
 #[cfg(all(feature = "discovery", feature = "testing"))]
 pub mod lobby_task_override;
 pub mod member_snapshot_fetch_state;

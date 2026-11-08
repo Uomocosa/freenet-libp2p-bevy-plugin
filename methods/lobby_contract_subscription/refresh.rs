@@ -1,10 +1,13 @@
 use crate::discovery;
 
 pub async fn refresh(
-    state: &mut discovery::freenet::LobbyContractSubscription,
+    state: &mut discovery::LobbyContractSubscription,
 ) -> Result<discovery::Lobby, discovery::Error> {
     let instance_id = *state.key.id();
-    let fresh = state.client.fetch_and_subscribe(instance_id).await?;
+    let fresh = state
+        .client
+        .fetch_and_subscribe::<discovery::Lobby>(instance_id)
+        .await?;
     state.lobby.merge(fresh);
     Ok(state.lobby.clone())
 }
@@ -19,13 +22,11 @@ mod tests {
     };
 
     use super::refresh;
-    use crate::{discovery, identity};
+    use crate::{discovery, freenet, identity};
 
     fn contract_key() -> ContractKey {
         WrappedContract::new(
-            Arc::new(ContractCode::from(
-                discovery::freenet::LOBBY_CONTRACT_WASM.to_vec(),
-            )),
+            Arc::new(ContractCode::from(discovery::LOBBY_CONTRACT_WASM.to_vec())),
             Parameters::from(Vec::new()),
         )
         .key
@@ -64,8 +65,8 @@ mod tests {
                 },
             )))
             .ok();
-        let mut subscription = discovery::freenet::LobbyContractSubscription {
-            client: discovery::freenet::Client { write, read },
+        let mut subscription = discovery::LobbyContractSubscription {
+            client: freenet::Client { write, read },
             key,
             lobby: discovery::Lobby::default(),
         };

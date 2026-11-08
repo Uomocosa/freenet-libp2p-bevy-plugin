@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use crate::discovery;
-use discovery::freenet::basic::constants;
+use crate::freenet;
+use freenet::basic::constants;
 
 const JITTER_SPAN: u64 = 41;
 const JITTER_BASE: u64 = 80;
@@ -40,8 +40,8 @@ mod tests {
     use std::time::Duration;
 
     use super::reconnect_delay;
-    use crate::discovery;
-    use discovery::freenet::basic::constants;
+    use crate::freenet;
+    use freenet::basic::constants;
 
     #[test]
     fn test_usage() {

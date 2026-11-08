@@ -12,7 +12,7 @@ pub async fn run(
     let Some(ready) = identity::Peer::wait_ready(&mut channels.swarm.ready).await else {
         return;
     };
-    let freenet_config = discovery::freenet::Config {
+    let freenet_config = discovery::LobbyTaskConfig {
         host: "127.0.0.1".to_string(),
         port: *endpoint,
         me: ready.id.clone(),

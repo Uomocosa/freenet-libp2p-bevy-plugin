@@ -8,7 +8,7 @@ use crate::discovery;
 use crate::identity;
 
 #[derive(Clone)]
-pub struct Config {
+pub struct LobbyTaskConfig {
     pub host: String,
     pub port: u16,
     pub me: identity::PeerId,
@@ -17,10 +17,10 @@ pub struct Config {
 }
 
 #[atomic_delegates]
-impl Config {
+impl LobbyTaskConfig {
     pub async fn run_lobby_sync_loop(
         &self,
-        subscription: discovery::freenet::LobbyContractSubscription,
+        subscription: discovery::LobbyContractSubscription,
         target: Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
         lobbies_tx: UnboundedSender<discovery::Lobby>,
     ) {
@@ -29,7 +29,7 @@ impl Config {
     pub async fn connect_retry(
         &self,
         target: &Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
-    ) -> discovery::freenet::LobbyContractSubscription {
+    ) -> discovery::LobbyContractSubscription {
     }
     pub(crate) async fn spawn_lobby_tasks(&self, channels: discovery::LobbyTaskChannels) {}
     pub(crate) fn seed_lobby_for_deploy(
@@ -41,7 +41,7 @@ impl Config {
 }
 
 #[rustfmt::skip]
-impl Config {
+impl LobbyTaskConfig {
     pub(crate) fn is_due(last: Option<Instant>, now: Instant, every: Duration) -> bool {
         last.is_none_or(|last| now.duration_since(last) >= every)
     }

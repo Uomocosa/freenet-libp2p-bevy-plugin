@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use derive_more::Display;
 
-use crate::discovery;
-use discovery::freenet::basic::constants;
+use crate::freenet;
+use freenet::basic::constants;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 pub enum RequestKind {
@@ -33,11 +33,11 @@ impl RequestKind {
 
     pub async fn run_with_timeout<T>(
         self,
-        request: impl Future<Output = Result<T, discovery::Error>>,
-    ) -> Result<T, discovery::Error> {
+        request: impl Future<Output = Result<T, freenet::Error>>,
+    ) -> Result<T, freenet::Error> {
         tokio::time::timeout(self.timeout(), request)
             .await
-            .unwrap_or(Err(discovery::Error::Timeout(self)))
+            .unwrap_or(Err(freenet::Error::Timeout(self)))
     }
 }
 

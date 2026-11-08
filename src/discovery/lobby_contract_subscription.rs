@@ -2,10 +2,11 @@ use atomic_delegate_macros::atomic_delegates;
 use freenet_stdlib::prelude::ContractKey;
 
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
 
 pub struct LobbyContractSubscription {
-    pub client: discovery::freenet::Client,
+    pub client: freenet::Client,
     pub key: ContractKey,
     pub lobby: discovery::Lobby,
 }

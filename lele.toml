@@ -18,3 +18,9 @@ reason = "rustc `unreachable_code` is emitted inside the libp2p `#[derive(Networ
 allow = "unexpected_cfgs"
 file = "src/lib.rs"
 reason = "the lobby CONTRACT crate's `src/lib.rs`: `file` is relative to that crate's own root, not this crate's. Only consulted by the standalone run `lele-lint --config lele.toml contract/lobby`; the repo's `just lint` (`lele-lint .`) never walks `contract/`, so the entry is inert for it. Deleting it turns the standalone run red: freenet-macros' `#[contract]` expansion emits `cfg(...)` references the compiler cannot resolve from the crate source, and the generated code cannot be edited"
+
+[[lele.boundary]]
+name       = "freenet is a generic client"
+why        = "src/freenet knows nothing about lobbies; discovery adapts it (discovery -> freenet, never the reverse)."
+folders    = ["src/freenet"]
+cannot_use = ["crate::discovery"]

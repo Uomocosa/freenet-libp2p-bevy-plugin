@@ -4,7 +4,7 @@ use freenet_stdlib::prelude::StateSummary;
 use crate::discovery;
 
 pub fn resubscribe_to_heal_replica_split(
-    state: &mut discovery::freenet::LobbyContractSubscription,
+    state: &mut discovery::LobbyContractSubscription,
 ) -> Result<(), discovery::Error> {
     let summary = bincode::serialize(&state.lobby)?;
     let request = ContractRequest::Subscribe {
@@ -22,13 +22,11 @@ mod tests {
     use freenet_stdlib::prelude::{ContractCode, ContractKey, Parameters, WrappedContract};
 
     use super::resubscribe_to_heal_replica_split;
-    use crate::discovery;
+    use crate::{discovery, freenet};
 
     fn contract_key() -> ContractKey {
         WrappedContract::new(
-            Arc::new(ContractCode::from(
-                discovery::freenet::LOBBY_CONTRACT_WASM.to_vec(),
-            )),
+            Arc::new(ContractCode::from(discovery::LOBBY_CONTRACT_WASM.to_vec())),
             Parameters::from(Vec::new()),
         )
         .key
@@ -38,8 +36,8 @@ mod tests {
     fn test_usage() {
         let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (_read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        let mut subscription = discovery::freenet::LobbyContractSubscription {
-            client: discovery::freenet::Client { write, read },
+        let mut subscription = discovery::LobbyContractSubscription {
+            client: freenet::Client { write, read },
             key: contract_key(),
             lobby: discovery::Lobby::default(),
         };

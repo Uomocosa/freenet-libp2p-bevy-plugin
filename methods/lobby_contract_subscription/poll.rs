@@ -1,17 +1,18 @@
 use freenet_stdlib::client_api::{ContractResponse, HostResponse};
 
 use crate::discovery;
+use crate::freenet;
 
 pub async fn poll(
-    state: &mut discovery::freenet::LobbyContractSubscription,
+    state: &mut discovery::LobbyContractSubscription,
 ) -> Result<discovery::Lobby, discovery::Error> {
     loop {
         let reply = match state
             .client
-            .recv_reply(discovery::freenet::RequestKind::PollLobby)
+            .recv_reply(freenet::RequestKind::PollLobby)
             .await
         {
-            Err(discovery::Error::Timeout(_)) => break,
+            Err(freenet::Error::Timeout(_)) => break,
             reply => reply?,
         };
         if let HostResponse::ContractResponse(ContractResponse::GetResponse {
@@ -35,13 +36,11 @@ mod tests {
     };
 
     use super::poll;
-    use crate::{discovery, identity};
+    use crate::{discovery, freenet, identity};
 
     fn contract_key() -> ContractKey {
         WrappedContract::new(
-            Arc::new(ContractCode::from(
-                discovery::freenet::LOBBY_CONTRACT_WASM.to_vec(),
-            )),
+            Arc::new(ContractCode::from(discovery::LOBBY_CONTRACT_WASM.to_vec())),
             Parameters::from(Vec::new()),
         )
         .key
@@ -84,8 +83,8 @@ mod tests {
                 },
             )))
             .ok();
-        let mut subscription = discovery::freenet::LobbyContractSubscription {
-            client: discovery::freenet::Client { write, read },
+        let mut subscription = discovery::LobbyContractSubscription {
+            client: freenet::Client { write, read },
             key,
             lobby: discovery::Lobby::default(),
         };

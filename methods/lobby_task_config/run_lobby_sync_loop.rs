@@ -4,12 +4,12 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::Receiver;
 
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
-use discovery::freenet::basic::constants;
 
 pub async fn run_lobby_sync_loop(
-    state: &discovery::freenet::Config,
-    mut subscription: discovery::freenet::LobbyContractSubscription,
+    state: &discovery::LobbyTaskConfig,
+    mut subscription: discovery::LobbyContractSubscription,
     mut target: Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
     lobbies_tx: UnboundedSender<discovery::Lobby>,
 ) {
@@ -30,12 +30,12 @@ pub async fn run_lobby_sync_loop(
         }
         let now = Instant::now();
         let mut lobby = subscription.poll().await.ok();
-        if discovery::freenet::Config::is_due(last_resubscribe, now, constants::RESUBSCRIBE) {
+        if discovery::LobbyTaskConfig::is_due(last_resubscribe, now, discovery::RESUBSCRIBE) {
             let _ = subscription.resubscribe_to_heal_replica_split();
             last_resubscribe = Some(now);
         }
-        if discovery::freenet::Config::is_due(last_refresh, now, constants::LOBBY_REFRESH) {
-            let budget = constants::REQUEST_TIMEOUT;
+        if discovery::LobbyTaskConfig::is_due(last_refresh, now, discovery::LOBBY_REFRESH) {
+            let budget = freenet::REQUEST_TIMEOUT;
             let started_refresh = Instant::now();
             match tokio::time::timeout(budget, subscription.refresh()).await {
                 Ok(Ok(fresh)) => {
@@ -70,7 +70,7 @@ pub async fn run_lobby_sync_loop(
             }
         }
         let current = target.borrow_and_update().clone();
-        if discovery::freenet::Config::is_due(
+        if discovery::LobbyTaskConfig::is_due(
             last_publish,
             now,
             state.discovery.lease.interval_between_heartbeats,
@@ -111,11 +111,12 @@ mod tests {
     use super::run_lobby_sync_loop;
 
     use crate::discovery;
+    use crate::freenet;
     use crate::identity;
 
     #[tokio::test]
     async fn test_usage() {
-        let config = discovery::freenet::Config {
+        let config = discovery::LobbyTaskConfig {
             host: "127.0.0.1".to_string(),
             port: 0,
             me: identity::PeerId::from("me"),
@@ -125,8 +126,8 @@ mod tests {
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         drop(read_tx);
-        let subscription = discovery::freenet::LobbyContractSubscription {
-            client: discovery::freenet::Client { write, read },
+        let subscription = discovery::LobbyContractSubscription {
+            client: freenet::Client { write, read },
             key: freenet_stdlib::prelude::WrappedContract::new(
                 std::sync::Arc::new(freenet_stdlib::prelude::ContractCode::from(vec![0; 4])),
                 freenet_stdlib::prelude::Parameters::from(Vec::new()),

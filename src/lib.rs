@@ -1,5 +1,7 @@
 #[cfg(feature = "discovery")]
 pub mod discovery;
+#[cfg(feature = "discovery")]
+pub mod freenet;
 
 pub mod direct_dial;
 

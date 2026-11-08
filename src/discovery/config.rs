@@ -2,6 +2,7 @@ use atomic_delegate_macros::atomic_delegates;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
 use crate::p2p;
 
@@ -10,7 +11,7 @@ pub struct Config {
     pub game: identity::GameId,
     pub display_name: identity::Username,
     pub room_size: discovery::RoomSize,
-    pub deploy_policy: discovery::freenet::DeployPolicy,
+    pub deploy_policy: freenet::DeployPolicy,
     pub lease: discovery::HolderHeartbeatIntervals,
     pub history_size_limits: discovery::HistorySizeLimits,
 }
@@ -21,7 +22,7 @@ impl Default for Config {
             game: identity::GameId::from("test"),
             display_name: identity::Username::from("anonymous"),
             room_size: discovery::RoomSize::DEFAULT,
-            deploy_policy: discovery::freenet::DeployPolicy::default(),
+            deploy_policy: freenet::DeployPolicy::default(),
             lease: discovery::HolderHeartbeatIntervals::default(),
             history_size_limits: discovery::HistorySizeLimits::default(),
         }
@@ -68,6 +69,7 @@ mod tests {
     use super::Config;
 
     use crate::discovery;
+    use crate::freenet;
 
     #[test]
     fn test_usage() {
@@ -75,9 +77,6 @@ mod tests {
         let params = config.game.contract_params();
         assert_eq!(params, b"test".to_vec());
         assert_eq!(config.room_size, discovery::RoomSize::DEFAULT);
-        assert_eq!(
-            config.deploy_policy,
-            discovery::freenet::DeployPolicy::FetchOrDeploy
-        );
+        assert_eq!(config.deploy_policy, freenet::DeployPolicy::FetchOrDeploy);
     }
 }

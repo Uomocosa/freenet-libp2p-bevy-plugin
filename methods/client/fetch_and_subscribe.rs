@@ -1,11 +1,14 @@
 use freenet_stdlib::prelude::ContractInstanceId;
 
-use crate::discovery;
+use crate::freenet;
 
-pub async fn fetch_and_subscribe(
-    state: &mut discovery::freenet::Client,
+pub async fn fetch_and_subscribe<S>(
+    state: &mut freenet::Client,
     instance_id: ContractInstanceId,
-) -> Result<discovery::Lobby, discovery::Error> {
+) -> Result<S, freenet::Error>
+where
+    S: serde::de::DeserializeOwned,
+{
     state.send_lobby_fetch(instance_id)?;
     state.await_outstanding_fetch().await
 }
@@ -18,15 +21,19 @@ mod tests {
     use freenet_stdlib::prelude::{
         ContractCode, ContractKey, Parameters, WrappedContract, WrappedState,
     };
+    use serde::{Deserialize, Serialize};
 
     use super::fetch_and_subscribe;
-    use crate::discovery;
+    use crate::freenet;
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+    struct TestState {
+        value: u64,
+    }
 
     fn contract_key() -> ContractKey {
         WrappedContract::new(
-            Arc::new(ContractCode::from(
-                discovery::freenet::LOBBY_CONTRACT_WASM.to_vec(),
-            )),
+            Arc::new(ContractCode::from(vec![0; 4])),
             Parameters::from(Vec::new()),
         )
         .key
@@ -35,7 +42,7 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let key = contract_key();
-        let lobby = discovery::Lobby::default();
+        let state = TestState { value: 7 };
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         read_tx
@@ -43,14 +50,16 @@ mod tests {
                 ContractResponse::GetResponse {
                     key,
                     contract: None,
-                    state: WrappedState::new(bincode::serialize(&lobby).unwrap_or_default()),
+                    state: WrappedState::new(bincode::serialize(&state).unwrap_or_default()),
                 },
             )))
             .ok();
-        let mut client = discovery::freenet::Client { write, read };
+        let mut client = freenet::Client { write, read };
         assert_eq!(
-            fetch_and_subscribe(&mut client, *key.id()).await.ok(),
-            Some(lobby)
+            fetch_and_subscribe::<TestState>(&mut client, *key.id())
+                .await
+                .ok(),
+            Some(state)
         );
 
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -62,10 +71,10 @@ mod tests {
                 },
             )))
             .ok();
-        let mut missing = discovery::freenet::Client { write, read };
+        let mut missing = freenet::Client { write, read };
         assert!(matches!(
-            fetch_and_subscribe(&mut missing, *key.id()).await,
-            Err(discovery::Error::ContractNotFound)
+            fetch_and_subscribe::<TestState>(&mut missing, *key.id()).await,
+            Err(freenet::Error::ContractNotFound)
         ));
     }
 }

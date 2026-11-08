@@ -5,7 +5,7 @@ use std::sync::{
 use std::time::Duration;
 
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::freenet;
 
 /// How many ring peers the embedded Freenet node currently reports.
 ///
@@ -47,8 +47,7 @@ impl Default for RingPeers {
 /// script exits soon after joining.
 pub fn spawn_ring_poller(ws_port: u16, ring: RingPeers) {
     tokio::spawn(async move {
-        let mut client =
-            discovery::freenet::Client::from_host_and_port_with_retry("127.0.0.1", ws_port).await;
+        let mut client = freenet::Client::from_host_and_port_with_retry("127.0.0.1", ws_port).await;
         let mut has_logged_join = false;
         loop {
             if let Ok(status) = client.node_status().await {

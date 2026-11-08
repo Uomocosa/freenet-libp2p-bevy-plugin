@@ -1,5 +1,4 @@
 pub mod bevy_systems;
-pub mod freenet;
 pub mod state_machine;
 #[cfg(feature = "default_ui")]
 pub mod ui;
@@ -18,6 +17,12 @@ pub use basic::type_aliases::Members;
 
 mod lobby;
 pub use lobby::Lobby;
+
+mod lobby_contract_subscription;
+pub use lobby_contract_subscription::LobbyContractSubscription;
+
+mod lobby_task_config;
+pub use lobby_task_config::LobbyTaskConfig;
 
 #[cfg(feature = "testing")]
 mod lobby_task_override;

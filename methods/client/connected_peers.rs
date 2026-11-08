@@ -1,15 +1,13 @@
 use freenet_stdlib::client_api::{ClientRequest, HostResponse, NodeQuery, QueryResponse};
 
-use crate::discovery;
+use crate::freenet;
 use crate::identity;
 
 pub async fn connected_peers(
-    state: &mut discovery::freenet::Client,
-) -> Result<Vec<identity::FreenetPeer>, discovery::Error> {
+    state: &mut freenet::Client,
+) -> Result<Vec<identity::FreenetPeer>, freenet::Error> {
     state.send(&ClientRequest::NodeQueries(NodeQuery::ConnectedPeers))?;
-    let reply = state
-        .recv_reply(discovery::freenet::RequestKind::QueryPeers)
-        .await?;
+    let reply = state.recv_reply(freenet::RequestKind::QueryPeers).await?;
     match reply {
         HostResponse::QueryResponse(QueryResponse::ConnectedPeers { peers }) => Ok(peers
             .into_iter()
@@ -18,21 +16,21 @@ pub async fn connected_peers(
                 addr,
             })
             .collect()),
-        other => Err(discovery::Error::UnexpectedResponse(format!("{other:?}"))),
+        other => Err(freenet::Error::UnexpectedResponse(format!("{other:?}"))),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::connected_peers;
-    use crate::discovery;
+    use crate::freenet;
 
     #[tokio::test]
     async fn test_usage() {
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         drop(read_tx);
-        let mut client = discovery::freenet::Client { write, read };
+        let mut client = freenet::Client { write, read };
         assert!(connected_peers(&mut client).await.is_err());
     }
 }

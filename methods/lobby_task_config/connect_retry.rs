@@ -5,53 +5,49 @@ use tokio::sync::watch::Receiver;
 use tracing::{debug, warn};
 
 use crate::discovery;
-use discovery::freenet::basic::constants;
+use crate::freenet;
 
 pub async fn connect_retry(
-    state: &discovery::freenet::Config,
+    state: &discovery::LobbyTaskConfig,
     target: &Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
-) -> discovery::freenet::LobbyContractSubscription {
-    let wasm = discovery::freenet::LOBBY_CONTRACT_WASM;
-    let mut client =
-        discovery::freenet::Client::from_host_and_port_with_retry(&state.host, state.port).await;
+) -> discovery::LobbyContractSubscription {
+    let wasm = discovery::LOBBY_CONTRACT_WASM;
+    let mut client = freenet::Client::from_host_and_port_with_retry(&state.host, state.port).await;
     let mut tries = 0_u32;
     loop {
         tries = tries.saturating_add(1);
         let current = target.borrow().clone();
-        let seed = discovery::freenet::Config::seed_lobby_for_deploy(
+        let seed = discovery::LobbyTaskConfig::seed_lobby_for_deploy(
             &state.me,
             state.discovery.room_size,
             current.first(),
         );
         let result = client
-            .fetch_or_deploy_lobby(
+            .fetch_or_deploy(
                 wasm,
                 &state.params,
                 state.discovery.deploy_policy,
-                constants::GATEWAY_WAIT,
+                discovery::GATEWAY_WAIT,
                 &seed,
             )
             .await;
         match result {
             Ok((key, lobby)) => {
-                return discovery::freenet::LobbyContractSubscription { client, key, lobby };
+                return discovery::LobbyContractSubscription { client, key, lobby };
             }
-            Err(discovery::Error::Timeout(kind)) => {
+            Err(freenet::Error::Timeout(kind)) => {
                 warn!(target: "discovery", tries = tries, kind = %kind, "{kind} timed out, reconnecting");
-                client = discovery::freenet::Client::from_host_and_port_with_retry(
-                    &state.host,
-                    state.port,
-                )
-                .await;
+                client =
+                    freenet::Client::from_host_and_port_with_retry(&state.host, state.port).await;
             }
-            Err(discovery::Error::ContractNotFound) => {
+            Err(freenet::Error::ContractNotFound) => {
                 debug!(target: "discovery", tries = tries, "lobby absent and not in a room, waiting");
-                tokio::time::sleep(constants::MISSING_RETRY).await;
+                tokio::time::sleep(discovery::MISSING_RETRY).await;
             }
             Err(e) => {
                 warn!(target: "discovery", tries = tries, error = ?e, "lobby fetch or deploy failed, retrying");
                 let random = RandomState::new().build_hasher().finish();
-                let delay = discovery::freenet::Client::reconnect_delay(tries, random);
+                let delay = freenet::Client::reconnect_delay(tries, random);
                 tokio::time::sleep(delay).await;
             }
         }
@@ -67,7 +63,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_usage() {
-        let config = discovery::freenet::Config {
+        let config = discovery::LobbyTaskConfig {
             host: "127.0.0.1".to_string(),
             port: 0,
             me: identity::PeerId::from("me"),

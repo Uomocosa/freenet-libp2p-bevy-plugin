@@ -1,7 +1,7 @@
 use crate::discovery;
 
 pub async fn spawn_lobby_tasks(
-    state: &discovery::freenet::Config,
+    state: &discovery::LobbyTaskConfig,
     channels: discovery::LobbyTaskChannels,
 ) {
     let discovery::LobbyTaskChannels {
@@ -28,7 +28,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_usage() {
-        let config = discovery::freenet::Config {
+        let config = discovery::LobbyTaskConfig {
             host: "127.0.0.1".to_string(),
             port: 0,
             me: identity::PeerId::from("me"),

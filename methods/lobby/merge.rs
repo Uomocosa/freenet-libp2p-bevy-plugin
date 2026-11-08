@@ -7,7 +7,7 @@ pub fn merge(lobby: &mut discovery::Lobby, incoming: discovery::Lobby) {
         lobby.insert(room, merged);
     }
     lobby.drop_rooms_where_every_member_quit();
-    lobby.evict_oldest_rooms_until_lobby_fits_capacity(discovery::freenet::MAX_LOBBY_ROOMS);
+    lobby.evict_oldest_rooms_until_lobby_fits_capacity(discovery::MAX_LOBBY_ROOMS);
 }
 
 #[cfg(test)]
@@ -69,7 +69,7 @@ mod tests {
             discovery::UnixTime::from(u64::try_from(index).unwrap_or_default().saturating_add(1))
         };
         let mut lobby = discovery::Lobby::from(
-            (0..discovery::freenet::MAX_LOBBY_ROOMS)
+            (0..discovery::MAX_LOBBY_ROOMS)
                 .map(|index| {
                     (
                         identity::RoomName::from(format!("room-{index:03}")),
@@ -80,10 +80,10 @@ mod tests {
         );
         let incoming = discovery::Lobby::from([(
             identity::RoomName::from("z-new"),
-            record("peer", newest_at(discovery::freenet::MAX_LOBBY_ROOMS)),
+            record("peer", newest_at(discovery::MAX_LOBBY_ROOMS)),
         )]);
         merge(&mut lobby, incoming);
-        assert_eq!(lobby.len(), discovery::freenet::MAX_LOBBY_ROOMS);
+        assert_eq!(lobby.len(), discovery::MAX_LOBBY_ROOMS);
         assert!(!lobby.contains_key(&identity::RoomName::from("room-000")));
         assert!(lobby.contains_key(&identity::RoomName::from("z-new")));
     }
