@@ -45,6 +45,7 @@ pub mod p2p_plugin;
 pub mod peer;
 pub mod peer_book;
 pub mod peer_id;
+pub mod peer_index;
 #[cfg(feature = "testing")]
 pub mod peer_message_router;
 #[cfg(feature = "discovery")]
@@ -53,6 +54,7 @@ pub mod replica_slice_content_hash;
 pub mod replica_slice_index;
 pub mod replica_state;
 pub mod room_history_record_kind;
+pub mod room_index;
 pub mod runner_config;
 #[cfg(feature = "testing")]
 pub mod script_runner;
@@ -65,4 +67,5 @@ pub mod sync_plugin;
 #[cfg(feature = "discovery")]
 pub mod sync_state;
 pub mod topic;
+pub mod tracking_plugin;
 pub mod transport_mode;

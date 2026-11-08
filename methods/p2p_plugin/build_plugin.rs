@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use bevy::prelude::*;
 
 use crate::p2p;
+use crate::peers;
 use crate::plugin;
 #[cfg(feature = "testing")]
 use crate::testing;
@@ -33,6 +34,7 @@ pub fn build_plugin<Payload: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<Payloa
         app.insert_resource(p2p::EventReceiver(Mutex::new(Some(event_rx))));
         app.insert_resource(p2p::Libp2pCommandSender(libp2p_tx));
         app.add_systems(Update, p2p::bevy_systems::poll_p2p_events::<Payload>);
+        app.add_plugins(peers::TrackingPlugin);
         return;
     }
     let keypair = p2p_plugin.runner_keypair();
@@ -52,6 +54,7 @@ pub fn build_plugin<Payload: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<Payloa
     app.insert_resource(p2p::EventReceiver(Mutex::new(Some(event_rx))));
     app.insert_resource(p2p::Libp2pCommandSender(libp2p_tx));
     app.add_systems(Update, p2p::bevy_systems::poll_p2p_events::<Payload>);
+    app.add_plugins(peers::TrackingPlugin);
 }
 
 #[cfg(test)]
