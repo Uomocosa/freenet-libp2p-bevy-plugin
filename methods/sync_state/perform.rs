@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use bevy::prelude::ResMut;
+use bevy::prelude::MessageWriter;
 
 use crate::discovery;
 use crate::identity;
@@ -15,7 +15,7 @@ pub fn perform<Replica: room_sync::RoomState>(
     record_ttl: Duration,
     pending: &mut p2p::PendingLibp2pCommands,
     command_sender: Option<&discovery::CommandSender>,
-    join_error: &mut Option<ResMut<discovery::ui::JoinError>>,
+    failures: &mut Option<MessageWriter<room_sync::JoinFailure>>,
     game: &identity::GameId,
 ) {
     use p2p::Libp2pCommand;
@@ -60,19 +60,16 @@ pub fn perform<Replica: room_sync::RoomState>(
             ));
         }
         Output::RoomGone { room } => {
-            if let Some(err) = join_error {
-                ***err = Some(format!(
-                    "Room {} no longer exists (all players left)",
-                    room.as_str()
-                ));
+            if let Some(writer) = failures {
+                writer.write(room_sync::JoinFailure::RoomGone(room));
             }
             if let Some(sender) = command_sender {
                 sender.send(discovery::Command::Leave).ok();
             }
         }
-        Output::HistoryUnavailable { room: _ } => {
-            if let Some(err) = join_error {
-                ***err = Some(String::from("Couldn't get room history"));
+        Output::HistoryUnavailable { room } => {
+            if let Some(writer) = failures {
+                writer.write(room_sync::JoinFailure::HistoryUnavailable(room));
             }
             if let Some(sender) = command_sender {
                 sender.send(discovery::Command::Leave).ok();

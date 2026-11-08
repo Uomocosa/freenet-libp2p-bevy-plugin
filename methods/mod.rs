@@ -18,6 +18,8 @@ pub mod fake_network_plugin;
 pub mod fake_network_server;
 #[cfg(feature = "testing")]
 pub mod fake_wire_framing;
+#[cfg(feature = "default_ui")]
+pub mod friends_ui_plugin;
 pub mod libp2p_command;
 #[cfg(feature = "discovery")]
 pub mod libp2p_events;

@@ -23,6 +23,7 @@ pub fn build_plugin<Replica: room_sync::RoomState>(
     app.init_resource::<room_sync::PendingOps<Replica>>();
     app.init_resource::<room_sync::bevy_systems::SyncState<Replica::Op>>();
     app.add_message::<room_sync::ReplicaInputFromTimer<Replica::Op>>();
+    app.add_message::<room_sync::JoinFailure>();
     if let Some(anti_entropy) = plugin.anti_entropy {
         app.insert_resource(room_sync::AntiEntropyTimer(Timer::new(
             anti_entropy.interval,

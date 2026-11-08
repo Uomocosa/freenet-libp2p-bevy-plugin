@@ -58,30 +58,6 @@ pub fn build_friends_plugin(plugin: &direct_dial::Plugin, app: &mut App) {
         app.insert_resource(direct_dial::DialEventTap(channel.subscribe()));
     }
     app.add_systems(Update, direct_dial::bevy_systems::drive_dial_state);
-    #[cfg(feature = "default_ui")]
-    {
-        use direct_dial::ui::bevy_systems as friends;
-        app.add_systems(Startup, friends::spawn_friends_tab);
-        app.add_systems(
-            Update,
-            (
-                friends::track_friend_connections,
-                friends::rebuild_friend_list,
-            )
-                .chain(),
-        );
-        app.add_systems(Update, friends::gate_add_friend);
-        app.add_systems(
-            Update,
-            (
-                friends::handle_add_friend,
-                friends::show_friend_address_error,
-            )
-                .chain(),
-        );
-        app.add_systems(Update, friends::handle_remove_friend);
-        app.add_systems(Update, friends::refresh_own_address);
-    }
 }
 
 #[cfg(test)]
@@ -139,42 +115,5 @@ mod tests {
                 .len(),
             1
         );
-    }
-
-    #[test]
-    fn ui_adds_a_row_through_real_button_and_input() {
-        use bevy::text::EditableText;
-        use bevy::ui::Pressed;
-
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        let plugin = direct_dial::Plugin::new(direct_dial::Config::from(None));
-        build_friends_plugin(&plugin, &mut app);
-        app.update();
-        let id = libp2p::PeerId::random();
-        let text = format!("/ip4/127.0.0.1/tcp/4001/p2p/{id}");
-        {
-            let world = app.world_mut();
-            let mut inputs = world
-                .query_filtered::<&mut EditableText, With<direct_dial::ui::FriendAddressInput>>();
-            if let Ok(mut input) = inputs.single_mut(world) {
-                *input = EditableText::new(text);
-            } else {
-                panic!("friend input missing");
-            }
-        }
-        app.update();
-        let button = app
-            .world_mut()
-            .query_filtered::<Entity, With<direct_dial::ui::AddFriendButton>>()
-            .single(app.world())
-            .expect("add button");
-        app.world_mut().entity_mut(button).insert(Pressed);
-        app.update();
-        app.update();
-        let mut rows = app
-            .world_mut()
-            .query_filtered::<(), With<direct_dial::ui::FriendRow>>();
-        assert_eq!(rows.iter(app.world()).count(), 1);
     }
 }

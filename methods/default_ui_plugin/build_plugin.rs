@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::discovery;
+use crate::room_sync;
 
 pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
     use discovery::ui::bevy_systems as ui;
@@ -8,6 +9,7 @@ pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
 
     app.init_resource::<JoinError>();
     app.add_message::<discovery::Event>();
+    app.add_message::<room_sync::JoinFailure>();
     app.add_systems(OnEnter(Screen::Connecting), ui::spawn_connecting);
     app.add_systems(OnEnter(Screen::Lobby), ui::spawn_root);
     app.add_systems(OnEnter(Screen::JoiningRoom), ui::spawn_joining_room);
@@ -17,7 +19,12 @@ pub fn build_plugin(_plugin: &discovery::ui::DefaultUiPlugin, app: &mut App) {
     app.add_systems(
         Update,
         (
-            (ui::record_join_error, ui::pick_screen).chain(),
+            (
+                ui::record_join_error,
+                ui::record_join_failure,
+                ui::pick_screen,
+            )
+                .chain(),
             ui::animate_hover,
             ui::spin_connecting.run_if(in_state(Screen::Connecting)),
             ui::dismiss_join_failed.run_if(in_state(Screen::JoinFailed)),

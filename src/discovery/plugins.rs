@@ -9,10 +9,7 @@ pub struct Plugins(pub discovery::Config);
 impl PluginGroup for Plugins {
     fn build(self) -> PluginGroupBuilder {
         let Self(config) = self;
-        let group = PluginGroupBuilder::start::<Self>().add(discovery::Plugin::new(config));
-        #[cfg(feature = "default_ui")]
-        let group = group.add(discovery::ui::DefaultUiPlugin);
-        group
+        PluginGroupBuilder::start::<Self>().add(discovery::Plugin::new(config))
     }
 }
 

@@ -100,6 +100,8 @@ fn run_starboard(
         lease: scaled_timings::scaled_lease_timings(time_scale),
         ..discovery::Config::default()
     }));
+    app.add_plugins(discovery::ui::DefaultUiPlugin);
+    app.add_plugins(direct_dial::ui::FriendsUiPlugin);
     app.add_plugins(
         room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game)
             .with_history_config(Some(scaled_timings::scaled_history_config(time_scale))),

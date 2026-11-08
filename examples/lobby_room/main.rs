@@ -90,7 +90,7 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
     // scripted input runs through Bevy's real typing/clicking paths
     match args.ui {
         args::UiArg::Default => {
-            app.add_plugins(discovery_plugins);
+            app.add_plugins((discovery_plugins, discovery::ui::DefaultUiPlugin));
             app.add_systems(
                 Update,
                 shared::intent::script_input::<
@@ -101,11 +101,7 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
             );
         }
         args::UiArg::Custom => {
-            app.add_plugins(
-                discovery_plugins
-                    .build()
-                    .disable::<discovery::ui::DefaultUiPlugin>(),
-            );
+            app.add_plugins(discovery_plugins);
             app.add_plugins(ui::LobbyUi);
             app.add_systems(
                 Update,

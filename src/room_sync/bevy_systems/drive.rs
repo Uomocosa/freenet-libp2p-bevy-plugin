@@ -14,7 +14,7 @@ type ReplicaInputSources<'a, 's, Op> = (
 pub fn drive<Replica: room_sync::RoomState>(
     room_events: Option<MessageReader<discovery::Event>>,
     command_sender: Option<Res<discovery::CommandSender>>,
-    mut join_error: Option<ResMut<discovery::ui::JoinError>>,
+    mut failures: Option<MessageWriter<room_sync::JoinFailure>>,
     discovery_status: Option<Res<discovery::Status>>,
     (libp2p_events, mut timer_inputs, real_time): ReplicaInputSources<'_, '_, Replica::Op>,
     game: Res<room_sync::SyncGame>,
@@ -116,7 +116,7 @@ pub fn drive<Replica: room_sync::RoomState>(
                 record_ttl,
                 &mut pending,
                 command_sender,
-                &mut join_error,
+                &mut failures,
                 game,
             );
         }
@@ -230,7 +230,6 @@ mod tests {
         app.add_message::<discovery::Event>();
         app.add_message::<discovery::Command>();
         app.init_resource::<discovery::Status>();
-        app.init_resource::<discovery::ui::JoinError>();
         app.update();
         app
     }
@@ -712,13 +711,32 @@ mod tests {
             tokio::time::sleep(SETTLE).await;
         }
         assert!(
-            !log_contains_joined_error(&creator),
+            !log_contains_joined_error(&mut creator),
             "a room the contract has not confirmed yet is not gone"
         );
     }
 
-    fn log_contains_joined_error(app: &App) -> bool {
-        app.world().resource::<discovery::ui::JoinError>().is_some()
+    fn log_contains_joined_error(app: &mut App) -> bool {
+        app.world_mut()
+            .resource_mut::<Messages<room_sync::JoinFailure>>()
+            .drain()
+            .any(|event| {
+                matches!(
+                    event,
+                    room_sync::JoinFailure::RoomGone(_)
+                        | room_sync::JoinFailure::HistoryUnavailable(_)
+                )
+            })
+    }
+
+    fn emitted_room_gone(app: &mut App, expected: &identity::RoomName) -> bool {
+        app.world_mut()
+            .resource_mut::<Messages<room_sync::JoinFailure>>()
+            .drain()
+            .any(|event| match event {
+                room_sync::JoinFailure::RoomGone(room) => &room == expected,
+                room_sync::JoinFailure::HistoryUnavailable(_) => false,
+            })
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -766,12 +784,7 @@ mod tests {
         let mut saw_room_gone = false;
         for _ in 0..MAX_ROUNDS {
             joiner.update();
-            if joiner
-                .world()
-                .resource::<discovery::ui::JoinError>()
-                .as_deref()
-                == Some("Room room-s4c no longer exists (all players left)")
-            {
+            if emitted_room_gone(&mut joiner, &room) {
                 saw_room_gone = true;
                 break;
             }
@@ -847,12 +860,7 @@ mod tests {
         let mut saw_room_gone = false;
         for _ in 0..MAX_ROUNDS {
             joiner.update();
-            if joiner
-                .world()
-                .resource::<discovery::ui::JoinError>()
-                .as_deref()
-                == Some("Room room-s4j no longer exists (all players left)")
-            {
+            if emitted_room_gone(&mut joiner, &room) {
                 saw_room_gone = true;
                 break;
             }
@@ -899,12 +907,7 @@ mod tests {
         let mut saw_room_gone = false;
         for _ in 0..50 {
             joiner.update();
-            if joiner
-                .world()
-                .resource::<discovery::ui::JoinError>()
-                .as_deref()
-                == Some("Room room-gone no longer exists (all players left)")
-            {
+            if emitted_room_gone(&mut joiner, &room) {
                 saw_room_gone = true;
                 break;
             }
@@ -946,12 +949,9 @@ mod tests {
             .resource_mut::<Messages<discovery::Event>>()
             .write(discovery::Event::LobbyUpdated);
         mid_joiner.update();
-        assert_eq!(
-            mid_joiner
-                .world()
-                .resource::<discovery::ui::JoinError>()
-                .as_deref(),
-            Some("Room room-gone no longer exists (all players left)")
+        assert!(
+            emitted_room_gone(&mut mid_joiner, &room),
+            "mid-fetch quit must emit RoomGone"
         );
     }
 }

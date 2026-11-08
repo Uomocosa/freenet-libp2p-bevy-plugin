@@ -7,3 +7,6 @@ pub use basic::components::{
 };
 
 pub mod bevy_systems;
+
+mod friends_ui_plugin;
+pub use friends_ui_plugin::FriendsUiPlugin;

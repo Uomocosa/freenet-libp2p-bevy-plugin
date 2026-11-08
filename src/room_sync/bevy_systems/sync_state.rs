@@ -1,7 +1,8 @@
 use std::time::Duration;
 
 use atomic_delegate_macros::atomic_delegates;
-use bevy::prelude::{ResMut, Resource};
+use bevy::prelude::MessageWriter;
+use bevy::prelude::Resource;
 use derive_more::{Deref, DerefMut};
 
 use crate::discovery;
@@ -28,7 +29,7 @@ impl<Op> SyncState<Op> {
         record_ttl: Duration,
         pending: &mut p2p::PendingLibp2pCommands,
         command_sender: Option<&discovery::CommandSender>,
-        join_error: &mut Option<ResMut<discovery::ui::JoinError>>,
+        failures: &mut Option<MessageWriter<room_sync::JoinFailure>>,
         game: &identity::GameId,
     ) {
     }
