@@ -5,16 +5,16 @@ use serde::Serialize;
 use crate::p2p;
 
 #[derive(Resource, Deref, DerefMut, Serialize)]
-pub struct Commands<Payload: p2p::Message>(pub Vec<p2p::Command<Payload>>);
+pub struct PendingCommands<Payload: p2p::Message>(pub Vec<p2p::Command<Payload>>);
 
-impl<Payload: p2p::Message> Default for Commands<Payload> {
+impl<Payload: p2p::Message> Default for PendingCommands<Payload> {
     fn default() -> Self {
         Self(Vec::new())
     }
 }
 
 #[rustfmt::skip]
-impl<Payload: p2p::Message> Commands<Payload> {
+impl<Payload: p2p::Message> PendingCommands<Payload> {
     pub fn take_all(&mut self) -> Vec<p2p::Command<Payload>> {
         self.split_off(0)
     }
@@ -22,13 +22,13 @@ impl<Payload: p2p::Message> Commands<Payload> {
 
 #[cfg(test)]
 mod tests {
-    use super::Commands;
+    use super::PendingCommands;
     use crate::identity;
     use crate::p2p;
 
     #[test]
     fn test_usage() {
-        let mut c = Commands::<()>::default();
+        let mut c = PendingCommands::<()>::default();
         assert!(c.is_empty());
         c.push(p2p::Command::Net(p2p::Libp2pCommand::Dial(
             identity::Peer {

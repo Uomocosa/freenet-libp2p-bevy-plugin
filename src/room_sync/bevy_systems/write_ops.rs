@@ -5,7 +5,7 @@ use crate::p2p;
 use crate::peers;
 use crate::room_sync;
 
-pub fn write_ops<Replica: room_sync::RoomState>(
+pub fn write_ops<Replica: room_sync::ReplicatedState>(
     mut writer: ResMut<room_sync::PendingOps<Replica>>,
     mut clock: ResMut<room_sync::LamportClock>,
     ready: Res<p2p::ReadyChannel>,
@@ -77,7 +77,7 @@ mod tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::RoomState for Map {
+    impl room_sync::ReplicatedState for Map {
         type Op = Op;
         type Snapshot = Vec<(u8, u32)>;
 

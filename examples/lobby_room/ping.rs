@@ -22,7 +22,7 @@ pub fn publish_room_ping(
     is_enabled: Res<IsRoomPingEnabled>,
     user: Res<status::LocalUser>,
     status: Res<discovery::Status>,
-    mut commands: ResMut<p2p::Commands<PingPayload>>,
+    mut commands: ResMut<p2p::PendingCommands<PingPayload>>,
     mut accumulator: Local<f32>,
 ) {
     let time = time.into_inner();
@@ -46,7 +46,7 @@ pub fn publish_room_ping(
 }
 
 pub fn log_room_messages(
-    mut events: ResMut<p2p::Events<PingPayload>>,
+    mut events: ResMut<p2p::PendingEvents<PingPayload>>,
     mut senders: ResMut<RoomMessageSenders>,
 ) {
     for event in events.take_all() {
@@ -108,8 +108,8 @@ mod tests {
             connected: [identity::PeerId::from("peer-b")].into_iter().collect(),
             ..discovery::Status::default()
         });
-        app.insert_resource(p2p::Commands::<PingPayload>::default());
-        app.insert_resource(p2p::Events(vec![p2p::Event::RoomMessage {
+        app.insert_resource(p2p::PendingCommands::<PingPayload>::default());
+        app.insert_resource(p2p::PendingEvents(vec![p2p::Event::RoomMessage {
             room: identity::RoomName::from("alpha"),
             from: identity::PeerId::from("peer-b"),
             payload: PingPayload(identity::Username::from("bob")),
@@ -120,9 +120,9 @@ mod tests {
             .resource_mut::<Time>()
             .advance_by(Duration::from_secs(1));
         app.update();
-        let commands = app.world().resource::<p2p::Commands<PingPayload>>();
+        let commands = app.world().resource::<p2p::PendingCommands<PingPayload>>();
         assert_eq!(commands.len(), 1);
-        let events = app.world().resource::<p2p::Events<PingPayload>>();
+        let events = app.world().resource::<p2p::PendingEvents<PingPayload>>();
         assert!(events.is_empty());
         assert_eq!(
             app.world()

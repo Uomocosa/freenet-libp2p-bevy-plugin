@@ -9,11 +9,10 @@ use crate::peers;
 pub fn project_friends_to_entities(
     mut commands: Commands,
     book: Option<Res<direct_dial::PeerBook>>,
-    mut peer_index: Option<ResMut<peers::PeerIndex>>,
+    found_peers: Query<(Entity, &peers::Peer)>,
     friends: Query<(Entity, &peers::Peer, Has<peers::KeepAlive>), With<direct_dial::Friend>>,
 ) {
-    let (Some(book), Some(peer_index)) = (book.map(Res::into_inner), peer_index.as_deref_mut())
-    else {
+    let Some(book) = book.map(Res::into_inner) else {
         return;
     };
     let friend_ids: BTreeSet<identity::PeerId> = book
@@ -21,6 +20,10 @@ pub fn project_friends_to_entities(
         .filter(|entry| entry.kind == direct_dial::KnownPeerKind::Friend)
         .map(|entry| entry.peer.id.clone())
         .collect();
+    let mut peer_entity_by_id: BTreeMap<identity::PeerId, Entity> = BTreeMap::new();
+    for (entity, peer) in &found_peers {
+        peer_entity_by_id.insert((**peer).clone(), entity);
+    }
     let mut current: BTreeMap<identity::PeerId, (Entity, bool)> = BTreeMap::new();
     for (entity, peer, has_keep_alive) in &friends {
         current.insert((**peer).clone(), (entity, has_keep_alive));
@@ -32,7 +35,10 @@ pub fn project_friends_to_entities(
                 commands.entity(*entity).insert(peers::KeepAlive);
             }
             None => {
-                let entity = peer_index.get_or_spawn(&mut commands, id);
+                let entity = peer_entity_by_id
+                    .entry(id.clone())
+                    .or_insert_with(|| commands.spawn(peers::Peer::from(id.clone())).id());
+                let entity = *entity;
                 commands.entity(entity).insert(direct_dial::Friend);
             }
         }
@@ -59,7 +65,6 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(book);
-        app.init_resource::<peers::PeerIndex>();
         app.add_systems(Update, project_friends_to_entities);
         app
     }
@@ -75,18 +80,27 @@ mod tests {
         book
     }
 
-    fn friend_entity(app: &App, id: &str) -> Entity {
-        *app.world()
-            .resource::<peers::PeerIndex>()
-            .get(&identity::PeerId::from(id))
-            .expect("peer indexed")
+    fn friend_entity(app: &mut App, id: &str) -> Entity {
+        let mut found = app.world_mut().query::<(Entity, &peers::Peer)>();
+        found
+            .iter(app.world())
+            .find(|(_, peer)| **peer == identity::PeerId::from(id))
+            .map(|(entity, _)| entity)
+            .expect("peer exists")
+    }
+
+    fn peer_exists(app: &mut App, id: &str) -> bool {
+        let mut found = app.world_mut().query::<(Entity, &peers::Peer)>();
+        found
+            .iter(app.world())
+            .any(|(_, peer)| **peer == identity::PeerId::from(id))
     }
 
     #[test]
     fn test_usage() {
         let mut app = app_with_projection(friend_book(&["alice"]));
         app.update();
-        let alice = friend_entity(&app, "alice");
+        let alice = friend_entity(&mut app, "alice");
         assert!(app.world().get::<direct_dial::Friend>(alice).is_some());
         assert!(app.world().get::<peers::KeepAlive>(alice).is_some());
     }
@@ -95,7 +109,7 @@ mod tests {
     fn friend_removed_loses_friend_and_keep_alive() {
         let mut app = app_with_projection(friend_book(&["alice"]));
         app.update();
-        let alice = friend_entity(&app, "alice");
+        let alice = friend_entity(&mut app, "alice");
         assert!(app.world().get::<direct_dial::Friend>(alice).is_some());
         app.world_mut()
             .resource_mut::<direct_dial::PeerBook>()
@@ -117,12 +131,7 @@ mod tests {
         });
         let mut app = app_with_projection(book);
         app.update();
-        assert!(
-            app.world()
-                .resource::<peers::PeerIndex>()
-                .get(&identity::PeerId::from("alice"))
-                .is_none()
-        );
+        assert!(!peer_exists(&mut app, "alice"));
     }
 
     #[test]
@@ -137,7 +146,6 @@ mod tests {
             .resource::<p2p::Libp2pEventChannel>()
             .subscribe();
         app.insert_resource(peers::PeerEventTap(rx));
-        app.insert_resource(peers::PeerIndex::default());
         app.insert_resource(friend_book(&["alice"]));
         app.add_systems(
             Update,
@@ -145,13 +153,14 @@ mod tests {
                 peers::bevy_systems::track_peer_connections,
                 project_friends_to_entities,
                 peers::bevy_systems::despawn_orphan_peers,
-            ),
+            )
+                .chain(),
         );
         let id = identity::PeerId::from("alice");
         tx.send(p2p::Libp2pEvent::PeerConnected(id.clone()))
             .expect("send");
         app.update();
-        let alice = friend_entity(&app, "alice");
+        let alice = friend_entity(&mut app, "alice");
         assert!(app.world().get::<peers::Connected>(alice).is_some());
         assert!(app.world().get::<direct_dial::Friend>(alice).is_some());
         tx.send(p2p::Libp2pEvent::PeerDisconnected(id))

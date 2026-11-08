@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::room_sync;
 
-pub fn publish_slice_content_hashes<Replica: room_sync::RoomState>(
+pub fn publish_slice_content_hashes<Replica: room_sync::ReplicatedState>(
     time: Res<Time>,
     mut timer: ResMut<room_sync::AntiEntropyTimer>,
     replica: Res<Replica>,

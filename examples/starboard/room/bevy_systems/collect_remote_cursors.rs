@@ -8,7 +8,7 @@ use crate::starboard;
 pub fn collect_remote_cursors(
     status: Option<Res<discovery::Status>>,
     ready: Option<Res<p2p::ReadyChannel>>,
-    events: Option<ResMut<p2p::Events<starboard::room::CursorUpdate>>>,
+    events: Option<ResMut<p2p::PendingEvents<starboard::room::CursorUpdate>>>,
     mut cursors: ResMut<starboard::room::RemoteCursors>,
 ) {
     let status = status.map(Res::into_inner);
@@ -80,7 +80,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(joined_status(&["peer-a", "peer-b"]));
         app.init_resource::<p2p::ReadyChannel>();
-        app.init_resource::<p2p::Events<starboard::room::CursorUpdate>>();
+        app.init_resource::<p2p::PendingEvents<starboard::room::CursorUpdate>>();
         app.init_resource::<starboard::room::RemoteCursors>();
         app.add_systems(Update, collect_remote_cursors);
         let _ = app
@@ -93,14 +93,14 @@ mod tests {
             }));
 
         app.world_mut()
-            .resource_mut::<p2p::Events<starboard::room::CursorUpdate>>()
+            .resource_mut::<p2p::PendingEvents<starboard::room::CursorUpdate>>()
             .push(p2p::Event::RoomMessage {
                 room: identity::RoomName::from("alpha"),
                 from: identity::PeerId::from("peer-a"),
                 payload: cursor(1),
             });
         app.world_mut()
-            .resource_mut::<p2p::Events<starboard::room::CursorUpdate>>()
+            .resource_mut::<p2p::PendingEvents<starboard::room::CursorUpdate>>()
             .push(p2p::Event::RoomMessage {
                 room: identity::RoomName::from("alpha"),
                 from: identity::PeerId::from("peer-b"),

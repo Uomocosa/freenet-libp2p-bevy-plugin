@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::room_sync;
 
-pub fn refresh_room_history<Replica: room_sync::RoomState>(
+pub fn refresh_room_history<Replica: room_sync::ReplicatedState>(
     time: Res<Time>,
     mut timer: ResMut<room_sync::HistoryWriteTimer>,
     mut writer: MessageWriter<room_sync::ReplicaInputFromTimer<Replica::Op>>,

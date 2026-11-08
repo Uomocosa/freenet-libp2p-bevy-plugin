@@ -29,7 +29,6 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(direct_dial::Config::from(None));
         app.insert_resource(direct_dial::PeerBook::default());
-        app.insert_resource(direct_dial::ConnectedPeers::default());
         app.insert_resource(direct_dial::FriendAddressError(None));
         app.add_plugins(FriendsUiPlugin);
         app.update();

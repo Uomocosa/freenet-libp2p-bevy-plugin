@@ -4,8 +4,6 @@ use crate::p2p;
 use crate::peers;
 
 pub fn build_peers_plugin(_plugin: &peers::TrackingPlugin, app: &mut App) {
-    app.init_resource::<peers::PeerIndex>();
-    app.init_resource::<peers::RoomIndex>();
     if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
         app.insert_resource(peers::PeerEventTap(channel.subscribe()));
     }
@@ -16,7 +14,8 @@ pub fn build_peers_plugin(_plugin: &peers::TrackingPlugin, app: &mut App) {
             peers::bevy_systems::track_peer_connections,
             peers::bevy_systems::despawn_orphan_peers,
             peers::bevy_systems::despawn_orphan_rooms,
-        ),
+        )
+            .chain(),
     );
 }
 
@@ -34,8 +33,6 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(p2p::Libp2pEventChannel::default());
         build_peers_plugin(&peers::TrackingPlugin, &mut app);
-        assert!(app.world().get_resource::<peers::PeerIndex>().is_some());
-        assert!(app.world().get_resource::<peers::RoomIndex>().is_some());
         assert!(app.world().get_resource::<peers::PeerEventTap>().is_some());
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui_widgets::Button;
@@ -5,17 +7,21 @@ use bevy::ui_widgets::Button;
 use crate::direct_dial;
 use crate::discovery::ui::basic::constants::{BUTTON_COLOR, ROOM_COLOR};
 use crate::identity;
+use crate::peers;
 use direct_dial::ui::{FriendList, FriendRemoveButton, FriendRow};
 
 pub fn rebuild_friend_list(
     mut commands: Commands,
     book: Res<direct_dial::PeerBook>,
-    connected: Res<direct_dial::ConnectedPeers>,
+    connected_peers: Query<&peers::Peer, With<peers::Connected>>,
     list: Single<(Entity, Ref<FriendList>)>,
     mut shown: Local<Vec<(identity::PeerId, bool)>>,
 ) {
     let book = book.into_inner();
-    let connected = connected.into_inner();
+    let connected: HashSet<identity::PeerId> = connected_peers
+        .iter()
+        .map(|peer| (**peer).clone())
+        .collect();
     let wanted: Vec<(identity::PeerId, bool)> = book
         .iter()
         .map(|entry| (entry.peer.id.clone(), connected.contains(&entry.peer.id)))
@@ -71,6 +77,7 @@ mod tests {
     use super::rebuild_friend_list;
     use crate::direct_dial;
     use crate::identity;
+    use crate::peers;
 
     fn book_with(names: &[&str]) -> direct_dial::PeerBook {
         let mut book = direct_dial::PeerBook::default();
@@ -87,11 +94,12 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(book);
-        let mut peers = direct_dial::ConnectedPeers::default();
         for name in connected {
-            peers.insert(identity::PeerId::from(*name));
+            app.world_mut().spawn((
+                peers::Peer::from(identity::PeerId::from(*name)),
+                peers::Connected,
+            ));
         }
-        app.insert_resource(peers);
         app.world_mut().spawn(direct_dial::ui::FriendList);
         app.add_systems(Update, rebuild_friend_list);
         app
@@ -121,9 +129,13 @@ mod tests {
                 .iter()
                 .any(|text| text.contains("offline"))
         );
-        app.world_mut()
-            .resource_mut::<direct_dial::ConnectedPeers>()
-            .insert(identity::PeerId::from("alice"));
+        let alice = app
+            .world_mut()
+            .spawn((
+                peers::Peer::from(identity::PeerId::from("alice")),
+                peers::Connected,
+            ))
+            .id();
         app.update();
         assert!(
             label(app.world_mut())
@@ -131,8 +143,8 @@ mod tests {
                 .any(|text| text.contains("connected"))
         );
         app.world_mut()
-            .resource_mut::<direct_dial::ConnectedPeers>()
-            .remove(&identity::PeerId::from("alice"));
+            .entity_mut(alice)
+            .remove::<peers::Connected>();
         app.update();
         assert!(
             label(app.world_mut())
@@ -143,7 +155,6 @@ mod tests {
 
     fn preview_build(app: &mut App) {
         app.insert_resource(book_with(&["alice"]));
-        app.insert_resource(direct_dial::ConnectedPeers::default());
         app.add_systems(Startup, spawn_list);
         app.add_systems(Update, rebuild_friend_list);
     }
@@ -166,9 +177,10 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn connect_alice(world: &mut World) {
-        world
-            .resource_mut::<direct_dial::ConnectedPeers>()
-            .insert(identity::PeerId::from("alice"));
+        world.spawn((
+            peers::Peer::from(identity::PeerId::from("alice")),
+            peers::Connected,
+        ));
     }
 
     #[test]

@@ -28,8 +28,8 @@ pub use replica_slice_content_hash::ReplicaSliceContentHash;
 mod replica_slice_index;
 pub use replica_slice_index::ReplicaSliceIndex;
 
-mod room_state;
-pub use room_state::RoomState;
+mod replicated_state;
+pub use replicated_state::ReplicatedState;
 
 mod pending_ops;
 pub use pending_ops::PendingOps;

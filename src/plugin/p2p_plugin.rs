@@ -42,7 +42,11 @@ mod tests {
             p2p::MdnsMode::Disabled,
         )));
         app.update();
-        assert!(app.world().get_resource::<p2p::Events<Dummy>>().is_some());
+        assert!(
+            app.world()
+                .get_resource::<p2p::PendingEvents<Dummy>>()
+                .is_some()
+        );
         assert!(
             app.world()
                 .get_resource::<p2p::PendingLibp2pCommands>()

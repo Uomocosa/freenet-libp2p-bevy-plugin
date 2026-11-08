@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::p2p;
 use crate::room_sync;
 
-pub fn merge_and_write_history_records<Replica: room_sync::RoomState>(
+pub fn merge_and_write_history_records<Replica: room_sync::ReplicatedState>(
     replica: &mut Replica,
     prefix: &p2p::HistoryKeyPrefix,
     stored_manifest: Option<&p2p::HistoryManifest>,
@@ -108,7 +108,7 @@ mod tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::RoomState for Map {
+    impl room_sync::ReplicatedState for Map {
         type Op = Op;
         type Snapshot = Vec<(u8, u32)>;
 

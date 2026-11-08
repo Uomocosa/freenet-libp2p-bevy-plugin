@@ -31,8 +31,6 @@ mod tests {
         app.insert_resource(p2p::Libp2pEventChannel::default());
         app.add_plugins(TrackingPlugin);
         app.update();
-        assert!(app.world().get_resource::<peers::PeerIndex>().is_some());
-        assert!(app.world().get_resource::<peers::RoomIndex>().is_some());
         assert!(app.world().get_resource::<peers::PeerEventTap>().is_some());
     }
 }

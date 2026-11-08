@@ -1,7 +1,7 @@
 use crate::p2p;
 use crate::room_sync;
 
-pub trait RoomState:
+pub trait ReplicatedState:
     Default + bevy::prelude::Resource<Mutability = bevy::ecs::component::Mutable>
 {
     type Op: p2p::Message;

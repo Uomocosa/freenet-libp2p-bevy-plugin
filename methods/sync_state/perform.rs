@@ -6,7 +6,7 @@ use crate::identity;
 use crate::p2p;
 use crate::room_sync;
 
-pub fn perform<Replica: room_sync::RoomState>(
+pub fn perform<Replica: room_sync::ReplicatedState>(
     output: room_sync::state_machine::Output<Replica::Op>,
     room: &mut Replica,
     clock: room_sync::LamportClock,
@@ -118,7 +118,7 @@ mod tests {
     #[derive(Resource, Default)]
     struct MockReplica;
 
-    impl room_sync::RoomState for MockReplica {
+    impl room_sync::ReplicatedState for MockReplica {
         type Op = u8;
         type Snapshot = Vec<u8>;
 

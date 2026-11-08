@@ -10,7 +10,7 @@ type ReplicaInputSources<'a, 's, Op> = (
     Res<'a, Time<Real>>,
 );
 
-pub fn drive<Replica: room_sync::RoomState>(
+pub fn drive<Replica: room_sync::ReplicatedState>(
     mut failures: Option<MessageWriter<room_sync::JoinFailure>>,
     (libp2p_events, mut timer_inputs, real_time): ReplicaInputSources<'_, '_, Replica::Op>,
     game: Res<room_sync::SyncGame>,
@@ -94,7 +94,7 @@ mod tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::RoomState for Map {
+    impl room_sync::ReplicatedState for Map {
         type Op = Op;
         type Snapshot = Vec<(u8, u32)>;
 
@@ -442,7 +442,7 @@ mod tests {
             let hashes: Vec<room_sync::ReplicaSliceContentHashes> = apps
                 .iter()
                 .map(|app| {
-                    room_sync::RoomState::slice_content_hashes(app.world().resource::<Map>())
+                    room_sync::ReplicatedState::slice_content_hashes(app.world().resource::<Map>())
                 })
                 .collect();
             let full = apps

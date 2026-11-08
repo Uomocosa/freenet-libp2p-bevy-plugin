@@ -65,7 +65,7 @@ pub enum Libp2pCommand {
 
 #[atomic_delegates]
 impl Libp2pCommand {
-    pub fn merge_and_write_history_records<Replica: room_sync::RoomState>(
+    pub fn merge_and_write_history_records<Replica: room_sync::ReplicatedState>(
         replica: &mut Replica,
         prefix: &p2p::HistoryKeyPrefix,
         stored_manifest: Option<&p2p::HistoryManifest>,

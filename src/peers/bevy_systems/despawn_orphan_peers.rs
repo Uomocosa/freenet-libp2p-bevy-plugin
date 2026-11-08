@@ -1,11 +1,9 @@
 use bevy::prelude::*;
 
-use crate::identity;
 use crate::peers;
 
-type OrphanPeerRow<'a> = (
+type OrphanPeerRow = (
     Entity,
-    &'a peers::Peer,
     Has<peers::Connected>,
     Has<peers::InRoom>,
     Has<peers::HeldRooms>,
@@ -15,23 +13,18 @@ type OrphanPeerRow<'a> = (
 
 pub fn despawn_orphan_peers(
     mut commands: Commands,
-    found_peers: Query<OrphanPeerRow<'_>>,
-    mut peer_index: Option<ResMut<peers::PeerIndex>>,
+    found_peers: Query<OrphanPeerRow, With<peers::Peer>>,
 ) {
-    let Some(peer_index) = peer_index.as_deref_mut() else {
-        return;
-    };
-    let orphans: Vec<(Entity, identity::PeerId)> = found_peers
+    let orphans: Vec<Entity> = found_peers
         .iter()
         .filter(
-            |(_, _, is_connected, is_in_room, holds_history, is_keep_alive, is_me)| {
+            |(_, is_connected, is_in_room, holds_history, is_keep_alive, is_me)| {
                 !is_connected && !is_in_room && !holds_history && !is_keep_alive && !is_me
             },
         )
-        .map(|(entity, peer, _, _, _, _, _)| (entity, (**peer).clone()))
+        .map(|(entity, _, _, _, _, _)| entity)
         .collect();
-    for (entity, id) in orphans {
-        peer_index.remove(&id);
+    for entity in orphans {
         commands.entity(entity).despawn();
     }
 }
@@ -48,7 +41,6 @@ mod tests {
     fn app_with_system() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<peers::PeerIndex>();
         app.add_systems(Update, despawn_orphan_peers);
         app
     }
@@ -67,9 +59,6 @@ mod tests {
             .world_mut()
             .spawn(peers::Peer::from(identity::PeerId::from("orphan")))
             .id();
-        app.world_mut()
-            .resource_mut::<peers::PeerIndex>()
-            .insert(identity::PeerId::from("orphan"), orphan);
         let kept = app
             .world_mut()
             .spawn((
@@ -77,19 +66,10 @@ mod tests {
                 peers::Connected,
             ))
             .id();
-        app.world_mut()
-            .resource_mut::<peers::PeerIndex>()
-            .insert(identity::PeerId::from("kept"), kept);
         app.update();
         assert_eq!(peer_count(&mut app), 1);
         assert!(app.world().get_entity(orphan).is_err());
         assert!(app.world().get_entity(kept).is_ok());
-        assert!(
-            app.world()
-                .resource::<peers::PeerIndex>()
-                .get(&identity::PeerId::from("orphan"))
-                .is_none()
-        );
     }
 
     #[test]
@@ -104,30 +84,24 @@ mod tests {
             .resource::<p2p::Libp2pEventChannel>()
             .subscribe();
         app.insert_resource(peers::PeerEventTap(rx));
-        app.insert_resource(peers::PeerIndex::default());
         app.add_systems(
             Update,
             (
                 peers::bevy_systems::track_peer_connections,
                 despawn_orphan_peers,
-            ),
+            )
+                .chain(),
         );
         let id = identity::PeerId::from("alice");
         tx.send(p2p::Libp2pEvent::PeerConnected(id.clone()))
             .expect("send");
         app.update();
         assert_eq!(peer_count(&mut app), 1);
-        tx.send(p2p::Libp2pEvent::PeerDisconnected(id.clone()))
+        tx.send(p2p::Libp2pEvent::PeerDisconnected(id))
             .expect("send");
         app.update();
         app.update();
         assert_eq!(peer_count(&mut app), 0);
-        assert!(
-            app.world()
-                .resource::<peers::PeerIndex>()
-                .get(&id)
-                .is_none()
-        );
     }
 
     #[test]

@@ -12,7 +12,4 @@ pub struct Config(pub Option<PathBuf>);
 pub struct FriendAddressError(pub Option<String>);
 
 #[derive(Resource, Debug, Deref, DerefMut)]
-pub struct FriendEventTap(pub tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>);
-
-#[derive(Resource, Debug, Deref, DerefMut)]
 pub struct DialEventTap(pub tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>);

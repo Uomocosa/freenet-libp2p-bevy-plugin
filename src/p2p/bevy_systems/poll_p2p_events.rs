@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use crate::p2p;
 
 pub fn poll_p2p_events<Payload: p2p::Message>(
-    mut events: ResMut<p2p::Events<Payload>>,
-    mut commands: ResMut<p2p::Commands<Payload>>,
+    mut events: ResMut<p2p::PendingEvents<Payload>>,
+    mut commands: ResMut<p2p::PendingCommands<Payload>>,
     mut pending: ResMut<p2p::PendingLibp2pCommands>,
     command_channel: Res<p2p::CommandSender<Payload>>,
     event_channel: Res<p2p::EventReceiver<Payload>>,
@@ -87,8 +87,8 @@ mod tests {
         let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel::<p2p::Event<Dummy>>();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(p2p::Events::<Dummy>::default());
-        app.insert_resource(p2p::Commands::<Dummy>::default());
+        app.insert_resource(p2p::PendingEvents::<Dummy>::default());
+        app.insert_resource(p2p::PendingCommands::<Dummy>::default());
         app.insert_resource(p2p::PendingLibp2pCommands::default());
         event_tx
             .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerConnected(
@@ -96,7 +96,7 @@ mod tests {
             )))
             .ok();
         app.world_mut()
-            .resource_mut::<p2p::Commands<Dummy>>()
+            .resource_mut::<p2p::PendingCommands<Dummy>>()
             .push(p2p::Command::Net(p2p::Libp2pCommand::Dial(
                 identity::Peer {
                     id: identity::PeerId::from("peer"),
@@ -108,7 +108,7 @@ mod tests {
         app.add_systems(Update, poll_p2p_events::<Dummy>);
         app.update();
         assert!(cmd_rx.try_recv().is_ok());
-        assert_eq!(app.world().resource::<p2p::Events<Dummy>>().len(), 1);
+        assert_eq!(app.world().resource::<p2p::PendingEvents<Dummy>>().len(), 1);
     }
 
     #[test]
@@ -119,8 +119,8 @@ mod tests {
         let mut tap_rx = channel.subscribe();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(p2p::Events::<Dummy>::default());
-        app.insert_resource(p2p::Commands::<Dummy>::default());
+        app.insert_resource(p2p::PendingEvents::<Dummy>::default());
+        app.insert_resource(p2p::PendingCommands::<Dummy>::default());
         app.insert_resource(p2p::PendingLibp2pCommands::default());
         app.insert_resource(p2p::CommandSender(cmd_tx));
         app.insert_resource(p2p::EventReceiver(std::sync::Mutex::new(Some(event_rx))));

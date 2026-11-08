@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::{direct_dial, discovery, identity, p2p, testing};
+use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, peers, testing};
 
 use crate::friend_intent::FriendIntent;
 use crate::script::StarboardStep;
@@ -31,7 +31,7 @@ pub struct StarboardStepParam<'w, 's> {
     stable: Local<'s, Option<CanvasHashSince>>,
     friend_intent: ResMut<'w, FriendIntent>,
     pending_dials: ResMut<'w, p2p::PendingLibp2pCommands>,
-    connected: Res<'w, direct_dial::ConnectedPeers>,
+    connected_peers: Query<'w, 's, &'static peers::Peer, With<peers::Connected>>,
 }
 
 impl testing::PollableScriptStep for StarboardStep {
@@ -114,14 +114,14 @@ impl testing::PollableScriptStep for StarboardStep {
             Self::AddFriend(addr) => poll_add_friend(addr, clock, param),
             Self::Dial(addrs) => poll_dial(addrs, param),
             Self::WaitFriendConnected(id) => {
-                if param.connected.contains(id) {
+                if param.connected_peers.iter().any(|peer| *peer == *id) {
                     testing::StepOutcome::Done
                 } else {
                     testing::StepOutcome::Pending
                 }
             }
             Self::WaitFriendDisconnected(id) => {
-                if param.connected.contains(id) {
+                if param.connected_peers.iter().any(|peer| *peer == *id) {
                     testing::StepOutcome::Pending
                 } else {
                     testing::StepOutcome::Done
@@ -243,7 +243,6 @@ mod tests {
         app.insert_resource(testing::PendingAction::default());
         app.insert_resource(crate::friend_intent::FriendIntent::default());
         app.insert_resource(freenet_libp2p_bevy_plugin::p2p::PendingLibp2pCommands::default());
-        app.insert_resource(freenet_libp2p_bevy_plugin::direct_dial::ConnectedPeers::default());
         app.add_message::<starboard::input::PendingLocalDraw>();
         app.add_message::<discovery::Command>();
         app.insert_resource(StarboardScriptRunner::new(steps));
@@ -339,9 +338,10 @@ mod tests {
         let mut app = app(&[raw]);
         app.update();
         assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 0);
-        app.world_mut()
-            .resource_mut::<freenet_libp2p_bevy_plugin::direct_dial::ConnectedPeers>()
-            .insert(identity::PeerId::from("peer-1"));
+        app.world_mut().spawn((
+            freenet_libp2p_bevy_plugin::peers::Peer::from(identity::PeerId::from("peer-1")),
+            freenet_libp2p_bevy_plugin::peers::Connected,
+        ));
         app.update();
         assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 1);
     }

@@ -51,11 +51,11 @@ pub(crate) mod swarm_loop;
 pub mod swarm_loop_state;
 pub use swarm_loop_state::SwarmLoopState;
 
-pub mod commands;
-pub use commands::Commands;
+pub mod pending_commands;
+pub use pending_commands::PendingCommands;
 
-pub mod events;
-pub use events::Events;
+pub mod pending_events;
+pub use pending_events::PendingEvents;
 
 pub mod ready_channel;
 pub use ready_channel::ReadyChannel;

@@ -96,7 +96,7 @@ The plugin owns discovery, transport and sync; the example owns the game:
 
 | Module | Responsibility |
 |---|---|
-| `canvas/` | dense 1024×1024 grid, 32×32 cells per tile; `RoomState` (`apply`, `merge`, slice hashes) |
+| `canvas/` | dense 1024×1024 grid, 32×32 cells per tile; `ReplicatedState` (`apply`, `merge`, slice hashes) |
 | `identity/` | daily shape/colour from the lobby's `created_at`, 72 combinations |
 | `input/` | pointer → `DrawOp`, brush-size notches, `PendingLocalDraw` |
 | `render/` | letterboxed board texture, dirty-tile repaint, brush outline, remote cursors |

@@ -31,7 +31,7 @@ One room channel: gossipsub, one topic per room. Joining a room (through
 - Inbound payloads arrive as `p2p::Event::RoomMessage { room, from, payload }`.
 - A payload larger than `p2p::GossipsubConfig::max_transmit_size` (64 KiB)
   is rejected with `p2p::Event::Error`, not silently dropped.
-- `room_sync::SyncPlugin<Replica>` replicates a `RoomState` per room. Its
+- `room_sync::SyncPlugin<Replica>` replicates a `ReplicatedState` per room. Its
   `anti_entropy: Option<room_sync::AntiEntropyConfig>` (default on: 2 s interval, at
   most 8 slice fetches per peer; `with_anti_entropy_config(None)` turns it off) repairs ops
   lost on gossip: peers announce one content hash per replica slice and fetch the

@@ -75,7 +75,7 @@ mod tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::RoomState for ProofMap {
+    impl room_sync::ReplicatedState for ProofMap {
         type Op = u8;
         type Snapshot = Vec<(u8, u32)>;
 

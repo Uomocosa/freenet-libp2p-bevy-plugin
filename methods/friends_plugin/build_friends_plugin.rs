@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::direct_dial;
 use crate::p2p;
+use crate::peers;
 use crate::time;
 
 pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) {
@@ -44,11 +45,7 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
         );
     app.insert_resource(config);
     app.insert_resource(book);
-    app.insert_resource(direct_dial::ConnectedPeers::default());
     app.insert_resource(direct_dial::FriendAddressError(startup_error));
-    if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
-        app.insert_resource(direct_dial::FriendEventTap(channel.subscribe()));
-    }
     let now = time::UnixTime::now();
     let book_now = app.world().resource::<direct_dial::PeerBook>().clone();
     app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
@@ -61,7 +58,9 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
         Update,
         (
             direct_dial::bevy_systems::drive_dial_state,
-            direct_dial::bevy_systems::project_friends_to_entities,
+            direct_dial::bevy_systems::project_friends_to_entities
+                .after(peers::bevy_systems::track_peer_connections)
+                .before(peers::bevy_systems::despawn_orphan_peers),
         ),
     );
 }

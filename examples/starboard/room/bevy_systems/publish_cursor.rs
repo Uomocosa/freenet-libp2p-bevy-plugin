@@ -7,7 +7,7 @@ pub fn publish_cursor(
     time: Res<Time>,
     cursor: Res<starboard::input::CursorCell>,
     brush: Res<starboard::input::OwnBrush>,
-    commands: Option<ResMut<p2p::Commands<starboard::room::CursorUpdate>>>,
+    commands: Option<ResMut<p2p::PendingCommands<starboard::room::CursorUpdate>>>,
     mut accumulator: Local<f32>,
 ) {
     let time = time.into_inner();
@@ -54,14 +54,14 @@ mod tests {
             starboard::canvas::CellPos { x: 7, y: 9 },
         )));
         app.insert_resource(starboard::input::OwnBrush::default());
-        app.insert_resource(p2p::Commands::<starboard::room::CursorUpdate>::default());
+        app.insert_resource(p2p::PendingCommands::<starboard::room::CursorUpdate>::default());
         app.add_systems(Update, publish_cursor);
 
         app.update();
         app.update();
         let commands = app
             .world()
-            .resource::<p2p::Commands<starboard::room::CursorUpdate>>();
+            .resource::<p2p::PendingCommands<starboard::room::CursorUpdate>>();
         assert_eq!(commands.len(), 1);
         assert!(matches!(
             commands.first(),
@@ -75,7 +75,7 @@ mod tests {
         app.update();
         assert_eq!(
             app.world()
-                .resource::<p2p::Commands<starboard::room::CursorUpdate>>()
+                .resource::<p2p::PendingCommands<starboard::room::CursorUpdate>>()
                 .len(),
             1
         );

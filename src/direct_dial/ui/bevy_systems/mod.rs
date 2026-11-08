@@ -5,7 +5,6 @@ pub mod rebuild_friend_list;
 pub mod refresh_own_address;
 pub mod show_friend_address_error;
 pub mod spawn_friends_tab;
-pub mod track_friend_connections;
 
 pub use gate_add_friend::gate_add_friend;
 pub use handle_add_friend::handle_add_friend;
@@ -14,4 +13,3 @@ pub use rebuild_friend_list::rebuild_friend_list;
 pub use refresh_own_address::refresh_own_address;
 pub use show_friend_address_error::show_friend_address_error;
 pub use spawn_friends_tab::spawn_friends_tab;
-pub use track_friend_connections::track_friend_connections;

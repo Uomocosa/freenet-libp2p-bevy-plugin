@@ -3,11 +3,8 @@ pub mod basic;
 
 pub use basic::components::Friend;
 pub use basic::enums::KnownPeerKind;
-pub use basic::resources::{Config, DialEventTap, FriendAddressError, FriendEventTap};
+pub use basic::resources::{Config, DialEventTap, FriendAddressError};
 pub use basic::structs::KnownPeer;
-
-mod connected_peers;
-pub use connected_peers::ConnectedPeers;
 
 pub mod state_machine;
 

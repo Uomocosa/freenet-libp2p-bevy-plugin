@@ -100,7 +100,7 @@ first**. Loading a skill is cheap; skipping one is a correctness bug.
   but no public command uses it yet), `relay`, `relay_client`, `dcutr`, `mdns`.
   Public API: `p2p::Command<T>::{Net(NetCommand), Send{peer_id,payload}}`,
   `p2p::Event<T>::{Net(NetEvent), Message{from,payload}, Error}` in
-  `src/p2p/__basic__/enums.rs`; Bevy resources `p2p::Commands<T>` / `p2p::Events<T>`.
+  `src/p2p/__basic__/enums.rs`; Bevy resources `p2p::PendingCommands<T>` / `p2p::PendingEvents<T>`.
   Swarm loop handlers in `src/p2p/swarm_loop/` (`dispatch_command.rs`,
   `handle_gossipsub.rs`, `handle_message.rs`, ...).
 - `src/discovery/`: Freenet lobby + room state machine (`state_machine/`), `Room`
@@ -408,7 +408,7 @@ Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
 > **new request/response behaviour** (`/<game>/room-sync/1`) with distinct request/response
 > frames. The member set comes from `discovery::Status`, not from the swarm loop.
 
-- [x] `RoomState` trait (`Op`/`Snapshot`, `apply`/`snapshot`/`merge`) and a
+- [x] `ReplicatedState` trait (`Op`/`Snapshot`, `apply`/`snapshot`/`merge`) and a
       `SyncPlugin<S>` owning `Resource<S>` and a `LamportClock` resource (`tick`,
       `observe`).
 - [x] On `Joined`: `Fetch{part: 0}` to the **lowest connected member** (self excluded), retry
@@ -437,13 +437,13 @@ variants. The responder cannot compute `S::Snapshot` in the swarm loop, so the l
 `room_sync` both consume `NetEvent`s; `p2p::SwarmChannels.events` and
 `discovery/run.rs` follow.
 
-**`room_sync` domain (new):** `RoomState`, `OpMeta`, `LamportClock`, `peer_author`,
+**`room_sync` domain (new):** `ReplicatedState`, `OpMeta`, `LamportClock`, `peer_author`,
 `SyncFrame`, `sync_topic`, `split_parts`/`join_parts`, `PendingOps<S>` writer,
 `SyncPlugin<S>` (+ `methods/sync_plugin/build_plugin.rs`), and a pure `state_machine`
 (`State`, `Input`, `Output`, `Phase`, `update`, `fetch_next`, `handle_*`, `tick`) with Bevy
 systems `drive` (inbound) and `write_ops` (outbound).
 
-**Public API added:** `room_sync::{RoomState, OpMeta, LamportClock, peer_author, SyncFrame,
+**Public API added:** `room_sync::{ReplicatedState, OpMeta, LamportClock, peer_author, SyncFrame,
 sync_topic, split_parts, join_parts, PendingOps, SyncPlugin, SyncState, NetEvents}`;
 `p2p::{SnapshotRequest, SnapshotResponse, sync_protocol}`; `NetCommand::{Unsubscribe, FetchSnapshot,
 RespondSnapshot}`; `NetEvent::{SnapshotRequest, SnapshotPart, SnapshotMissing,
@@ -507,7 +507,7 @@ Goal: heal divergence caused by lossy delivery.
 >   the slices to fetch.
 > - **Slices repair, they do not rebuild.** `slice_snapshot(index)` returns an ordinary
 >   `Replica::Snapshot` holding only that slice; the receiver feeds it to the existing
->   `RoomState::merge`, which (CRDT) fixes that slice and leaves the rest untouched. No
+>   `ReplicatedState::merge`, which (CRDT) fixes that slice and leaves the rest untouched. No
 >   `from_replica_slices` constructor: a fresh state is `Replica::default()` + the A5
 >   join snapshot.
 > - **`room_sync::AntiEntropyConfig { interval: Duration, max_slice_fetches_per_peer: usize }`**
@@ -546,7 +546,7 @@ Goal: heal divergence caused by lossy delivery.
       `ReplicaSliceContentHash(u64)` and the `ReplicaSliceContentHashes` alias (`__basic__/`),
       `AntiEntropyConfig` (own file, `Default`); `SyncPlugin` gains `anti_entropy` +
       a builder method.
-- [x] Extend `RoomState`:
+- [x] Extend `ReplicatedState`:
       `fn slice_content_hashes(&self) -> ReplicaSliceContentHashes;`
       `fn slice_snapshot(&self, index: ReplicaSliceIndex) -> Self::Snapshot;`
       (single-slice test states return only `ReplicaSliceIndex(0)`).
@@ -587,7 +587,7 @@ and the `feat(room_sync):` commit carrying this section.
 **Files added (product):**
 - `src/room_sync/replica_slice_index.rs` + `methods/replica_slice_index/from_hash_mismatches.rs`
 - `src/room_sync/replica_slice_content_hash.rs` + `methods/replica_slice_content_hash/from_bytes.rs`
-  (blake3, first 8 bytes big-endian — a helper so every `RoomState` hashes slices the same way)
+  (blake3, first 8 bytes big-endian — a helper so every `ReplicatedState` hashes slices the same way)
 - `src/room_sync/__basic__/aliases.rs` (`ReplicaSliceContentHashes`), `__basic__/enums.rs`
   (`ReplicaSyncTopicMessage`), `AntiEntropyTimer` in `__basic__/resources.rs`
 - `src/room_sync/anti_entropy_config.rs`
@@ -595,14 +595,14 @@ and the `feat(room_sync):` commit carrying this section.
   handle_replica_slice_requested, handle_replica_slice_received, handle_failed}.rs`
 - `src/room_sync/bevy_systems/publish_slice_content_hashes.rs` (timer system)
 
-**Files changed (product):** `room_state.rs` (two trait methods), `sync_plugin.rs`
+**Files changed (product):** `replicated_state.rs` (two trait methods), `sync_plugin.rs`
 (`anti_entropy` + `with_anti_entropy`; `new` is no longer `const`), `methods/sync_plugin/build_plugin.rs`,
 `state_machine/{state, update, handle_joined, __basic__/enums}.rs`, `bevy_systems/{drive, mod}.rs`,
 `p2p/__basic__/enums.rs`, `p2p/swarm_loop/{handle_room_sync, dispatch_net_command}.rs`, `README.md`.
 
 **Public API added:** `room_sync::{ReplicaSliceIndex, ReplicaSliceContentHash,
 ReplicaSliceContentHashes, AntiEntropyConfig, AntiEntropyTimer}`,
-`ReplicaSyncTopicMessage::CompareSliceContentHashes`, `RoomState::{slice_content_hashes,
+`ReplicaSyncTopicMessage::CompareSliceContentHashes`, `ReplicatedState::{slice_content_hashes,
 slice_snapshot}` (required — breaking for implementors), `SyncPlugin::with_anti_entropy`,
 `p2p::SnapshotRequest::FetchReplicaSlice`, `p2p::SnapshotResponse::ReplicaSlice`,
 `p2p::NetCommand::FetchReplicaSlice`, `p2p::NetEvent::{ReplicaSliceRequest, ReplicaSlice}`.
@@ -667,7 +667,7 @@ repair path, not from gossip alone.
 - `examples/lobby_room/ping.rs` — `PingPayload(pub identity::Username)`,
   `IsRoomPingEnabled(pub bool)`, `publish_room_ping` (publishes `PingPayload` once per
   second via `p2p::Command::PublishInJoinedRoom` while in a room with at least one
-  connected member), `log_room_messages` (drains `p2p::Events<PingPayload>` and logs
+  connected member), `log_room_messages` (drains `p2p::PendingEvents<PingPayload>` and logs
   `lobby room_message room=<r> from=<peer_id> user=<username>`), plus `tests::test_usage`.
   Replaces the placeholder `examples/lobby_room/dummy.rs`.
 - `tests/room_messaging.rs` — `#[ignore]` e2e test calling
@@ -818,7 +818,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 - [x] Types per D4: `Cell`, `Tile` (`[Cell; 32*32]` boxed), `Canvas` (32×32
       `Option<Box<Tile>>`, `None` = never touched), `CellPos`, `TileId`.
 - [x] `write_cell(&mut Canvas, pos, cell)` LWW by `(lamport, author, color)`; `merge_tile`.
-- [x] Implement plugin `RoomState` for `Canvas` (Op = `DrawOp`, Snapshot = `CanvasSnapshot`
+- [x] Implement plugin `ReplicatedState` for `Canvas` (Op = `DrawOp`, Snapshot = `CanvasSnapshot`
       of `Vec<TouchedTile>`, one `ReplicaSliceIndex` + `ReplicaSliceContentHash` (blake3) per tile).
 - [x] `author: u16` = stable 16-bit hash of peer id (from `OpMeta`). Per-cell merge key
       is `(lamport, author, color)` (D4) — do NOT rely on the full peer id, cells only
@@ -842,7 +842,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
   - `TouchedTile { pub id: TileId, pub cells: Vec<Cell> }` (replaces `(TileId, Tile)` tuple per `SMELLS.md` §S4 and avoids `serde`'s 32-element array derive limit).
   - `DrawOp { pub action: DrawAction, pub shape: Shape, pub size_index: u8, pub from: CellPos, pub to: CellPos }`.
 - `examples/starboard/canvas/tile.rs` — `Tile(pub [Cell; CELLS_PER_TILE])` (`#[derive(Deref, DerefMut)]`) + `Default`.
-- `examples/starboard/canvas/canvas.rs` — `Canvas { pub tiles: [Option<Box<Tile>>; TILE_COUNT], pub dirty_tiles: BTreeSet<TileId> }` + `Default` + `impl room_sync::RoomState for Canvas` (`apply`, `snapshot`, `merge`, `slice_content_hashes`, `slice_snapshot`).
+- `examples/starboard/canvas/canvas.rs` — `Canvas { pub tiles: [Option<Box<Tile>>; TILE_COUNT], pub dirty_tiles: BTreeSet<TileId> }` + `Default` + `impl room_sync::ReplicatedState for Canvas` (`apply`, `snapshot`, `merge`, `slice_content_hashes`, `slice_snapshot`).
 - `examples/starboard/canvas/{write_cell,read_cell,merge_tile,hash_tile,hash_canvas,encode_snapshot,decode_snapshot}.rs`.
 
 **Files changed:**
@@ -860,7 +860,7 @@ so it is unit-testable; Bevy systems are thin wrappers (see `bevy-rs` skill).
 **Commands run (all green):** `just build`, `just clippy`, `just fmt`, `just test` (**182 passed**, 4 skipped), `just lint`, `just bevy-lint`.
 
 **Deviations / decisions:**
-- `Canvas` tracks `dirty_tiles: BTreeSet<TileId>` alongside `tiles` so `RoomState::apply` and `RoomState::merge` record which tiles changed for B4/B5 incremental GPU texture uploads.
+- `Canvas` tracks `dirty_tiles: BTreeSet<TileId>` alongside `tiles` so `ReplicatedState::apply` and `ReplicatedState::merge` record which tiles changed for B4/B5 incremental GPU texture uploads.
 - `Canvas::apply` currently walks the integer segment `from -> to` with a 5×5 brush footprint; Step B3 replaces `apply_segment` with `rasterize(op)` over all 6 precomputed shape masks and `SIZES`.
 
 ---

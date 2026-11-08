@@ -3,7 +3,9 @@ use std::sync::Mutex;
 use bevy::prelude::*;
 use tracing::error;
 
+use crate::direct_dial;
 use crate::discovery;
+use crate::peers;
 use crate::room_sync;
 #[cfg(feature = "testing")]
 use crate::testing;
@@ -24,6 +26,10 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         Update,
         discovery::bevy_systems::project_status_to_entities
             .after(discovery::bevy_systems::drain_status)
+            .after(peers::bevy_systems::track_peer_connections)
+            .before(peers::bevy_systems::despawn_orphan_peers)
+            .before(peers::bevy_systems::despawn_orphan_rooms)
+            .before(direct_dial::bevy_systems::project_friends_to_entities)
             .in_set(room_sync::RoomSyncSet::Input),
     );
     app.add_systems(
@@ -43,28 +49,23 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         error!(target: "discovery", "discovery: p2p resources missing, discovery disabled");
         return;
     };
+    let channels = discovery::RunChannels {
+        swarm,
+        commands: command_rx,
+        statuses: status_tx,
+        events: event_tx,
+    };
+    let config = (**plugin).clone();
     #[cfg(feature = "testing")]
     if let Some(task_override) = app
         .world_mut()
         .remove_resource::<discovery::LobbyTaskOverride>()
     {
-        let endpoint = app
+        let _endpoint = app
             .world()
             .get_resource::<discovery::FreenetPort>()
             .copied()
             .unwrap_or(discovery::FreenetPort(0));
-        let _ = endpoint;
-        app.add_systems(
-            Update,
-            discovery::bevy_systems::follow_room.after(discovery::bevy_systems::drain_events),
-        );
-        let channels = discovery::RunChannels {
-            swarm,
-            commands: command_rx,
-            statuses: status_tx,
-            events: event_tx,
-        };
-        let config = (**plugin).clone();
         let game = config.game.clone();
         let (target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
         let (lobby_tx, lobbies) = tokio::sync::mpsc::unbounded_channel();
@@ -98,17 +99,6 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         error!(target: "discovery", "discovery: FreenetPort missing, discovery disabled");
         return;
     };
-    app.add_systems(
-        Update,
-        discovery::bevy_systems::follow_room.after(discovery::bevy_systems::drain_events),
-    );
-    let channels = discovery::RunChannels {
-        swarm,
-        commands: command_rx,
-        statuses: status_tx,
-        events: event_tx,
-    };
-    let config = (**plugin).clone();
     tokio::spawn(async move { config.run(endpoint, channels).await });
 }
 

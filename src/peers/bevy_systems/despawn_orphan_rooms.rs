@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
-use crate::identity;
 use crate::peers;
 
 pub fn despawn_orphan_rooms(
@@ -14,21 +13,16 @@ pub fn despawn_orphan_rooms(
         Option<&peers::HistoryHolders>,
     )>,
     me_rooms: Query<&peers::InRoom, With<peers::Me>>,
-    mut room_index: Option<ResMut<peers::RoomIndex>>,
 ) {
-    let Some(room_index) = room_index.as_deref_mut() else {
-        return;
-    };
     let held_by_me: HashSet<Entity> = me_rooms.iter().map(|in_room| **in_room).collect();
-    let orphans: Vec<(Entity, identity::RoomName)> = found_rooms
+    let orphans: Vec<Entity> = found_rooms
         .iter()
         .filter(|(entity, _, members, holders)| {
             members.is_none() && holders.is_none() && !held_by_me.contains(entity)
         })
-        .map(|(entity, room, _, _)| (entity, (**room).clone()))
+        .map(|(entity, _, _, _)| entity)
         .collect();
-    for (entity, name) in orphans {
-        room_index.remove(&name);
+    for entity in orphans {
         commands.entity(entity).despawn();
     }
 }
@@ -44,7 +38,6 @@ mod tests {
     fn app_with_system() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<peers::RoomIndex>();
         app.add_systems(Update, despawn_orphan_rooms);
         app
     }
@@ -63,16 +56,10 @@ mod tests {
             .world_mut()
             .spawn(peers::Room::from(identity::RoomName::from("empty")))
             .id();
-        app.world_mut()
-            .resource_mut::<peers::RoomIndex>()
-            .insert(identity::RoomName::from("empty"), orphan);
         let lived = app
             .world_mut()
             .spawn(peers::Room::from(identity::RoomName::from("lived")))
             .id();
-        app.world_mut()
-            .resource_mut::<peers::RoomIndex>()
-            .insert(identity::RoomName::from("lived"), lived);
         app.world_mut().spawn((
             peers::Peer::from(identity::PeerId::from("member")),
             peers::InRoom(lived),
@@ -81,12 +68,6 @@ mod tests {
         assert_eq!(room_count(&mut app), 1);
         assert!(app.world().get_entity(orphan).is_err());
         assert!(app.world().get_entity(lived).is_ok());
-        assert!(
-            app.world()
-                .resource::<peers::RoomIndex>()
-                .get(&identity::RoomName::from("empty"))
-                .is_none()
-        );
     }
 
     #[test]
@@ -135,9 +116,6 @@ mod tests {
             .world_mut()
             .spawn(peers::Room::from(identity::RoomName::from("archive")))
             .id();
-        app.world_mut()
-            .resource_mut::<peers::RoomIndex>()
-            .insert(identity::RoomName::from("archive"), room);
         let holder = app
             .world_mut()
             .spawn(peers::Peer::from(identity::PeerId::from("holder")))
@@ -150,12 +128,6 @@ mod tests {
         app.update();
         app.update();
         assert!(app.world().get_entity(room).is_ok());
-        assert!(
-            app.world()
-                .resource::<peers::RoomIndex>()
-                .get(&identity::RoomName::from("archive"))
-                .is_some()
-        );
     }
 
     #[test]
@@ -165,9 +137,6 @@ mod tests {
             .world_mut()
             .spawn(peers::Room::from(identity::RoomName::from("archive")))
             .id();
-        app.world_mut()
-            .resource_mut::<peers::RoomIndex>()
-            .insert(identity::RoomName::from("archive"), room);
         let holder = app
             .world_mut()
             .spawn(peers::Peer::from(identity::PeerId::from("holder")))
@@ -188,34 +157,24 @@ mod tests {
         app.update();
         app.update();
         assert!(app.world().get_entity(room).is_err());
-        assert!(
-            app.world()
-                .resource::<peers::RoomIndex>()
-                .get(&identity::RoomName::from("archive"))
-                .is_none()
-        );
     }
 
     #[test]
     fn room_follows_its_last_holder() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<peers::PeerIndex>();
-        app.init_resource::<peers::RoomIndex>();
         app.add_systems(
             Update,
             (
                 peers::bevy_systems::despawn_orphan_peers,
                 despawn_orphan_rooms,
-            ),
+            )
+                .chain(),
         );
         let room = app
             .world_mut()
             .spawn(peers::Room::from(identity::RoomName::from("archive")))
             .id();
-        app.world_mut()
-            .resource_mut::<peers::RoomIndex>()
-            .insert(identity::RoomName::from("archive"), room);
         let holder = app
             .world_mut()
             .spawn(peers::Peer::from(identity::PeerId::from("holder")))
@@ -228,9 +187,6 @@ mod tests {
                 peers::HoldOf(room),
             ))
             .id();
-        app.world_mut()
-            .resource_mut::<peers::PeerIndex>()
-            .insert(identity::PeerId::from("holder"), holder);
         app.update();
         assert!(app.world().get_entity(room).is_ok());
         assert!(
@@ -243,11 +199,5 @@ mod tests {
         app.update();
         app.update();
         assert!(app.world().get_entity(room).is_err());
-        assert!(
-            app.world()
-                .resource::<peers::RoomIndex>()
-                .get(&identity::RoomName::from("archive"))
-                .is_none()
-        );
     }
 }

@@ -5,14 +5,7 @@ use crate::direct_dial;
 pub fn build_plugin(_plugin: &direct_dial::ui::FriendsUiPlugin, app: &mut App) {
     use direct_dial::ui::bevy_systems as friends;
     app.add_systems(Startup, friends::spawn_friends_tab);
-    app.add_systems(
-        Update,
-        (
-            friends::track_friend_connections,
-            friends::rebuild_friend_list,
-        )
-            .chain(),
-    );
+    app.add_systems(Update, friends::rebuild_friend_list);
     app.add_systems(Update, friends::gate_add_friend);
     app.add_systems(
         Update,
@@ -39,7 +32,6 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(direct_dial::Config::from(None));
         app.insert_resource(direct_dial::PeerBook::default());
-        app.insert_resource(direct_dial::ConnectedPeers::default());
         app.insert_resource(direct_dial::FriendAddressError(None));
         build_plugin(&direct_dial::ui::FriendsUiPlugin, &mut app);
         app.update();
@@ -58,7 +50,6 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(direct_dial::Config::from(None));
         app.insert_resource(direct_dial::PeerBook::default());
-        app.insert_resource(direct_dial::ConnectedPeers::default());
         app.insert_resource(direct_dial::FriendAddressError(None));
         build_plugin(&direct_dial::ui::FriendsUiPlugin, &mut app);
         app.update();

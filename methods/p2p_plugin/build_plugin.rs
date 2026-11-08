@@ -25,8 +25,8 @@ pub fn build_plugin<Payload: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<Payloa
         {
             handles.swarm = Some(handle);
         }
-        app.insert_resource(p2p::Events::<Payload>::default());
-        app.insert_resource(p2p::Commands::<Payload>::default());
+        app.insert_resource(p2p::PendingEvents::<Payload>::default());
+        app.insert_resource(p2p::PendingCommands::<Payload>::default());
         app.insert_resource(p2p::PendingLibp2pCommands::default());
         app.insert_resource(p2p::ReadyChannel::default());
         app.insert_resource(p2p::Libp2pEventChannel::default());
@@ -45,8 +45,8 @@ pub fn build_plugin<Payload: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<Payloa
         gossipsub: p2p_plugin.gossipsub,
     };
     let _runner = config.spawn_runner::<Payload>(cmd_rx, libp2p_rx, event_tx, keypair);
-    app.insert_resource(p2p::Events::<Payload>::default());
-    app.insert_resource(p2p::Commands::<Payload>::default());
+    app.insert_resource(p2p::PendingEvents::<Payload>::default());
+    app.insert_resource(p2p::PendingCommands::<Payload>::default());
     app.insert_resource(p2p::PendingLibp2pCommands::default());
     app.insert_resource(p2p::ReadyChannel::default());
     app.insert_resource(p2p::Libp2pEventChannel::default());
@@ -82,7 +82,11 @@ mod tests {
             &mut app,
         );
         app.update();
-        assert!(app.world().get_resource::<p2p::Events<Dummy>>().is_some());
+        assert!(
+            app.world()
+                .get_resource::<p2p::PendingEvents<Dummy>>()
+                .is_some()
+        );
         assert!(
             app.world()
                 .get_resource::<p2p::CommandSender<Dummy>>()

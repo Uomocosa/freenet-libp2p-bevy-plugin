@@ -15,19 +15,19 @@ peers download it on join; it is continuously updated.
 - Record key base: `blake3(game_id ‖ room_name ‖ created_at)` (`created_at` from PLAN A1). Extend the existing
   `p2p::HistoryChunkId` / `record_key` / `parse_record_key` (today `lobby/history/{room}/{chunk}`, no
   `game_id`/`created_at`) instead of adding parallel key types.
-- Value: `RoomState::Snapshot` of touched tiles, `bincode` + compression (same codec as
+- Value: `ReplicatedState::Snapshot` of touched tiles, `bincode` + compression (same codec as
   PLAN B2), split into chunks ≤ 60 KB: records `key‖content_hash‖"chunk"‖i` (content hash in the
   key so concurrent writers never mix chunks), plus a **manifest**
   record `key‖"manifest"` = `{ lamport_max, n_chunks, content_hash }`.
 - Writer policy (**merge before write**): every 30 s each member reads the manifest +
-  chunks, verifies the hash, `RoomState::merge`s the stored history into a copy of its
+  chunks, verifies the hash, `ReplicatedState::merge`s the stored history into a copy of its
   own state, and if the merged result differs from what is stored it `put_record`s the
   merged chunks then the manifest (manifest last). Never overwrite based on
   `lamport_max` alone — a higher lamport does not imply a superset of ops. Replication/expiry:
   libp2p defaults, document them.
 - Reader policy on join: (1) snapshot from a live member (existing PLAN A5 path);
   (2) if none answers within timeout, `get_record` manifest → chunks → verify hash →
-  `RoomState::merge`. Merging is a CRDT, so stale/partial history is harmless.
+  `ReplicatedState::merge`. Merging is a CRDT, so stale/partial history is harmless.
 - Generic: implemented in the plugin as an optional `RoomHistory` feature of
   `SyncPlugin<S>` (config `history: Option<HistoryConfig>`, default off until H4).
 

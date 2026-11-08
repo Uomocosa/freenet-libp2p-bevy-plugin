@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::room_sync::RoomState;
+use freenet_libp2p_bevy_plugin::room_sync::ReplicatedState;
 use freenet_libp2p_bevy_plugin::time;
 use freenet_libp2p_bevy_plugin::{identity, p2p, room_sync};
 
@@ -201,7 +201,7 @@ fn paint(app: &mut App, board: HistoryBoard) {
 // needed helper: the plugin's own writer output for the writer's canvas
 fn write_commands(app: &mut App, prefix: &p2p::HistoryKeyPrefix) -> (u64, Vec<p2p::Libp2pCommand>) {
     let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
-    let snapshot = room_sync::RoomState::snapshot(&*canvas);
+    let snapshot = room_sync::ReplicatedState::snapshot(&*canvas);
     let snapshot_bytes = bincode::serialize(&snapshot).map_or(0, |bytes| bytes.len());
     let commands = p2p::Libp2pCommand::merge_and_write_history_records(
         &mut *canvas,

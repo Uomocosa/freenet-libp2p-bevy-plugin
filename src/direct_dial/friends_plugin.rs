@@ -44,10 +44,5 @@ mod tests {
                 .get_resource::<direct_dial::PeerBook>()
                 .is_some()
         );
-        assert!(
-            app.world()
-                .get_resource::<direct_dial::ConnectedPeers>()
-                .is_some()
-        );
     }
 }

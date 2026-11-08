@@ -60,7 +60,7 @@ impl Plugin for StarboardPlugin {
 mod tests {
     use bevy::prelude::*;
     use bevy::window::PrimaryWindow;
-    use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, RoomState};
+    use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, ReplicatedState};
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
