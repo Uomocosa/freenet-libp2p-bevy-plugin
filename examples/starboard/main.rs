@@ -20,7 +20,7 @@ mod peer_run_result;
 use bevy::prelude::*;
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::{
-    direct_dial, discovery, identity, p2p, plugin, room_sync, testing,
+    direct_dial, discovery, identity, p2p, plugin, room_sync, testing, ui,
 };
 
 use crate::peer_run_result::PeerRunResult;
@@ -100,8 +100,8 @@ fn run_starboard(
         lease: scaled_timings::scaled_lease_timings(time_scale),
         ..discovery::Config::default()
     }));
-    app.add_plugins(discovery::ui::DefaultUiPlugin);
-    app.add_plugins(direct_dial::ui::FriendsUiPlugin);
+    app.add_plugins(ui::discovery::DefaultUiPlugin);
+    app.add_plugins(ui::direct_dial::FriendsUiPlugin);
     app.add_plugins(
         room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game)
             .with_history_config(Some(scaled_timings::scaled_history_config(time_scale))),
@@ -110,9 +110,9 @@ fn run_starboard(
     app.add_systems(
         Update,
         shared::intent::script_input::<
-            discovery::ui::RoomNameInput,
-            discovery::ui::CreateRoomButton,
-            discovery::ui::RoomButton,
+            ui::discovery::RoomNameInput,
+            ui::discovery::CreateRoomButton,
+            ui::discovery::RoomButton,
         >,
     );
     if let Some(steps) = match args.e2e.parsed_script() {
@@ -129,9 +129,9 @@ fn run_starboard(
                 .after(discovery::bevy_systems::drain_status)
                 .before(
                     shared::intent::script_input::<
-                        discovery::ui::RoomNameInput,
-                        discovery::ui::CreateRoomButton,
-                        discovery::ui::RoomButton,
+                        ui::discovery::RoomNameInput,
+                        ui::discovery::CreateRoomButton,
+                        ui::discovery::RoomButton,
                     >,
                 ),
         );

@@ -26,7 +26,7 @@ mod tests {
 
     use bevy::prelude::*;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, ui};
 
     use super::sync_board_visibility;
     use crate::starboard;
@@ -103,7 +103,7 @@ mod tests {
         app.insert_resource(lobby_status());
         app.init_resource::<starboard::input::OwnBrush>()
             .init_resource::<starboard::render::CanvasView>()
-            .add_plugins(discovery::ui::DefaultUiPlugin)
+            .add_plugins(ui::discovery::DefaultUiPlugin)
             .add_systems(Startup, starboard::render::bevy_systems::spawn_board)
             .add_systems(
                 Update,

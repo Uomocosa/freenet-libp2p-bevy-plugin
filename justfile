@@ -348,7 +348,7 @@ lint:
 bevy-lint:
     lele-bevy-lint .
 
-# Regenerate the methods/mod.rs indexes after adding or removing #[atomic_delegates] shells.
+# Regenerate the __methods__/src/mod.rs + __methods__/ui/mod.rs indexes after adding or removing #[atomic_delegates] shells.
 sync-methods:
     lele-lint --sync-methods .
 
@@ -374,7 +374,7 @@ contract-clippy:
     cargo clippy --manifest-path contract/lobby/Cargo.toml --all-targets --all-features -- -D warnings
 
 contract-lint:
-    lele-lint --config lele.toml contract/lobby
+    lele-lint --config lele-contract.toml contract/lobby
 
 # Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
 freenet-harness:

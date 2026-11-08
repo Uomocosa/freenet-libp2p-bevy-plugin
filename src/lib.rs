@@ -6,7 +6,7 @@ pub mod freenet;
 pub mod direct_dial;
 
 pub mod identity;
-#[path = "../methods/mod.rs"]
+#[path = "../__methods__/mod.rs"]
 pub mod methods;
 pub mod p2p;
 pub mod peers;
@@ -15,3 +15,6 @@ pub mod room_sync;
 #[cfg(feature = "testing")]
 pub mod testing;
 pub mod time;
+#[cfg(feature = "default_ui")]
+#[path = "../ui/mod.rs"]
+pub mod ui;

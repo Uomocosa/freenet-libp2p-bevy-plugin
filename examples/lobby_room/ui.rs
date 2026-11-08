@@ -10,11 +10,11 @@ use bevy::ui::{InteractionDisabled, Pressed};
 use bevy::ui_widgets::{Button, TextInput};
 use derive_more::Deref;
 use freenet_libp2p_bevy_plugin::discovery;
-use freenet_libp2p_bevy_plugin::discovery::ui::basic::constants::{
+use freenet_libp2p_bevy_plugin::identity;
+use freenet_libp2p_bevy_plugin::ui::discovery::basic::constants::{
     BUTTON_COLOR, BUTTON_LABEL_COLOR, CARET_COLOR, DISABLED_BUTTON_COLOR,
     DISABLED_BUTTON_LABEL_COLOR,
 };
-use freenet_libp2p_bevy_plugin::identity;
 
 const FIELD_COLOR: Color = Color::srgb(0.10, 0.11, 0.14);
 const ROOM_COLOR: Color = Color::srgb(0.16, 0.18, 0.22);

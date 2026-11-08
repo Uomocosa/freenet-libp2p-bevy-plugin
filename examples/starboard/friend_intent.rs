@@ -6,9 +6,9 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::EditableText;
 use bevy::window::{PrimaryWindow, WindowEvent};
-use freenet_libp2p_bevy_plugin::{direct_dial, identity};
+use freenet_libp2p_bevy_plugin::{direct_dial, identity, ui};
 
-use direct_dial::ui::{AddFriendButton, FriendAddressInput};
+use ui::direct_dial::{AddFriendButton, FriendAddressInput};
 
 const TYPE_RETRY_FRAMES: u32 = 60;
 const CLICK_RETRY_FRAMES: u32 = 60;
@@ -187,6 +187,7 @@ mod tests {
     use bevy::text::EditableText;
     use bevy::window::{PrimaryWindow, WindowEvent};
     use freenet_libp2p_bevy_plugin::direct_dial;
+    use freenet_libp2p_bevy_plugin::ui;
 
     use super::{FriendIntent, FriendStep, drive_friend_intent};
 
@@ -201,7 +202,7 @@ mod tests {
         app.insert_resource(FriendIntent::default());
         app.world_mut().spawn((Window::default(), PrimaryWindow));
         app.world_mut()
-            .spawn((direct_dial::ui::FriendAddressInput, EditableText::new("")));
+            .spawn((ui::direct_dial::FriendAddressInput, EditableText::new("")));
         app.add_systems(Update, drive_friend_intent);
         app
     }

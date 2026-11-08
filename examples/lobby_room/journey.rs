@@ -2,7 +2,7 @@
 //! app start (plugin connecting screen) -> freenet node reachable + lobby listed -> click Join
 //! on a room -> peers arrive one by one -> hover the leave door -> click it, answer No
 //! -> press Esc, answer Yes -> back in the lobby. Only `discovery::Status` is faked; the click
-//! goes through the plugin's real `discovery::ui::DefaultUiPlugin` button path and the
+//! goes through the plugin's real `ui::discovery::DefaultUiPlugin` button path and the
 //! real `discovery::Command`.
 
 #[cfg(test)]
@@ -11,7 +11,7 @@ mod tests {
     use bevy::prelude::*;
     use bevy::ui::Pressed;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, ui};
 
     use crate::{overlay, shared::status};
 
@@ -47,14 +47,14 @@ mod tests {
         app.insert_resource(discovery::Status::default());
         app.insert_resource(status::LocalUser(identity::Username::from("alice")));
         app.init_resource::<ButtonInput<KeyCode>>();
-        app.add_plugins((discovery::ui::DefaultUiPlugin, overlay::Overlay));
+        app.add_plugins((ui::discovery::DefaultUiPlugin, overlay::Overlay));
         app.add_systems(
             Update,
             (
                 drive_journey
                     .run_if(resource_exists::<JourneyClock>)
-                    .before(discovery::ui::bevy_systems::handle_join)
-                    .before(discovery::ui::bevy_systems::request_leave),
+                    .before(ui::discovery::bevy_systems::handle_join)
+                    .before(ui::discovery::bevy_systems::request_leave),
                 fake_backend,
             ),
         );
@@ -70,7 +70,7 @@ mod tests {
         let is_new_frame = frame != clock.frame;
         clock.frame = frame;
         if (HOVER_DOOR_AT..CLICK_DOOR_AT).contains(&frame) {
-            hover_marker::<discovery::ui::LeaveDoor>(world);
+            hover_marker::<ui::discovery::LeaveDoor>(world);
         }
         let mut keys = world.resource_mut::<ButtonInput<KeyCode>>();
         keys.release(KeyCode::Escape);
@@ -93,14 +93,14 @@ mod tests {
             add_peer(world, index);
         }
         match frame {
-            CLICK_DOOR_AT => press_marker::<discovery::ui::LeaveDoor>(world),
-            ANSWER_NO_AT => press_marker::<discovery::ui::LeaveNoButton>(world),
+            CLICK_DOOR_AT => press_marker::<ui::discovery::LeaveDoor>(world),
+            ANSWER_NO_AT => press_marker::<ui::discovery::LeaveNoButton>(world),
             PRESS_ESC_AT => {
                 world
                     .resource_mut::<ButtonInput<KeyCode>>()
                     .press(KeyCode::Escape);
             }
-            ANSWER_YES_AT => press_marker::<discovery::ui::LeaveYesButton>(world),
+            ANSWER_YES_AT => press_marker::<ui::discovery::LeaveYesButton>(world),
             _ => {}
         }
     }
@@ -191,12 +191,12 @@ mod tests {
     /// # needed helper: presses the room's real Join button, so the default UI emits the command
     fn click_join(world: &mut World) {
         let targets: Vec<Entity> = world
-            .query_filtered::<Entity, With<discovery::ui::RoomButton>>()
+            .query_filtered::<Entity, With<ui::discovery::RoomButton>>()
             .iter(world)
             .collect();
         for entity in targets {
             let is_target = world
-                .get::<discovery::ui::RoomButton>(entity)
+                .get::<ui::discovery::RoomButton>(entity)
                 .is_some_and(|button| button.as_str() == JOIN_ROOM);
             if is_target {
                 world.entity_mut(entity).insert(Hovered(true));
@@ -255,12 +255,12 @@ mod tests {
     fn leave_prompt(world: &mut World) {
         room_full(world);
         world
-            .resource_mut::<NextState<discovery::ui::Screen>>()
-            .set(discovery::ui::Screen::InRoom);
+            .resource_mut::<NextState<ui::discovery::Screen>>()
+            .set(ui::discovery::Screen::InRoom);
         world.run_schedule(StateTransition);
         world
-            .resource_mut::<NextState<discovery::ui::LeaveDialog>>()
-            .set(discovery::ui::LeaveDialog::Open);
+            .resource_mut::<NextState<ui::discovery::LeaveDialog>>()
+            .set(ui::discovery::LeaveDialog::Open);
     }
 
     fn config() -> lele_bevy_preview::preview::Config {

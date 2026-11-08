@@ -1,0 +1,72 @@
+use bevy::prelude::*;
+
+use crate::discovery;
+use crate::room_sync;
+use crate::ui;
+
+pub fn build_plugin(_plugin: &ui::discovery::DefaultUiPlugin, app: &mut App) {
+    use crate::ui::discovery::bevy_systems as ui;
+    use crate::ui::discovery::{JoinError, LeaveDialog, Screen};
+
+    app.init_resource::<JoinError>();
+    app.add_message::<discovery::Event>();
+    app.add_message::<room_sync::JoinFailure>();
+    app.add_systems(OnEnter(Screen::Connecting), ui::spawn_connecting);
+    app.add_systems(OnEnter(Screen::Lobby), ui::spawn_root);
+    app.add_systems(OnEnter(Screen::JoiningRoom), ui::spawn_joining_room);
+    app.add_systems(OnEnter(Screen::JoinFailed), ui::spawn_join_failed);
+    app.add_systems(OnEnter(Screen::InRoom), ui::spawn_leave_door);
+    app.add_systems(OnEnter(LeaveDialog::Open), ui::spawn_leave_prompt);
+    app.add_systems(
+        Update,
+        (
+            (
+                ui::record_join_error,
+                ui::record_join_failure,
+                ui::pick_screen,
+            )
+                .chain(),
+            ui::animate_hover,
+            ui::spin_connecting.run_if(in_state(Screen::Connecting)),
+            ui::dismiss_join_failed.run_if(in_state(Screen::JoinFailed)),
+            (
+                (ui::rebuild_room_list, ui::highlight_current_room).chain(),
+                ui::gate_create,
+                ui::handle_create,
+                ui::handle_join,
+            )
+                .run_if(in_state(Screen::Lobby)),
+            (
+                ui::request_leave,
+                ui::handle_leave_answer.run_if(in_state(LeaveDialog::Open)),
+                ui::animate_door,
+            )
+                .chain()
+                .run_if(in_state(Screen::InRoom)),
+        ),
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy::prelude::*;
+
+    use super::build_plugin;
+    use crate::discovery;
+    use crate::ui;
+
+    #[test]
+    fn test_usage() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.add_message::<discovery::Command>();
+        app.init_resource::<discovery::Status>();
+        build_plugin(&ui::discovery::DefaultUiPlugin, &mut app);
+        super::super::finish_plugin(&ui::discovery::DefaultUiPlugin, &mut app);
+        app.update();
+        let mut spinners = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::SpinnerRing>>();
+        assert_eq!(spinners.iter(app.world()).count(), 1);
+    }
+}

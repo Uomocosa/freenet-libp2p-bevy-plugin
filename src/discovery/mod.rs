@@ -1,7 +1,5 @@
 pub mod bevy_systems;
 pub mod state_machine;
-#[cfg(feature = "default_ui")]
-pub mod ui;
 
 #[path = "__basic__/mod.rs"]
 pub mod basic;

@@ -43,7 +43,7 @@ pub const FETCH_TIMEOUT: Duration = Duration::from_secs(75);
 ///
 /// River paths are as of commit `b78f81f` of `github.com/freenet/river`.
 /// Moved from the hard-coded value in
-/// `methods/client/try_from_host_and_port.rs`.
+/// `__methods__/src/client/try_from_host_and_port.rs`.
 /// Value from River `CONNECTION_TIMEOUT_MS` = 5000.
 pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 

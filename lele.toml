@@ -2,6 +2,10 @@
 declared_honest = []
 declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "rand::thread_rng", "rand::random", "getrandom::getrandom", "std::fs::read", "std::fs::write", "std::env::var"]
 
+[lele.layout]
+roots = ["src", "ui"]
+methods_root = "__methods__"
+
 [[lele.boundary]]
 name       = "state_machine is pure protocol logic"
 why        = "State is driven by run.rs through `update`; it receives `now` and inputs as arguments and returns outputs."
@@ -14,11 +18,6 @@ allow = "unreachable_code"
 file = "src/p2p/behaviour.rs"
 reason = "rustc `unreachable_code` is emitted inside the libp2p `#[derive(NetworkBehaviour)]` macro expansion (libp2p-swarm-derive 0.35.1); the generated code cannot be edited and the lint cannot be removed by rewriting behaviour.rs"
 
-[[lele.lint.clippy_allow_whitelist]]
-allow = "unexpected_cfgs"
-file = "src/lib.rs"
-reason = "the lobby CONTRACT crate's `src/lib.rs`: `file` is relative to that crate's own root, not this crate's. Only consulted by the standalone run `lele-lint --config lele.toml contract/lobby`; the repo's `just lint` (`lele-lint .`) never walks `contract/`, so the entry is inert for it. Deleting it turns the standalone run red: freenet-macros' `#[contract]` expansion emits `cfg(...)` references the compiler cannot resolve from the crate source, and the generated code cannot be edited"
-
 [[lele.boundary]]
 name       = "freenet is a generic client"
 why        = "src/freenet knows nothing about lobbies; discovery adapts it (discovery -> freenet, never the reverse)."
@@ -30,3 +29,9 @@ name       = "room_sync does not know how rooms are found"
 why        = "discovery (or any other source) projects rooms and members onto peers entities; room_sync reads only those."
 folders    = ["src/room_sync"]
 cannot_use = ["crate::discovery"]
+
+[[lele.boundary]]
+name       = "logic never depends on ui"
+why        = "ui/ is substitutable by the user; it depends on src/, never the reverse."
+folders    = ["src"]
+cannot_use = ["crate::ui"]

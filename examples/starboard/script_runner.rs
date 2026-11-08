@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, peers, testing};
+use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, peers, testing, ui};
 
 use crate::friend_intent::FriendIntent;
 use crate::script::StarboardStep;
@@ -23,7 +23,7 @@ pub type StarboardScriptRunner = testing::ScriptRunner<StarboardStep>;
 #[derive(SystemParam)]
 pub struct StarboardStepParam<'w, 's> {
     status: Res<'w, discovery::Status>,
-    join_error: Option<Res<'w, discovery::ui::JoinError>>,
+    join_error: Option<Res<'w, ui::discovery::JoinError>>,
     canvas: Res<'w, starboard::canvas::Canvas>,
     brush: Res<'w, starboard::input::OwnBrush>,
     draws: MessageWriter<'w, starboard::input::PendingLocalDraw>,

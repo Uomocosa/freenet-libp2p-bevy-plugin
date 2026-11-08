@@ -1,7 +1,7 @@
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use freenet_libp2p_bevy_plugin::testing::{PollableScriptStep, ScriptStep};
-use freenet_libp2p_bevy_plugin::{discovery, testing};
+use freenet_libp2p_bevy_plugin::{discovery, testing, ui};
 
 use crate::ping;
 use crate::ring::RingPeers;
@@ -26,7 +26,7 @@ impl ScriptStep for LobbyStep {
 #[derive(SystemParam)]
 pub struct LobbyStepParam<'w> {
     status: Res<'w, discovery::Status>,
-    join_error: Option<Res<'w, discovery::ui::JoinError>>,
+    join_error: Option<Res<'w, ui::discovery::JoinError>>,
     senders: Res<'w, ping::RoomMessageSenders>,
     ring: Res<'w, RingPeers>,
     effects: testing::E2EStepEffectSink<'w>,

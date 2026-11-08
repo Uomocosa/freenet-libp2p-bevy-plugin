@@ -1,0 +1,129 @@
+use bevy::picking::hover::Hovered;
+use bevy::prelude::*;
+use bevy::text::{EditableText, TextCursorStyle};
+use bevy::ui::InteractionDisabled;
+use bevy::ui_widgets::{Button, TextInput};
+
+use crate::ui;
+use ui::discovery::basic::constants::{
+    BUTTON_COLOR, CARET_COLOR, CARET_SELECTION_COLOR, INPUT_COLOR, PANEL_COLOR,
+};
+use ui::discovery::{
+    CreateRoomButton, HoverGlow, HoverOutlineOnly, RoomList, RoomNameInput, Root, Screen,
+};
+
+pub fn spawn_root(mut commands: Commands) {
+    commands.spawn((
+        Root,
+        DespawnOnExit(Screen::Lobby),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(48.0),
+            right: Val::Px(12.0),
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(8.0),
+            padding: UiRect::all(Val::Px(8.0)),
+            ..default()
+        },
+        BackgroundColor(PANEL_COLOR),
+        children![
+            (
+                RoomNameInput,
+                EditableText::new(""),
+                TextInput,
+                TextCursorStyle {
+                    color: CARET_COLOR,
+                    selection_color: CARET_SELECTION_COLOR,
+                    unfocused_selection_color: Color::NONE,
+                    selected_text_color: None,
+                    selection_radius: 0.0,
+                },
+                Hovered::default(),
+                HoverGlow::default(),
+                HoverOutlineOnly,
+                Node {
+                    min_width: Val::Px(200.0),
+                    padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                    ..default()
+                },
+                BackgroundColor(INPUT_COLOR),
+            ),
+            (
+                CreateRoomButton,
+                Button,
+                InteractionDisabled,
+                HoverGlow::default(),
+                Node {
+                    padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                    ..default()
+                },
+                BackgroundColor(BUTTON_COLOR),
+                children![Text::new("+ Create New Room")],
+            ),
+            (
+                RoomList,
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(4.0),
+                    ..default()
+                },
+            ),
+        ],
+    ));
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy::prelude::*;
+
+    use super::spawn_root;
+    use crate::ui;
+
+    #[test]
+    fn test_usage() {
+        let mut app = App::new();
+        app.add_systems(Startup, spawn_root);
+        app.update();
+        let mut lists = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::RoomList>>();
+        assert_eq!(lists.iter(app.world()).count(), 1);
+        let mut inputs = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::RoomNameInput>>();
+        assert_eq!(inputs.iter(app.world()).count(), 1);
+    }
+
+    fn preview_build(app: &mut App) {
+        app.add_systems(
+            Startup,
+            (
+                spawn_root,
+                lele_bevy_preview::scene::bevy_systems::center_roots,
+            )
+                .chain(),
+        );
+    }
+
+    const fn preview_noop(_world: &mut World) {}
+
+    #[test]
+    fn spawn_root_ui_png_preview() {
+        let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
+        lele_bevy_preview::scene::Scene {
+            name: String::from("spawn_root"),
+            kind: lele_bevy_preview::scene::Kind::System,
+            build: preview_build,
+            states: vec![lele_bevy_preview::scene::State {
+                label: String::from("empty lobby"),
+                apply: preview_noop,
+            }],
+            timeline: None,
+        }
+        .run(&lele_bevy_preview::preview::Config {
+            out_dir: out,
+            ..Default::default()
+        })
+        .expect("preview");
+    }
+}

@@ -1,0 +1,10 @@
+# lele-lint config for the lobby contract (`just contract-lint`): a plain `src/` crate,
+# unlike this crate's `src/` + `ui/` layout in lele.toml.
+[honesty]
+declared_honest = []
+declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "rand::thread_rng", "rand::random", "getrandom::getrandom", "std::fs::read", "std::fs::write", "std::env::var"]
+
+[[lele.lint.clippy_allow_whitelist]]
+allow = "unexpected_cfgs"
+file = "src/lib.rs"
+reason = "the lobby contract's `src/lib.rs`. Deleting it turns `just contract-lint` red: freenet-macros' `#[contract]` expansion emits `cfg(...)` references the compiler cannot resolve from the crate source, and the generated code cannot be edited"

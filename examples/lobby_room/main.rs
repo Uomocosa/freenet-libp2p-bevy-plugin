@@ -11,6 +11,7 @@ mod ui;
 
 use bevy::prelude::*;
 use clap::Parser;
+use freenet_libp2p_bevy_plugin::ui as plugin_ui;
 use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, testing};
 
 #[tokio::main]
@@ -90,13 +91,13 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
     // scripted input runs through Bevy's real typing/clicking paths
     match args.ui {
         args::UiArg::Default => {
-            app.add_plugins((discovery_plugins, discovery::ui::DefaultUiPlugin));
+            app.add_plugins((discovery_plugins, plugin_ui::discovery::DefaultUiPlugin));
             app.add_systems(
                 Update,
                 shared::intent::script_input::<
-                    discovery::ui::RoomNameInput,
-                    discovery::ui::CreateRoomButton,
-                    discovery::ui::RoomButton,
+                    plugin_ui::discovery::RoomNameInput,
+                    plugin_ui::discovery::CreateRoomButton,
+                    plugin_ui::discovery::RoomButton,
                 >,
             );
         }
