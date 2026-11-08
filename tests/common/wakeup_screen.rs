@@ -1,11 +1,10 @@
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 use std::process::Command;
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
-pub fn wakeup_screen() {}
-
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+/// Wakes the X screen before a visual e2e; a no-op on Windows and macOS.
 pub fn wakeup_screen() {
+    if cfg!(any(target_os = "windows", target_os = "macos")) {
+        return;
+    }
     let display = std::env::var("DISPLAY").unwrap_or_else(|_| ":0".to_string());
     let _ = Command::new("cinnamon-screensaver-command")
         .arg("--deactivate")

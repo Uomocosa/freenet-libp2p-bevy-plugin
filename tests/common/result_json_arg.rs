@@ -17,6 +17,6 @@ mod tests {
     fn test_usage() {
         let [flag, file] = result_json_arg(Path::new("/tmp/run"), "p1");
         assert_eq!(flag, "--result-json");
-        assert!(file.ends_with("p1/result.json"));
+        assert!(Path::new(&file).ends_with(Path::new("p1").join("result.json")));
     }
 }

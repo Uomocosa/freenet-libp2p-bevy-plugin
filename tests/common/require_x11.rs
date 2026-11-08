@@ -1,18 +1,12 @@
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 use std::process::Command;
 
 /// # Errors
 /// Returns an error if no display is set, or if `xdotool`, `wmctrl` or `xdpyinfo` is missing.
 /// X is only used on Linux/BSD; on Windows and macOS there is no X display to require.
-#[cfg(any(target_os = "windows", target_os = "macos"))]
 pub fn require_x11() -> Result<(), String> {
-    Ok(())
-}
-
-/// # Errors
-/// Returns an error if no display is set, or if `xdotool`, `wmctrl` or `xdpyinfo` is missing.
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-pub fn require_x11() -> Result<(), String> {
+    if cfg!(any(target_os = "windows", target_os = "macos")) {
+        return Ok(());
+    }
     if std::env::var_os("DISPLAY").is_none() && std::env::var_os("WAYLAND_DISPLAY").is_none() {
         return Err(
             "no display: set DISPLAY (e.g. DISPLAY=:0 XAUTHORITY=~/.Xauthority) to run the visual e2e"
