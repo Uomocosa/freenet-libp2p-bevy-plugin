@@ -29,9 +29,6 @@ echo "game: $GAME_BIN"
 echo "test: $TEST_BIN"
 
 ROOT=$(mktemp -d)
-BOARD="$ROOT/board"
-mkdir -p "$BOARD"
-echo "board: $BOARD"
 echo "results: $ROOT"
 
 # The harness kills stray games on exit; the game command line contains the
@@ -41,10 +38,16 @@ trap 'pkill -f "examples/starboard" 2>/dev/null || true' EXIT
 run_split() {
     local test=$1
     echo "=== $test: starting a/b ==="
-    E2E_MACHINE=a E2E_PLACEMENT="alice=a,bob=b" E2E_BOARD_DIR="$BOARD" E2E_GAME_BIN="$GAME_BIN" E2E_RUN_DIR="$ROOT/$test/a" \
+    # Each test gets its own board: peer entries carry the run's peer ids
+    # and ports, so reusing one board across tests would substitute the
+    # previous test's stale addresses into the next test's scripts.
+    local board="$ROOT/$test/board"
+    mkdir -p "$board"
+    echo "board: $board"
+    E2E_MACHINE=a E2E_PLACEMENT="alice=a,bob=b" E2E_BOARD_DIR="$board" E2E_GAME_BIN="$GAME_BIN" E2E_RUN_DIR="$ROOT/$test/a" \
         "$TEST_BIN" "$test" --ignored --nocapture > "$ROOT/$test-a.log" 2>&1 &
     local a_pid=$!
-    E2E_MACHINE=b E2E_PLACEMENT="alice=a,bob=b" E2E_BOARD_DIR="$BOARD" E2E_GAME_BIN="$GAME_BIN" E2E_RUN_DIR="$ROOT/$test/b" \
+    E2E_MACHINE=b E2E_PLACEMENT="alice=a,bob=b" E2E_BOARD_DIR="$board" E2E_GAME_BIN="$GAME_BIN" E2E_RUN_DIR="$ROOT/$test/b" \
         "$TEST_BIN" "$test" --ignored --nocapture > "$ROOT/$test-b.log" 2>&1 &
     local b_pid=$!
     local a_status=0 b_status=0

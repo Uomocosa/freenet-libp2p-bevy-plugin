@@ -1,8 +1,19 @@
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 use std::process::Command;
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 use std::time::Duration;
 
 /// # Errors
 /// Returns an error if any window cannot be found and positioned.
+/// Window tiling is an X11 nicety: on Windows and macOS it is a no-op.
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub fn tile(_titles: &[&str]) -> Result<(), String> {
+    Ok(())
+}
+
+/// # Errors
+/// Returns an error if any window cannot be found and positioned.
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub fn tile(titles: &[&str]) -> Result<(), String> {
     let targets = layout(titles.len());
     for (index, (w, h, x, y)) in targets.iter().enumerate() {
@@ -16,6 +27,7 @@ pub fn tile(titles: &[&str]) -> Result<(), String> {
 }
 
 // needed helper: fixed grid layouts for 3 and 5 windows on a 1920x1080 screen
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn layout(count: usize) -> Vec<(u32, u32, i32, i32)> {
     match count {
         3 => vec![(960, 540, 0, 0), (960, 540, 0, 540), (960, 1080, 960, 0)],
@@ -38,6 +50,7 @@ fn layout(count: usize) -> Vec<(u32, u32, i32, i32)> {
 }
 
 // needed helper: positions one window by title, failing if it never appears
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn place(title: &str, w: u32, h: u32, x: i32, y: i32) -> Result<(), String> {
     for _ in 0..30 {
         if let Some(id) = find_window_id(title) {
@@ -62,6 +75,7 @@ fn place(title: &str, w: u32, h: u32, x: i32, y: i32) -> Result<(), String> {
 }
 
 // needed helper: resolves an x11 window id by title via xdotool then wmctrl
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn find_window_id(title: &str) -> Option<String> {
     if let Ok(out) = Command::new("xdotool")
         .args(["search", "--onlyvisible", "--name", title])
@@ -80,4 +94,12 @@ fn find_window_id(title: &str) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_usage() {
+        assert!(super::tile(&[]).is_ok());
+    }
 }

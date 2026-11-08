@@ -1,8 +1,20 @@
 use std::path::Path;
-use std::process::{Child, Command, Stdio};
+use std::process::Child;
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+use std::process::{Command, Stdio};
 
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 const DEFAULT_RECORD_SECS: u64 = 600;
 
+/// Desktop recording is an X11 nicety: on Windows and macOS there is no
+/// x11grab, so the run skips the clip instead of failing.
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[must_use]
+pub fn start_record(_clip_secs: u64, _path: &Path) -> Option<Child> {
+    None
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 #[must_use]
 pub fn start_record(clip_secs: u64, path: &Path) -> Option<Child> {
     let secs = std::env::var("LOBBY_RECORD_SECS")
@@ -44,6 +56,7 @@ pub fn start_record(clip_secs: u64, path: &Path) -> Option<Child> {
 }
 
 // needed helper: reads the X screen geometry so x11grab matches the display
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn display_size() -> Option<String> {
     let out = Command::new("xdpyinfo").output().ok()?;
     let text = String::from_utf8_lossy(&out.stdout);
@@ -54,4 +67,19 @@ fn display_size() -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    #[test]
+    fn test_usage() {
+        assert!(super::start_record(1, std::path::Path::new("clip.mp4")).is_none());
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    #[test]
+    fn test_usage() {
+        let _ = stringify!(super::start_record);
+    }
 }

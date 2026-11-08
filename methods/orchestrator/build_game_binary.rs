@@ -89,10 +89,11 @@ pub fn build_game_binary(orchestrator: &testing::Orchestrator) -> Result<PathBuf
     } else {
         profile.clone()
     };
-    let bin = target
-        .join(folder)
-        .join("examples")
-        .join(&orchestrator.game);
+    let bin = target.join(folder).join("examples").join(format!(
+        "{}{}",
+        orchestrator.game,
+        std::env::consts::EXE_SUFFIX
+    ));
     if bin.exists() {
         Ok(bin)
     } else {
@@ -112,5 +113,24 @@ mod tests {
             testing::Network::Fake,
         );
         let _ = build_game_binary(&orchestrator).map(|_| ());
+    }
+
+    #[test]
+    fn env_game_bin_passes_through_untouched() {
+        unsafe {
+            std::env::set_var("E2E_GAME_BIN", r"C:\e2e\bundle\starboard.exe");
+        }
+        let orchestrator = testing::Orchestrator::from_game_and_network(
+            "starboard".to_string(),
+            testing::Network::Fake,
+        );
+        let bin = build_game_binary(&orchestrator).expect("env bin");
+        assert_eq!(
+            bin,
+            std::path::PathBuf::from(r"C:\e2e\bundle\starboard.exe")
+        );
+        unsafe {
+            std::env::remove_var("E2E_GAME_BIN");
+        }
     }
 }

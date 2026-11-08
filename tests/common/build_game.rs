@@ -45,7 +45,10 @@ pub fn build_game(example: &str) -> Result<PathBuf, String> {
     } else {
         profile.as_str()
     };
-    let bin = target.join(folder).join("examples").join(example);
+    let bin = target
+        .join(folder)
+        .join("examples")
+        .join(format!("{example}{}", std::env::consts::EXE_SUFFIX));
     if !bin.exists() {
         return Err(format!("expected build output {} not found", bin.display()));
     }
@@ -82,4 +85,16 @@ fn target_root(manifest: &Path) -> Result<PathBuf, String> {
         .filter(|dir| !dir.is_empty())
         .map(PathBuf::from)
         .ok_or_else(|| "cargo metadata: malformed target_directory".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_usage() {
+        let name = format!("starboard{}", std::env::consts::EXE_SUFFIX);
+        #[cfg(windows)]
+        assert_eq!(name, "starboard.exe");
+        #[cfg(not(windows))]
+        assert_eq!(name, "starboard");
+    }
 }
