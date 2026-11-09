@@ -1,14 +1,11 @@
 use atomic_delegate_macros::atomic_delegates;
-use bevy::prelude::Resource;
 use derive_more::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 
 use crate::direct_dial;
 use crate::identity;
 
-#[derive(
-    Resource, Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, Deref, DerefMut,
-)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, Deref, DerefMut)]
 pub struct PeerBook(pub Vec<direct_dial::KnownPeer>);
 
 impl TryFrom<&std::path::Path> for PeerBook {

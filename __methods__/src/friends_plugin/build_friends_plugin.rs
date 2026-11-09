@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use lele_bevy_state_machine::{StateMachinePlugin, StateMachineSystems};
 
 use crate::direct_dial;
 use crate::p2p;
@@ -44,34 +45,78 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
             },
         );
     app.insert_resource(config);
-    app.insert_resource(book);
     app.insert_resource(direct_dial::FriendAddressError(startup_error));
     let now = time::UnixTime::now();
-    let book_now = app.world().resource::<direct_dial::PeerBook>().clone();
     app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
-        &book_now, now,
+        &book, now,
     ));
+    app.init_resource::<p2p::PendingLibp2pCommands>();
     if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
         app.insert_resource(direct_dial::DialEventTap(channel.subscribe()));
     }
+    app.add_plugins(
+        StateMachinePlugin::<direct_dial::state_machine::DialState>::default().periodic(),
+    );
+    app.add_systems(
+        Update,
+        direct_dial::bevy_systems::translate_libp2p_events_to_dial_inputs.in_set(
+            StateMachineSystems::collect_inputs::<direct_dial::state_machine::DialState>(),
+        ),
+    );
     app.add_systems(
         Update,
         (
-            direct_dial::bevy_systems::drive_dial_state,
-            direct_dial::bevy_systems::project_friends_to_entities
-                .after(peers::bevy_systems::track_peer_connections)
-                .before(peers::bevy_systems::despawn_orphan_peers),
-        ),
+            direct_dial::bevy_systems::dial_outputs_to_libp2p_commands,
+            direct_dial::bevy_systems::save_peer_book,
+        )
+            .in_set(StateMachineSystems::perform_outputs::<
+                direct_dial::state_machine::DialState,
+            >()),
+    );
+    app.add_systems(
+        Update,
+        direct_dial::bevy_systems::project_friends_to_entities
+            .after(peers::bevy_systems::track_peer_connections)
+            .before(peers::bevy_systems::despawn_orphan_peers),
     );
 }
 
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use lele_bevy_state_machine::StateMachine;
+    use lele_bevy_state_machine::testing::FrozenClock;
 
     use super::build_friends_plugin;
     use crate::direct_dial;
     use crate::identity;
+    use crate::p2p;
+    use crate::time;
+
+    fn peer_with(name: &str, addr: &str) -> identity::Peer {
+        identity::Peer {
+            id: identity::PeerId::from(name),
+            addrs: vec![identity::PeerAddr::from(addr)],
+        }
+    }
+
+    fn app_with_book(
+        book: &direct_dial::PeerBook,
+    ) -> (App, tokio::sync::broadcast::Sender<p2p::Libp2pEvent>) {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(p2p::Libp2pEventChannel::default());
+        let frozen = time::UnixTime::from_secs(2_000_000_000);
+        app.insert_resource(lele_bevy_state_machine::Now(frozen));
+        app.insert_resource(FrozenClock);
+        let plugin = direct_dial::FriendsPlugin::new(direct_dial::Config::from(None));
+        build_friends_plugin(&plugin, &mut app);
+        app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
+            book, frozen,
+        ));
+        let tx = app.world().resource::<p2p::Libp2pEventChannel>().tx.clone();
+        (app, tx)
+    }
 
     #[test]
     fn test_usage() {
@@ -81,7 +126,7 @@ mod tests {
         build_friends_plugin(&plugin, &mut app);
         assert!(
             app.world()
-                .get_resource::<direct_dial::PeerBook>()
+                .get_resource::<direct_dial::state_machine::DialState>()
                 .is_some()
         );
     }
@@ -95,7 +140,12 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         let plugin = direct_dial::FriendsPlugin::new(direct_dial::Config::from(Some(path.clone())));
         build_friends_plugin(&plugin, &mut app);
-        assert!(app.world().resource::<direct_dial::PeerBook>().is_empty());
+        assert_eq!(
+            app.world()
+                .resource::<direct_dial::state_machine::DialState>()
+                .entries,
+            Vec::new()
+        );
         assert!(
             app.world()
                 .resource::<direct_dial::FriendAddressError>()
@@ -105,13 +155,20 @@ mod tests {
         quarantined.push(".corrupt");
         let quarantined = std::path::PathBuf::from(quarantined);
         assert_eq!(std::fs::read(&quarantined).expect("read"), b"not json");
+        let now = time::UnixTime::from_secs(10);
         app.world_mut()
-            .resource_mut::<direct_dial::PeerBook>()
-            .add_friend(identity::Peer {
-                id: identity::PeerId::from("alice"),
-                addrs: Vec::new(),
-            });
-        let book = app.world().resource::<direct_dial::PeerBook>().clone();
+            .resource_mut::<direct_dial::state_machine::DialState>()
+            .update(
+                direct_dial::state_machine::Input::FriendAdded(identity::Peer {
+                    id: identity::PeerId::from("alice"),
+                    addrs: Vec::new(),
+                }),
+                now,
+            );
+        let book = app
+            .world()
+            .resource::<direct_dial::state_machine::DialState>()
+            .to_peer_book();
         book.save_to_file(path.as_path()).expect("save");
         assert_eq!(std::fs::read(&quarantined).expect("read"), b"not json");
         assert_eq!(
@@ -120,5 +177,86 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[test]
+    fn saved_friends_produce_a_dial_command() {
+        let mut book = direct_dial::PeerBook::default();
+        assert!(book.add_friend(peer_with("alice", "/ip4/127.0.0.1/tcp/4001")));
+        let (mut app, _tx) = app_with_book(&book);
+        app.world_mut()
+            .resource_mut::<Messages<direct_dial::state_machine::Input>>()
+            .write(direct_dial::state_machine::Input::Tick);
+        app.update();
+        assert!(
+            !app.world()
+                .resource::<p2p::PendingLibp2pCommands>()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn failure_maps_to_the_right_peer() {
+        let mut book = direct_dial::PeerBook::default();
+        assert!(book.add_friend(peer_with("alice", "/ip4/127.0.0.1/tcp/4001")));
+        assert!(book.add_friend(peer_with("bob", "/ip4/127.0.0.1/tcp/4002")));
+        let (mut app, tx) = app_with_book(&book);
+        app.update();
+        tx.send(p2p::Libp2pEvent::DialFailed {
+            peer_id: identity::PeerId::from("alice"),
+            reason: String::from("refused"),
+        })
+        .expect("send");
+        app.update();
+        let state = app
+            .world()
+            .resource::<direct_dial::state_machine::DialState>();
+        let alice_attempts = state
+            .entries
+            .iter()
+            .find(|entry| entry.peer.id == identity::PeerId::from("alice"))
+            .map(|entry| entry.failed_attempts)
+            .unwrap_or_default();
+        let bob_attempts = state
+            .entries
+            .iter()
+            .find(|entry| entry.peer.id == identity::PeerId::from("bob"))
+            .map(|entry| entry.failed_attempts)
+            .unwrap_or_default();
+        assert_eq!(alice_attempts, 1);
+        assert_eq!(bob_attempts, 0);
+    }
+
+    #[test]
+    fn inbound_ephemeral_address_is_not_saved() {
+        let (mut app, tx) = app_with_book(&direct_dial::PeerBook::default());
+        let mallory = identity::PeerId::from("mallory");
+        tx.send(p2p::Libp2pEvent::Libp2pConnectionEstablished {
+            peer_id: mallory.clone(),
+            kind: p2p::ConnectionKind::Tcp,
+        })
+        .expect("send");
+        tx.send(p2p::Libp2pEvent::PeerConnected(mallory.clone()))
+            .expect("send");
+        app.update();
+        let state = app
+            .world()
+            .resource::<direct_dial::state_machine::DialState>();
+        assert_eq!(state.entries.len(), 1);
+        assert_eq!(state.entries[0].peer.id, mallory);
+        assert_eq!(state.entries[0].peer.addrs, Vec::new());
+        let listen = vec![identity::PeerAddr::from("/ip4/10.0.0.5/tcp/4001")];
+        tx.send(p2p::Libp2pEvent::PeerListenAddrs {
+            peer_id: mallory.clone(),
+            addrs: listen.clone(),
+        })
+        .expect("send");
+        app.update();
+        let state = app
+            .world()
+            .resource::<direct_dial::state_machine::DialState>();
+        assert_eq!(state.entries.len(), 1);
+        assert_eq!(state.entries[0].peer.id, mallory);
+        assert_eq!(state.entries[0].peer.addrs, listen);
     }
 }

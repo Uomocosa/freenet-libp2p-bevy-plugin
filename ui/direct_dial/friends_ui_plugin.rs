@@ -22,14 +22,18 @@ mod tests {
 
     use super::FriendsUiPlugin;
     use crate::direct_dial;
+    use crate::time;
     use crate::ui;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(direct_dial::Config::from(None));
-        app.insert_resource(direct_dial::PeerBook::default());
+        app.add_message::<direct_dial::state_machine::Input>();
+        app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
+            &direct_dial::PeerBook::default(),
+            time::UnixTime::from_secs(10),
+        ));
         app.insert_resource(direct_dial::FriendAddressError(None));
         app.add_plugins(FriendsUiPlugin);
         app.update();

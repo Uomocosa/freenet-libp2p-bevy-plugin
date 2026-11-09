@@ -22,17 +22,26 @@ pub fn build_plugin(_plugin: &ui::direct_dial::FriendsUiPlugin, app: &mut App) {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use lele_bevy_state_machine::StateMachine;
 
     use super::build_plugin;
     use crate::direct_dial;
+    use crate::time;
     use crate::ui;
+
+    fn empty_state() -> direct_dial::state_machine::DialState {
+        direct_dial::state_machine::DialState::from_peer_book(
+            &direct_dial::PeerBook::default(),
+            time::UnixTime::from_secs(10),
+        )
+    }
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(direct_dial::Config::from(None));
-        app.insert_resource(direct_dial::PeerBook::default());
+        app.add_message::<direct_dial::state_machine::Input>();
+        app.insert_resource(empty_state());
         app.insert_resource(direct_dial::FriendAddressError(None));
         build_plugin(&ui::direct_dial::FriendsUiPlugin, &mut app);
         app.update();
@@ -49,8 +58,8 @@ mod tests {
 
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(direct_dial::Config::from(None));
-        app.insert_resource(direct_dial::PeerBook::default());
+        app.add_message::<direct_dial::state_machine::Input>();
+        app.insert_resource(empty_state());
         app.insert_resource(direct_dial::FriendAddressError(None));
         build_plugin(&ui::direct_dial::FriendsUiPlugin, &mut app);
         app.update();
@@ -73,6 +82,19 @@ mod tests {
             .single(app.world())
             .expect("add button");
         app.world_mut().entity_mut(button).insert(Pressed);
+        app.update();
+        let pending: Vec<direct_dial::state_machine::Input> = app
+            .world_mut()
+            .resource_mut::<Messages<direct_dial::state_machine::Input>>()
+            .drain()
+            .collect();
+        assert_eq!(pending.len(), 1);
+        let now = time::UnixTime::from_secs(10);
+        for input in pending {
+            app.world_mut()
+                .resource_mut::<direct_dial::state_machine::DialState>()
+                .update(input, now);
+        }
         app.update();
         app.update();
         let mut rows = app

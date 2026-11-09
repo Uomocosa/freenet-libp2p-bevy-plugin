@@ -32,16 +32,18 @@ mod tests {
 
     use super::FriendsPlugin;
     use crate::direct_dial;
+    use crate::p2p;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
+        app.insert_resource(p2p::Libp2pEventChannel::default());
         app.add_plugins(FriendsPlugin::new(direct_dial::Config::from(None)));
         app.update();
         assert!(
             app.world()
-                .get_resource::<direct_dial::PeerBook>()
+                .get_resource::<direct_dial::state_machine::DialState>()
                 .is_some()
         );
     }

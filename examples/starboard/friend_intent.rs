@@ -77,13 +77,13 @@ pub fn drive_friend_intent(
     mut intent: ResMut<FriendIntent>,
     mut fields: Query<(Entity, &mut EditableText), With<FriendAddressInput>>,
     buttons: Query<&UiGlobalTransform, (With<AddFriendButton>, With<Hovered>)>,
-    book: Res<direct_dial::PeerBook>,
+    state: Res<direct_dial::state_machine::DialState>,
     mut windows: Query<(Entity, &mut Window), With<PrimaryWindow>>,
     mut keyboard: MessageWriter<KeyboardInput>,
     mut window_clicks: MessageWriter<WindowEvent>,
     mut focus: ResMut<InputFocus>,
 ) {
-    let book = book.into_inner();
+    let state = state.into_inner();
     let mut finished = false;
     let mut abandoned = false;
     if let Some(typing) = intent.active.as_mut() {
@@ -155,7 +155,7 @@ pub fn drive_friend_intent(
             }
             FriendStep::WaitBooked => {
                 let booked = identity::Peer::try_from(typing.addr.as_str())
-                    .is_ok_and(|peer| book.iter().any(|entry| entry.peer.id == peer.id));
+                    .is_ok_and(|peer| state.is_friend(&peer.id));
                 if booked {
                     finished = true;
                 } else {
@@ -198,7 +198,7 @@ mod tests {
         app.add_message::<MouseButtonInput>();
         app.add_message::<WindowEvent>();
         app.init_resource::<InputFocus>();
-        app.insert_resource(direct_dial::PeerBook::default());
+        app.insert_resource(direct_dial::state_machine::DialState::default());
         app.insert_resource(FriendIntent::default());
         app.world_mut().spawn((Window::default(), PrimaryWindow));
         app.world_mut()

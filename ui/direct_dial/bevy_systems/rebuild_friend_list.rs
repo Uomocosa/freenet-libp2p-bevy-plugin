@@ -13,17 +13,18 @@ use ui::direct_dial::{FriendList, FriendRemoveButton, FriendRow};
 
 pub fn rebuild_friend_list(
     mut commands: Commands,
-    book: Res<direct_dial::PeerBook>,
+    state: Res<direct_dial::state_machine::DialState>,
     connected_peers: Query<&peers::Peer, With<peers::Connected>>,
     list: Single<(Entity, Ref<FriendList>)>,
     mut shown: Local<Vec<(identity::PeerId, bool)>>,
 ) {
-    let book = book.into_inner();
+    let state = state.into_inner();
     let connected: HashSet<identity::PeerId> = connected_peers
         .iter()
         .map(|peer| (**peer).clone())
         .collect();
-    let wanted: Vec<(identity::PeerId, bool)> = book
+    let wanted: Vec<(identity::PeerId, bool)> = state
+        .entries
         .iter()
         .map(|entry| (entry.peer.id.clone(), connected.contains(&entry.peer.id)))
         .collect();
@@ -79,9 +80,10 @@ mod tests {
     use crate::direct_dial;
     use crate::identity;
     use crate::peers;
+    use crate::time;
     use crate::ui;
 
-    fn book_with(names: &[&str]) -> direct_dial::PeerBook {
+    fn state_with(names: &[&str]) -> direct_dial::state_machine::DialState {
         let mut book = direct_dial::PeerBook::default();
         for name in names {
             book.add_friend(identity::Peer {
@@ -89,13 +91,13 @@ mod tests {
                 addrs: Vec::new(),
             });
         }
-        book
+        direct_dial::state_machine::DialState::from_peer_book(&book, time::UnixTime::from_secs(10))
     }
 
-    fn app_with(book: direct_dial::PeerBook, connected: &[&str]) -> App {
+    fn app_with(state: direct_dial::state_machine::DialState, connected: &[&str]) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(book);
+        app.insert_resource(state);
         for name in connected {
             app.world_mut().spawn((
                 peers::Peer::from(identity::PeerId::from(*name)),
@@ -109,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut app = app_with(book_with(&["alice", "bob"]), &[]);
+        let mut app = app_with(state_with(&["alice", "bob"]), &[]);
         app.update();
         let mut rows = app.world_mut().query::<&ui::direct_dial::FriendRow>();
         assert_eq!(rows.iter(app.world()).count(), 2);
@@ -117,7 +119,7 @@ mod tests {
 
     #[test]
     fn row_flips_connected_and_offline_on_events() {
-        let mut app = app_with(book_with(&["alice"]), &[]);
+        let mut app = app_with(state_with(&["alice"]), &[]);
         app.update();
         let label = |world: &mut World| {
             world
@@ -156,7 +158,7 @@ mod tests {
     }
 
     fn preview_build(app: &mut App) {
-        app.insert_resource(book_with(&["alice"]));
+        app.insert_resource(state_with(&["alice"]));
         app.add_systems(Startup, spawn_list);
         app.add_systems(Update, rebuild_friend_list);
     }

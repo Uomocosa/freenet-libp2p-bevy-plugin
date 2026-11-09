@@ -8,14 +8,15 @@ use crate::peers;
 
 pub fn project_friends_to_entities(
     mut commands: Commands,
-    book: Option<Res<direct_dial::PeerBook>>,
+    state: Option<Res<direct_dial::state_machine::DialState>>,
     found_peers: Query<(Entity, &peers::Peer)>,
     friends: Query<(Entity, &peers::Peer, Has<peers::KeepAlive>), With<direct_dial::Friend>>,
 ) {
-    let Some(book) = book.map(Res::into_inner) else {
+    let Some(state) = state.map(Res::into_inner) else {
         return;
     };
-    let friend_ids: BTreeSet<identity::PeerId> = book
+    let friend_ids: BTreeSet<identity::PeerId> = state
+        .entries
         .iter()
         .filter(|entry| entry.kind == direct_dial::KnownPeerKind::Friend)
         .map(|entry| entry.peer.id.clone())
@@ -60,16 +61,17 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::peers;
+    use crate::time;
 
-    fn app_with_projection(book: direct_dial::PeerBook) -> App {
+    fn app_with_projection(state: direct_dial::state_machine::DialState) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(book);
+        app.insert_resource(state);
         app.add_systems(Update, project_friends_to_entities);
         app
     }
 
-    fn friend_book(names: &[&str]) -> direct_dial::PeerBook {
+    fn friend_state(names: &[&str]) -> direct_dial::state_machine::DialState {
         let mut book = direct_dial::PeerBook::default();
         for name in names {
             book.add_friend(identity::Peer {
@@ -77,7 +79,7 @@ mod tests {
                 addrs: Vec::new(),
             });
         }
-        book
+        direct_dial::state_machine::DialState::from_peer_book(&book, time::UnixTime::from_secs(10))
     }
 
     fn friend_entity(app: &mut App, id: &str) -> Entity {
@@ -98,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut app = app_with_projection(friend_book(&["alice"]));
+        let mut app = app_with_projection(friend_state(&["alice"]));
         app.update();
         let alice = friend_entity(&mut app, "alice");
         assert!(app.world().get::<direct_dial::Friend>(alice).is_some());
@@ -107,13 +109,14 @@ mod tests {
 
     #[test]
     fn friend_removed_loses_friend_and_keep_alive() {
-        let mut app = app_with_projection(friend_book(&["alice"]));
+        let mut app = app_with_projection(friend_state(&["alice"]));
         app.update();
         let alice = friend_entity(&mut app, "alice");
         assert!(app.world().get::<direct_dial::Friend>(alice).is_some());
         app.world_mut()
-            .resource_mut::<direct_dial::PeerBook>()
-            .remove_friend(&identity::PeerId::from("alice"));
+            .resource_mut::<direct_dial::state_machine::DialState>()
+            .entries
+            .retain(|entry| entry.peer.id != identity::PeerId::from("alice"));
         app.update();
         assert!(app.world().get::<direct_dial::Friend>(alice).is_none());
         assert!(app.world().get::<peers::KeepAlive>(alice).is_none());
@@ -121,15 +124,19 @@ mod tests {
 
     #[test]
     fn previously_connected_peer_is_not_a_friend() {
-        let mut book = direct_dial::PeerBook::default();
-        book.push(direct_dial::KnownPeer {
-            peer: identity::Peer {
-                id: identity::PeerId::from("alice"),
-                addrs: Vec::new(),
-            },
-            kind: direct_dial::KnownPeerKind::PreviouslyConnected,
-        });
-        let mut app = app_with_projection(book);
+        let mut state = direct_dial::state_machine::DialState::default();
+        state
+            .entries
+            .push(direct_dial::state_machine::DialKnownPeer {
+                peer: identity::Peer {
+                    id: identity::PeerId::from("alice"),
+                    addrs: Vec::new(),
+                },
+                kind: direct_dial::KnownPeerKind::PreviouslyConnected,
+                failed_attempts: 0,
+                next_attempt_at: time::UnixTime::from_secs(10),
+            });
+        let mut app = app_with_projection(state);
         app.update();
         assert!(!peer_exists(&mut app, "alice"));
     }
@@ -146,7 +153,7 @@ mod tests {
             .resource::<p2p::Libp2pEventChannel>()
             .subscribe();
         app.insert_resource(peers::PeerEventTap(rx));
-        app.insert_resource(friend_book(&["alice"]));
+        app.insert_resource(friend_state(&["alice"]));
         app.add_systems(
             Update,
             (

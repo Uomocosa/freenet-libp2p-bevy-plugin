@@ -2723,6 +2723,7 @@ dependencies = [
  "bevy_reflect",
  "blake3",
  "derive_more",
+ "lele-bevy-state-machine",
  "libp2p-identity",
  "multiaddr",
  "serde",
@@ -4231,6 +4232,7 @@ dependencies = [
  "futures-util",
  "http",
  "lele-bevy-preview",
+ "lele-bevy-state-machine",
  "libp2p",
  "lobby_contract",
  "reqwest",
@@ -5943,6 +5945,15 @@ dependencies = [
  "telegram-bot-helper",
  "thiserror 2.0.21",
  "tracing",
+]
+
+[[package]]
+name = "lele-bevy-state-machine"
+version = "0.1.0"
+dependencies = [
+ "atomic-delegate-macros",
+ "bevy",
+ "derive_more",
 ]
 
 [[package]]
