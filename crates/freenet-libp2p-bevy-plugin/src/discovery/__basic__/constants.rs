@@ -35,6 +35,6 @@ pub const MISSING_RETRY: Duration = Duration::from_secs(2);
 pub const MAX_LOBBY_ROOMS: usize = 256;
 
 pub const LOBBY_CONTRACT_WASM: &[u8] =
-    include_bytes!("../../../contract/lobby/lobby_contract.wasm");
+    include_bytes!("../../../../lobby_contract/lobby_contract.wasm");
 
 // no test_usage necessary

@@ -13,6 +13,7 @@ pub fn setup_run_dir(
     let forced = std::env::var("E2E_RUN_DIR").unwrap_or_default();
     let dir = if forced.trim().is_empty() {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
             .join(".local-run")
             .join(format!("{}-{stamp}", orchestrator.game))
     } else {

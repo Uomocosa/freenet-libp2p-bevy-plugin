@@ -784,6 +784,7 @@ fn prepare(scenario: &Scenario) -> Result<Env, String> {
     let build_secs = build_start.elapsed().as_secs_f64();
     let stamp = epoch_secs();
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
         .join(".local-run")
         .join(format!("{}-{stamp}", scenario.name));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;

@@ -6,14 +6,12 @@ edition = "2024"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[workspace]
-
 [features]
 default = ["freenet-main-contract"]
 freenet-main-contract = []
 
 [dependencies]
-common_types = { path = "../../common_types" }
+common_types = { path = "../common_types" }
 derive_more = { version = "=2.1.1", features = ["deref"] }
 freenet-stdlib = { version = "=0.12.1", features = ["contract"] }
 freenet-macros = "=0.3.1"

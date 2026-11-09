@@ -28,7 +28,9 @@ pub async fn run(orchestrator: &mut testing::Orchestrator) -> testing::Orchestra
         Err(detail) => {
             return testing::Orchestrator::early_report(
                 &game,
-                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".local-run"),
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../..")
+                    .join(".local-run"),
                 detail,
             );
         }
@@ -43,7 +45,9 @@ pub async fn run(orchestrator: &mut testing::Orchestrator) -> testing::Orchestra
         if local == 0 {
             return testing::Orchestrator::early_report(
                 &game,
-                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".local-run"),
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../..")
+                    .join(".local-run"),
                 format!("no peers placed on machine '{machine}'"),
             );
         }
@@ -55,7 +59,9 @@ pub async fn run(orchestrator: &mut testing::Orchestrator) -> testing::Orchestra
         Err(detail) => {
             return testing::Orchestrator::early_report(
                 &game,
-                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".local-run"),
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../..")
+                    .join(".local-run"),
                 detail,
             );
         }

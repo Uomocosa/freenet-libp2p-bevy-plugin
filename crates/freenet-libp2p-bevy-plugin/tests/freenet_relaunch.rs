@@ -22,6 +22,7 @@ fn relaunch_stamp_secs() -> u64 {
 async fn freenet_relaunch() {
     let stamp = relaunch_stamp_secs();
     let base = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
         .join(".local-run")
         .join(format!("freenet_relaunch-{stamp}"));
     assert!(

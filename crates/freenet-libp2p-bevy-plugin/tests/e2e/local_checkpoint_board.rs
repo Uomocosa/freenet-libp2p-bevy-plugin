@@ -153,7 +153,9 @@ mod tests {
     #[test]
     fn board_dir_defaults_outside_artifacts_and_logs() {
         let dir = LocalCheckpointBoard::board_dir_from_env();
-        let results = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".local-run");
+        let results = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(".local-run");
         assert!(!dir.starts_with(&results));
         assert_ne!(dir.extension().and_then(|ext| ext.to_str()), Some("log"));
     }

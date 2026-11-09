@@ -3,17 +3,15 @@ name = "common_types"
 version = "0.1.0"
 edition = "2024"
 
-[workspace]
-
 [features]
 bevy = ["dep:bevy_reflect", "dep:lele-bevy-state-machine"]
 
 [dependencies]
 serde = { version = "=1.0.229", features = ["derive"] }
-lele-bevy-state-machine = { optional = true , git = "", rev = "9c914af2f59d114e007e3252eb14b8e1c0ebbcd4" }
+lele-bevy-state-machine = { path = "../../../lele-bevy-state-machine", optional = true }
 derive_more = { version = "=2.1.1", features = ["deref", "deref_mut", "display", "from"] }
 bevy_reflect = { version = "=0.20.1", optional = true }
-atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.11" }
+atomic-delegate-macros = { path = "../../../lele-rust-linter/crates/atomic-delegate-macros" }
 thiserror = "=2.0.21"
 blake3 = "=1.8.7"
 multiaddr = "=0.19.1"

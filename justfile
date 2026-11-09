@@ -15,27 +15,27 @@ _lavapipe := `ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -n1`
 e2e_log_filter := "warn,script=info,starboard=info,discovery=info,lobby_room=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug"
 
 build:
-    cargo build --all-targets --all-features
+    cargo build --workspace --all-targets --all-features
 
 # every feature combination users can pick must compile
 features:
-    cargo check --no-default-features
-    cargo check --no-default-features --features discovery
-    cargo check
-    cargo check --all-targets --all-features
+    cargo check -p freenet-libp2p-bevy-plugin --no-default-features
+    cargo check -p freenet-libp2p-bevy-plugin --no-default-features --features discovery
+    cargo check -p freenet-libp2p-bevy-plugin
+    cargo check -p freenet-libp2p-bevy-plugin --all-targets --all-features
 
 clippy:
-    cargo clippy --all-targets --all-features -- -D warnings
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 fmt:
-    cargo fmt -- --check
+    cargo fmt --all -- --check
 
 test:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features
 
 # Re-send every UI preview to Telegram, ignoring the change gate.
 resend-all-previews:
-    LELE_PREVIEW_RESEND_ALL=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
+    LELE_PREVIEW_RESEND_ALL=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features -E 'test(/_preview$/)'
 
 # Render every preview N times without sending; fail if any render differs between runs.
 preview-stability N="5":
@@ -43,8 +43,8 @@ preview-stability N="5":
     set -euo pipefail
     previous=""
     for run in $(seq 1 {{ N }}); do
-        TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= LELE_PREVIEW_DRY_RUN=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --all-targets --all-features -E 'test(/_preview$/)'
-        current=$(find ui_preview/_unsent -type f -name '*.png' -exec sha256sum {} + 2>/dev/null | sort -k2 || true)
+        TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= LELE_PREVIEW_DRY_RUN=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features -E 'test(/_preview$/)'
+        current=$(find crates/freenet-libp2p-bevy-plugin/ui_preview/_unsent -type f -name '*.png' -exec sha256sum {} + 2>/dev/null | sort -k2 || true)
         if [ "$run" -gt 1 ] && [ "$current" != "$previous" ]; then
             echo "UNSTABLE: run $run differs"
             diff <(echo "$previous") <(echo "$current") || true
@@ -56,11 +56,11 @@ preview-stability N="5":
 
 # Real, visual e2e: needs X + the freenet network + N lobby_room windows.
 e2e-discovery N="3":
-    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run --no-fail-fast --test lobby_room_discovery -E 'test(lobby_room_discovery)' --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test lobby_room_discovery -E 'test(lobby_room_discovery)' --all-features --run-ignored all -- --nocapture
 
 # Ring health only: no room, no UI, no libp2p mesh — just N embedded Freenet nodes.
 e2e-ring N:
-    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run --no-fail-fast --test lobby_room_discovery -E 'test(freenet_ring)' --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test lobby_room_discovery -E 'test(freenet_ring)' --all-features --run-ignored all -- --nocapture
 
 # The whole ladder, one network at a time (never 4 x N nodes on one NAT at once).
 e2e-ring-ladder:
@@ -105,7 +105,7 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0" PAUSE="90":
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     pause="${E2E_LOOP_PAUSE_SECS:-{{ PAUSE }}}"
     # Only this loop's runs are reported: run dirs carry a unix-epoch suffix
-    # (see epoch_secs in tests/common/scenario.rs), so --since filters out
+    # (see epoch_secs in crates/freenet-libp2p-bevy-plugin/tests/common/scenario.rs), so --since filters out
     # older runs instead of showing stale data.
     started=$(date +%s)
     failed=0
@@ -167,7 +167,7 @@ e2e-ring-check PAUSE="90":
 
 # Saved-node relaunch: one peer launches cold, exits, waits GAP seconds with
 # the app closed, then launches again with the same node folder and game
-# token (see tests/freenet_relaunch.rs and tests/README.md).
+# token (see crates/freenet-libp2p-bevy-plugin/tests/freenet_relaunch.rs and crates/freenet-libp2p-bevy-plugin/tests/README.md).
 e2e-relaunch GAP="10":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -177,7 +177,7 @@ e2e-relaunch GAP="10":
     # Headless-safe display defaults (overridable); the e2e peer needs X.
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
-    VK_ICD_FILENAMES={{ _lavapipe }} E2E_RELAUNCH_GAP_SECS={{ GAP }} TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run --no-fail-fast --test freenet_relaunch -E 'test(freenet_relaunch)' --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_RELAUNCH_GAP_SECS={{ GAP }} TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test freenet_relaunch -E 'test(freenet_relaunch)' --all-features --run-ignored all -- --nocapture
 
 # Repeat `just e2e-relaunch GAP` up to RUNS pairs; stop at the first failure
 # and always print the stats for the cold and warm runs completed so far.
@@ -195,7 +195,7 @@ e2e-relaunch-loop GAP="10" RUNS="5" PAUSE="90":
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     pause="${E2E_LOOP_PAUSE_SECS:-{{ PAUSE }}}"
     # Only this loop's runs are reported: run dirs carry a unix-epoch suffix
-    # (see epoch_secs in tests/common/scenario.rs), so --since filters out
+    # (see epoch_secs in crates/freenet-libp2p-bevy-plugin/tests/common/scenario.rs), so --since filters out
     # older runs instead of showing stale data.
     started=$(date +%s)
     failed=0
@@ -235,7 +235,7 @@ _e2e-notify-text:
         echo "(telegram send skipped: E2E_LOOP_NOTIFY=0)" >&2
         exit 0
     fi
-    if ! cargo run -q --example telegram_send -- --text "$E2E_SUMMARY"; then
+    if ! cargo run -q -p freenet-libp2p-bevy-plugin --example telegram_send -- --text "$E2E_SUMMARY"; then
         echo "warning: telegram summary failed" >&2
     fi
 
@@ -252,28 +252,28 @@ _e2e-notify-clips SCENARIO SINCE:
     clips="$(python3 scripts/ring_stats.py --scenario "{{ SCENARIO }}" --since "{{ SINCE }}" --failed-clips || true)"
     while IFS="$(printf '\t')" read -r clip caption; do
         [ -n "$clip" ] || continue
-        if ! cargo run -q --example telegram_send -- --video "$clip" --caption "$caption"; then
+        if ! cargo run -q -p freenet-libp2p-bevy-plugin --example telegram_send -- --video "$clip" --caption "$caption"; then
             echo "warning: telegram clip send failed ($clip)" >&2
         fi
     done <<<"$clips"
 
 e2e-join:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture
 
 e2e-room:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test room_messaging --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test room_messaging --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: needs X + the freenet network + 3 starboard windows.
 e2e-starboard:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test starboard_e2e --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test starboard_e2e --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: the Kademlia history scenarios (S4a, S4b, S4c) on one machine.
 e2e-history:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test starboard_history --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test starboard_history --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: S3, S5, S6, S7 on one machine.
 e2e-scenarios:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --no-fail-fast --test starboard_scenarios --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test starboard_scenarios --all-features --run-ignored all -- --nocapture
 
 # UI layer on the fake network: fast, for reviewing the UI; Telegram stays silent.
 e2e-ui-no-network TEST="":
@@ -283,9 +283,9 @@ e2e-ui-no-network TEST="":
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     if [ -n "{{ TEST }}" ]; then
-        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
     else
-        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
     fi
 
 # The same scenarios on the public network: the real proof; Telegram sends as usual.
@@ -298,9 +298,9 @@ e2e-mainnet TEST="":
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     if [ -n "{{ TEST }}" ]; then
-        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
     else
-        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
     fi
 
 # Run the starboard example detached (no terminal tie-up; only the app window).
@@ -308,7 +308,7 @@ e2e-mainnet TEST="":
 run-starboard *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build --features e2e --example starboard
+    cargo build -p freenet-libp2p-bevy-plugin --features e2e --example starboard
     mkdir -p .local-run
     log=.local-run/starboard.log
     setsid "$CARGO_TARGET_DIR/debug/examples/starboard" {{ ARGS }} >"$log" 2>&1 &
@@ -317,19 +317,19 @@ run-starboard *ARGS:
 # Headless starboard benchmark (no window): 2 and 8 in-process peers, 60 strokes/s each,
 # 20 s measured per scenario; overwrites examples/starboard/BENCH.md.
 bench-starboard:
-    cargo nextest run --example starboard --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture
+    cargo nextest run -p freenet-libp2p-bevy-plugin --example starboard --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture
 
 # Headless history measurement (no window): one room's Kademlia history size and
 # put/get latency; overwrites examples/starboard/HISTORY.md.
 bench-history:
-    cargo nextest run --example starboard --all-features --run-ignored all -E 'test(history_bench)' -- --nocapture
+    cargo nextest run -p freenet-libp2p-bevy-plugin --example starboard --all-features --run-ignored all -E 'test(history_bench)' -- --nocapture
 
 # Run the lobby_room example detached (no terminal tie-up; only the app window).
 # Extra args toggle ui/script/transport, e.g. `just run --ui custom --script "create:room-1, stay"`.
 run *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build --features e2e --example lobby_room
+    cargo build -p freenet-libp2p-bevy-plugin --features e2e --example lobby_room
     mkdir -p .local-run
     log=.local-run/lobby-room.log
     setsid "$CARGO_TARGET_DIR/debug/examples/lobby_room" {{ ARGS }} >"$log" 2>&1 &
@@ -340,17 +340,17 @@ demo:
     just run --username lele --ui default
 
 new-game-id:
-    cargo run --bin new-game-id
+    cargo run -p freenet-libp2p-bevy-plugin --bin new-game-id
 
 lint:
-    lele-lint .
+    lele-lint crates/freenet-libp2p-bevy-plugin
 
 bevy-lint:
-    lele-bevy-lint .
+    lele-bevy-lint crates/freenet-libp2p-bevy-plugin
 
 # Regenerate the __methods__/src/mod.rs + __methods__/ui/mod.rs indexes after adding or removing #[atomic_delegates] shells.
 sync-methods:
-    lele-lint --sync-methods .
+    lele-lint --sync-methods crates/freenet-libp2p-bevy-plugin
 
 # The only way to rebuild the lobby contract wasm. build.rs was removed because it
 # inherited RUSTC_WORKSPACE_WRAPPER=clippy-driver from `cargo clippy`, which rebuilt
@@ -359,43 +359,41 @@ sync-methods:
 contract:
     #!/usr/bin/env bash
     set -euo pipefail
-    env -u RUSTC_WRAPPER -u RUSTC_WORKSPACE_WRAPPER -u CLIPPY_ARGS cargo build --manifest-path contract/lobby/Cargo.toml --release --target wasm32-unknown-unknown
-    cp "$CARGO_TARGET_DIR/wasm32-unknown-unknown/release/lobby_contract.wasm" contract/lobby/lobby_contract.wasm
-    wc -c contract/lobby/lobby_contract.wasm
-    sha256sum contract/lobby/lobby_contract.wasm
+    env -u RUSTC_WRAPPER -u RUSTC_WORKSPACE_WRAPPER -u CLIPPY_ARGS cargo build -p lobby_contract --release --target wasm32-unknown-unknown
+    cp "$CARGO_TARGET_DIR/wasm32-unknown-unknown/release/lobby_contract.wasm" crates/lobby_contract/lobby_contract.wasm
+    wc -c crates/lobby_contract/lobby_contract.wasm
+    sha256sum crates/lobby_contract/lobby_contract.wasm
 
-# The lobby contract is its own workspace root (`[workspace]` in its Cargo.toml), so the
-# parent's fmt/clippy/lint never reach it. Run each check here too, from the repo root so
-# rustup picks up rust-toolchain.toml.
+# The lobby contract is a workspace member, but its checks still run here too,
+# from the repo root so rustup picks up rust-toolchain.toml.
 contract-fmt:
-    cargo fmt --manifest-path contract/lobby/Cargo.toml -- --check
+    cargo fmt -p lobby_contract -- --check
 
 contract-clippy:
-    cargo clippy --manifest-path contract/lobby/Cargo.toml --all-targets --all-features -- -D warnings
+    cargo clippy -p lobby_contract --all-targets --all-features -- -D warnings
 
 contract-lint:
-    lele-lint --config lele-contract.toml contract/lobby
+    lele-lint crates/lobby_contract
 
-# common_types is its own workspace root too (`[workspace]` in its Cargo.toml), so the
-# parent's fmt/clippy/lint never reach it. Same shape as the contract recipes above.
+# common_types is a workspace member too. Same shape as the contract recipes above.
 common-types-fmt:
-    cargo fmt --manifest-path common_types/Cargo.toml -- --check
+    cargo fmt -p common_types -- --check
 
 common-types-clippy:
-    cargo clippy --manifest-path common_types/Cargo.toml --all-targets --all-features -- -D warnings
+    cargo clippy -p common_types --all-targets --all-features -- -D warnings
 
 common-types-test:
-    cargo nextest run --manifest-path common_types/Cargo.toml --all-features
+    cargo nextest run -p common_types --all-features
 
 common-types-wasm:
-    cargo check --manifest-path common_types/Cargo.toml --target wasm32-unknown-unknown
+    cargo check -p common_types --target wasm32-unknown-unknown
 
 common-types-lint:
-    lele-lint --config lele-common-types.toml common_types
+    lele-lint crates/common_types
 
 # Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
 freenet-harness:
-    cargo nextest run --test freenet_harness --all-features --run-ignored all -- --nocapture
+    cargo nextest run -p freenet-libp2p-bevy-plugin --test freenet_harness --all-features --run-ignored all -- --nocapture
 
 setup:
     prek install -t pre-commit -t pre-push

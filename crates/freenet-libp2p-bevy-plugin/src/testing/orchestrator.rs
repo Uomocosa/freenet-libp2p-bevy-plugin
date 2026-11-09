@@ -525,7 +525,9 @@ mod tests {
         use std::path::PathBuf;
         let orchestrator =
             Orchestrator::from_game_and_network("starboard".to_string(), testing::Network::Fake);
-        let results = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".local-run");
+        let results = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(".local-run");
         let alice = orchestrator.peer_book_file("lobby-e2e/123", "alice");
         let bob = orchestrator.peer_book_file("lobby-e2e/123", "bob");
         assert_ne!(alice, bob);
@@ -539,7 +541,9 @@ mod tests {
         use std::path::PathBuf;
         let orchestrator =
             Orchestrator::from_game_and_network("starboard".to_string(), testing::Network::Fake);
-        let results = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".local-run");
+        let results = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(".local-run");
         let alice = orchestrator.peer_identity_file("lobby-e2e/123", "alice");
         let bob = orchestrator.peer_identity_file("lobby-e2e/123", "bob");
         assert_ne!(alice, bob);

@@ -94,6 +94,7 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
     let join_must_fail = orchestrator.join_must_fail.clone();
     let stamp = epoch_secs();
     let raw = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
         .join(".local-run")
         .join(format!("e2e-{stamp}-raw.mp4"));
     let recording = crate::start_record::start_record(RECORD_SECS, &raw);
