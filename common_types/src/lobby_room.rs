@@ -1,17 +1,18 @@
 use std::collections::BTreeMap;
 
-use bevy::prelude::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::discovery;
-use crate::identity;
-use crate::time;
+use crate::PeerId;
+use crate::RoomMember;
+use crate::RoomSize;
+use crate::UnixTime;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
 pub struct LobbyRoom {
-    pub room_size: discovery::RoomSize,
-    pub created_at: time::UnixTime,
-    pub members: BTreeMap<identity::PeerId, discovery::RoomMember>,
+    pub room_size: RoomSize,
+    pub created_at: UnixTime,
+    pub members: BTreeMap<PeerId, RoomMember>,
 }
 
 impl LobbyRoom {
@@ -36,19 +37,19 @@ impl LobbyRoom {
 #[rustfmt::skip]
 impl LobbyRoom {
     #[must_use]
-    pub(crate) fn newest_room_member(&self) -> time::UnixTime {
+    pub(crate) fn newest_room_member(&self) -> UnixTime {
         self.members
             .values()
             .map(|room_member| room_member.updated_at)
             .max()
-            .unwrap_or(time::UnixTime::EPOCH)
+            .unwrap_or(UnixTime::EPOCH)
     }
 
     #[must_use]
     pub(crate) fn merge_room_member(
-        current: Option<discovery::RoomMember>,
-        incoming: discovery::RoomMember,
-    ) -> discovery::RoomMember {
+        current: Option<RoomMember>,
+        incoming: RoomMember,
+    ) -> RoomMember {
         match current {
             Some(existing) if existing.updated_at >= incoming.updated_at => existing,
             _ => incoming,

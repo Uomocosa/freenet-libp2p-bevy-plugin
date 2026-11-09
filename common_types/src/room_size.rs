@@ -1,25 +1,14 @@
 use std::num::NonZeroU16;
 
-use bevy::prelude::Reflect;
 use derive_more::{Deref, Display};
 use serde::{Deserialize, Serialize};
 
-use crate::discovery;
+use crate::RoomSizeError;
 
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    Display,
-    Deref,
-    Reflect,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Display, Deref,
 )]
+#[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
 pub struct RoomSize(pub NonZeroU16);
 
 impl RoomSize {
@@ -27,12 +16,12 @@ impl RoomSize {
 }
 
 impl TryFrom<u16> for RoomSize {
-    type Error = discovery::Error;
+    type Error = RoomSizeError;
 
     fn try_from(units: u16) -> Result<Self, Self::Error> {
         NonZeroU16::new(units)
             .map(Self)
-            .ok_or(discovery::Error::ZeroRoomSize)
+            .ok_or(RoomSizeError::ZeroRoomSize)
     }
 }
 

@@ -41,7 +41,10 @@ pub use basic::enums::{
 };
 pub use basic::newtypes::{ChunkIndex, ContentHash, HistoryByteCount, ReplyId};
 pub use basic::resources::{CommandSender, EventReceiver, Libp2pCommandSender};
-pub use basic::structs::{HistoryChunkId, HistoryManifest, SwarmChannels};
+pub use basic::structs::{HistoryChunkId, HistoryManifest};
+
+mod swarm_channels;
+pub use swarm_channels::SwarmChannels;
 
 pub mod gossipsub_config;
 pub use gossipsub_config::GossipsubConfig;

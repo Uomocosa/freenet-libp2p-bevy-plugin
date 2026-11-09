@@ -2,13 +2,10 @@
 
 use freenet_stdlib::prelude::*;
 
-#[path = "__basic__/mod.rs"]
-pub mod basic;
-pub use basic::enums::RoomMembership;
-pub use basic::newtypes::{PeerId, RoomName};
-pub use basic::structs::{Peer, Room, RoomMember};
-pub use basic::type_aliases::Lobby;
-pub use common_types::UnixTime;
+pub use common_types::{
+    Lobby, LobbyRoom, Peer, PeerAddr, PeerId, RoomMember, RoomMembership, RoomName, RoomSize,
+    UnixTime, Username,
+};
 
 const MAX_ROOMS: usize = 256;
 const MAX_MEMBERS_PER_ROOM: usize = 64;
@@ -28,8 +25,8 @@ impl ContractInterface for LobbyContract {
         if lobby.len() > MAX_ROOMS {
             return Err(ContractError::InvalidState);
         }
-        for (room, record) in &lobby {
-            if !Self::valid_room_name(room.as_str()) || record.room_size == 0 {
+        for (room, record) in lobby.iter() {
+            if !Self::valid_room_name(room.as_str()) {
                 return Err(ContractError::InvalidState);
             }
             if record.members.len() > MAX_MEMBERS_PER_ROOM {
@@ -53,7 +50,19 @@ impl ContractInterface for LobbyContract {
                 continue;
             }
             let incoming = Self::decode_lobby(&bytes)?;
-            merged = Self::merge_lobby(merged, incoming);
+            let Lobby(rooms) = incoming;
+            for (room, record) in rooms {
+                if !Self::valid_room_name(room.as_str()) {
+                    continue;
+                }
+                let combined = LobbyRoom::merge_room(merged.remove(&room), record);
+                if combined.members.len() > MAX_MEMBERS_PER_ROOM {
+                    continue;
+                }
+                merged.insert(room, combined);
+            }
+            merged.drop_rooms_where_every_member_quit();
+            merged.evict_oldest_rooms_until_lobby_fits_capacity(MAX_ROOMS);
         }
         Ok(UpdateModification::valid(State::from(bincode::serialize(
             &merged,
@@ -92,77 +101,6 @@ impl LobbyContract {
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     }
 
-    pub(crate) fn merge_room_member(
-        current: Option<RoomMember>,
-        incoming: RoomMember,
-    ) -> RoomMember {
-        match current {
-            Some(existing) if existing.updated_at >= incoming.updated_at => existing,
-            _ => incoming,
-        }
-    }
-
-    pub(crate) fn merge_room(current: Option<Room>, incoming: Room) -> Room {
-        match current {
-            Some(mut existing) if existing.created_at == incoming.created_at => {
-                for (peer, room_member) in incoming.members {
-                    let merged =
-                        Self::merge_room_member(existing.members.remove(&peer), room_member);
-                    existing.members.insert(peer, merged);
-                }
-                existing.room_size = existing.room_size.max(incoming.room_size);
-                existing
-            }
-            Some(existing) if existing.created_at > incoming.created_at => existing,
-            _ => incoming,
-        }
-    }
-
-    pub(crate) fn merge_lobby(mut base: Lobby, incoming: Lobby) -> Lobby {
-        for (room, record) in incoming {
-            if !Self::valid_room_name(room.as_str()) {
-                continue;
-            }
-            let merged = Self::merge_room(base.remove(&room), record);
-            if merged.room_size == 0 || merged.members.len() > MAX_MEMBERS_PER_ROOM {
-                continue;
-            }
-            base.insert(room, merged);
-        }
-        Self::drop_rooms_where_every_member_quit(&mut base);
-        Self::evict_oldest_rooms_until_lobby_fits_capacity(&mut base, MAX_ROOMS);
-        base
-    }
-
-    pub(crate) fn drop_rooms_where_every_member_quit(lobby: &mut Lobby) {
-        lobby.retain(|_, room| {
-            room.members
-                .values()
-                .any(|room_member| room_member.membership != RoomMembership::Departed)
-        });
-    }
-
-    pub(crate) fn newest_room_member(room: &Room) -> UnixTime {
-        room.members
-            .values()
-            .map(|room_member| room_member.updated_at)
-            .max()
-            .unwrap_or(UnixTime::EPOCH)
-    }
-
-    pub(crate) fn evict_oldest_rooms_until_lobby_fits_capacity(lobby: &mut Lobby, capacity: usize) {
-        while lobby.len() > capacity {
-            let oldest = lobby
-                .iter()
-                .min_by_key(|(name, room)| (Self::newest_room_member(room), name.as_str()))
-                .map(|(name, _)| name.clone());
-            let Some(oldest) = oldest else {
-                break;
-            };
-            lobby.remove(&oldest);
-        }
-    }
-
     pub(crate) fn decode_update(data: UpdateData<'static>) -> Option<Vec<u8>> {
         match data {
             UpdateData::State(state) | UpdateData::StateAndDelta { state, .. } => {
@@ -196,28 +134,28 @@ mod tests {
             .map_or_else(Vec::new, |state| state.as_ref().to_vec())
     }
 
-    fn room(peer: &str, updated_at: UnixTime, created_at: UnixTime) -> Room {
+    fn room(peer: &str, updated_at: UnixTime, created_at: UnixTime) -> LobbyRoom {
         let mut members = BTreeMap::new();
         members.insert(
             PeerId(peer.to_string()),
             RoomMember {
                 peer: Peer {
                     id: PeerId(peer.to_string()),
-                    addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
+                    addrs: vec![PeerAddr::from("/ip4/127.0.0.1/tcp/1")],
                 },
                 updated_at,
                 display_name: None,
                 membership: RoomMembership::Occupant,
             },
         );
-        Room {
-            room_size: 8,
+        LobbyRoom {
+            room_size: RoomSize::try_from(8).unwrap(),
             created_at,
             members,
         }
     }
 
-    fn room_at(updated_at: UnixTime) -> Room {
+    fn room_at(updated_at: UnixTime) -> LobbyRoom {
         let mut members = BTreeMap::new();
         members.insert(
             PeerId("peer".to_string()),
@@ -231,14 +169,14 @@ mod tests {
                 membership: RoomMembership::Occupant,
             },
         );
-        Room {
-            room_size: 8,
+        LobbyRoom {
+            room_size: RoomSize::try_from(8).unwrap(),
             created_at: UnixTime::from_secs(1),
             members,
         }
     }
 
-    fn departed_room(updated_at: UnixTime) -> Room {
+    fn departed_room(updated_at: UnixTime) -> LobbyRoom {
         let mut record = room_at(updated_at);
         for heartbeat in record.members.values_mut() {
             heartbeat.membership = RoomMembership::Departed;
@@ -247,14 +185,16 @@ mod tests {
     }
 
     fn lobby_with_rooms(count: usize, newest_at: impl Fn(usize) -> UnixTime) -> Lobby {
-        (0..count)
-            .map(|index| {
-                (
-                    RoomName(format!("room-{index:03}")),
-                    room_at(newest_at(index)),
-                )
-            })
-            .collect()
+        Lobby::from(
+            (0..count)
+                .map(|index| {
+                    (
+                        RoomName(format!("room-{index:03}")),
+                        room_at(newest_at(index)),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>(),
+        )
     }
 
     fn apply(params: &Parameters<'static>, base: &Lobby, incoming: &Lobby) -> Lobby {
@@ -274,7 +214,7 @@ mod tests {
             Ok(ValidateResult::Valid)
         ));
 
-        let mut base = Lobby::new();
+        let mut base = Lobby::default();
         base.insert(
             RoomName("room-a".to_string()),
             room("peer", UnixTime::from_secs(5), UnixTime::from_secs(10)),
@@ -289,7 +229,7 @@ mod tests {
 
         let older = UpdateData::Delta(StateDelta::from(
             bincode::serialize(&{
-                let mut old = Lobby::new();
+                let mut old = Lobby::default();
                 old.insert(
                     RoomName("room-a".to_string()),
                     room("peer", UnixTime::from_secs(1), UnixTime::from_secs(10)),
@@ -316,10 +256,10 @@ mod tests {
         let high = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(500));
 
         for (first, second) in [(low.clone(), high.clone()), (high, low)] {
-            let mut base = Lobby::new();
+            let mut base = Lobby::default();
             base.insert(room_name.clone(), first);
             let incoming = {
-                let mut other = Lobby::new();
+                let mut other = Lobby::default();
                 other.insert(room_name.clone(), second);
                 other
             };
@@ -379,7 +319,7 @@ mod tests {
         let params = Parameters::from(Vec::new());
         let name = RoomName("room-a".to_string());
         let dead = Lobby::from([(name.clone(), departed_room(UnixTime::from_secs(9)))]);
-        let dropped = apply(&params, &Lobby::new(), &dead);
+        let dropped = apply(&params, &Lobby::default(), &dead);
         assert!(!dropped.contains_key(&name));
         let stale = Lobby::from([(name.clone(), room_at(UnixTime::from_secs(5)))]);
         let revived = apply(&params, &dropped, &stale);
@@ -451,7 +391,7 @@ mod tests {
         let mut lobby = lobby_with_rooms(3, |index| {
             UnixTime::from_secs(u64::try_from(index).unwrap_or_default())
         });
-        LobbyContract::evict_oldest_rooms_until_lobby_fits_capacity(&mut lobby, 2);
+        lobby.evict_oldest_rooms_until_lobby_fits_capacity(2);
         assert_eq!(lobby.len(), 2);
         assert!(!lobby.contains_key(&RoomName("room-000".to_string())));
         assert!(lobby.contains_key(&RoomName("room-002".to_string())));

@@ -1,24 +1,12 @@
 use atomic_delegate_macros::atomic_delegates;
-use bevy::prelude::Reflect;
 use derive_more::{Deref, Display, From};
 use serde::{Deserialize, Serialize};
 
 #[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    Deref,
-    Display,
-    From,
-    Reflect,
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref, Display, From,
 )]
-#[reflect(Hash)]
+#[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
+#[cfg_attr(feature = "bevy", reflect(Hash))]
 #[from(forward)]
 pub struct PeerId(pub String);
 

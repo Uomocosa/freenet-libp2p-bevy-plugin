@@ -19,9 +19,9 @@ pub mod friends_plugin;
 pub mod libp2p_command;
 pub mod libp2p_events;
 #[cfg(feature = "discovery")]
-pub mod lobby;
-#[cfg(feature = "discovery")]
 pub mod lobby_contract_subscription;
+#[cfg(feature = "discovery")]
+pub mod lobby_lease_limits;
 #[cfg(feature = "discovery")]
 pub mod lobby_task_config;
 #[cfg(all(feature = "discovery", feature = "testing"))]
@@ -36,9 +36,7 @@ pub mod orchestrator;
 #[cfg(feature = "testing")]
 pub mod orchestrator_shared;
 pub mod p2p_plugin;
-pub mod peer;
 pub mod peer_book;
-pub mod peer_id;
 #[cfg(feature = "testing")]
 pub mod peer_message_router;
 #[cfg(feature = "discovery")]
@@ -52,6 +50,7 @@ pub mod runner_config;
 pub mod script_runner;
 #[cfg(feature = "discovery")]
 pub mod status;
+pub mod swarm_channels;
 pub mod swarm_loop_state;
 #[cfg(feature = "testing")]
 pub mod swarm_task_override;

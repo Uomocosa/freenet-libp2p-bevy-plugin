@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 
 use freenet_contract_harness::{SuiteConfig, run_suite};
 use freenet_stdlib::prelude::*;
-use lobby_contract::{Lobby, LobbyContract, Peer, PeerId, Room, RoomMember, RoomName, UnixTime};
+use lobby_contract::{
+    Lobby, LobbyContract, LobbyRoom, Peer, PeerAddr, PeerId, RoomMember, RoomName, RoomSize,
+    UnixTime,
+};
 
 fn encode(lobby: &Lobby) -> State<'static> {
     State::from(bincode::serialize(lobby).unwrap_or_default())
@@ -12,22 +15,22 @@ fn encode(lobby: &Lobby) -> State<'static> {
 fn one_room(updated_at: u64, created_at: u64) -> Lobby {
     let mut members = BTreeMap::new();
     members.insert(
-        PeerId("peer".to_string()),
+        PeerId::from("peer"),
         RoomMember {
             peer: Peer {
-                id: PeerId("peer".to_string()),
-                addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
+                id: PeerId::from("peer"),
+                addrs: vec![PeerAddr::from("/ip4/127.0.0.1/tcp/1")],
             },
             updated_at: UnixTime::from_secs(updated_at),
             display_name: None,
             membership: lobby_contract::RoomMembership::Occupant,
         },
     );
-    let mut lobby = Lobby::new();
+    let mut lobby = Lobby::default();
     lobby.insert(
-        RoomName("room-a".to_string()),
-        Room {
-            room_size: 8,
+        RoomName::from("room-a"),
+        LobbyRoom {
+            room_size: RoomSize::DEFAULT,
             created_at: UnixTime::from_secs(created_at),
             members,
         },
@@ -45,7 +48,7 @@ fn gen_update(_base: &State<'static>) -> UpdateData<'static> {
 }
 
 fn empty_state() -> State<'static> {
-    encode(&Lobby::new())
+    encode(&Lobby::default())
 }
 
 #[test]

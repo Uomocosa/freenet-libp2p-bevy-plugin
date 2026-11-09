@@ -1,7 +1,4 @@
-use std::time::Duration;
-
 use bevy::prelude::Reflect;
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::watch::Receiver;
 
@@ -9,20 +6,6 @@ use crate::discovery;
 use crate::identity;
 use crate::p2p;
 use crate::time;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LobbyLeaseLimits {
-    pub lease_ttl: Duration,
-    pub remote_clock_skew_margin: Duration,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct RoomMember {
-    pub peer: identity::Peer,
-    pub display_name: Option<identity::Username>,
-    pub updated_at: time::UnixTime,
-    pub membership: discovery::RoomMembership,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct JoinedRoom {

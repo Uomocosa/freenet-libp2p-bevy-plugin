@@ -1,5 +1,4 @@
 use crate::discovery;
-use crate::identity;
 
 pub async fn run(
     config: &discovery::Config,
@@ -9,7 +8,7 @@ pub async fn run(
     let (target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
     let (lobby_tx, lobbies) = tokio::sync::mpsc::unbounded_channel();
     let (peers_tx, peers) = tokio::sync::mpsc::unbounded_channel();
-    let Some(ready) = identity::Peer::wait_ready(&mut channels.swarm.ready).await else {
+    let Some(ready) = channels.swarm.wait_ready().await else {
         return;
     };
     let freenet_config = discovery::LobbyTaskConfig {

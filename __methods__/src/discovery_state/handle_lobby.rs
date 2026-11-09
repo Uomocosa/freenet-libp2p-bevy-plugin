@@ -8,10 +8,10 @@ pub fn handle_lobby(
     now: time::UnixTime,
 ) -> Vec<Output> {
     state.record_lobby_heartbeats(&lobby, now);
-    lobby.drop_members_whose_lease_lapsed(
+    state.lease_limits.drop_members_whose_lease_lapsed(
+        &mut lobby,
         &state.observed_lobby_heartbeats,
         now,
-        state.lease_limits,
     );
     if lobby == state.lobby {
         return Vec::new();

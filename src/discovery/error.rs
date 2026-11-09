@@ -6,8 +6,8 @@ use crate::freenet;
 pub enum Error {
     #[error(transparent)]
     Freenet(#[from] freenet::Error),
-    #[error("room size must be non-zero")]
-    ZeroRoomSize,
+    #[error(transparent)]
+    RoomSize(#[from] common_types::RoomSizeError),
 }
 
 #[rustfmt::skip]

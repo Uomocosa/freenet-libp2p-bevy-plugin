@@ -10,13 +10,6 @@ pub enum JoinPhase {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum RoomMembership {
-    Occupant,
-    HistoryHolder,
-    Departed,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum HowRoomWasEntered {
     Created,
     Joined,

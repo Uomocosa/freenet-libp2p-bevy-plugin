@@ -2721,8 +2721,12 @@ version = "0.1.0"
 dependencies = [
  "atomic-delegate-macros",
  "bevy_reflect",
+ "blake3",
  "derive_more",
+ "libp2p-identity",
+ "multiaddr",
  "serde",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

@@ -12,10 +12,10 @@ pub fn drop_lobby_members_whose_lease_lapsed(
         .map(|record| record.members.len())
         .sum();
     let rooms_before = state.lobby.len();
-    state.lobby.drop_members_whose_lease_lapsed(
+    state.lease_limits.drop_members_whose_lease_lapsed(
+        &mut state.lobby,
         &state.observed_lobby_heartbeats,
         now,
-        state.lease_limits,
     );
     let members_after: usize = state
         .lobby

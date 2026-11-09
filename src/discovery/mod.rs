@@ -5,19 +5,18 @@ pub mod state_machine;
 pub mod basic;
 
 pub use basic::constants::*;
-pub use basic::enums::{HowRoomWasEntered, JoinPhase, RoomMembership};
+pub use basic::enums::{HowRoomWasEntered, JoinPhase};
 pub use basic::messages::{Command, Event};
 pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, StatusReceiver};
-pub use basic::structs::{
-    JoinedRoom, LobbyLeaseLimits, LobbyTaskChannels, RoomMember, RunChannels,
-};
+pub use basic::structs::{JoinedRoom, LobbyTaskChannels, RunChannels};
 pub use basic::type_aliases::Members;
-
-mod lobby;
-pub use lobby::Lobby;
+pub use common_types::{Lobby, LobbyRoom, RoomMember, RoomMembership, RoomSize, RoomSizeError};
 
 mod lobby_contract_subscription;
 pub use lobby_contract_subscription::LobbyContractSubscription;
+
+mod lobby_lease_limits;
+pub use lobby_lease_limits::LobbyLeaseLimits;
 
 mod lobby_task_config;
 pub use lobby_task_config::LobbyTaskConfig;
@@ -26,12 +25,6 @@ pub use lobby_task_config::LobbyTaskConfig;
 mod lobby_task_override;
 #[cfg(feature = "testing")]
 pub use lobby_task_override::LobbyTaskOverride;
-
-mod lobby_room;
-pub use lobby_room::LobbyRoom;
-
-mod room_size;
-pub use room_size::RoomSize;
 
 mod status;
 pub use status::Status;

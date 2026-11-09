@@ -5,13 +5,13 @@ use crate::identity;
 use crate::time;
 
 pub fn drop_members_whose_lease_lapsed(
+    limits: &discovery::LobbyLeaseLimits,
     lobby: &mut discovery::Lobby,
     observed: &BTreeMap<
         (identity::RoomName, identity::PeerId),
         discovery::state_machine::ObservedLobbyHeartbeat,
     >,
     now: time::UnixTime,
-    limits: discovery::LobbyLeaseLimits,
 ) {
     let stale = limits
         .lease_ttl
@@ -90,10 +90,10 @@ mod tests {
             ),
         );
         drop_members_whose_lease_lapsed(
+            &limits(),
             &mut lobby,
             &BTreeMap::new(),
             time::UnixTime::from_secs(200),
-            limits(),
         );
         assert_eq!(lobby.len(), 1);
     }
@@ -129,17 +129,17 @@ mod tests {
             },
         )]);
         drop_members_whose_lease_lapsed(
+            &limits(),
             &mut lobby,
             &observed,
             time::UnixTime::from_secs(789),
-            limits(),
         );
         assert_eq!(lobby.len(), 1);
         drop_members_whose_lease_lapsed(
+            &limits(),
             &mut lobby,
             &observed,
             time::UnixTime::from_secs(791),
-            limits(),
         );
         assert!(lobby.is_empty());
     }
@@ -168,7 +168,7 @@ mod tests {
                 membership: discovery::RoomMembership::HistoryHolder,
             },
         );
-        drop_members_whose_lease_lapsed(&mut lobby, &observed, now, limits());
+        drop_members_whose_lease_lapsed(&limits(), &mut lobby, &observed, now);
         assert_eq!(lobby.len(), 1);
     }
 
@@ -183,7 +183,7 @@ mod tests {
                 discovery::RoomMembership::HistoryHolder,
             ),
         );
-        drop_members_whose_lease_lapsed(&mut lobby, &BTreeMap::new(), now, limits());
+        drop_members_whose_lease_lapsed(&limits(), &mut lobby, &BTreeMap::new(), now);
         assert!(lobby.is_empty());
     }
 }

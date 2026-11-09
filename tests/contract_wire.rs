@@ -35,13 +35,15 @@ fn test_usage() {
     let plugin = plugin_lobby();
     let bytes = bincode::serialize(&plugin).unwrap_or_default();
     let contract: lobby_contract::Lobby = bincode::deserialize(&bytes).unwrap_or_default();
-    let room = contract.get(&lobby_contract::RoomName(String::from("room-a")));
+    let room = contract.get(&lobby_contract::RoomName::from("room-a"));
     let alice = room.and_then(|room| {
         room.members
-            .get(&lobby_contract::PeerId(String::from("alice-peer")))
+            .get(&lobby_contract::PeerId::from("alice-peer"))
     });
     assert_eq!(
-        alice.and_then(|room_member| room_member.display_name.as_deref()),
+        alice
+            .and_then(|room_member| room_member.display_name.as_ref())
+            .map(|name| name.as_str()),
         Some("alice")
     );
     let back = bincode::serialize(&contract).unwrap_or_default();

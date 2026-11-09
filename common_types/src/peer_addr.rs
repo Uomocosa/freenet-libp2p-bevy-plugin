@@ -1,23 +1,11 @@
-use bevy::prelude::Reflect;
 use derive_more::{Deref, Display, From};
 use serde::{Deserialize, Serialize};
 
 #[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
-    Deref,
-    Display,
-    From,
-    Reflect,
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Deref, Display, From,
 )]
-#[reflect(Hash)]
+#[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
+#[cfg_attr(feature = "bevy", reflect(Hash))]
 #[from(forward)]
 pub struct PeerAddr(pub String);
 
@@ -35,9 +23,9 @@ impl PeerAddr {
 impl PeerAddr {
     #[must_use]
     pub(crate) fn is_unspecified(&self) -> bool {
-        self.parse::<libp2p::Multiaddr>().is_ok_and(|multiaddr| {
+        self.parse::<multiaddr::Multiaddr>().is_ok_and(|multiaddr| {
             multiaddr.iter().any(|protocol| {
-                    matches!(protocol, libp2p::multiaddr::Protocol::Ip4(ip) if ip.is_unspecified())
+                    matches!(protocol, multiaddr::Protocol::Ip4(ip) if ip.is_unspecified())
                 })
         })
     }
@@ -46,16 +34,15 @@ impl PeerAddr {
 #[cfg(test)]
 mod tests {
     use super::PeerAddr;
-    use crate::identity;
 
     #[test]
     fn test_usage() {
         assert_eq!(
-            PeerAddr::dialable(vec![identity::PeerAddr::from("/ip4/0.0.0.0/tcp/9000")]),
-            Vec::<identity::PeerAddr>::new()
+            PeerAddr::dialable(vec![PeerAddr::from("/ip4/0.0.0.0/tcp/9000")]),
+            Vec::<PeerAddr>::new()
         );
         assert_eq!(
-            PeerAddr::dialable(vec![identity::PeerAddr::from("/ip4/1.2.3.4/tcp/9000")]).len(),
+            PeerAddr::dialable(vec![PeerAddr::from("/ip4/1.2.3.4/tcp/9000")]).len(),
             1
         );
     }

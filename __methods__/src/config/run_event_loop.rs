@@ -16,7 +16,7 @@ pub async fn run_event_loop(
         statuses,
         events,
     } = channels;
-    let Some(ready) = identity::Peer::wait_ready(&mut swarm.ready).await else {
+    let Some(ready) = swarm.wait_ready().await else {
         return;
     };
     let me = identity::Peer {
