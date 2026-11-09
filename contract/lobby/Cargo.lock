@@ -33,6 +33,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
 
 [[package]]
+name = "atomic-delegate-macros"
+version = "0.0.11"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.11#9a854e5f4ad88d651a8d04ffb13c62a7a8130869"
+dependencies = [
+ "lele-snake-case",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -139,6 +150,15 @@ dependencies = [
  "num-traits",
  "serde",
  "windows-link",
+]
+
+[[package]]
+name = "common_types"
+version = "0.1.0"
+dependencies = [
+ "atomic-delegate-macros",
+ "derive_more",
+ "serde",
 ]
 
 [[package]]
@@ -572,6 +592,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
+name = "lele-snake-case"
+version = "0.0.11"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.11#9a854e5f4ad88d651a8d04ffb13c62a7a8130869"
+
+[[package]]
 name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -582,6 +607,7 @@ name = "lobby_contract"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "common_types",
  "derive_more",
  "freenet-macros",
  "freenet-stdlib",

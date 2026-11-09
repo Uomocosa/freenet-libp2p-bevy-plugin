@@ -176,7 +176,7 @@ mod tests {
                     addrs: Vec::new(),
                 },
                 display_name: None,
-                updated_at: time::UnixTime::from(0),
+                updated_at: time::UnixTime::EPOCH,
                 membership: discovery::RoomMembership::Occupant,
             },
         );
@@ -184,7 +184,7 @@ mod tests {
             let mut status = app.world_mut().resource_mut::<discovery::Status>();
             status.room = Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("room-1"),
-                created_at: time::UnixTime::from(1),
+                created_at: time::UnixTime::from_secs(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Joined,

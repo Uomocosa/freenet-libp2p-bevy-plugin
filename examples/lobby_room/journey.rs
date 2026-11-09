@@ -150,7 +150,7 @@ mod tests {
                 discovery::Command::Join(name) => {
                     status.room = Some(discovery::JoinedRoom {
                         name: name.clone(),
-                        created_at: time::UnixTime::from(0),
+                        created_at: time::UnixTime::EPOCH,
                         phase: discovery::JoinPhase::Ready,
                         members: discovery::Members::new(),
                         how_entered: discovery::HowRoomWasEntered::Created,
@@ -181,7 +181,7 @@ mod tests {
                 discovery::LobbyRoom {
                     room_size: discovery::RoomSize::try_from(room_size)
                         .expect("fixture room size is non-zero"),
-                    created_at: time::UnixTime::from(0),
+                    created_at: time::UnixTime::EPOCH,
                     members: std::collections::BTreeMap::new(),
                 },
             );
@@ -220,7 +220,7 @@ mod tests {
                     id: identity::PeerId::from(*peer),
                     addrs: Vec::new(),
                 },
-                updated_at: time::UnixTime::from(0),
+                updated_at: time::UnixTime::EPOCH,
                 display_name: Some(identity::Username::from(*name)),
                 membership: discovery::RoomMembership::Occupant,
             },
@@ -242,7 +242,7 @@ mod tests {
         lobby_listed(world);
         world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from(JOIN_ROOM),
-            created_at: time::UnixTime::from(0),
+            created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,

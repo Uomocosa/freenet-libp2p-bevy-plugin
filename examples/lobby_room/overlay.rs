@@ -222,7 +222,7 @@ mod tests {
     fn join_first_room(world: &mut World) {
         world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("alpha"),
-            created_at: time::UnixTime::from(0),
+            created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -262,7 +262,7 @@ mod tests {
                         id: identity::PeerId::from(peer),
                         addrs: Vec::new(),
                     },
-                    updated_at: time::UnixTime::from(0),
+                    updated_at: time::UnixTime::EPOCH,
                     display_name: name.map(identity::Username::from),
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -270,7 +270,7 @@ mod tests {
         }
         status.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("gamma"),
-            created_at: time::UnixTime::from(0),
+            created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members,
             how_entered: discovery::HowRoomWasEntered::Created,

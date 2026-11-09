@@ -54,7 +54,7 @@ mod tests {
     fn heartbeat(room: &str, created_at: u64) -> discovery::state_machine::HeartbeatTarget {
         discovery::state_machine::HeartbeatTarget {
             room: identity::RoomName::from(room),
-            created_at: time::UnixTime::from(created_at),
+            created_at: time::UnixTime::from_secs(created_at),
             addrs: vec![identity::PeerAddr::from("/ip4/1/tcp/4001")],
             display_name: identity::Username::from("someone"),
             membership: discovery::RoomMembership::Occupant,
@@ -70,14 +70,14 @@ mod tests {
             &mut router,
             &first,
             &[heartbeat("room-a", 10)],
-            time::UnixTime::from(20),
+            time::UnixTime::from_secs(20),
         );
         assert!(lobby.contains_key(&identity::RoomName::from("room-a")));
         let lobby = refresh_lobby(
             &mut router,
             &second,
             &[heartbeat("room-a", 10)],
-            time::UnixTime::from(21),
+            time::UnixTime::from_secs(21),
         );
         let record = lobby
             .get(&identity::RoomName::from("room-a"))
@@ -96,15 +96,15 @@ mod tests {
             &mut router,
             &peer,
             &[heartbeat("room-a", 10)],
-            time::UnixTime::from(20),
+            time::UnixTime::from_secs(20),
         );
-        let lobby = refresh_lobby(&mut router, &peer, &[], time::UnixTime::from(21));
+        let lobby = refresh_lobby(&mut router, &peer, &[], time::UnixTime::from_secs(21));
         let record = lobby
             .get(&identity::RoomName::from("room-a"))
             .expect("room-a stays until its lease lapses");
         assert_eq!(
             record.members.get(&peer).map(|member| member.updated_at),
-            Some(time::UnixTime::from(20))
+            Some(time::UnixTime::from_secs(20))
         );
     }
 
@@ -117,30 +117,30 @@ mod tests {
             &mut router,
             &quiet,
             &[heartbeat("room-a", 10)],
-            time::UnixTime::from(20),
+            time::UnixTime::from_secs(20),
         );
         refresh_lobby(
             &mut router,
             &live,
             &[heartbeat("room-a", 10)],
-            time::UnixTime::from(30),
+            time::UnixTime::from_secs(30),
         );
         let lobby = refresh_lobby(
             &mut router,
             &live,
             &[heartbeat("room-a", 10)],
-            time::UnixTime::from(40),
+            time::UnixTime::from_secs(40),
         );
         let record = lobby
             .get(&identity::RoomName::from("room-a"))
             .expect("room-a is present");
         assert_eq!(
             record.members.get(&quiet).map(|member| member.updated_at),
-            Some(time::UnixTime::from(20))
+            Some(time::UnixTime::from_secs(20))
         );
         assert_eq!(
             record.members.get(&live).map(|member| member.updated_at),
-            Some(time::UnixTime::from(40))
+            Some(time::UnixTime::from_secs(40))
         );
     }
 
@@ -150,7 +150,12 @@ mod tests {
         let peer = identity::PeerId::from("a");
         let mut departed = heartbeat("room-a", 10);
         departed.membership = discovery::RoomMembership::Departed;
-        let lobby = refresh_lobby(&mut router, &peer, &[departed], time::UnixTime::from(20));
+        let lobby = refresh_lobby(
+            &mut router,
+            &peer,
+            &[departed],
+            time::UnixTime::from_secs(20),
+        );
         assert!(!lobby.contains_key(&identity::RoomName::from("room-a")));
     }
 }

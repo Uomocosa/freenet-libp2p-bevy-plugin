@@ -19,7 +19,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 phase,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
@@ -32,7 +32,7 @@ mod tests {
     fn test_usage() {
         assert!(!is_in_room(&discovery::Status::default()));
         assert!(!is_in_room(&status_with(discovery::JoinPhase::Joining {
-            since: time::UnixTime::from(0)
+            since: time::UnixTime::EPOCH
         })));
         assert!(is_in_room(&status_with(discovery::JoinPhase::Ready)));
     }

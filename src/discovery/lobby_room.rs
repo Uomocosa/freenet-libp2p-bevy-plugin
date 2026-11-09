@@ -41,7 +41,7 @@ impl LobbyRoom {
             .values()
             .map(|room_member| room_member.updated_at)
             .max()
-            .unwrap_or_else(|| time::UnixTime::from(0))
+            .unwrap_or(time::UnixTime::EPOCH)
     }
 
     #[must_use]

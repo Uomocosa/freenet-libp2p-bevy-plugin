@@ -43,7 +43,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,

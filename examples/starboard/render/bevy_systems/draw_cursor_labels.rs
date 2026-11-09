@@ -59,7 +59,7 @@ mod tests {
                         id: identity::PeerId::from(*peer),
                         addrs: Vec::new(),
                     },
-                    updated_at: time::UnixTime::from(0),
+                    updated_at: time::UnixTime::EPOCH,
                     display_name: Some(identity::Username::from(*name)),
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -68,7 +68,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,
@@ -110,8 +110,8 @@ mod tests {
         ];
         world.resource_mut::<starboard::room::RoomBrushes>().0 = starboard::identity::room_brushes(
             peers.iter(),
-            time::UnixTime::from(0),
-            time::UnixTime::from(1),
+            time::UnixTime::EPOCH,
+            time::UnixTime::from_secs(1),
         );
         for (peer, x) in peers.into_iter().zip([300_u16, 700]) {
             world

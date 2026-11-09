@@ -52,7 +52,7 @@ mod tests {
         let prefix = HistoryKeyPrefix::new(
             &identity::GameId::from("game"),
             &identity::RoomName::from("room"),
-            time::UnixTime::from(7),
+            time::UnixTime::from_secs(7),
         );
         assert_eq!(prefix.len(), 64);
     }

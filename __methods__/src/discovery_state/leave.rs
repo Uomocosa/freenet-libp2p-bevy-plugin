@@ -33,15 +33,15 @@ mod tests {
             id: identity::PeerId::from("me"),
             addrs: Vec::new(),
         });
-        assert_eq!(leave(&mut state, time::UnixTime::from(1)), Vec::new());
+        assert_eq!(leave(&mut state, time::UnixTime::from_secs(1)), Vec::new());
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: time::UnixTime::from(0),
+            created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
         });
-        let outputs = leave(&mut state, time::UnixTime::from(2));
+        let outputs = leave(&mut state, time::UnixTime::from_secs(2));
         assert!(state.room.is_none());
         assert_eq!(outputs.len(), 1);
         assert!(matches!(

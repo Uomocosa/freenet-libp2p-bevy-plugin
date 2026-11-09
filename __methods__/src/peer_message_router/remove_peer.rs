@@ -63,7 +63,7 @@ mod tests {
     ) -> discovery::state_machine::HeartbeatTarget {
         discovery::state_machine::HeartbeatTarget {
             room: identity::RoomName::from(room),
-            created_at: time::UnixTime::from(10),
+            created_at: time::UnixTime::from_secs(10),
             addrs: Vec::new(),
             display_name: identity::Username::from("someone"),
             membership,
@@ -152,7 +152,7 @@ mod tests {
         router.refresh_lobby(
             &holder,
             &[heartbeat("room-a", discovery::RoomMembership::Occupant)],
-            time::UnixTime::from(20),
+            time::UnixTime::from_secs(20),
         );
         remove_peer(&mut router, &holder);
         assert!(
@@ -171,7 +171,7 @@ mod tests {
         router.refresh_lobby(
             &quitter,
             &[heartbeat("room-a", discovery::RoomMembership::Departed)],
-            time::UnixTime::from(20),
+            time::UnixTime::from_secs(20),
         );
         remove_peer(&mut router, &quitter);
         assert!(

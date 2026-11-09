@@ -32,7 +32,7 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: time::UnixTime::from(0),
+            created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -52,7 +52,7 @@ mod tests {
                     id: peer.clone(),
                     addrs: Vec::new(),
                 },
-                updated_at: time::UnixTime::from(1),
+                updated_at: time::UnixTime::from_secs(1),
                 display_name: None,
                 membership: discovery::RoomMembership::Occupant,
             },

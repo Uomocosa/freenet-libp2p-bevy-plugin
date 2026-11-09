@@ -47,7 +47,7 @@ mod tests {
             addrs: Vec::new(),
             display_name: identity::Username::from("me"),
             membership: discovery::RoomMembership::Occupant,
-            created_at: time::UnixTime::from(1),
+            created_at: time::UnixTime::from_secs(1),
         };
         let seeded = seed_lobby_for_deploy(&me, discovery::RoomSize::DEFAULT, Some(&target));
         assert_eq!(seeded.len(), 1);

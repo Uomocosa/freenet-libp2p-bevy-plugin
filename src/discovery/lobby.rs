@@ -68,7 +68,7 @@ mod tests {
                 id: identity::PeerId::from("peer"),
                 addrs: Vec::new(),
             },
-            updated_at: time::UnixTime::from(1),
+            updated_at: time::UnixTime::from_secs(1),
             display_name: None,
             membership: discovery::RoomMembership::Occupant,
         };
@@ -76,7 +76,7 @@ mod tests {
             identity::RoomName::from("room-a"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(identity::PeerId::from("peer"), room_member)]),
             },
         )]);
@@ -86,7 +86,7 @@ mod tests {
         let lease = discovery::HolderHeartbeatIntervals::default();
         lobby.drop_members_whose_lease_lapsed(
             &BTreeMap::new(),
-            time::UnixTime::from(1000),
+            time::UnixTime::from_secs(1000),
             discovery::LobbyLeaseLimits {
                 lease_ttl: lease.ttl,
                 remote_clock_skew_margin: lease.remote_clock_skew_margin,

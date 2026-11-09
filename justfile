@@ -376,6 +376,23 @@ contract-clippy:
 contract-lint:
     lele-lint --config lele-contract.toml contract/lobby
 
+# common_types is its own workspace root too (`[workspace]` in its Cargo.toml), so the
+# parent's fmt/clippy/lint never reach it. Same shape as the contract recipes above.
+common-types-fmt:
+    cargo fmt --manifest-path common_types/Cargo.toml -- --check
+
+common-types-clippy:
+    cargo clippy --manifest-path common_types/Cargo.toml --all-targets --all-features -- -D warnings
+
+common-types-test:
+    cargo nextest run --manifest-path common_types/Cargo.toml --all-features
+
+common-types-wasm:
+    cargo check --manifest-path common_types/Cargo.toml --target wasm32-unknown-unknown
+
+common-types-lint:
+    lele-lint --config lele-common-types.toml common_types
+
 # Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
 freenet-harness:
     cargo nextest run --test freenet_harness --all-features --run-ignored all -- --nocapture

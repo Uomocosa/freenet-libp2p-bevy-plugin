@@ -25,7 +25,7 @@ mod tests {
     fn heartbeat(room: &str) -> discovery::state_machine::HeartbeatTarget {
         discovery::state_machine::HeartbeatTarget {
             room: identity::RoomName::from(room),
-            created_at: time::UnixTime::from(10),
+            created_at: time::UnixTime::from_secs(10),
             addrs: vec![identity::PeerAddr::from("/ip4/1/tcp/4001")],
             display_name: identity::Username::from("someone"),
             membership: discovery::RoomMembership::Occupant,
@@ -59,7 +59,7 @@ mod tests {
         shared.router_for(&game).refresh_lobby(
             &first.id,
             &[heartbeat("room-a")],
-            time::UnixTime::from(20),
+            time::UnixTime::from_secs(20),
         );
         let late = identity::Peer {
             id: identity::PeerId::from("b"),

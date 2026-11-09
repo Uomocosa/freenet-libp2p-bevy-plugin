@@ -36,10 +36,7 @@ pub fn handle_dial_failed(
         .entries
         .iter_mut()
         .find(|entry| entry.peer.id == peer.id)
-        && let Some(next) = now
-            .as_secs()
-            .checked_add(wait.as_secs())
-            .map(time::UnixTime::from)
+        && let Some(next) = now.checked_add(wait)
     {
         entry.next_attempt_at = next;
     }
@@ -54,7 +51,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let now = time::UnixTime::from(5);
+        let now = time::UnixTime::from_secs(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let peer = identity::Peer {
             id: identity::PeerId::from("alice"),

@@ -2716,6 +2716,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "common_types"
+version = "0.1.0"
+dependencies = [
+ "atomic-delegate-macros",
+ "bevy_reflect",
+ "derive_more",
+ "serde",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4207,6 +4217,7 @@ dependencies = [
  "bincode",
  "blake3",
  "clap",
+ "common_types",
  "derive_more",
  "e2e_macros",
  "freenet",
@@ -6590,6 +6601,7 @@ name = "lobby_contract"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "common_types",
  "derive_more",
  "freenet-macros",
  "freenet-stdlib",

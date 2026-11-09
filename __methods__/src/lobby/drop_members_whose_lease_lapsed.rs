@@ -66,7 +66,7 @@ mod tests {
             identity::RoomName::from(room),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(identity::PeerId::from(peer), member)]),
             },
         )])
@@ -85,14 +85,14 @@ mod tests {
             "r",
             "p",
             room_member(
-                time::UnixTime::from(190),
+                time::UnixTime::from_secs(190),
                 discovery::RoomMembership::Occupant,
             ),
         );
         drop_members_whose_lease_lapsed(
             &mut lobby,
             &BTreeMap::new(),
-            time::UnixTime::from(200),
+            time::UnixTime::from_secs(200),
             limits(),
         );
         assert_eq!(lobby.len(), 1);
@@ -100,8 +100,8 @@ mod tests {
 
     #[test]
     fn holder_with_skewed_clock_dies_one_lease_after_its_last_observed_heartbeat() {
-        let remote_updated_at = time::UnixTime::from(1000);
-        let first_seen = time::UnixTime::from(700);
+        let remote_updated_at = time::UnixTime::from_secs(1000);
+        let first_seen = time::UnixTime::from_secs(700);
         let observed = BTreeMap::from([(
             (identity::RoomName::from("r"), identity::PeerId::from("p")),
             discovery::state_machine::ObservedLobbyHeartbeat {
@@ -113,7 +113,7 @@ mod tests {
             identity::RoomName::from("r"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(
                     identity::PeerId::from("p"),
                     discovery::RoomMember {
@@ -128,16 +128,26 @@ mod tests {
                 )]),
             },
         )]);
-        drop_members_whose_lease_lapsed(&mut lobby, &observed, time::UnixTime::from(789), limits());
+        drop_members_whose_lease_lapsed(
+            &mut lobby,
+            &observed,
+            time::UnixTime::from_secs(789),
+            limits(),
+        );
         assert_eq!(lobby.len(), 1);
-        drop_members_whose_lease_lapsed(&mut lobby, &observed, time::UnixTime::from(791), limits());
+        drop_members_whose_lease_lapsed(
+            &mut lobby,
+            &observed,
+            time::UnixTime::from_secs(791),
+            limits(),
+        );
         assert!(lobby.is_empty());
     }
 
     #[test]
     fn holder_five_minutes_behind_that_keeps_advancing_stays_alive() {
-        let now = time::UnixTime::from(1000);
-        let remote_updated_at = time::UnixTime::from(700);
+        let now = time::UnixTime::from_secs(1000);
+        let remote_updated_at = time::UnixTime::from_secs(700);
         let observed = BTreeMap::from([(
             (identity::RoomName::from("r"), identity::PeerId::from("p")),
             discovery::state_machine::ObservedLobbyHeartbeat {
@@ -164,12 +174,12 @@ mod tests {
 
     #[test]
     fn first_sighting_of_a_timestamp_older_than_lease_plus_margin_is_dropped_at_once() {
-        let now = time::UnixTime::from(1000);
+        let now = time::UnixTime::from_secs(1000);
         let mut lobby = lobby_with(
             "r",
             "p",
             room_member(
-                time::UnixTime::from(0),
+                time::UnixTime::EPOCH,
                 discovery::RoomMembership::HistoryHolder,
             ),
         );

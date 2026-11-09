@@ -48,7 +48,7 @@ mod tests {
             &mut state,
             identity::RoomName::from("r"),
             discovery::HowRoomWasEntered::Joined,
-            time::UnixTime::from(1),
+            time::UnixTime::from_secs(1),
         );
         assert!(state.room.is_some());
         assert!(outputs.iter().any(|output| matches!(

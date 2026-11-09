@@ -610,7 +610,7 @@ mod tests {
             &mut creator,
             &room,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(1)),
+            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from_secs(1)),
             room_sync::state_machine::RoomLiveness {
                 is_room_still_listed: true,
                 has_other_history_holders: false,
@@ -665,7 +665,7 @@ mod tests {
             &mut joiner,
             &room,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(0)),
+            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::EPOCH),
             room_sync::state_machine::RoomLiveness {
                 is_room_still_listed: false,
                 has_other_history_holders: false,
@@ -712,7 +712,7 @@ mod tests {
             &mut joiner,
             &room,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(0)),
+            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::EPOCH),
             room_sync::state_machine::RoomLiveness {
                 is_room_still_listed: false,
                 has_other_history_holders: false,
@@ -759,7 +759,7 @@ mod tests {
             &mut joiner,
             &room,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(1)),
+            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from_secs(1)),
             room_sync::state_machine::RoomLiveness {
                 is_room_still_listed: false,
                 has_other_history_holders: false,

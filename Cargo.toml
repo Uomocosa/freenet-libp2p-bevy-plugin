@@ -98,6 +98,7 @@ missing_errors_doc = "allow"
 async-trait = "=0.1.92"
 atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.11" }
 bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
+common_types = { path = "common_types", features = ["bevy"] }
 derive_more = { version = "=2.1.1", features = ["deref", "deref_mut", "display", "from"] }
 libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }

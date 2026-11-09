@@ -18,7 +18,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let now = time::UnixTime::from(5);
+        let now = time::UnixTime::from_secs(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let peer = identity::Peer {
             id: identity::PeerId::from("alice"),

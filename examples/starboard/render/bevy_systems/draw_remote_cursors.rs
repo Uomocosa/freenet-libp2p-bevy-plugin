@@ -107,7 +107,7 @@ mod tests {
                         id: identity::PeerId::from(*peer),
                         addrs: Vec::new(),
                     },
-                    updated_at: time::UnixTime::from(0),
+                    updated_at: time::UnixTime::EPOCH,
                     display_name: None,
                     membership: discovery::RoomMembership::Occupant,
                 },
@@ -120,8 +120,8 @@ mod tests {
         let mut brushes = starboard::room::RoomBrushes::default();
         brushes.0 = starboard::identity::room_brushes(
             members.keys(),
-            time::UnixTime::from(0),
-            time::UnixTime::from(1),
+            time::UnixTime::EPOCH,
+            time::UnixTime::from_secs(1),
         );
         brushes
     }

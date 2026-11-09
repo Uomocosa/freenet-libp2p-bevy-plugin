@@ -68,7 +68,7 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: time::UnixTime::from(0),
+            created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -91,7 +91,7 @@ mod tests {
             display_name: identity::Username::from("a"),
         };
         let data = bincode::serialize(&handshake).unwrap_or_default();
-        let outputs = handle_handshake(&mut state, &peer, &data, time::UnixTime::from(1));
+        let outputs = handle_handshake(&mut state, &peer, &data, time::UnixTime::from_secs(1));
         assert_eq!(state.room.as_ref().map_or(0, |room| room.members.len()), 1);
         assert_eq!(state.candidates.len(), 2);
         assert!(matches!(
@@ -102,7 +102,7 @@ mod tests {
             ]
         ));
         let left = bincode::serialize(&Handshake::default()).unwrap_or_default();
-        let _ = handle_handshake(&mut state, &peer, &left, time::UnixTime::from(2));
+        let _ = handle_handshake(&mut state, &peer, &left, time::UnixTime::from_secs(2));
         assert_eq!(state.room.as_ref().map_or(0, |room| room.members.len()), 0);
     }
 
@@ -118,7 +118,7 @@ mod tests {
             display_name: identity::Username::from("a"),
         };
         let data = bincode::serialize(&handshake).unwrap_or_default();
-        let _ = handle_handshake(&mut state, &joiner, &data, time::UnixTime::from(1));
+        let _ = handle_handshake(&mut state, &joiner, &data, time::UnixTime::from_secs(1));
         let is_member = state
             .room
             .as_ref()

@@ -82,6 +82,56 @@ priority = "checks"
 stages = ["pre-commit"]
 
 [[repos.hooks]]
+id = "common-types-fmt"
+name = "just common-types-fmt"
+language = "system"
+entry = "just common-types-fmt"
+pass_filenames = false
+always_run = true
+priority = "format"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "common-types-clippy"
+name = "just common-types-clippy"
+language = "system"
+entry = "just common-types-clippy"
+pass_filenames = false
+always_run = true
+priority = "checks"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "common-types-wasm"
+name = "just common-types-wasm"
+language = "system"
+entry = "just common-types-wasm"
+pass_filenames = false
+always_run = true
+priority = "checks"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "common-types-lint"
+name = "just common-types-lint"
+language = "system"
+entry = "just common-types-lint"
+pass_filenames = false
+always_run = true
+priority = "checks"
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "common-types-test"
+name = "just common-types-test"
+language = "system"
+entry = "just common-types-test"
+pass_filenames = false
+always_run = true
+priority = "tests"
+stages = ["pre-push"]
+
+[[repos.hooks]]
 id = "test"
 name = "just test"
 language = "system"

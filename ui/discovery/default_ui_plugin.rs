@@ -56,7 +56,7 @@ mod tests {
                 discovery::LobbyRoom {
                     room_size: discovery::RoomSize::try_from(room_size)
                         .expect("fixture room size is non-zero"),
-                    created_at: time::UnixTime::from(0),
+                    created_at: time::UnixTime::EPOCH,
                     members: std::collections::BTreeMap::new(),
                 },
             );

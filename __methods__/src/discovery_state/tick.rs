@@ -40,14 +40,17 @@ mod tests {
         state.connected.insert(identity::PeerId::from("a"));
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: time::UnixTime::from(0),
+            created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
         });
-        let mut outputs = tick(&mut state, time::UnixTime::from(100));
-        outputs.extend(tick(&mut state, time::UnixTime::from(101)));
-        assert_eq!(state.last_handshake_at, Some(time::UnixTime::from(100)));
+        let mut outputs = tick(&mut state, time::UnixTime::from_secs(100));
+        outputs.extend(tick(&mut state, time::UnixTime::from_secs(101)));
+        assert_eq!(
+            state.last_handshake_at,
+            Some(time::UnixTime::from_secs(100))
+        );
         let measures = outputs
             .iter()
             .filter(|output| {

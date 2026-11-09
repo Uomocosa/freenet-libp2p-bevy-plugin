@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn update_dispatches_friend_added() {
         let mut state = fresh_state();
-        let now = time::UnixTime::from(10);
+        let now = time::UnixTime::from_secs(10);
         let outputs = state.update(
             direct_dial::state_machine::Input::FriendAdded(friend_peer("alice")),
             now,
@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn friend_never_dropped() {
         let mut state = fresh_state();
-        let mut now = time::UnixTime::from(10);
+        let mut now = time::UnixTime::from_secs(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -143,7 +143,7 @@ mod tests {
         );
         for _ in 0..10 {
             state.dial_in_flight.remove(&peer.id);
-            now = time::UnixTime::from(now.as_secs().saturating_add(1000));
+            now = now.saturating_add(std::time::Duration::from_secs(1000));
             let outputs = state.update(
                 direct_dial::state_machine::Input::DialFailed(peer.clone()),
                 now,
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn known_peer_dropped_after_limit_with_save() {
         let mut state = fresh_state();
-        let mut now = time::UnixTime::from(10);
+        let mut now = time::UnixTime::from_secs(10);
         let id = identity::PeerId::from("bob");
         let _ = state.update(
             direct_dial::state_machine::Input::PeerConnected(id.clone()),
@@ -181,7 +181,7 @@ mod tests {
         let mut saved = false;
         for _ in 0..direct_dial::state_machine::KNOWN_MAX_FAILURES {
             state.dial_in_flight.remove(&id);
-            now = time::UnixTime::from(now.as_secs().saturating_add(1000));
+            now = now.saturating_add(std::time::Duration::from_secs(1000));
             let outputs = state.update(
                 direct_dial::state_machine::Input::DialFailed(peer.clone()),
                 now,
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     fn no_dial_while_connected_or_in_flight() {
         let mut state = fresh_state();
-        let now = time::UnixTime::from(10);
+        let now = time::UnixTime::from_secs(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn disconnect_schedules_redial() {
         let mut state = fresh_state();
-        let now = time::UnixTime::from(10);
+        let now = time::UnixTime::from_secs(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -234,7 +234,7 @@ mod tests {
             direct_dial::state_machine::Input::PeerConnected(peer.id.clone()),
             now,
         );
-        let later = time::UnixTime::from(20);
+        let later = time::UnixTime::from_secs(20);
         let _ = state.update(
             direct_dial::state_machine::Input::PeerDisconnected(peer.id.clone()),
             later,
@@ -242,7 +242,7 @@ mod tests {
         assert!(!state.connected.contains(&peer.id));
         let outputs = state.update(
             direct_dial::state_machine::Input::Tick,
-            time::UnixTime::from(1000),
+            time::UnixTime::from_secs(1000),
         );
         assert!(outputs.iter().any(|output| matches!(
             output,
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn connect_resets_failures() {
         let mut state = fresh_state();
-        let now = time::UnixTime::from(10);
+        let now = time::UnixTime::from_secs(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn never_demotes_a_friend() {
         let mut state = fresh_state();
-        let now = time::UnixTime::from(10);
+        let now = time::UnixTime::from_secs(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -313,7 +313,7 @@ mod tests {
     #[test]
     fn removed_friend_no_longer_dials() {
         let mut state = fresh_state();
-        let now = time::UnixTime::from(10);
+        let now = time::UnixTime::from_secs(10);
         let peer = friend_peer("alice");
         let _ = state.update(
             direct_dial::state_machine::Input::FriendAdded(peer.clone()),
@@ -325,7 +325,7 @@ mod tests {
         );
         let outputs = state.update(
             direct_dial::state_machine::Input::Tick,
-            time::UnixTime::from(1000),
+            time::UnixTime::from_secs(1000),
         );
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.entries, Vec::new());
@@ -335,7 +335,7 @@ mod tests {
     fn saved_book_dials_on_start() {
         let mut book = direct_dial::PeerBook::default();
         assert!(book.add_friend(friend_peer("alice")));
-        let now = time::UnixTime::from(10);
+        let now = time::UnixTime::from_secs(10);
         let mut state = DialState::from_peer_book(&book, now);
         let outputs = state.update(direct_dial::state_machine::Input::Tick, now);
         assert_eq!(outputs.len(), 1);

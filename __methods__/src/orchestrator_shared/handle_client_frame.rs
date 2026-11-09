@@ -53,7 +53,7 @@ mod tests {
             &mut shared,
             &peer.id,
             testing::FakeWireClientFrame::JoinedRoomBytes(Vec::new()),
-            time::UnixTime::from(1),
+            time::UnixTime::from_secs(1),
         );
         assert_eq!(events, Vec::new());
         assert_eq!(lobby, None);

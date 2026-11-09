@@ -27,11 +27,11 @@ mod tests {
                 identity::PeerId::from(peer),
                 discovery::state_machine::Candidate {
                     addrs: vec![identity::PeerAddr::from("/ip4/1")],
-                    seen_at: time::UnixTime::from(seen_at),
+                    seen_at: time::UnixTime::from_secs(seen_at),
                 },
             );
         }
-        drop_expired_candidates(&mut state, time::UnixTime::from(100));
+        drop_expired_candidates(&mut state, time::UnixTime::from_secs(100));
         let left: Vec<_> = state.candidates.keys().cloned().collect();
         assert_eq!(left, vec![identity::PeerId::from("fresh")]);
     }

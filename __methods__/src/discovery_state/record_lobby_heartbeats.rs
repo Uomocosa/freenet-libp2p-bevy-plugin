@@ -48,7 +48,7 @@ mod tests {
             identity::RoomName::from("r"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(
                     identity::PeerId::from(peer),
                     discovery::RoomMember {
@@ -71,8 +71,8 @@ mod tests {
             id: identity::PeerId::from("me"),
             addrs: Vec::new(),
         });
-        let lobby = lobby_with("p", time::UnixTime::from(10));
-        record_lobby_heartbeats(&mut state, &lobby, time::UnixTime::from(20));
+        let lobby = lobby_with("p", time::UnixTime::from_secs(10));
+        record_lobby_heartbeats(&mut state, &lobby, time::UnixTime::from_secs(20));
         assert_eq!(state.observed_lobby_heartbeats.len(), 1);
     }
 }

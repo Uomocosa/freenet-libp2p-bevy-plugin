@@ -44,9 +44,9 @@ mod tests {
         });
         state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("r"),
-            created_at: time::UnixTime::from(created_at),
+            created_at: time::UnixTime::from_secs(created_at),
             phase: discovery::JoinPhase::Joining {
-                since: time::UnixTime::from(0),
+                since: time::UnixTime::EPOCH,
             },
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
@@ -59,7 +59,7 @@ mod tests {
             identity::RoomName::from("r"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(created_at),
+                created_at: time::UnixTime::from_secs(created_at),
                 members: BTreeMap::new(),
             },
         );
@@ -73,7 +73,7 @@ mod tests {
     fn test_usage() {
         let mut waiting = state_in(100);
         assert_eq!(
-            wait_for_contract_self_heal(&mut waiting, time::UnixTime::from(1)),
+            wait_for_contract_self_heal(&mut waiting, time::UnixTime::from_secs(1)),
             Vec::new()
         );
         assert!(matches!(
@@ -83,7 +83,7 @@ mod tests {
 
         let mut healed = state_in(100);
         with_record(&mut healed, 100);
-        let outputs = wait_for_contract_self_heal(&mut healed, time::UnixTime::from(1));
+        let outputs = wait_for_contract_self_heal(&mut healed, time::UnixTime::from_secs(1));
         assert_eq!(
             outputs,
             vec![Output::Notify(discovery::Event::RoomReady(
@@ -98,7 +98,7 @@ mod tests {
         let mut state = state_in(100);
         let outputs = wait_for_contract_self_heal(
             &mut state,
-            time::UnixTime::from(discovery::state_machine::JOIN_HEAL_TIMEOUT.as_secs()),
+            time::UnixTime::from_secs(discovery::state_machine::JOIN_HEAL_TIMEOUT.as_secs()),
         );
         assert_eq!(
             outputs,
@@ -117,7 +117,7 @@ mod tests {
             room.phase = discovery::JoinPhase::Ready;
         }
         assert_eq!(
-            wait_for_contract_self_heal(&mut state, time::UnixTime::from(1)),
+            wait_for_contract_self_heal(&mut state, time::UnixTime::from_secs(1)),
             Vec::new()
         );
         assert_eq!(phase(&state), Some(discovery::JoinPhase::Ready));

@@ -1,0 +1,9 @@
+# lele-lint config for the common_types crate (`just common-types-lint`): a plain `src/`
+# crate, like the lobby contract in lele-contract.toml.
+[honesty]
+declared_honest = []
+declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "rand::thread_rng", "rand::random", "getrandom::getrandom", "std::fs::read", "std::fs::write", "std::env::var"]
+
+[lele.layout]
+roots = ["src"]
+methods_root = "methods"

@@ -258,7 +258,7 @@ mod tests {
                 addrs: Vec::new(),
             },
         ];
-        state.add_candidates(peers, time::UnixTime::from(1));
+        state.add_candidates(peers, time::UnixTime::from_secs(1));
         assert_eq!(state.candidates.len(), 1);
         assert!(state.candidates.contains_key(&identity::PeerId::from("a")));
     }
@@ -271,10 +271,13 @@ mod tests {
         });
         state.connected.insert(identity::PeerId::from("a"));
         let room = identity::RoomName::from("r");
-        let mut outputs =
-            state.handle_command(discovery::Command::Create(room), time::UnixTime::from(1));
+        let mut outputs = state.handle_command(
+            discovery::Command::Create(room),
+            time::UnixTime::from_secs(1),
+        );
         assert!(state.room.is_some());
-        outputs.extend(state.handle_command(discovery::Command::Leave, time::UnixTime::from(2)));
+        outputs
+            .extend(state.handle_command(discovery::Command::Leave, time::UnixTime::from_secs(2)));
         assert!(state.room.is_none());
         assert!(matches!(
             outputs.as_slice(),
@@ -295,7 +298,7 @@ mod tests {
         });
         let outputs = state.handle_command(
             discovery::Command::Create(identity::RoomName::from("   ")),
-            time::UnixTime::from(1),
+            time::UnixTime::from_secs(1),
         );
         assert_eq!(outputs.len(), 0);
         assert!(state.room.is_none());
@@ -309,7 +312,7 @@ mod tests {
         });
         let outputs = state.handle_libp2p_event(
             p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("a")),
-            time::UnixTime::from(1),
+            time::UnixTime::from_secs(1),
         );
         assert!(state.connected.contains(&identity::PeerId::from("a")));
         assert!(matches!(
@@ -318,7 +321,7 @@ mod tests {
         ));
         let _ = state.handle_libp2p_event(
             p2p::Libp2pEvent::PeerDisconnected(identity::PeerId::from("a")),
-            time::UnixTime::from(2),
+            time::UnixTime::from_secs(2),
         );
         assert!(state.connected.is_empty());
     }
@@ -345,7 +348,7 @@ mod tests {
         let room = identity::RoomName::from("r");
         let outputs = state.update(
             Input::Command(discovery::Command::Join(room.clone())),
-            time::UnixTime::from(1),
+            time::UnixTime::from_secs(1),
         );
         assert_eq!(
             outputs,
@@ -362,7 +365,7 @@ mod tests {
         let addrs = vec![identity::PeerAddr::from("/ip4/2")];
         state.update(
             Input::OwnAddrsChanged(addrs.clone()),
-            time::UnixTime::from(1),
+            time::UnixTime::from_secs(1),
         );
         assert_eq!(state.me.addrs, addrs);
     }

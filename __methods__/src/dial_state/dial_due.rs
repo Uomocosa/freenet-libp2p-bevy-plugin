@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let now = time::UnixTime::from(10);
+        let now = time::UnixTime::from_secs(10);
         let mut state = friend_state(now);
         let outputs = dial_due(&mut state, now);
         assert_eq!(outputs.len(), 1);

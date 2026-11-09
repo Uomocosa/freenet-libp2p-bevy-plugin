@@ -147,7 +147,7 @@ mod tests {
                     id: peer_id,
                     addrs: Vec::new(),
                 },
-                updated_at: time::UnixTime::from(10),
+                updated_at: time::UnixTime::from_secs(10),
                 display_name: None,
                 membership,
             },
@@ -171,7 +171,7 @@ mod tests {
             room.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(10),
+                created_at: time::UnixTime::from_secs(10),
                 members: members.into_iter().collect(),
             },
         );
@@ -274,7 +274,7 @@ mod tests {
             room_b.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(10),
+                created_at: time::UnixTime::from_secs(10),
                 members: BTreeMap::from([holder("alice")]),
             },
         );
@@ -432,7 +432,7 @@ mod tests {
         let status = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
-                created_at: time::UnixTime::from(10),
+                created_at: time::UnixTime::from_secs(10),
                 phase: discovery::JoinPhase::Ready,
                 members: BTreeMap::from([occupant("me")]),
                 how_entered: discovery::HowRoomWasEntered::Created,
@@ -465,7 +465,7 @@ mod tests {
             room_b.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(10),
+                created_at: time::UnixTime::from_secs(10),
                 members: BTreeMap::from([occupant("alice"), occupant("bob")]),
             },
         );
@@ -473,7 +473,7 @@ mod tests {
             lobby,
             room: Some(discovery::JoinedRoom {
                 name: room_a.clone(),
-                created_at: time::UnixTime::from(10),
+                created_at: time::UnixTime::from_secs(10),
                 phase: discovery::JoinPhase::Ready,
                 members: BTreeMap::from([occupant("alice")]),
                 how_entered: discovery::HowRoomWasEntered::Joined,

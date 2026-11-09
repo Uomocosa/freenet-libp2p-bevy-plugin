@@ -17,10 +17,7 @@ pub fn handle_peer_disconnected(
     if let Some((kind, failed_attempts)) = current {
         let wait = state.backoff_for(&kind, failed_attempts);
         if let Some(entry) = state.entries.iter_mut().find(|entry| entry.peer.id == *id)
-            && let Some(next) = now
-                .as_secs()
-                .checked_add(wait.as_secs())
-                .map(time::UnixTime::from)
+            && let Some(next) = now.checked_add(wait)
         {
             entry.next_attempt_at = next;
         }
@@ -36,7 +33,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let now = time::UnixTime::from(5);
+        let now = time::UnixTime::from_secs(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let _ = state.handle_peer_connected(&identity::PeerId::from("alice"), now);
         let outputs = handle_peer_disconnected(&mut state, &identity::PeerId::from("alice"), now);

@@ -59,7 +59,7 @@ mod tests {
         let status = discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: room.clone(),
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
@@ -87,7 +87,7 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
@@ -128,7 +128,7 @@ mod tests {
     fn pick_beta(world: &mut World) {
         world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("beta"),
-            created_at: time::UnixTime::from(0),
+            created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,

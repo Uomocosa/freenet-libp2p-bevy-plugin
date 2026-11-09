@@ -39,9 +39,9 @@ mod tests {
         discovery::Status {
             room: Some(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Joining {
-                    since: time::UnixTime::from(0),
+                    since: time::UnixTime::EPOCH,
                 },
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,

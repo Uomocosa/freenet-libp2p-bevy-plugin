@@ -63,7 +63,7 @@ mod tests {
                 id: identity::PeerId::from("me"),
                 addrs: Vec::new(),
             },
-            updated_at: time::UnixTime::from(1),
+            updated_at: time::UnixTime::from_secs(1),
             display_name: None,
             membership: discovery::RoomMembership::Occupant,
         };
@@ -74,7 +74,7 @@ mod tests {
                 &identity::PeerId::from("me"),
                 room_member,
                 discovery::RoomSize::DEFAULT,
-                time::UnixTime::from(0),
+                time::UnixTime::EPOCH,
             )
             .is_ok()
         );

@@ -65,8 +65,8 @@ mod tests {
         state.held_rooms.insert(
             room.clone(),
             discovery::state_machine::HeldRoomHistory {
-                created_at: time::UnixTime::from(1),
-                left_at: time::UnixTime::from(2),
+                created_at: time::UnixTime::from_secs(1),
+                left_at: time::UnixTime::from_secs(2),
             },
         );
         state
@@ -87,7 +87,7 @@ mod tests {
     fn evicted_history_publishes_departed_and_removes_records() {
         let room = identity::RoomName::from("r");
         let mut state = state_holding(&room);
-        let prefix = p2p::HistoryKeyPrefix::new(&state.game, &room, time::UnixTime::from(1));
+        let prefix = p2p::HistoryKeyPrefix::new(&state.game, &room, time::UnixTime::from_secs(1));
         let measured = BTreeMap::from([(prefix.clone(), p2p::HistoryByteCount(11))]);
         let outputs = evict_held_rooms_over_history_limit(&mut state, &measured);
         assert_eq!(

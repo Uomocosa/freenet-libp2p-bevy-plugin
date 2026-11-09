@@ -33,8 +33,11 @@ mod tests {
             id: identity::PeerId::from("alice"),
             addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/4001")],
         }));
-        let state = from_peer_book(&book, time::UnixTime::from(7));
+        let state = from_peer_book(&book, time::UnixTime::from_secs(7));
         assert_eq!(state.entries.len(), 1);
-        assert_eq!(state.entries[0].next_attempt_at, time::UnixTime::from(7));
+        assert_eq!(
+            state.entries[0].next_attempt_at,
+            time::UnixTime::from_secs(7)
+        );
     }
 }

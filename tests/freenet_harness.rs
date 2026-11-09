@@ -18,7 +18,7 @@ fn one_room(updated_at: u64, created_at: u64) -> Lobby {
                 id: PeerId("peer".to_string()),
                 addrs: vec!["/ip4/127.0.0.1/tcp/1".to_string()],
             },
-            updated_at: UnixTime(updated_at),
+            updated_at: UnixTime::from_secs(updated_at),
             display_name: None,
             membership: lobby_contract::RoomMembership::Occupant,
         },
@@ -28,7 +28,7 @@ fn one_room(updated_at: u64, created_at: u64) -> Lobby {
         RoomName("room-a".to_string()),
         Room {
             room_size: 8,
-            created_at: UnixTime(created_at),
+            created_at: UnixTime::from_secs(created_at),
             members,
         },
     );

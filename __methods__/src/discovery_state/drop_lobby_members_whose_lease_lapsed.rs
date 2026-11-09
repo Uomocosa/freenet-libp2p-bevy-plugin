@@ -45,7 +45,8 @@ mod tests {
             id: identity::PeerId::from("me"),
             addrs: Vec::new(),
         });
-        let outputs = drop_lobby_members_whose_lease_lapsed(&mut state, time::UnixTime::from(1));
+        let outputs =
+            drop_lobby_members_whose_lease_lapsed(&mut state, time::UnixTime::from_secs(1));
         assert_eq!(outputs, Vec::new());
     }
 
@@ -59,13 +60,13 @@ mod tests {
             lease_ttl: Duration::from_secs(90),
             remote_clock_skew_margin: Duration::from_secs(600),
         };
-        let seen_at = time::UnixTime::from(100);
+        let seen_at = time::UnixTime::from_secs(100);
         let raw_lobby = || {
             discovery::Lobby::from([(
                 identity::RoomName::from("r"),
                 discovery::LobbyRoom {
                     room_size: discovery::RoomSize::DEFAULT,
-                    created_at: time::UnixTime::from(0),
+                    created_at: time::UnixTime::EPOCH,
                     members: BTreeMap::from([(
                         identity::PeerId::from("holder"),
                         discovery::RoomMember {
@@ -82,13 +83,14 @@ mod tests {
             )])
         };
         let _ = state.handle_lobby(raw_lobby(), seen_at);
-        let dropped = drop_lobby_members_whose_lease_lapsed(&mut state, time::UnixTime::from(500));
+        let dropped =
+            drop_lobby_members_whose_lease_lapsed(&mut state, time::UnixTime::from_secs(500));
         assert_eq!(
             dropped,
             vec![Output::Notify(discovery::Event::LobbyUpdated)]
         );
         assert!(state.lobby.is_empty());
-        let outputs = state.handle_lobby(raw_lobby(), time::UnixTime::from(500));
+        let outputs = state.handle_lobby(raw_lobby(), time::UnixTime::from_secs(500));
         assert!(state.lobby.is_empty());
         assert_eq!(outputs, Vec::new());
     }
@@ -105,12 +107,12 @@ mod tests {
         };
         let room = identity::RoomName::from("r");
         let holder = identity::PeerId::from("holder");
-        let remote_updated_at = time::UnixTime::from(100);
+        let remote_updated_at = time::UnixTime::from_secs(100);
         state.lobby = discovery::Lobby::from([(
             room.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(0),
+                created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(
                     holder.clone(),
                     discovery::RoomMember {
@@ -129,10 +131,11 @@ mod tests {
             (room, holder),
             discovery::state_machine::ObservedLobbyHeartbeat {
                 remote_updated_at,
-                first_seen_locally_at: time::UnixTime::from(100),
+                first_seen_locally_at: time::UnixTime::from_secs(100),
             },
         );
-        let outputs = drop_lobby_members_whose_lease_lapsed(&mut state, time::UnixTime::from(500));
+        let outputs =
+            drop_lobby_members_whose_lease_lapsed(&mut state, time::UnixTime::from_secs(500));
         assert!(state.lobby.is_empty());
         assert_eq!(
             outputs,

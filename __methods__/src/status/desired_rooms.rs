@@ -29,7 +29,7 @@ mod tests {
             room.clone(),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from(10),
+                created_at: time::UnixTime::from_secs(10),
                 members: BTreeMap::new(),
             },
         );

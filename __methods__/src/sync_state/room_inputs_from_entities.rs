@@ -21,9 +21,9 @@ pub fn room_inputs_from_entities<Op>(
     let current = current_room_entity.and_then(|entity| {
         let (room_name, prefix, liveness, members) = room_details.get(entity).ok()?;
         let room_name = (**room_name).clone();
-        let prefix = prefix.cloned().unwrap_or_else(|| {
-            p2p::HistoryKeyPrefix::new(game, &room_name, time::UnixTime::from(0))
-        });
+        let prefix = prefix
+            .cloned()
+            .unwrap_or_else(|| p2p::HistoryKeyPrefix::new(game, &room_name, time::UnixTime::EPOCH));
         let liveness = liveness
             .copied()
             .unwrap_or(room_sync::state_machine::RoomLiveness {
@@ -180,7 +180,7 @@ mod tests {
     fn test_usage() {
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room");
-        let prefix = p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from(7));
+        let prefix = p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from_secs(7));
         let liveness = room_sync::state_machine::RoomLiveness {
             is_room_still_listed: true,
             has_other_history_holders: true,
