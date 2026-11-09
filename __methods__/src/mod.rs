@@ -48,8 +48,6 @@ pub mod room_history_record_kind;
 pub mod runner_config;
 #[cfg(feature = "testing")]
 pub mod script_runner;
-#[cfg(feature = "discovery")]
-pub mod status;
 pub mod swarm_channels;
 pub mod swarm_loop_state;
 #[cfg(feature = "testing")]

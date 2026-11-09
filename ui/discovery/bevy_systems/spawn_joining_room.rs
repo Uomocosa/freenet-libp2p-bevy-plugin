@@ -2,14 +2,19 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use crate::ui;
+use discovery::state_machine::DiscoveryState;
 use ui::discovery::{JoiningRoomRoot, Screen};
 
-pub fn spawn_joining_room(mut commands: Commands, status: Res<discovery::Status>) {
-    let status = status.into_inner();
-    let label = status.room.as_ref().map_or_else(
-        || String::from("Joining room..."),
-        |room| format!("Joining room {}...", room.name.as_str()),
-    );
+pub fn spawn_joining_room(mut commands: Commands, state: Option<Res<DiscoveryState>>) {
+    let label = state
+        .and_then(|state| {
+            state
+                .into_inner()
+                .room
+                .as_ref()
+                .map(|room| format!("Joining room {}...", room.name.as_str()))
+        })
+        .unwrap_or_else(|| String::from("Joining room..."));
     commands.spawn((
         JoiningRoomRoot,
         DespawnOnExit(Screen::JoiningRoom),
@@ -32,12 +37,14 @@ mod tests {
     use super::spawn_joining_room;
     use crate::discovery;
     use crate::identity;
+    use crate::testing;
     use crate::time;
     use crate::ui;
+    use discovery::state_machine::DiscoveryState;
 
-    fn snapshot_in(room: &str) -> discovery::Status {
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+    fn snapshot_in(room: &str) -> DiscoveryState {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Joining {
@@ -45,9 +52,8 @@ mod tests {
                 },
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..Default::default()
-        }
+            })
+            .build()
     }
 
     fn label(app: &mut App) -> String {

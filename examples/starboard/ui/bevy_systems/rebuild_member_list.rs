@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::discovery;
 
 use crate::starboard;
@@ -6,17 +7,17 @@ use crate::starboard;
 pub fn rebuild_member_list(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     brushes: Res<starboard::room::RoomBrushes>,
     mut panels: Query<&mut Node, With<starboard::ui::MemberPanel>>,
     list: Single<Entity, With<starboard::ui::MemberList>>,
 ) {
-    let is_status_changed = status.is_changed();
+    let is_state_changed = state.as_ref().is_some_and(Res::is_changed);
     let is_brushes_changed = brushes.is_changed();
-    let status = status.into_inner();
     let brushes = brushes.into_inner();
     let list = list.into_inner();
-    let is_shown = starboard::room::is_in_room(status);
+    let state = state.map(Res::into_inner);
+    let is_shown = state.is_some_and(starboard::room::is_in_room);
     for mut panel in &mut panels {
         let wanted = if is_shown {
             Display::Flex
@@ -27,10 +28,13 @@ pub fn rebuild_member_list(
             panel.display = wanted;
         }
     }
-    if !is_status_changed && !is_brushes_changed {
+    if !is_state_changed && !is_brushes_changed {
         return;
     }
-    let Some(room) = status.room.as_ref() else {
+    let Some(state) = state else {
+        return;
+    };
+    let Some(room) = state.room.as_ref() else {
         return;
     };
     commands
@@ -65,7 +69,7 @@ pub fn rebuild_member_list(
                         ));
                     }
                     row.spawn((
-                        Text::new(starboard::room::member_name(status, peer)),
+                        Text::new(starboard::room::member_name(state, peer)),
                         TextLayout::no_wrap(),
                     ));
                 });
@@ -83,13 +87,14 @@ fn icon_image(brush: starboard::identity::DailyBrush) -> Image {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
 
     use super::rebuild_member_list;
     use crate::starboard;
 
-    fn room_status(peers: usize) -> discovery::Status {
+    fn room_status(peers: usize) -> DiscoveryState {
         let mut members = discovery::Members::new();
         for index in 0..peers {
             members.insert(
@@ -105,25 +110,24 @@ mod tests {
                 },
             );
         }
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::from_secs(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        }
+            })
+            .build()
     }
 
-    fn room_brushes(status: &discovery::Status) -> starboard::room::RoomBrushes {
-        let members = status
+    fn room_brushes(state: &DiscoveryState) -> starboard::room::RoomBrushes {
+        let members = state
             .room
             .as_ref()
             .map(|room| room.members.clone())
             .unwrap_or_default();
-        let created_at = status
+        let created_at = state
             .room
             .as_ref()
             .map_or(time::UnixTime::EPOCH, |room| room.created_at);
@@ -149,7 +153,7 @@ mod tests {
     fn four_peers(world: &mut World) {
         let status = room_status(4);
         let brushes = room_brushes(&status);
-        *world.resource_mut::<discovery::Status>() = status;
+        *world.resource_mut::<DiscoveryState>() = status;
         *world.resource_mut::<starboard::room::RoomBrushes>() = brushes;
     }
 

@@ -24,7 +24,7 @@ mod tests {
     use crate::identity;
     use crate::testing;
 
-    fn viewed(status: &discovery::Status) -> testing::E2EStepView<'_> {
+    fn viewed(status: &discovery::state_machine::DiscoveryState) -> testing::E2EStepView<'_> {
         testing::E2EStepView {
             status,
             join_error: None,
@@ -34,7 +34,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let status = discovery::Status::default();
+        let status = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         assert_eq!(
             join_failure_reason(&viewed(&status), &identity::RoomName::from("room-1")),
             None
@@ -47,10 +47,9 @@ mod tests {
             join_failure_reason(&failed, &identity::RoomName::from("room-1")),
             Some("gone".to_string())
         );
-        let fetched = discovery::Status {
-            is_lobby_fetched: true,
-            ..discovery::Status::default()
-        };
+        let fetched = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .lobby_fetched()
+            .build();
         assert_eq!(
             join_failure_reason(&viewed(&fetched), &identity::RoomName::from("room-1")),
             Some("room room-1 no longer exists".to_string())

@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::discovery;
 use crate::identity;
 use crate::p2p;
+use crate::room_sync;
 use crate::time;
 use bevy::prelude::Resource;
 use discovery::state_machine::{Handshake, HeartbeatTarget, Input, ObservedLobbyHeartbeat, Output};
@@ -149,6 +150,25 @@ impl DiscoveryState {
 
 #[rustfmt::skip]
 impl DiscoveryState {
+    #[must_use]
+    pub fn peer_connection_status(
+        &self,
+        peer: &identity::PeerId,
+    ) -> p2p::PeerConnectionStatus {
+        if self.connected.contains(peer) {
+            p2p::PeerConnectionStatus::Connected
+        } else {
+            p2p::PeerConnectionStatus::NotConnected
+        }
+    }
+
+    pub fn connected_members(&self) -> impl Iterator<Item = &identity::PeerId> {
+        let room = self.room.as_ref();
+        self.connected
+            .iter()
+            .filter(move |peer| room.is_some_and(|room| room.members.contains_key(*peer)))
+    }
+
     pub fn add_candidates(
         &mut self,
         peers: impl IntoIterator<Item = identity::Peer>,
@@ -213,17 +233,6 @@ impl DiscoveryState {
         outputs.extend(self.dial_candidates(now));
         outputs
     }
-    #[must_use]
-    pub fn status(&self) -> discovery::Status {
-        discovery::Status {
-            lobby: self.lobby.clone(),
-            room: self.room.clone(),
-            connected: self.connected.clone(),
-            freenet_peers: self.freenet_peers.clone(),
-            is_lobby_fetched: self.is_lobby_fetched,
-            self_peer_id: Some(self.me.id.clone()),
-        }
-    }
     pub(crate) fn quit(&mut self, now: time::UnixTime) -> Vec<Output> {
         let outputs = self.leave(now);
         self.is_quitting = true;
@@ -249,7 +258,26 @@ impl DiscoveryState {
 #[atomic_delegates]
 impl DiscoveryState {
     pub(crate) fn apply_config(&mut self, config: &discovery::Config) {}
+    pub(crate) fn desired_membership(
+        state: &Self,
+        room_entity_by_name: &BTreeMap<identity::RoomName, bevy::prelude::Entity>,
+    ) -> (
+        BTreeMap<identity::PeerId, bevy::prelude::Entity>,
+        BTreeMap<identity::PeerId, BTreeSet<bevy::prelude::Entity>>,
+    ) {
+    }
+    pub(crate) fn desired_rooms(state: &Self) -> BTreeSet<identity::RoomName> {}
+    pub(crate) fn room_prefix_and_lobby_status(
+        state: Option<&Self>,
+        game: &identity::GameId,
+        room_name: &identity::RoomName,
+    ) -> (
+        p2p::HistoryKeyPrefix,
+        room_sync::state_machine::RoomLiveness,
+    ) {
+    }
 }
+
 #[cfg(test)]
 mod tests {
 
@@ -364,11 +392,10 @@ mod tests {
             id: identity::PeerId::from("me"),
             addrs: vec![identity::PeerAddr::from("/ip4/9")],
         });
-        let expected = discovery::Status {
-            self_peer_id: Some(identity::PeerId::from("me")),
-            ..discovery::Status::default()
-        };
-        assert_eq!(state.status(), expected);
+        assert_eq!(state.me.id, identity::PeerId::from("me"));
+        assert!(state.room.is_none());
+        assert!(state.lobby.is_empty());
+        assert!(!state.is_lobby_fetched);
     }
 
     #[test]

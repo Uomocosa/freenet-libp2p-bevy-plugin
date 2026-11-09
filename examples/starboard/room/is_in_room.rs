@@ -1,8 +1,9 @@
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::discovery;
 
 #[must_use]
-pub fn is_in_room(status: &discovery::Status) -> bool {
-    status
+pub fn is_in_room(state: &DiscoveryState) -> bool {
+    state
         .room
         .as_ref()
         .is_some_and(|room| room.phase == discovery::JoinPhase::Ready)
@@ -10,27 +11,32 @@ pub fn is_in_room(status: &discovery::Status) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use discovery::state_machine::DiscoveryState;
+    use freenet_libp2p_bevy_plugin::testing;
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::is_in_room;
 
-    fn status_with(phase: discovery::JoinPhase) -> discovery::Status {
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+    fn status_with(phase: discovery::JoinPhase) -> DiscoveryState {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        }
+            })
+            .build()
+    }
+
+    fn empty_state() -> DiscoveryState {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build()
     }
 
     #[test]
     fn test_usage() {
-        assert!(!is_in_room(&discovery::Status::default()));
+        assert!(!is_in_room(&empty_state()));
         assert!(!is_in_room(&status_with(discovery::JoinPhase::Joining {
             since: time::UnixTime::EPOCH
         })));

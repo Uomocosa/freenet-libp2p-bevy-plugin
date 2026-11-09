@@ -23,6 +23,9 @@ pub use action::Action;
 mod checkpoint_board;
 pub use checkpoint_board::CheckpointBoard;
 
+mod discovery_state_builder;
+pub use discovery_state_builder::DiscoveryStateBuilder;
+
 mod e2e_args;
 pub use e2e_args::E2EArgs;
 

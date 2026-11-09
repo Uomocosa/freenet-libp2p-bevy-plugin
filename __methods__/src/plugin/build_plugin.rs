@@ -9,7 +9,6 @@ use crate::room_sync;
 
 pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     let config = (**plugin).clone();
-    app.init_resource::<discovery::Status>();
     app.insert_resource(config);
     app.add_message::<discovery::Command>();
     app.add_message::<discovery::Event>();
@@ -43,7 +42,6 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
             discovery::bevy_systems::notify_outputs_to_events,
             discovery::bevy_systems::discovery_outputs_to_libp2p_commands,
             discovery::bevy_systems::publish_heartbeat_targets,
-            discovery::bevy_systems::refresh_status_from_discovery_state,
         )
             .in_set(StateMachineSystems::perform_outputs::<
                 discovery::state_machine::DiscoveryState,
@@ -52,7 +50,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.add_systems(
         Update,
         discovery::bevy_systems::project_status_to_entities
-            .after(discovery::bevy_systems::refresh_status_from_discovery_state)
+            .run_if(resource_exists::<discovery::state_machine::DiscoveryState>)
             .after(peers::bevy_systems::track_peer_connections)
             .before(peers::bevy_systems::despawn_orphan_peers)
             .before(peers::bevy_systems::despawn_orphan_rooms)
@@ -75,7 +73,6 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
             discovery::bevy_systems::notify_outputs_to_events,
             discovery::bevy_systems::discovery_outputs_to_libp2p_commands,
             discovery::bevy_systems::publish_heartbeat_targets,
-            discovery::bevy_systems::refresh_status_from_discovery_state,
         )
             .in_set(StateMachineSystems::perform_outputs::<
                 discovery::state_machine::DiscoveryState,
@@ -108,7 +105,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         let plugin = discovery::Plugin::new(discovery::Config::default());
         build_plugin(&plugin, &mut app);
-        assert!(app.world().get_resource::<discovery::Status>().is_some());
+        assert!(app.world().get_resource::<discovery::Config>().is_some());
     }
 
     fn app_with_swarm() -> App {

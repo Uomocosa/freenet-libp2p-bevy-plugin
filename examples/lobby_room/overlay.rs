@@ -1,7 +1,8 @@
 //! Status overlay: a top bar with the current room and its peers once joined.
-//! Reads `discovery::Status` only; the connecting spinner is the plugin's own screen.
+//! Reads `DiscoveryState` only; the connecting spinner is the plugin's own screen.
 #![allow(clippy::needless_pass_by_value)]
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
 use crate::shared::status;
@@ -94,13 +95,19 @@ fn spawn(mut commands: Commands) {
     ));
 }
 
-fn sync_visibility(status: Res<discovery::Status>, mut views: Query<&mut Node, With<RoomView>>) {
-    if !status.is_changed() {
+fn sync_visibility(
+    state: Option<Res<DiscoveryState>>,
+    mut views: Query<&mut Node, With<RoomView>>,
+) {
+    let Some(state) = state.as_ref() else {
+        return;
+    };
+    if !state.is_changed() {
         return;
     }
     for mut view in &mut views {
         view.display = display_for(
-            status
+            state
                 .room
                 .as_ref()
                 .is_some_and(|room| room.phase == discovery::JoinPhase::Ready),
@@ -110,19 +117,22 @@ fn sync_visibility(status: Res<discovery::Status>, mut views: Query<&mut Node, W
 
 fn sync_room_bar(
     mut commands: Commands,
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     local_user: Res<status::LocalUser>,
     mut title: Single<&mut Text, (With<RoomTitle>, Without<PeerCount>)>,
     mut count: Single<&mut Text, (With<PeerCount>, Without<RoomTitle>)>,
     list: Single<Entity, With<PeerList>>,
 ) {
-    if !status.is_changed() {
-        return;
-    }
-    let Some(room) = status.room.as_ref() else {
+    let Some(state) = state.as_ref() else {
         return;
     };
-    let connected = status.connected_members().count();
+    if !state.is_changed() {
+        return;
+    }
+    let Some(room) = state.room.as_ref() else {
+        return;
+    };
+    let connected = state.connected_members().count();
     **title = Text::new(format!(
         "Current room: {}   |   you: {}",
         room.name.as_str(),
@@ -137,7 +147,7 @@ fn sync_room_bar(
         .despawn_children()
         .with_children(|rows| {
             for (peer, member) in &room.members {
-                let dot = match status.peer_connection_status(peer) {
+                let dot = match state.peer_connection_status(peer) {
                     p2p::PeerConnectionStatus::Connected => CONNECTED_COLOR,
                     p2p::PeerConnectionStatus::NotConnected => LOST_COLOR,
                 };
@@ -162,7 +172,7 @@ fn sync_room_bar(
                         ),
                         (Text::new(peer_label(peer, member)), TextLayout::no_wrap(),),
                         (
-                            Text::new(status_word(status.peer_connection_status(peer))),
+                            Text::new(status_word(state.peer_connection_status(peer))),
                             TextColor(DIM_COLOR),
                             TextLayout::no_wrap(),
                         ),
@@ -205,13 +215,17 @@ fn short_peer(full: &str) -> String {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use discovery::state_machine::DiscoveryState;
+    use freenet_libp2p_bevy_plugin::testing;
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
     use super::{Overlay, PeerCard, PeerCount, PeerList, RoomBar, RoomTitle, RoomView, short_peer};
 
     fn preview_build(app: &mut App) {
-        app.insert_resource(discovery::Status::default());
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build(),
+        );
         app.insert_resource(crate::shared::status::LocalUser(identity::Username::from(
             "alice",
         )));
@@ -220,7 +234,7 @@ mod tests {
     }
 
     fn join_first_room(world: &mut World) {
-        world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
+        world.resource_mut::<DiscoveryState>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("alpha"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
@@ -232,13 +246,13 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn join_room(world: &mut World) {
-        let mut status = world.resource_mut::<discovery::Status>();
-        status.freenet_peers = vec![identity::FreenetPeer {
+        let mut state = world.resource_mut::<DiscoveryState>();
+        state.freenet_peers = vec![identity::FreenetPeer {
             id: identity::FreenetPeerId::from("gateway"),
             addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
         }];
         let mut members = discovery::Members::new();
-        for (peer, name, status) in [
+        for (peer, name, _status) in [
             (
                 "12D3KooWbob000Kd2a",
                 Some("bob"),
@@ -268,7 +282,7 @@ mod tests {
                 },
             );
         }
-        status.room = Some(discovery::JoinedRoom {
+        state.room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("gamma"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,

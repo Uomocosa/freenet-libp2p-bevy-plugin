@@ -28,7 +28,7 @@ pub struct E2EStepPoll {
 }
 
 pub struct E2EStepView<'a> {
-    pub status: &'a discovery::Status,
+    pub status: &'a discovery::state_machine::DiscoveryState,
     pub join_error: Option<&'a str>,
     pub room_message_senders: usize,
 }

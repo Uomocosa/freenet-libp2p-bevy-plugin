@@ -125,15 +125,13 @@ fn run_starboard(
         app.insert_resource(script_runner::StarboardScriptRunner::new(steps));
         app.add_systems(
             Update,
-            testing::bevy_systems::run_script::<script::StarboardStep>
-                .after(discovery::bevy_systems::refresh_status_from_discovery_state)
-                .before(
-                    shared::intent::script_input::<
-                        ui::discovery::RoomNameInput,
-                        ui::discovery::CreateRoomButton,
-                        ui::discovery::RoomButton,
-                    >,
-                ),
+            testing::bevy_systems::run_script::<script::StarboardStep>.before(
+                shared::intent::script_input::<
+                    ui::discovery::RoomNameInput,
+                    ui::discovery::CreateRoomButton,
+                    ui::discovery::RoomButton,
+                >,
+            ),
         );
     }
     app.add_systems(

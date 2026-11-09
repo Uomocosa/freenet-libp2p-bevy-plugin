@@ -60,7 +60,6 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
         app.add_message::<discovery::Command>();
-        app.init_resource::<discovery::Status>();
         build_plugin(&ui::discovery::DefaultUiPlugin, &mut app);
         super::super::finish_plugin(&ui::discovery::DefaultUiPlugin, &mut app);
         app.update();

@@ -4,25 +4,30 @@ use bevy::ui_widgets::Button;
 
 use crate::discovery;
 use crate::ui;
+use discovery::state_machine::DiscoveryState;
 use ui::discovery::basic::constants::ROOM_COLOR;
 use ui::discovery::{HoverGlow, RoomButton, RoomList, RoomRow};
 
 pub fn rebuild_room_list(
     mut commands: Commands,
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     list: Single<(Entity, Ref<RoomList>)>,
     mut shown: Local<Vec<RoomRow>>,
 ) {
-    let status = status.into_inner();
-    let wanted: Vec<RoomRow> = status
-        .lobby
-        .iter()
-        .map(|(name, record)| RoomRow {
-            name: name.clone(),
-            members: record.members.len(),
-            room_size: record.room_size,
+    let wanted: Vec<RoomRow> = state
+        .map(|state| {
+            state
+                .into_inner()
+                .lobby
+                .iter()
+                .map(|(name, record)| RoomRow {
+                    name: name.clone(),
+                    members: record.members.len(),
+                    room_size: record.room_size,
+                })
+                .collect()
         })
-        .collect();
+        .unwrap_or_default();
     let (list, marker) = list.into_inner();
     if *shown == wanted && !marker.is_added() {
         return;
@@ -62,14 +67,16 @@ mod tests {
 
     use super::rebuild_room_list;
     use crate::discovery;
+    use crate::testing;
     use crate::time;
+    use discovery::state_machine::DiscoveryState;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        let mut status = discovery::Status::default();
+        let mut lobby = discovery::Lobby::default();
         for name in ["alpha", "beta"] {
-            status.lobby.insert(
+            lobby.insert(
                 identity::RoomName::from(name),
                 discovery::LobbyRoom {
                     room_size: discovery::RoomSize::DEFAULT,
@@ -78,7 +85,10 @@ mod tests {
                 },
             );
         }
-        app.insert_resource(status);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build();
+        app.insert_resource(state);
         app.world_mut().spawn(ui::discovery::RoomList);
         app.add_systems(Update, rebuild_room_list);
         app.update();
@@ -97,10 +107,10 @@ mod tests {
         app.add_systems(Update, rebuild_room_list);
     }
 
-    fn preview_snapshot() -> discovery::Status {
-        let mut status = discovery::Status::default();
+    fn preview_snapshot() -> DiscoveryState {
+        let mut lobby = discovery::Lobby::default();
         for (name, room_size) in [("alpha", 8), ("beta", 4)] {
-            status.lobby.insert(
+            lobby.insert(
                 identity::RoomName::from(name),
                 discovery::LobbyRoom {
                     room_size: discovery::RoomSize::try_from(room_size)
@@ -110,7 +120,9 @@ mod tests {
                 },
             );
         }
-        status
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build()
     }
 
     fn spawn_list(mut commands: Commands) {
@@ -131,8 +143,8 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn add_room(world: &mut World) {
-        let mut status = world.resource_mut::<discovery::Status>();
-        status.lobby.insert(
+        let mut state = world.resource_mut::<DiscoveryState>();
+        state.lobby.insert(
             identity::RoomName::from("gamma"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::try_from(4).expect("fixture room size is non-zero"),

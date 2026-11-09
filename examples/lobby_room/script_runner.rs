@@ -1,5 +1,7 @@
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
+use freenet_libp2p_bevy_plugin::identity;
 use freenet_libp2p_bevy_plugin::testing::{PollableScriptStep, ScriptStep};
 use freenet_libp2p_bevy_plugin::{discovery, testing, ui};
 
@@ -25,7 +27,7 @@ impl ScriptStep for LobbyStep {
 
 #[derive(SystemParam)]
 pub struct LobbyStepParam<'w> {
-    status: Res<'w, discovery::Status>,
+    state: Option<Res<'w, DiscoveryState>>,
     join_error: Option<Res<'w, ui::discovery::JoinError>>,
     senders: Res<'w, ping::RoomMessageSenders>,
     ring: Res<'w, RingPeers>,
@@ -43,8 +45,10 @@ impl PollableScriptStep for LobbyStep {
         if matches!(step.0, testing::E2EStep::WaitRingJoined) {
             return ring_step_outcome(param.ring.get() > 0);
         }
+        let fallback = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
+        let view_status = param.state.as_deref().unwrap_or(&fallback);
         let view = testing::E2EStepView {
-            status: &param.status,
+            status: view_status,
             join_error: param
                 .join_error
                 .as_deref()
@@ -87,7 +91,6 @@ mod tests {
             .collect();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<discovery::Status>();
         app.init_resource::<RoomMessageSenders>();
         let ring = RingPeers::new();
         ring.set(ring_peers);
@@ -107,7 +110,6 @@ mod tests {
             .collect();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<discovery::Status>();
         app.init_resource::<RoomMessageSenders>();
         app.init_resource::<RingPeers>();
         app.insert_resource(testing::PendingAction::default());

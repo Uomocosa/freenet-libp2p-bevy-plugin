@@ -32,13 +32,14 @@ pub fn spawn_member_panel(mut commands: Commands) {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
 
     use super::spawn_member_panel;
     use crate::starboard;
 
-    fn room_status(peers: usize) -> discovery::Status {
+    fn room_status(peers: usize) -> DiscoveryState {
         let mut members = discovery::Members::new();
         for index in 0..peers {
             members.insert(
@@ -54,25 +55,24 @@ mod tests {
                 },
             );
         }
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::from_secs(1),
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        }
+            })
+            .build()
     }
 
-    fn room_brushes(status: &discovery::Status) -> starboard::room::RoomBrushes {
-        let members = status
+    fn room_brushes(state: &DiscoveryState) -> starboard::room::RoomBrushes {
+        let members = state
             .room
             .as_ref()
             .map(|room| room.members.clone())
             .unwrap_or_default();
-        let created_at = status
+        let created_at = state
             .room
             .as_ref()
             .map_or(time::UnixTime::EPOCH, |room| room.created_at);

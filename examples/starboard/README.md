@@ -78,7 +78,7 @@ leaves.
 Freenet lobby contract (contract/lobby, src/discovery)
         │  room name, members, created_at
         ▼
-discovery::Status ──joined──► p2p gossipsub room topic (src/p2p)
+DiscoveryState ──joined──► p2p gossipsub room topic (src/p2p)
         │                         │ CursorUpdate, ~30 Hz, lossy
         │                         ▼
         └──────────────► room_sync::SyncPlugin<Canvas> (src/room_sync)

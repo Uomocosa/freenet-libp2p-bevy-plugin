@@ -306,7 +306,7 @@ the 5 instances logged `p2p room subscribed room=room-1792234085` 33–45 ms aft
   it into the swarm loop. The example passes one `game` to both plugins so the topic
   namespace and the lobby namespace cannot drift.
 - **The test seam needs no `cfg(test)`/dev feature.** Headless injection is just the
-  normal plugin boundary: write the `discovery::Status` resource (it already holds
+  normal plugin boundary: write the `DiscoveryState` resource (it already holds
   `room.members`) and write `discovery::Event` messages. A5/A6/B5 reuse it; starboard
   bins and `lobby_room` receive real events instead.
 - **`NetEvent::Gossip` is kept** for unregistered topics (raw bytes). `NetCommand::
@@ -406,7 +406,7 @@ Goal: reusable plumbing so any app can keep a replicated CRDT state per room.
 > Decision (A5 design): `PendingOps<S>` ships ops on its **own raw gossip topic**
 > `<game>/room/<room>/sync` (app's `T` stays free on the room topic); snapshots go over a
 > **new request/response behaviour** (`/<game>/room-sync/1`) with distinct request/response
-> frames. The member set comes from `discovery::Status`, not from the swarm loop.
+> frames. The member set comes from `DiscoveryState`, not from the swarm loop.
 
 - [x] `ReplicatedState` trait (`Op`/`Snapshot`, `apply`/`snapshot`/`merge`) and a
       `SyncPlugin<S>` owning `Resource<S>` and a `LamportClock` resource (`tick`,
@@ -461,7 +461,7 @@ then gives up (draining buffered ops). Unit test:
 
 **Deviations / decisions:**
 - **Removed the swarm-loop member map.** `NetCommand::SetRoomMembers`, `RoomMembers` and
-  `sync_room_members` were dropped: the reducer reads members from `discovery::Status`, so
+  `sync_room_members` were dropped: the reducer reads members from `DiscoveryState`, so
   the loop-side map was write-only state. The plugin is discovery-*optional*
   (`Option<Res<Snapshot>>`, `Option<MessageReader<Event>>`).
 - **Snapshot parts recompute per `Fetch{part}`**, split by the `PART_BYTES` constant (48 KiB)
@@ -1127,7 +1127,7 @@ previews: `sync_board_visibility_ui_png_preview` (board + leave door, then the l
 has no e2e box); the 2-app test wires peers by direct dial, which §0.8 allows.
 
 **Deviations / decisions:**
-- **Gating is `discovery::Status`, not `Screen`.** The approved option was
+- **Gating is `DiscoveryState`, not `Screen`.** The approved option was
   `in_state(Screen::InRoom)`, but the preview harness installs `DefaultPlugins` *after*
   `Scene::build`, so `init_state`/`insert_state` cannot run where the previews need it, and
   `lele-bevy-lint` requires each file's preview to name its own system (so the previews

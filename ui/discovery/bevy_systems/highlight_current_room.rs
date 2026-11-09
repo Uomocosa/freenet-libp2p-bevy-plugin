@@ -2,12 +2,13 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use crate::ui;
+use discovery::state_machine::DiscoveryState;
 use ui::discovery::basic::constants::{CURRENT_ROOM_COLOR, ROOM_COLOR};
 use ui::discovery::{IsCurrentRoom, RoomButton};
 
 pub fn highlight_current_room(
     mut commands: Commands,
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     mut rows: Query<(
         Entity,
         &RoomButton,
@@ -15,10 +16,15 @@ pub fn highlight_current_room(
         Option<&IsCurrentRoom>,
     )>,
 ) {
-    let status = status.into_inner();
-    let current = status.room.as_ref().map(|room| &room.name);
+    let current = state.and_then(|state| {
+        state
+            .into_inner()
+            .room
+            .as_ref()
+            .map(|room| room.name.clone())
+    });
     for (entity, button, mut background, marker) in &mut rows {
-        let is_current = current.is_some_and(|room| *room == **button);
+        let is_current = current.as_ref().is_some_and(|room| *room == **button);
         let color = if is_current {
             CURRENT_ROOM_COLOR
         } else {
@@ -45,28 +51,28 @@ mod tests {
     use bevy::prelude::*;
     use bevy::ui_widgets::Button;
 
+    use super::highlight_current_room;
     use crate::discovery;
     use crate::identity;
+    use crate::testing;
     use crate::time;
     use crate::ui;
-
-    use super::highlight_current_room;
+    use discovery::state_machine::DiscoveryState;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
         let room = identity::RoomName::from("alpha");
-        let status = discovery::Status {
-            room: Some(discovery::JoinedRoom {
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: room.clone(),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..Default::default()
-        };
-        app.insert_resource(status);
+            })
+            .build();
+        app.insert_resource(state);
         let entity = app
             .world_mut()
             .spawn((
@@ -83,17 +89,16 @@ mod tests {
         );
     }
 
-    fn preview_snapshot(room: &str) -> discovery::Status {
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+    fn preview_snapshot(room: &str) -> DiscoveryState {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from(room),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..Default::default()
-        }
+            })
+            .build()
     }
 
     fn spawn_rows(mut commands: Commands) {
@@ -126,7 +131,7 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn pick_beta(world: &mut World) {
-        world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
+        world.resource_mut::<DiscoveryState>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("beta"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,

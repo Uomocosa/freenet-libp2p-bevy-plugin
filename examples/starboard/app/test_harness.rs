@@ -2,8 +2,9 @@ use std::time::Duration;
 
 use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::time;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, room_sync};
+use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, room_sync, testing};
 
 use crate::starboard;
 
@@ -37,7 +38,7 @@ pub fn node_with(game: &identity::GameId, history: Option<room_sync::HistoryConf
     app
 }
 
-pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) -> discovery::Status {
+pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) -> DiscoveryState {
     let connected = members.iter().cloned().collect();
     let mut room_members = discovery::Members::new();
     for peer in members {
@@ -54,17 +55,16 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
             },
         );
     }
-    discovery::Status {
-        room: Some(discovery::JoinedRoom {
+    testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+        .with_connected(connected)
+        .in_room(discovery::JoinedRoom {
             name: room.clone(),
             created_at: time::UnixTime::from_secs(1),
             phase: discovery::JoinPhase::Ready,
             members: room_members,
             how_entered: discovery::HowRoomWasEntered::Created,
-        }),
-        connected,
-        ..discovery::Status::default()
-    }
+        })
+        .build()
 }
 
 pub fn join(app: &mut App, room: &identity::RoomName, members: Vec<identity::PeerId>) {

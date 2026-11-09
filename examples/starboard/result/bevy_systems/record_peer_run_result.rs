@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, p2p};
 
 use crate::peer_run_result::PeerRunResult;
@@ -7,7 +8,7 @@ use crate::starboard;
 
 pub fn record_peer_run_result(
     time: Res<Time>,
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     canvas: Res<starboard::canvas::Canvas>,
     runner: Res<StarboardScriptRunner>,
     channel: Res<p2p::Libp2pEventChannel>,
@@ -15,7 +16,7 @@ pub fn record_peer_run_result(
     mut result: ResMut<PeerRunResult>,
 ) {
     let time = time.into_inner();
-    let status = status.into_inner();
+    let state = state.map(Res::into_inner);
     let canvas = canvas.into_inner();
     let runner = runner.into_inner();
     let channel = channel.into_inner();
@@ -43,26 +44,26 @@ pub fn record_peer_run_result(
             }
         }
     }
-    if let Some(room) = status.room.as_ref() {
-        for peer in room.members.keys() {
-            result.members_seen.insert(peer.clone());
+    if let Some(state) = state.as_ref() {
+        if let Some(room) = state.room.as_ref() {
+            for peer in room.members.keys() {
+                result.members_seen.insert(peer.clone());
+            }
+            result.members_seen.insert(state.me.id.clone());
         }
-        if let Some(me) = status.self_peer_id.as_ref() {
-            result.members_seen.insert(me.clone());
+        if state.is_lobby_fetched && result.freenet.lobby_fetched_after_secs.is_none() {
+            result.freenet.lobby_fetched_after_secs = Some(time.elapsed_secs_f64());
+        }
+        result.freenet.freenet_peers_seen = result
+            .freenet
+            .freenet_peers_seen
+            .max(state.freenet_peers.len());
+        if starboard::room::is_in_room(state) {
+            result.canvas_hash = Some(starboard::canvas::hash_canvas(canvas));
+            result.tiles = canvas.tiles.iter().filter(|tile| tile.is_some()).count();
         }
     }
-    if status.is_lobby_fetched && result.freenet.lobby_fetched_after_secs.is_none() {
-        result.freenet.lobby_fetched_after_secs = Some(time.elapsed_secs_f64());
-    }
-    result.freenet.freenet_peers_seen = result
-        .freenet
-        .freenet_peers_seen
-        .max(status.freenet_peers.len());
     result.steps.clone_from(&runner.finished_step_timings);
-    if starboard::room::is_in_room(status) {
-        result.canvas_hash = Some(starboard::canvas::hash_canvas(canvas));
-        result.tiles = canvas.tiles.iter().filter(|tile| tile.is_some()).count();
-    }
     result.error = runner
         .finished_step_timings
         .iter()
@@ -74,7 +75,7 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, testing};
 
     use super::record_peer_run_result;
     use crate::peer_run_result::PeerRunResult;
@@ -87,7 +88,6 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.init_resource::<Time>();
-        app.init_resource::<discovery::Status>();
         app.init_resource::<starboard::canvas::Canvas>();
         app.init_resource::<p2p::Libp2pEventChannel>();
         let steps = ["sleep:1s"]
@@ -140,9 +140,11 @@ mod tests {
         app.world_mut()
             .resource_mut::<Time>()
             .advance_by(Duration::from_secs(2));
-        app.world_mut()
-            .resource_mut::<discovery::Status>()
-            .is_lobby_fetched = true;
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
         app.update();
         let first = app
             .world()
@@ -181,15 +183,16 @@ mod tests {
             },
         );
         {
-            let mut status = app.world_mut().resource_mut::<discovery::Status>();
-            status.room = Some(discovery::JoinedRoom {
-                name: identity::RoomName::from("room-1"),
-                created_at: time::UnixTime::from_secs(1),
-                phase: discovery::JoinPhase::Ready,
-                members,
-                how_entered: discovery::HowRoomWasEntered::Joined,
-            });
-            status.self_peer_id = Some(me.clone());
+            let state = testing::DiscoveryStateBuilder::new(me.clone())
+                .in_room(discovery::JoinedRoom {
+                    name: identity::RoomName::from("room-1"),
+                    created_at: time::UnixTime::from_secs(1),
+                    phase: discovery::JoinPhase::Ready,
+                    members,
+                    how_entered: discovery::HowRoomWasEntered::Joined,
+                })
+                .build();
+            app.insert_resource(state);
         }
         app.update();
         let result = app.world().resource::<PeerRunResult>();

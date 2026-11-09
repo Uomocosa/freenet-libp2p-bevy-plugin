@@ -1,8 +1,9 @@
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, identity};
 
 #[must_use]
-pub fn member_name(status: &discovery::Status, peer: &identity::PeerId) -> String {
-    status
+pub fn member_name(state: &DiscoveryState, peer: &identity::PeerId) -> String {
+    state
         .room
         .as_ref()
         .and_then(|room| room.members.get(peer))
@@ -12,6 +13,8 @@ pub fn member_name(status: &discovery::Status, peer: &identity::PeerId) -> Strin
 
 #[cfg(test)]
 mod tests {
+    use discovery::state_machine::DiscoveryState;
+    use freenet_libp2p_bevy_plugin::testing;
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
@@ -33,18 +36,17 @@ mod tests {
                 membership: discovery::RoomMembership::Occupant,
             },
         );
-        let status = discovery::Status {
-            room: Some(discovery::JoinedRoom {
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        };
-        assert_eq!(member_name(&status, &peer), "ada");
+            })
+            .build();
+        assert_eq!(member_name(&state, &peer), "ada");
         let stranger = identity::PeerId::from("peer-z");
-        assert_eq!(member_name(&status, &stranger), "peer-z");
+        assert_eq!(member_name(&state, &stranger), "peer-z");
     }
 }

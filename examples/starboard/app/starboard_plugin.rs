@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, room_sync};
 
 use crate::starboard;
@@ -8,7 +9,8 @@ pub struct StarboardPlugin;
 impl Plugin for StarboardPlugin {
     fn build(&self, app: &mut App) {
         use starboard::{input, render, room, ui};
-        let in_room = |status: Res<discovery::Status>| room::is_in_room(&status);
+        let in_room =
+            |state: Option<Res<DiscoveryState>>| state.as_deref().is_some_and(room::is_in_room);
         app.init_resource::<starboard::canvas::Canvas>()
             .init_resource::<render::CanvasView>()
             .init_resource::<input::OwnBrush>()
@@ -62,23 +64,23 @@ mod tests {
     use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, ReplicatedState};
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
 
     use super::StarboardPlugin;
     use crate::starboard;
     use crate::starboard::app::test_harness;
+    use discovery::state_machine::DiscoveryState;
 
-    fn ready_status() -> discovery::Status {
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+    fn ready_status() -> DiscoveryState {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        }
+            })
+            .build()
     }
 
     fn preview_build(app: &mut App) {

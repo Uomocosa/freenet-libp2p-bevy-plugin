@@ -32,6 +32,6 @@ mod tests {
         let plugin = discovery::Plugin::new(discovery::Config::default());
         app.add_plugins(plugin);
         app.update();
-        assert!(app.world().get_resource::<discovery::Status>().is_some());
+        assert!(app.world().get_resource::<discovery::Config>().is_some());
     }
 }

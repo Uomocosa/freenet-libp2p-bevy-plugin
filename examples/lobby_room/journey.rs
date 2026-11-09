@@ -1,7 +1,7 @@
 //! End-to-end UI preview of the whole `lobby_room` passage, with a fake discovery backend:
 //! app start (plugin connecting screen) -> freenet node reachable + lobby listed -> click Join
 //! on a room -> peers arrive one by one -> hover the leave door -> click it, answer No
-//! -> press Esc, answer Yes -> back in the lobby. Only `discovery::Status` is faked; the click
+//! -> press Esc, answer Yes -> back in the lobby. Only `DiscoveryState` is faked; the click
 //! goes through the plugin's real `ui::discovery::DefaultUiPlugin` button path and the
 //! real `discovery::Command`.
 
@@ -10,6 +10,8 @@ mod tests {
     use bevy::picking::hover::Hovered;
     use bevy::prelude::*;
     use bevy::ui::Pressed;
+    use discovery::state_machine::DiscoveryState;
+    use freenet_libp2p_bevy_plugin::testing;
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity, ui};
 
@@ -44,7 +46,9 @@ mod tests {
 
     fn preview_build(app: &mut App) {
         app.add_message::<discovery::Command>();
-        app.insert_resource(discovery::Status::default());
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build(),
+        );
         app.insert_resource(status::LocalUser(identity::Username::from("alice")));
         app.init_resource::<ButtonInput<KeyCode>>();
         app.add_plugins((ui::discovery::DefaultUiPlugin, overlay::Overlay));
@@ -143,12 +147,12 @@ mod tests {
     /// drops it
     fn fake_backend(
         mut commands: MessageReader<discovery::Command>,
-        mut status: ResMut<discovery::Status>,
+        mut state: ResMut<DiscoveryState>,
     ) {
         for command in commands.read() {
             match command {
                 discovery::Command::Join(name) => {
-                    status.room = Some(discovery::JoinedRoom {
+                    state.room = Some(discovery::JoinedRoom {
                         name: name.clone(),
                         created_at: time::UnixTime::EPOCH,
                         phase: discovery::JoinPhase::Ready,
@@ -156,27 +160,27 @@ mod tests {
                         how_entered: discovery::HowRoomWasEntered::Created,
                     });
                 }
-                discovery::Command::Leave => status.room = None,
+                discovery::Command::Leave => state.room = None,
                 _ => {}
             }
         }
     }
 
     fn node_reachable(world: &mut World) {
-        let mut status = world.resource_mut::<discovery::Status>();
-        status.freenet_peers = (0..1)
+        let mut state = world.resource_mut::<DiscoveryState>();
+        state.freenet_peers = (0..1)
             .map(|index| identity::FreenetPeer {
                 id: identity::FreenetPeerId::from(format!("gateway-{index}").as_str()),
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
             })
             .collect();
-        status.is_lobby_fetched = true;
+        state.is_lobby_fetched = true;
     }
 
     fn list_lobby(world: &mut World) {
-        let mut status = world.resource_mut::<discovery::Status>();
+        let mut state = world.resource_mut::<DiscoveryState>();
         for (name, room_size) in [("alpha", 8), ("beta", 4), (JOIN_ROOM, 8)] {
-            status.lobby.insert(
+            state.lobby.insert(
                 identity::RoomName::from(name),
                 discovery::LobbyRoom {
                     room_size: discovery::RoomSize::try_from(room_size)
@@ -209,8 +213,8 @@ mod tests {
         let Some((peer, name)) = PEERS.get(index) else {
             return;
         };
-        let mut status = world.resource_mut::<discovery::Status>();
-        let Some(room) = status.room.as_mut() else {
+        let mut state = world.resource_mut::<DiscoveryState>();
+        let Some(room) = state.room.as_mut() else {
             return;
         };
         room.members.insert(
@@ -240,7 +244,7 @@ mod tests {
 
     fn room_full(world: &mut World) {
         lobby_listed(world);
-        world.resource_mut::<discovery::Status>().room = Some(discovery::JoinedRoom {
+        world.resource_mut::<DiscoveryState>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from(JOIN_ROOM),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,

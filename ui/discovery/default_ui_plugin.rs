@@ -27,7 +27,9 @@ mod tests {
     use bevy::prelude::*;
 
     use crate::discovery;
+    use crate::testing;
     use crate::time;
+    use discovery::state_machine::DiscoveryState;
 
     fn preview_build(app: &mut App) {
         app.add_message::<discovery::Command>();
@@ -39,19 +41,16 @@ mod tests {
         );
     }
 
-    fn preview_snapshot() -> discovery::Status {
-        let mut status = discovery::Status {
-            freenet_peers: (1..=3_u16)
-                .map(|port| identity::FreenetPeer {
-                    id: identity::FreenetPeerId::from(format!("peer-{port}").as_str()),
-                    addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
-                })
-                .collect(),
-            is_lobby_fetched: true,
-            ..Default::default()
-        };
+    fn preview_snapshot() -> DiscoveryState {
+        let peers: Vec<identity::FreenetPeer> = (1..=3_u16)
+            .map(|port| identity::FreenetPeer {
+                id: identity::FreenetPeerId::from(format!("peer-{port}").as_str()),
+                addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+            })
+            .collect();
+        let mut lobby = discovery::Lobby::default();
         for (name, room_size) in [("alpha", 8), ("beta", 4)] {
-            status.lobby.insert(
+            lobby.insert(
                 identity::RoomName::from(name),
                 discovery::LobbyRoom {
                     room_size: discovery::RoomSize::try_from(room_size)
@@ -61,7 +60,11 @@ mod tests {
                 },
             );
         }
-        status
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_freenet_peers(peers)
+            .lobby_fetched()
+            .with_lobby(lobby)
+            .build()
     }
 
     const fn preview_noop(_world: &mut World) {}

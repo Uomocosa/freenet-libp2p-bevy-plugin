@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use derive_more::Deref;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 use serde::{Deserialize, Serialize};
 
@@ -21,14 +22,16 @@ pub fn publish_room_ping(
     time: Res<Time>,
     is_enabled: Res<IsRoomPingEnabled>,
     user: Res<status::LocalUser>,
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     mut commands: ResMut<p2p::PendingCommands<PingPayload>>,
     mut accumulator: Local<f32>,
 ) {
     let time = time.into_inner();
     let is_enabled = is_enabled.into_inner();
     let user = user.into_inner();
-    let status = status.into_inner();
+    let Some(state) = state.map(Res::into_inner) else {
+        return;
+    };
     if !**is_enabled {
         return;
     }
@@ -37,7 +40,7 @@ pub fn publish_room_ping(
         return;
     }
     *accumulator = 0.0;
-    let is_connected_in_room = status.connected_members().next().is_some();
+    let is_connected_in_room = state.connected_members().next().is_some();
     if is_connected_in_room {
         commands.push(p2p::Command::PublishInJoinedRoom {
             payload: PingPayload(user.0.clone()),
@@ -72,6 +75,8 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
+    use discovery::state_machine::DiscoveryState;
+    use freenet_libp2p_bevy_plugin::testing;
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
@@ -97,17 +102,17 @@ mod tests {
                 membership: discovery::RoomMembership::Occupant,
             },
         );
-        app.insert_resource(discovery::Status {
-            room: Some(discovery::JoinedRoom {
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            connected: [identity::PeerId::from("peer-b")].into_iter().collect(),
-            ..discovery::Status::default()
-        });
+            })
+            .with_connected(vec![identity::PeerId::from("peer-b")])
+            .build();
+        app.insert_resource(state);
         app.insert_resource(p2p::PendingCommands::<PingPayload>::default());
         app.insert_resource(p2p::PendingEvents(vec![p2p::Event::RoomMessage {
             room: identity::RoomName::from("alpha"),

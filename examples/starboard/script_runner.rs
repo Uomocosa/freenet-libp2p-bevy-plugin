@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, peers, testing, ui};
 
 use crate::friend_intent::FriendIntent;
@@ -22,7 +23,7 @@ pub type StarboardScriptRunner = testing::ScriptRunner<StarboardStep>;
 
 #[derive(SystemParam)]
 pub struct StarboardStepParam<'w, 's> {
-    status: Res<'w, discovery::Status>,
+    state: Option<Res<'w, DiscoveryState>>,
     join_error: Option<Res<'w, ui::discovery::JoinError>>,
     canvas: Res<'w, starboard::canvas::Canvas>,
     brush: Res<'w, starboard::input::OwnBrush>,
@@ -42,10 +43,12 @@ impl testing::PollableScriptStep for StarboardStep {
         clock: testing::StepClock,
         param: &mut Self::Param<'_, '_>,
     ) -> testing::StepOutcome {
+        let fallback = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
+        let state: &DiscoveryState = param.state.as_deref().unwrap_or(&fallback);
         match step {
             Self::Shared(shared) => {
                 let view = testing::E2EStepView {
-                    status: &param.status,
+                    status: state,
                     join_error: param
                         .join_error
                         .as_deref()
@@ -64,7 +67,7 @@ impl testing::PollableScriptStep for StarboardStep {
                     let outcome = draw_stroke(
                         action,
                         crate::script::to_canvas_stroke(*stroke),
-                        &param.status,
+                        state,
                         *param.brush,
                         &mut param.draws,
                     );
@@ -79,7 +82,7 @@ impl testing::PollableScriptStep for StarboardStep {
                     let outcome = draw_stroke(
                         starboard::canvas::DrawAction::Erase,
                         crate::script::to_canvas_stroke(*stroke),
-                        &param.status,
+                        state,
                         *param.brush,
                         &mut param.draws,
                     );
@@ -166,11 +169,11 @@ fn poll_dial(addrs: &str, param: &mut StarboardStepParam<'_, '_>) -> testing::St
 fn draw_stroke(
     action: starboard::canvas::DrawAction,
     stroke: starboard::canvas::Stroke,
-    status: &discovery::Status,
+    state: &DiscoveryState,
     brush: starboard::input::OwnBrush,
     draws: &mut MessageWriter<starboard::input::PendingLocalDraw>,
 ) -> testing::StepOutcome {
-    if !starboard::room::is_in_room(status) {
+    if !starboard::room::is_in_room(state) {
         return testing::StepOutcome::Failed("cannot draw outside a room".to_string());
     }
     draws.write(starboard::input::PendingLocalDraw(
@@ -237,7 +240,6 @@ mod tests {
             .collect();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<discovery::Status>();
         app.init_resource::<starboard::canvas::Canvas>();
         app.init_resource::<starboard::input::OwnBrush>();
         app.insert_resource(testing::PendingAction::default());

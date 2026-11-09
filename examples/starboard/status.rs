@@ -1,18 +1,21 @@
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::discovery;
 
 use crate::starboard;
 
 pub fn log_canvas_hash(
     time: Res<Time>,
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     canvas: Res<starboard::canvas::Canvas>,
     cursor: Res<starboard::input::CursorCell>,
     brush: Res<starboard::input::OwnBrush>,
     mut accumulator: Local<f32>,
 ) {
     let time = time.into_inner();
-    let status = status.into_inner();
+    let Some(state) = state.map(Res::into_inner) else {
+        return;
+    };
     let canvas = canvas.into_inner();
     let cursor = cursor.into_inner();
     let brush = brush.into_inner();
@@ -21,7 +24,7 @@ pub fn log_canvas_hash(
         return;
     }
     *accumulator = 0.0;
-    let Some(room) = status.room.as_ref() else {
+    let Some(room) = state.room.as_ref() else {
         return;
     };
     let cell = cursor.unwrap_or_default();

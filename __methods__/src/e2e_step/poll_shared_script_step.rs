@@ -115,7 +115,7 @@ mod tests {
         is_first_poll: true,
     };
 
-    fn view(status: &discovery::Status) -> testing::E2EStepView<'_> {
+    fn view(status: &discovery::state_machine::DiscoveryState) -> testing::E2EStepView<'_> {
         testing::E2EStepView {
             status,
             join_error: None,
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let status = discovery::Status::default();
+        let status = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let room = identity::RoomName::from("room-1");
         let poll = poll_shared_script_step(
             &testing::E2EStep::JoinRoom(room.clone()),
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn a_join_error_fails_the_join_wait_at_once() {
-        let status = discovery::Status::default();
+        let status = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let seen = testing::E2EStepView {
             join_error: Some("room gone"),
             ..view(&status)
@@ -162,10 +162,9 @@ mod tests {
 
     #[test]
     fn a_room_missing_from_the_fetched_lobby_is_a_failed_join() {
-        let status = discovery::Status {
-            is_lobby_fetched: true,
-            ..discovery::Status::default()
-        };
+        let status = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .lobby_fetched()
+            .build();
         let poll = poll_shared_script_step(
             &testing::E2EStep::WaitJoinFailed(identity::RoomName::from("room-1")),
             FIRST,
@@ -176,7 +175,7 @@ mod tests {
 
     #[test]
     fn exit_app_quits_once_then_waits_the_grace() {
-        let status = discovery::Status::default();
+        let status = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let first = poll_shared_script_step(&testing::E2EStep::ExitApp, FIRST, &view(&status));
         assert_eq!(
             first.effect,
@@ -196,7 +195,7 @@ mod tests {
 
     #[test]
     fn strictly_less_member_wait_completes_below_the_bound() {
-        let status = discovery::Status::default();
+        let status = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let alone = view(&status);
         let done = poll_shared_script_step(
             &testing::E2EStep::WaitMembersAreStrictlyLessThan(testing::MemberCount(2)),
@@ -214,7 +213,7 @@ mod tests {
 
     #[test]
     fn less_or_equal_member_wait_completes_at_the_bound() {
-        let status = discovery::Status::default();
+        let status = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let alone = view(&status);
         let done = poll_shared_script_step(
             &testing::E2EStep::WaitMembersAreLessOrEqualTo(testing::MemberCount(1)),
@@ -232,14 +231,13 @@ mod tests {
 
     #[test]
     fn lobby_ready_completes_once_the_lobby_is_fetched() {
-        let unfetched = discovery::Status::default();
+        let unfetched = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let pending =
             poll_shared_script_step(&testing::E2EStep::WaitLobbyReady, FIRST, &view(&unfetched));
         assert_eq!(pending.outcome, testing::StepOutcome::Pending);
-        let fetched = discovery::Status {
-            is_lobby_fetched: true,
-            ..discovery::Status::default()
-        };
+        let fetched = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .lobby_fetched()
+            .build();
         let done =
             poll_shared_script_step(&testing::E2EStep::WaitLobbyReady, FIRST, &view(&fetched));
         assert_eq!(done.outcome, testing::StepOutcome::Done);
@@ -247,7 +245,7 @@ mod tests {
 
     #[test]
     fn ring_joined_stays_pending_without_live_ring_count() {
-        let status = discovery::Status::default();
+        let status = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let poll =
             poll_shared_script_step(&testing::E2EStep::WaitRingJoined, FIRST, &view(&status));
         assert_eq!(poll.outcome, testing::StepOutcome::Pending);
@@ -290,7 +288,7 @@ mod tests {
             .with_ansi(false)
             .finish();
         tracing::subscriber::with_default(subscriber, || {
-            let status = discovery::Status::default();
+            let status = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
             let poll = poll_shared_script_step(
                 &testing::E2EStep::MarkCompleted(testing::ScriptCheckpoint::new("probe")),
                 FIRST,

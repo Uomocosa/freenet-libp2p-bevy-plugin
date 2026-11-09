@@ -1,19 +1,22 @@
 #![allow(clippy::needless_pass_by_value)]
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, identity};
 
 #[derive(Resource, Deref)]
 pub struct LocalUser(pub identity::Username);
 
-/// Event-driven `lobby mesh` marker: logs the live link count the moment it changes.
-pub fn log_mesh(status: Res<discovery::Status>, mut last: Local<Option<(String, usize)>>) {
-    if !status.is_changed() {
-        return;
-    }
-    let Some(room) = status.room.as_ref() else {
+pub fn log_mesh(state: Option<Res<DiscoveryState>>, mut last: Local<Option<(String, usize)>>) {
+    let Some(state) = state.as_ref() else {
         return;
     };
-    let connected = status.connected_members().count();
+    if !state.is_changed() {
+        return;
+    }
+    let Some(room) = state.room.as_ref() else {
+        return;
+    };
+    let connected = state.connected_members().count();
     let now = (room.name.as_str().to_string(), connected);
     if last.as_ref() == Some(&now) {
         return;
@@ -25,25 +28,34 @@ pub fn log_mesh(status: Res<discovery::Status>, mut last: Local<Option<(String, 
     *last = Some(now);
 }
 
-pub fn log_tick(time: Res<Time>, status: Res<discovery::Status>, mut accumulator: Local<f32>) {
+pub fn log_tick(time: Res<Time>, state: Option<Res<DiscoveryState>>, mut accumulator: Local<f32>) {
     *accumulator += time.delta_secs();
     if *accumulator < 1.0 {
         return;
     }
     *accumulator = 0.0;
-    let rooms: Vec<&str> = status.lobby.keys().map(|name| name.as_str()).collect();
+    let rooms: Vec<&str> = state.as_deref().map_or_else(Vec::new, |state| {
+        state.lobby.keys().map(|name| name.as_str()).collect()
+    });
     let rooms = if rooms.is_empty() {
         "none".to_string()
     } else {
         rooms.join(",")
     };
-    let room = status
-        .room
-        .as_ref()
+    let room = state
+        .as_deref()
+        .and_then(|state| state.room.as_ref())
         .map_or_else(|| "none".to_string(), |room| room.name.as_str().to_string());
-    let members = status.room.as_ref().map_or(0, |room| room.members.len());
-    let connected = status.connected_members().count();
-    let freenet_peers = status.freenet_peers.len();
+    let members = state
+        .as_deref()
+        .and_then(|state| state.room.as_ref())
+        .map_or(0, |room| room.members.len());
+    let connected = state
+        .as_deref()
+        .map_or(0, |state| state.connected_members().count());
+    let freenet_peers = state
+        .as_deref()
+        .map_or(0, |state| state.freenet_peers.len());
     tracing::info!(
         "lobby tick rooms={rooms} room={room} members={members} connected={connected} freenet_peers={freenet_peers}"
     );

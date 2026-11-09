@@ -33,23 +33,23 @@ pub fn repaint_own_brush_outline(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
 
     use super::repaint_own_brush_outline;
     use crate::starboard;
 
-    fn ready_status() -> discovery::Status {
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+    fn ready_status() -> DiscoveryState {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        }
+            })
+            .build()
     }
 
     fn preview_build(app: &mut App) {

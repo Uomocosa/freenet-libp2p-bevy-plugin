@@ -1,10 +1,11 @@
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, p2p};
 
 use crate::starboard;
 
 pub fn draw_cursor_labels(
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     ready: Option<Res<p2p::ReadyChannel>>,
     cursors: Query<(&Sprite, &starboard::render::Owner), With<starboard::render::Cursor>>,
     mut labels: Query<
@@ -12,7 +13,7 @@ pub fn draw_cursor_labels(
         With<starboard::render::CursorLabel>,
     >,
 ) {
-    let status = status.into_inner();
+    let state = state.map(Res::into_inner);
     let me = ready
         .map(Res::into_inner)
         .and_then(|ready| ready.ready_rx.borrow().clone())
@@ -24,9 +25,17 @@ pub fn draw_cursor_labels(
         let name = match owner {
             starboard::render::Owner::Me => me.as_ref().map_or_else(
                 || String::from(starboard::render::OWN_FALLBACK_NAME),
-                |me| starboard::room::member_name(status, me),
+                |me| {
+                    state.map_or_else(
+                        || me.as_str().to_string(),
+                        |state| starboard::room::member_name(state, me),
+                    )
+                },
             ),
-            starboard::render::Owner::Peer(peer) => starboard::room::member_name(status, peer),
+            starboard::render::Owner::Peer(peer) => state.map_or_else(
+                || peer.as_str().to_string(),
+                |state| starboard::room::member_name(state, peer),
+            ),
         };
         if **text != name {
             **text = name;
@@ -43,13 +52,14 @@ pub fn draw_cursor_labels(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
 
     use super::draw_cursor_labels;
     use crate::starboard;
 
-    fn status_with(peers: &[(&str, &str)]) -> discovery::Status {
+    fn status_with(peers: &[(&str, &str)]) -> DiscoveryState {
         let mut members = discovery::Members::new();
         for (peer, name) in peers {
             members.insert(
@@ -65,16 +75,15 @@ mod tests {
                 },
             );
         }
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        }
+            })
+            .build()
     }
 
     fn preview_build(app: &mut App) {

@@ -130,8 +130,9 @@ mod tests {
             .and_then(|ready| ready.ready_rx.borrow().clone().map(|peer| peer.id))
     }
 
-    fn status(app: &App) -> discovery::Status {
-        app.world().resource::<discovery::Status>().clone()
+    fn state(app: &App) -> &discovery::state_machine::DiscoveryState {
+        app.world()
+            .resource::<discovery::state_machine::DiscoveryState>()
     }
 
     async fn wait_for(mut check: impl FnMut() -> bool) {
@@ -184,7 +185,7 @@ mod tests {
         wait_for(|| {
             second.update();
             first.update();
-            status(&second).lobby.contains_key(&room)
+            state(&second).lobby.contains_key(&room)
         })
         .await;
         second
@@ -194,8 +195,8 @@ mod tests {
         wait_for(|| {
             first.update();
             second.update();
-            let a = status(&first);
-            let b = status(&second);
+            let a = state(&first);
+            let b = state(&second);
             let a_ready = a.room.as_ref().is_some_and(|joined| {
                 joined.phase == discovery::JoinPhase::Ready && a.connected_members().count() == 1
             });
@@ -208,12 +209,12 @@ mod tests {
         for _ in 0..150 {
             stranger.update();
             assert!(
-                !status(&stranger).lobby.contains_key(&room),
+                !state(&stranger).lobby.contains_key(&room),
                 "second game must not see the room"
             );
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
-        let departed = status(&first).self_peer_id.expect("first id");
+        let departed = state(&first).me.id.clone();
         first
             .world_mut()
             .resource_mut::<testing::FakeTaskHandles>()
@@ -222,7 +223,7 @@ mod tests {
             second.update();
             !second
                 .world()
-                .resource::<discovery::Status>()
+                .resource::<discovery::state_machine::DiscoveryState>()
                 .connected_members()
                 .any(|peer| peer == &departed)
         })

@@ -1,12 +1,13 @@
 use std::collections::BTreeSet;
 
 use bevy::prelude::*;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
 use crate::starboard;
 
 pub fn collect_remote_cursors(
-    status: Option<Res<discovery::Status>>,
+    status: Option<Res<DiscoveryState>>,
     ready: Option<Res<p2p::ReadyChannel>>,
     events: Option<ResMut<p2p::PendingEvents<starboard::room::CursorUpdate>>>,
     mut cursors: ResMut<starboard::room::RemoteCursors>,
@@ -33,13 +34,14 @@ pub fn collect_remote_cursors(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, testing};
 
     use super::collect_remote_cursors;
     use crate::starboard;
 
-    fn joined_status(members: &[&str]) -> discovery::Status {
+    fn joined_status(members: &[&str]) -> DiscoveryState {
         let mut room_members = discovery::Members::new();
         for peer in members {
             room_members.insert(
@@ -55,16 +57,15 @@ mod tests {
                 },
             );
         }
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: room_members,
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        }
+            })
+            .build()
     }
 
     fn cursor(x: u16) -> starboard::room::CursorUpdate {
@@ -112,7 +113,7 @@ mod tests {
         assert_eq!(cursors.len(), 1);
         assert!(cursors.contains_key(&identity::PeerId::from("peer-b")));
 
-        *app.world_mut().resource_mut::<discovery::Status>() = joined_status(&["peer-a"]);
+        *app.world_mut().resource_mut::<DiscoveryState>() = joined_status(&["peer-a"]);
         app.update();
         assert_eq!(
             app.world()

@@ -1,7 +1,7 @@
 //! Replacement lobby UI used by the discovery e2e test (`--ui custom`).
 //!
 //! It shows that the plugin's default UI can be swapped out entirely: this
-//! plugin only reads `discovery::Status` and writes `discovery::Command`.
+//! plugin only reads `DiscoveryState` and writes `discovery::Command`.
 #![allow(clippy::needless_pass_by_value)]
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
@@ -9,6 +9,7 @@ use bevy::text::{EditableText, TextCursorStyle};
 use bevy::ui::{InteractionDisabled, Pressed};
 use bevy::ui_widgets::{Button, TextInput};
 use derive_more::Deref;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::discovery;
 use freenet_libp2p_bevy_plugin::identity;
 use freenet_libp2p_bevy_plugin::ui::discovery::basic::constants::{
@@ -108,18 +109,26 @@ fn spawn(mut commands: Commands) {
 
 fn rebuild_list(
     mut commands: Commands,
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     column: Single<Entity, With<RoomColumn>>,
 ) {
-    if !status.is_changed() {
+    if let Some(state) = state.as_ref()
+        && !state.is_changed()
+    {
         return;
     }
-    tracing::info!("lobby ui rooms={}", status.lobby.len());
+    tracing::info!(
+        "lobby ui rooms={}",
+        state.as_deref().map_or(0, |state| state.lobby.len())
+    );
     commands
         .entity(*column)
         .despawn_related::<Children>()
         .with_children(|parent| {
-            for (name, record) in status.lobby.iter() {
+            let Some(state) = state.as_deref() else {
+                return;
+            };
+            for (name, record) in state.lobby.iter() {
                 parent.spawn((
                     JoinButton(name.clone()),
                     Button,
@@ -222,7 +231,9 @@ mod tests {
     use freenet_libp2p_bevy_plugin::identity;
 
     use super::{JoinButton, LobbyUi, NameField, NewRoomButton, RoomColumn};
+    use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::discovery;
+    use freenet_libp2p_bevy_plugin::testing;
     use freenet_libp2p_bevy_plugin::time;
 
     fn preview_build(app: &mut App) {
@@ -231,9 +242,9 @@ mod tests {
         app.add_plugins(LobbyUi);
     }
 
-    fn preview_snapshot() -> discovery::Status {
-        let mut status = discovery::Status::default();
-        status.lobby.insert(
+    fn preview_snapshot() -> DiscoveryState {
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
             identity::RoomName::from("alpha"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::DEFAULT,
@@ -241,14 +252,16 @@ mod tests {
                 members: std::collections::BTreeMap::new(),
             },
         );
-        status
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build()
     }
 
     const fn preview_noop(_world: &mut World) {}
 
     fn add_room(world: &mut World) {
-        let mut status = world.resource_mut::<discovery::Status>();
-        status.lobby.insert(
+        let mut state = world.resource_mut::<DiscoveryState>();
+        state.lobby.insert(
             identity::RoomName::from("gamma"),
             discovery::LobbyRoom {
                 room_size: discovery::RoomSize::try_from(4).expect("fixture room size is non-zero"),

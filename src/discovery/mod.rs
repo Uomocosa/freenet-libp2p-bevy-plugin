@@ -28,9 +28,6 @@ mod lobby_task_override;
 #[cfg(feature = "testing")]
 pub use lobby_task_override::LobbyTaskOverride;
 
-mod status;
-pub use status::Status;
-
 mod config;
 pub use config::Config;
 

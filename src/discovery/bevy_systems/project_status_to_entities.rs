@@ -7,6 +7,7 @@ use crate::identity;
 use crate::p2p;
 use crate::peers;
 use crate::room_sync;
+use discovery::state_machine::DiscoveryState;
 
 type RoomRow<'a> = (
     Entity,
@@ -21,13 +22,13 @@ type HoldLinkRow<'a> = (Entity, &'a peers::HeldBy, &'a peers::HoldOf);
 
 pub fn project_status_to_entities(
     mut commands: Commands,
-    status: Res<discovery::Status>,
+    state: Res<DiscoveryState>,
     game: Option<Res<room_sync::SyncGame>>,
     room_entities: Query<RoomRow<'_>>,
     peer_entities: Query<PeerRow<'_>>,
     links: Query<HoldLinkRow<'_>, With<peers::HistoryHold>>,
 ) {
-    let status = status.into_inner();
+    let state = state.into_inner();
     let Some(game) = game.map(Res::into_inner) else {
         return;
     };
@@ -35,13 +36,13 @@ pub fn project_status_to_entities(
     for (entity, room, _, _) in &room_entities {
         room_entity_by_name.insert((**room).clone(), entity);
     }
-    for room_name in discovery::Status::desired_rooms(status) {
+    for room_name in DiscoveryState::desired_rooms(state) {
         let room_entity = room_entity_by_name
             .entry(room_name.clone())
             .or_insert_with(|| commands.spawn(peers::Room::from(room_name.clone())).id());
         let room_entity = *room_entity;
         let (prefix, liveness) =
-            discovery::Status::room_prefix_and_lobby_status(Some(status), game, &room_name);
+            DiscoveryState::room_prefix_and_lobby_status(Some(state), game, &room_name);
         let is_room_in_sync =
             room_entities
                 .get(room_entity)
@@ -53,7 +54,7 @@ pub fn project_status_to_entities(
         }
     }
     let (desired_in_room, desired_holds) =
-        discovery::Status::desired_membership(status, &room_entity_by_name);
+        DiscoveryState::desired_membership(state, &room_entity_by_name);
     let mut peer_entity_by_id: BTreeMap<identity::PeerId, Entity> = BTreeMap::new();
     for (entity, peer, _) in &peer_entities {
         peer_entity_by_id.insert((**peer).clone(), entity);
@@ -133,7 +134,9 @@ mod tests {
     use crate::p2p;
     use crate::peers;
     use crate::room_sync;
+    use crate::testing;
     use crate::time;
+    use discovery::state_machine::DiscoveryState;
 
     fn member_with(
         id: &str,
@@ -178,10 +181,16 @@ mod tests {
         lobby
     }
 
-    fn app_with_projection(status: discovery::Status, game: identity::GameId) -> App {
+    fn state_with_lobby(lobby: discovery::Lobby) -> DiscoveryState {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build()
+    }
+
+    fn app_with_projection(state: DiscoveryState, game: identity::GameId) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(status);
+        app.insert_resource(state);
         app.insert_resource(room_sync::SyncGame(game));
         app.add_systems(Update, project_status_to_entities);
         app
@@ -228,11 +237,8 @@ mod tests {
     fn stale_room_entity_is_not_reused() {
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room-a");
-        let status = discovery::Status {
-            lobby: lobby_with_room(&room, vec![occupant("alice")]),
-            ..discovery::Status::default()
-        };
-        let mut app = app_with_projection(status, game);
+        let state = state_with_lobby(lobby_with_room(&room, vec![occupant("alice")]));
+        let mut app = app_with_projection(state, game);
         app.update();
         let old = room_by_name(&mut app, &room);
         assert_eq!(old.len(), 1);
@@ -248,11 +254,8 @@ mod tests {
     fn stale_peer_entity_is_not_reused() {
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room-a");
-        let status = discovery::Status {
-            lobby: lobby_with_room(&room, vec![occupant("alice")]),
-            ..discovery::Status::default()
-        };
-        let mut app = app_with_projection(status, game);
+        let state = state_with_lobby(lobby_with_room(&room, vec![occupant("alice")]));
+        let mut app = app_with_projection(state, game);
         app.update();
         let old = peer_by_id(&mut app, &identity::PeerId::from("alice"));
         assert_eq!(old.len(), 1);
@@ -278,11 +281,8 @@ mod tests {
                 members: BTreeMap::from([holder("alice")]),
             },
         );
-        let status = discovery::Status {
-            lobby,
-            ..discovery::Status::default()
-        };
-        let mut app = app_with_projection(status, game);
+        let state = state_with_lobby(lobby);
+        let mut app = app_with_projection(state, game);
         app.update();
         assert_eq!(hold_link_count(&mut app), 2);
         let joined = room_entity(&mut app, &room_a);
@@ -310,13 +310,10 @@ mod tests {
     fn departed_holder_frees_its_links_and_the_room_is_swept() {
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room-a");
-        let status = discovery::Status {
-            lobby: lobby_with_room(&room, vec![holder("alice")]),
-            ..discovery::Status::default()
-        };
+        let state = state_with_lobby(lobby_with_room(&room, vec![holder("alice")]));
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(status);
+        app.insert_resource(state);
         app.insert_resource(room_sync::SyncGame(game));
         app.add_systems(
             Update,
@@ -331,8 +328,8 @@ mod tests {
         let room_entity = room_entity(&mut app, &room);
         assert!(app.world().get_entity(room_entity).is_ok());
         let alice = identity::PeerId::from("alice");
-        let mut status = app.world_mut().resource_mut::<discovery::Status>();
-        status
+        let mut state = app.world_mut().resource_mut::<DiscoveryState>();
+        state
             .lobby
             .get_mut(&room)
             .expect("room in lobby")
@@ -340,7 +337,7 @@ mod tests {
             .get_mut(&alice)
             .expect("alice listed")
             .membership = discovery::RoomMembership::Departed;
-        status.lobby.remove(&room);
+        state.lobby.remove(&room);
         app.update();
         app.update();
         assert_eq!(hold_link_count(&mut app), 0);
@@ -352,13 +349,13 @@ mod tests {
     fn test_usage() {
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room-a");
-        let status = discovery::Status {
-            lobby: lobby_with_room(&room, vec![occupant("alice"), occupant("bob")]),
-            ..discovery::Status::default()
-        };
+        let state = state_with_lobby(lobby_with_room(
+            &room,
+            vec![occupant("alice"), occupant("bob")],
+        ));
         let (expected_prefix, expected_liveness) =
-            discovery::Status::room_prefix_and_lobby_status(Some(&status), &game, &room);
-        let mut app = app_with_projection(status, game);
+            DiscoveryState::room_prefix_and_lobby_status(Some(&state), &game, &room);
+        let mut app = app_with_projection(state, game);
         app.update();
         let room_entity = room_entity(&mut app, &room);
         assert_eq!(
@@ -390,15 +387,15 @@ mod tests {
     fn member_who_departed_loses_in_room() {
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room-a");
-        let status = discovery::Status {
-            lobby: lobby_with_room(&room, vec![occupant("alice"), occupant("bob")]),
-            ..discovery::Status::default()
-        };
-        let mut app = app_with_projection(status, game);
+        let state = state_with_lobby(lobby_with_room(
+            &room,
+            vec![occupant("alice"), occupant("bob")],
+        ));
+        let mut app = app_with_projection(state, game);
         app.update();
         let alice = identity::PeerId::from("alice");
         app.world_mut()
-            .resource_mut::<discovery::Status>()
+            .resource_mut::<DiscoveryState>()
             .lobby
             .get_mut(&room)
             .expect("room in lobby")
@@ -428,19 +425,16 @@ mod tests {
     fn me_gains_and_loses_in_room_with_join_and_leave() {
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room-a");
-        let me = identity::PeerId::from("me");
-        let status = discovery::Status {
-            room: Some(discovery::JoinedRoom {
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: room.clone(),
                 created_at: time::UnixTime::from_secs(10),
                 phase: discovery::JoinPhase::Ready,
                 members: BTreeMap::from([occupant("me")]),
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            self_peer_id: Some(me),
-            ..discovery::Status::default()
-        };
-        let mut app = app_with_projection(status, game);
+            })
+            .build();
+        let mut app = app_with_projection(state, game);
         app.update();
         let room_entity = room_entity(&mut app, &room);
         let me_entity = peer_entity(&mut app, "me");
@@ -450,7 +444,7 @@ mod tests {
                 .map(|in_room| **in_room),
             Some(room_entity)
         );
-        app.world_mut().resource_mut::<discovery::Status>().room = None;
+        app.world_mut().resource_mut::<DiscoveryState>().room = None;
         app.update();
         assert!(app.world().get::<peers::InRoom>(me_entity).is_none());
     }
@@ -469,19 +463,17 @@ mod tests {
                 members: BTreeMap::from([occupant("alice"), occupant("bob")]),
             },
         );
-        let status = discovery::Status {
-            lobby,
-            room: Some(discovery::JoinedRoom {
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .in_room(discovery::JoinedRoom {
                 name: room_a.clone(),
                 created_at: time::UnixTime::from_secs(10),
                 phase: discovery::JoinPhase::Ready,
                 members: BTreeMap::from([occupant("alice")]),
                 how_entered: discovery::HowRoomWasEntered::Joined,
-            }),
-            self_peer_id: Some(identity::PeerId::from("me")),
-            ..discovery::Status::default()
-        };
-        let mut app = app_with_projection(status, game);
+            })
+            .build();
+        let mut app = app_with_projection(state, game);
         app.update();
         let joined = room_entity(&mut app, &room_a);
         let other = room_entity(&mut app, &room_b);
@@ -510,14 +502,14 @@ mod tests {
         let game = identity::GameId::from("test");
         app.insert_resource(room_sync::SyncGame(game.clone()));
         let room = identity::RoomName::from("room-a");
-        app.insert_resource(discovery::Status {
-            lobby: lobby_with_room(&room, vec![occupant("alice")]),
-            ..discovery::Status::default()
-        });
+        app.insert_resource(state_with_lobby(lobby_with_room(
+            &room,
+            vec![occupant("alice")],
+        )));
         app.update();
         let room_entity = room_entity(&mut app, &room);
-        let (expected_prefix, expected_liveness) = discovery::Status::room_prefix_and_lobby_status(
-            Some(app.world().resource::<discovery::Status>()),
+        let (expected_prefix, expected_liveness) = DiscoveryState::room_prefix_and_lobby_status(
+            Some(app.world().resource::<DiscoveryState>()),
             &game,
             &room,
         );

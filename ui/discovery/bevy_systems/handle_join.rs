@@ -8,14 +8,19 @@ use ui::discovery::RoomButton;
 
 pub fn handle_join(
     buttons: Query<&RoomButton, Added<Pressed>>,
-    status: Res<discovery::Status>,
+    state: Option<Res<discovery::state_machine::DiscoveryState>>,
     mut commands: MessageWriter<discovery::Command>,
 ) {
-    let status = status.into_inner();
-    let current = status.room.as_ref().map(|room| &room.name);
+    let current = state.and_then(|state| {
+        state
+            .into_inner()
+            .room
+            .as_ref()
+            .map(|room| room.name.clone())
+    });
     for button in &buttons {
         let room: &identity::RoomName = button;
-        if current == Some(room) {
+        if current.as_ref() == Some(room) {
             tracing::info!(target: "discovery", "ui leave room={}", room.as_str());
             commands.write(discovery::Command::Leave);
         } else {
@@ -39,7 +44,6 @@ mod tests {
     fn test_usage() {
         let mut app = App::new();
         app.add_message::<discovery::Command>();
-        app.init_resource::<discovery::Status>();
         let room = identity::RoomName::from("alpha");
         app.world_mut()
             .spawn((ui::discovery::RoomButton(room.clone()), Pressed));

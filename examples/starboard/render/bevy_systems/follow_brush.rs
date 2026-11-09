@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::discovery;
 
 use crate::starboard;
 
 pub fn follow_brush(
     windows: Query<&Window, With<PrimaryWindow>>,
-    status: Res<discovery::Status>,
+    state: Option<Res<DiscoveryState>>,
     cursor: Res<starboard::input::CursorCell>,
     view: Res<starboard::render::CanvasView>,
     brush: Res<starboard::input::OwnBrush>,
@@ -22,8 +23,7 @@ pub fn follow_brush(
         With<starboard::render::Cursor>,
     >,
 ) {
-    let status = status.into_inner();
-    let is_in_room = starboard::room::is_in_room(status);
+    let is_in_room = state.is_some_and(|state| starboard::room::is_in_room(state.into_inner()));
     let is_brush_changed = brush.is_changed();
     let cursor = cursor.into_inner();
     let view = view.into_inner();
@@ -73,23 +73,23 @@ pub fn follow_brush(
 mod tests {
     use bevy::prelude::*;
     use bevy::window::PrimaryWindow;
+    use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
 
     use super::follow_brush;
     use crate::starboard;
 
-    fn ready_status() -> discovery::Status {
-        discovery::Status {
-            room: Some(discovery::JoinedRoom {
+    fn ready_status() -> DiscoveryState {
+        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            ..discovery::Status::default()
-        }
+            })
+            .build()
     }
 
     fn preview_build(app: &mut App) {

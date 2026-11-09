@@ -19,9 +19,6 @@ pub use own_addrs_to_discovery_inputs::own_addrs_to_discovery_inputs;
 mod publish_heartbeat_targets;
 pub use publish_heartbeat_targets::publish_heartbeat_targets;
 
-mod refresh_status_from_discovery_state;
-pub use refresh_status_from_discovery_state::refresh_status_from_discovery_state;
-
 mod send_quit_on_exit;
 pub use send_quit_on_exit::send_quit_on_exit;
 

@@ -439,7 +439,7 @@ board's record is 333 KB in 6 chunks of ≤ 60 KB — far below HD9's 64 MB per-
    **FIXED 2026-10-29:** `room_prefix_and_lobby_status` now uses `UnixTime::now()`
    (not the max heartbeat) for freshness, so a lone expired holder is dead
    (`is_room_still_listed = false` → `RoomGone`); `self_peer_id`/`lease_ttl` ride
-   on `discovery::Status` (populated from `ReadyChannel`/holder lease config), and
+   on `DiscoveryState` (populated from `ReadyChannel`/holder lease config), and
    an unknown self counts every live member as other (never subtracts one). New fast
    tests: `expired_holder_alone_means_the_room_is_gone`,
    `fresh_holder_means_wait_for_history`, and headless-App

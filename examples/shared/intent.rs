@@ -77,7 +77,7 @@ const MAX_CLICKS: u32 = 60;
 pub fn script_input<F, C, J>(
     mut intent: ResMut<Intent>,
     mut pending: Option<ResMut<PendingAction>>,
-    status: Res<discovery::Status>,
+    state: Option<Res<discovery::state_machine::DiscoveryState>>,
     mut windows: Query<(Entity, &mut Window), With<PrimaryWindow>>,
     fields: Query<Entity, With<F>>,
     create: Query<&UiGlobalTransform, (With<C>, With<Hovered>)>,
@@ -177,9 +177,9 @@ pub fn script_input<F, C, J>(
             let target = match &action {
                 Action::Create(room) | Action::Join(room) => room,
             };
-            let joined = status
-                .room
-                .as_ref()
+            let joined = state
+                .as_deref()
+                .and_then(|state| state.room.as_ref())
                 .is_some_and(|room| room.name == *target);
             if joined || intent.clicks >= MAX_CLICKS {
                 intent.step = Step::Done;
@@ -269,7 +269,7 @@ mod tests {
         app.add_message::<KeyboardInput>();
         app.add_message::<MouseButtonInput>();
         app.add_message::<WindowEvent>();
-        app.init_resource::<discovery::Status>();
+
         app.init_resource::<InputFocus>();
         app.insert_resource(Intent::new(Some(create("room-1"))));
         let window = app

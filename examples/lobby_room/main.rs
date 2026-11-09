@@ -68,7 +68,6 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
         app.add_systems(
             Update,
             testing::bevy_systems::run_script::<script_runner::LobbyStep>
-                .after(discovery::bevy_systems::refresh_status_from_discovery_state)
                 .after(ping::log_room_messages),
         );
     }

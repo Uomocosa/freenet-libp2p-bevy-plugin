@@ -25,6 +25,6 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_plugins(Plugins(discovery::Config::default()));
-        assert!(app.world().get_resource::<discovery::Status>().is_some());
+        assert!(app.world().get_resource::<discovery::Config>().is_some());
     }
 }

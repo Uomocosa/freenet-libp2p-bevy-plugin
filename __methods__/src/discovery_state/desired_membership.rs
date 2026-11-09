@@ -4,23 +4,24 @@ use bevy::prelude::Entity;
 
 use crate::discovery;
 use crate::identity;
+use discovery::state_machine::DiscoveryState;
 
 #[must_use]
 pub fn desired_membership(
-    status: &discovery::Status,
+    state: &DiscoveryState,
     room_entity_by_name: &BTreeMap<identity::RoomName, Entity>,
 ) -> (
     BTreeMap<identity::PeerId, Entity>,
     BTreeMap<identity::PeerId, BTreeSet<Entity>>,
 ) {
     let mut member_views: Vec<(&discovery::Members, Entity)> = Vec::new();
-    if let Some(joined) = status.room.as_ref()
+    if let Some(joined) = state.room.as_ref()
         && let Some(room_entity) = room_entity_by_name.get(&joined.name).copied()
     {
         member_views.push((&joined.members, room_entity));
     }
-    for (room_name, lobby_room) in status.lobby.iter() {
-        if status
+    for (room_name, lobby_room) in state.lobby.iter() {
+        if state
             .room
             .as_ref()
             .is_some_and(|joined| &joined.name == room_name)
@@ -49,18 +50,17 @@ pub fn desired_membership(
             }
         }
     }
-    if let Some(self_id) = status.self_peer_id.as_ref() {
-        let me_wants_room = status
-            .room
-            .as_ref()
-            .and_then(|joined| room_entity_by_name.get(&joined.name).copied());
-        match me_wants_room {
-            Some(room_entity) => {
-                desired_in_room.insert(self_id.clone(), room_entity);
-            }
-            None => {
-                desired_in_room.remove(self_id);
-            }
+    let self_id = &state.me.id;
+    let me_wants_room = state
+        .room
+        .as_ref()
+        .and_then(|joined| room_entity_by_name.get(&joined.name).copied());
+    match me_wants_room {
+        Some(room_entity) => {
+            desired_in_room.insert(self_id.clone(), room_entity);
+        }
+        None => {
+            desired_in_room.remove(self_id);
         }
     }
     (desired_in_room, desired_holds)
@@ -76,6 +76,7 @@ mod tests {
     use crate::discovery;
     use crate::identity;
     use crate::time;
+    use discovery::state_machine::DiscoveryState;
 
     fn occupant(id: &str) -> (identity::PeerId, discovery::RoomMember) {
         let peer_id = identity::PeerId::from(id);
@@ -105,12 +106,13 @@ mod tests {
                 members: BTreeMap::from([occupant("alice")]),
             },
         );
-        let status = discovery::Status {
-            lobby,
-            ..discovery::Status::default()
-        };
+        let mut state = DiscoveryState::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
+        state.lobby = lobby;
         let by_name = BTreeMap::from([(room, Entity::PLACEHOLDER)]);
-        let (in_room, holds) = desired_membership(&status, &by_name);
+        let (in_room, holds) = desired_membership(&state, &by_name);
         assert_eq!(
             in_room,
             BTreeMap::from([(identity::PeerId::from("alice"), Entity::PLACEHOLDER)])
@@ -136,22 +138,22 @@ mod tests {
                 },
             );
         }
-        let status = discovery::Status {
-            lobby,
-            room: Some(discovery::JoinedRoom {
-                name: room_a.clone(),
-                created_at: time::UnixTime::from_secs(10),
-                phase: discovery::JoinPhase::Ready,
-                members: BTreeMap::from([occupant("alice")]),
-                how_entered: discovery::HowRoomWasEntered::Joined,
-            }),
-            self_peer_id: Some(identity::PeerId::from("me")),
-            ..discovery::Status::default()
-        };
+        let mut state = DiscoveryState::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
+        state.lobby = lobby;
+        state.room = Some(discovery::JoinedRoom {
+            name: room_a.clone(),
+            created_at: time::UnixTime::from_secs(10),
+            phase: discovery::JoinPhase::Ready,
+            members: BTreeMap::from([occupant("alice")]),
+            how_entered: discovery::HowRoomWasEntered::Joined,
+        });
         let joined = Entity::from_bits(1);
         let other = Entity::from_bits(2);
         let by_name = BTreeMap::from([(room_a, joined), (room_b, other)]);
-        let (in_room, _) = desired_membership(&status, &by_name);
+        let (in_room, _) = desired_membership(&state, &by_name);
         assert_eq!(in_room.get(&identity::PeerId::from("alice")), Some(&joined));
         assert_eq!(in_room.get(&identity::PeerId::from("bob")), Some(&other));
     }
