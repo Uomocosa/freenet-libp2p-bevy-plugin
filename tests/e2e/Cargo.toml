@@ -40,6 +40,10 @@ path = "tests/freenet_harness.rs"
 name = "freenet_relaunch"
 path = "tests/freenet_relaunch.rs"
 
+[[test]]
+name = "contract_wire"
+path = "tests/contract_wire.rs"
+
 [lints.rust]
 non_snake_case = "allow"
 
@@ -69,12 +73,12 @@ e2e_steps = { path = "../e2e_steps" }
 examples_shared = { path = "../../examples/shared" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
 reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
-telegram-bot-helper = { path = "../../../telegram-bot-helper/crates/telegram-bot-helper" }
+telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.15" }
 rstest.workspace = true
 freenet = "=0.2.155"
 tempfile = "=3.27.0"
 freenet-stdlib = { workspace = true, features = ["contract"] }
-freenet-contract-harness = { path = "../../../freenet-contract-harness" }
+freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.10" }
 lobby_contract = { path = "../../crates/lobby_contract" }
 bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }

@@ -31,7 +31,7 @@ The same test also runs across Linux and Windows from a GitHub workflow.
 | L2 | Fake layer | `testing::FakeNetworkPlugin` replaces only the libp2p swarm and the Freenet node. Scripts, UI, the discovery state machine and `room_sync` stay real. |
 | L3 | Orchestrator | `testing::Orchestrator` starts peers, watches them, routes fake traffic and collects results. Its routing lives in a private `PeerMessageRouter` with no I/O. Peers reach it over a localhost socket. |
 | L4 | Steps | `E2EStep` (rename of `SharedScriptStep`), `ScriptStep` (parsing and text) and `PollableScriptStep` (running) live in `src/testing/`. |
-| L5 | Game steps | The definition (`StarboardStep`, step groups) lives in `tests/starboard_steps/`; the example includes it with `#[path]`. How a step runs stays in the example. Step types use no game types. |
+| L5 | Game steps | The definition (`StarboardStep`, step groups) lives in `tests/e2e_steps/`; the example depends on it as a crate. How a step runs stays in the example. Step types use no game types. |
 | L6 | Tests | `tests/e2e/main.rs` is one test target, with one file per scenario, using `#[e2e_test]`. Rooms and deadlines come from `Orchestrator`. |
 | L7 | Sync between peers | Named checkpoints: `mark_completed(PAINTING_DONE)` and `.starts_after(PAINTING_DONE)`. No step numbers. |
 | L8 | Examples | The real plugin setup stays visible in `main()`. Testing adds `testing::NetworkArgs`, `testing::E2EArgs<Step>` and one `FakeNetworkPlugin::from_args` line before the plugins. The user may refactor this later. |
@@ -71,11 +71,11 @@ Each phase leaves `just clippy`, `just lint`, `just bevy-lint` and `just test` g
 - [x] 1. `src/testing/` with the `testing` feature; move the script system there; add `ScriptStep`, `PollableScriptStep`, `E2EStep`, one generic `run_script`. Behaviour unchanged.
 - [x] 2. `PeerMessageRouter` (no I/O), starting from `.local-run/spike/spike_q3.rs`, with unit tests for every `Libp2pCommand`.
 - [x] 3. Override seams, `Orchestrator` socket, `FakeNetworkPlugin`, `NetworkArgs`, `E2EArgs`; both examples switch to them.
-- [ ] 4. `tests/starboard_steps/`, `tests/lobby_room_steps/`, `tests/e2e/`, `#[e2e_test]`, checkpoints; port S1 first, then the rest. Done: S1, late join, S3-S7, all passed on fake and mainnet (2026-11-07). Left: `lobby_room` tests.
+- [ ] 4. `tests/e2e_steps/`, `tests/e2e/tests/`, `#[e2e_test]`, checkpoints; port S1 first, then the rest. Done: S1, late join, S3-S7, all passed on fake and mainnet (2026-11-07). Left: `lobby_room` tests.
 - [x] 5. Recipes `e2e-ui-no-network` and `e2e-mainnet`; S1 and late join passed on mainnet (2026-11-07).
 - [ ] 6. `e2e-local-gateways`.
 - [ ] 7. Placement, `CheckpointBoard`, `E2E_ROLE=check`, test program in the bundle, `e2e-cross.yml` update.
-- [ ] 8. Remove the old `tests/*.rs` scenario targets and `tests/common/scenario.rs` once every scenario is ported.
+- [ ] 8. Remove the old `tests/e2e/tests/*.rs` scenario targets and `tests/e2e/tests/common/scenario.rs` once every scenario is ported.
 
 ## 5. Risks
 

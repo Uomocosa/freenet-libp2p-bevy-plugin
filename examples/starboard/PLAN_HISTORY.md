@@ -276,7 +276,7 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
   yet, and the history fallback used to call that "all players left" — which made the
   **creator fail its own join** (the new room is not in the contract for a few
   seconds). New test: `a_room_the_contract_has_not_confirmed_yet_is_not_gone`.
-- `examples/starboard/main.rs` — the history is on
+- `examples/starboard/src/main.rs` — the history is on
   (`with_history_config(Some(...))`), the lease and history timings are scaled, the
   script runner runs before the lobby intent, the join watchdog is registered, and
   `main` returns `AppExit` so a failed join exits with code 2.
@@ -301,13 +301,13 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
 - `src/room_sync/merge_and_write_history_records.rs` — one `tracing::info!`:
   `room history written snapshot_bytes=… record_bytes=… chunks=…`. The e2e sequences
   on it, and the sizes are measurable from the log.
-- `tests/common/scenario.rs` — `Scenario` is now a flow, a roster and a budget:
+- `tests/e2e/tests/common/scenario.rs` — `Scenario` is now a flow, a roster and a budget:
   `ScenarioFlow` (one enum replaces the `join` / `is_room_ping_enabled` / `late_join`
   flags), `PeerSpec { role, spawn, script }`, `PeerRole`, `PeerSpawn`,
   `ScenarioBudgets`, plus the three history flows.
-- `tests/common/log_parse.rs` — `history_write_bytes`: the snapshot byte count of the
+- `tests/e2e/tests/common/log_parse.rs` — `history_write_bytes`: the snapshot byte count of the
   last history write.
-- `tests/common/tile.rs` — `tile` takes the window titles (the roster owns the
+- `tests/e2e/tests/common/tile.rs` — `tile` takes the window titles (the roster owns the
   windows, not a parallel list).
 - `Cargo.toml` — the `starboard_history` test. `justfile` — `bench-history`,
   `e2e-history`.
@@ -330,7 +330,7 @@ H0 ✅ → H0b ✅ → H1 ✅ → H2 ✅ → H2b ✅ → H3 → H4.
 `canvas::Stroke`. `examples/starboard` — `ScriptStep`, `MemberCount`,
 `parse_script_step`, `parse_stroke`, `ScriptRunner`, `run_script`, `JoinTarget`,
 `JoinLimits`, `JOIN_FAILED_EXIT_CODE`, `exit_on_join_failure`, `scaled_lease_timings`,
-`scaled_history_config`. `tests/common` — `ScenarioFlow`, `PeerSpec`, `PeerRole`,
+`scaled_history_config`. `tests/e2e/tests/common` — `ScenarioFlow`, `PeerSpec`, `PeerRole`,
 `PeerSpawn`, `ScenarioBudgets`, `history_write_bytes`.
 
 **Tests added:** `parse_script_step` (every verb, unknown verb, missing room, bad

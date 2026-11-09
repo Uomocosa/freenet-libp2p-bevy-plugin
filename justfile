@@ -371,27 +371,15 @@ contract:
     wc -c crates/lobby_contract/lobby_contract.wasm
     sha256sum crates/lobby_contract/lobby_contract.wasm
 
-# The lobby contract is a workspace member, but its checks still run here too,
-# from the repo root so rustup picks up rust-toolchain.toml.
-contract-fmt:
-    cargo fmt -p lobby_contract -- --check
-
-contract-clippy:
-    cargo clippy -p lobby_contract --all-targets --all-features -- -D warnings
-
+# The lobby contract is a workspace member: `just fmt` (`cargo fmt --all`) and
+# `just clippy` (`--workspace --all-targets --all-features`) already cover it.
+# Only the per-crate lele-lint stays here.
 contract-lint:
     lele-lint crates/lobby_contract
 
-# common_types is a workspace member too. Same shape as the contract recipes above.
-common-types-fmt:
-    cargo fmt -p common_types -- --check
-
-common-types-clippy:
-    cargo clippy -p common_types --all-targets --all-features -- -D warnings
-
-common-types-test:
-    cargo nextest run -p common_types --all-features
-
+# common_types is a workspace member too: `just fmt`, `just clippy` and
+# `just test` (`--workspace --all-targets --all-features`) already cover it.
+# Only the per-crate lele-lint and the wasm check stay here.
 common-types-wasm:
     cargo check -p common_types --target wasm32-unknown-unknown
 

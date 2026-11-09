@@ -75,7 +75,7 @@ leaves.
 ## Architecture
 
 ```text
-Freenet lobby contract (contract/lobby, src/discovery)
+Freenet lobby contract (crates/lobby_contract, crates/freenet-libp2p-bevy-core/src/discovery)
         │  room name, members, created_at
         ▼
 DiscoveryState ──joined──► p2p gossipsub room topic (src/p2p)
@@ -101,7 +101,7 @@ The plugin owns discovery, transport and sync; the example owns the game:
 | `input/` | pointer → `DrawOp`, brush-size notches, `PendingLocalDraw` |
 | `render/` | letterboxed board texture, dirty-tile repaint, brush outline, remote cursors |
 | `room/` | room brushes, presence publishing, cursor collection, canvas reset on join |
-| `ui/` | member panel |
+| `starboard/ui/` | member panel |
 | `app/` | `StarboardPlugin`, the ordered system chain, the test harness |
 | `bench/` | `#[cfg(test)]` benchmark behind `just bench-starboard` |
 

@@ -6691,10 +6691,8 @@ dependencies = [
  "bincode",
  "common_types",
  "derive_more",
- "freenet-libp2p-bevy-plugin",
  "freenet-macros",
  "freenet-stdlib",
- "rstest",
  "serde",
  "thiserror 2.0.21",
 ]

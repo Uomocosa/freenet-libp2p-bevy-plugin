@@ -110,7 +110,7 @@ while a local peer still waits to spawn. S1 stays the mainnet proof.
 ## 6. Order of work
 
 - [x] 1. Rename the example to `starboard` (2026-10-29: `examples/starboard_gossip/*` →
-      `examples/starboard/`, `[[example]] name = "starboard"`, `cargo build --example starboard` green).
+      `examples/starboard/`, `examples/starboard/src/main.rs` bin, `cargo build -p starboard` green).
 - [x] 2. Part C — Kademlia history + holder leases + room deletion, with its local test layers
       (unit → headless multi-App → local e2e S4a/S4b/S4c). All green on Linux first
       (2026-10-29: fast 398 passed; S4a/S4b/S4c PASS on mainnet, finding 7 fixed).
