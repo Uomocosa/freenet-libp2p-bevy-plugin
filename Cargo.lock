@@ -3726,6 +3726,8 @@ dependencies = [
  "bevy",
  "bincode",
  "e2e_macros",
+ "e2e_steps",
+ "examples_shared",
  "freenet",
  "freenet-contract-harness",
  "freenet-libp2p-bevy-plugin",
@@ -3742,12 +3744,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "e2e_check"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "examples_shared",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "e2e_macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "e2e_steps"
+version = "0.1.0"
+dependencies = [
+ "freenet-libp2p-bevy-plugin",
 ]
 
 [[package]]
@@ -3922,6 +3941,20 @@ checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
  "event-listener",
  "pin-project-lite",
+]
+
+[[package]]
+name = "examples_shared"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "derive_more",
+ "freenet",
+ "freenet-libp2p-bevy-plugin",
+ "serde",
+ "tempfile",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -4247,7 +4280,6 @@ dependencies = [
  "clap",
  "common_types",
  "derive_more",
- "freenet",
  "freenet-stdlib",
  "futures",
  "futures-util",
@@ -4257,7 +4289,6 @@ dependencies = [
  "libp2p",
  "serde",
  "serde_json",
- "telegram-bot-helper",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
@@ -6640,6 +6671,23 @@ dependencies = [
  "rstest",
  "serde",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "lobby_room"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "clap",
+ "derive_more",
+ "examples_shared",
+ "freenet",
+ "freenet-libp2p-bevy-plugin",
+ "lele-bevy-preview",
+ "serde",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -9713,6 +9761,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "starboard"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bincode",
+ "blake3",
+ "clap",
+ "derive_more",
+ "e2e_steps",
+ "examples_shared",
+ "freenet-libp2p-bevy-plugin",
+ "lele-bevy-preview",
+ "libp2p",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "zstd 0.14.3",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10406,6 +10477,13 @@ name = "toml_writer"
 version = "1.1.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
+
+[[package]]
+name = "tools"
+version = "0.1.0"
+dependencies = [
+ "telegram-bot-helper",
+]
 
 [[package]]
 name = "tower"

@@ -235,7 +235,7 @@ _e2e-notify-text:
         echo "(telegram send skipped: E2E_LOOP_NOTIFY=0)" >&2
         exit 0
     fi
-    if ! cargo run -q -p freenet-libp2p-bevy-plugin --example telegram_send -- --text "$E2E_SUMMARY"; then
+    if ! cargo run -q -p tools --bin telegram_send -- --text "$E2E_SUMMARY"; then
         echo "warning: telegram summary failed" >&2
     fi
 
@@ -252,7 +252,7 @@ _e2e-notify-clips SCENARIO SINCE:
     clips="$(python3 scripts/ring_stats.py --scenario "{{ SCENARIO }}" --since "{{ SINCE }}" --failed-clips || true)"
     while IFS="$(printf '\t')" read -r clip caption; do
         [ -n "$clip" ] || continue
-        if ! cargo run -q -p freenet-libp2p-bevy-plugin --example telegram_send -- --video "$clip" --caption "$caption"; then
+        if ! cargo run -q -p tools --bin telegram_send -- --video "$clip" --caption "$caption"; then
             echo "warning: telegram clip send failed ($clip)" >&2
         fi
     done <<<"$clips"
@@ -308,31 +308,31 @@ e2e-mainnet TEST="":
 run-starboard *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build -p freenet-libp2p-bevy-plugin --features e2e --example starboard
+    cargo build -p starboard
     mkdir -p .local-run
     log=.local-run/starboard.log
-    setsid "$CARGO_TARGET_DIR/debug/examples/starboard" {{ ARGS }} >"$log" 2>&1 &
+    setsid "$CARGO_TARGET_DIR/debug/starboard" {{ ARGS }} >"$log" 2>&1 &
     echo "starboard running detached — log: $log"
 
 # Headless starboard benchmark (no window): 2 and 8 in-process peers, 60 strokes/s each,
 # 20 s measured per scenario; overwrites examples/starboard/BENCH.md.
 bench-starboard:
-    cargo nextest run -p freenet-libp2p-bevy-plugin --example starboard --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture
+    cargo nextest run -p starboard --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture
 
 # Headless history measurement (no window): one room's Kademlia history size and
 # put/get latency; overwrites examples/starboard/HISTORY.md.
 bench-history:
-    cargo nextest run -p freenet-libp2p-bevy-plugin --example starboard --all-features --run-ignored all -E 'test(history_bench)' -- --nocapture
+    cargo nextest run -p starboard --all-features --run-ignored all -E 'test(history_bench)' -- --nocapture
 
 # Run the lobby_room example detached (no terminal tie-up; only the app window).
 # Extra args toggle ui/script/transport, e.g. `just run --ui custom --script "create:room-1, stay"`.
 run *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build -p freenet-libp2p-bevy-plugin --features e2e --example lobby_room
+    cargo build -p lobby_room
     mkdir -p .local-run
     log=.local-run/lobby-room.log
-    setsid "$CARGO_TARGET_DIR/debug/examples/lobby_room" {{ ARGS }} >"$log" 2>&1 &
+    setsid "$CARGO_TARGET_DIR/debug/lobby_room" {{ ARGS }} >"$log" 2>&1 &
     echo "lobby_room running detached — log: $log"
 
 # Run the lobby_room example with the defaults (username lele, plugin default UI).

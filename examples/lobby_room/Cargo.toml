@@ -1,0 +1,40 @@
+[package]
+name = "lobby_room"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[lints.rust]
+non_snake_case = "allow"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+unreachable = "deny"
+unimplemented = "deny"
+unchecked_time_subtraction = "deny"
+todo = "deny"
+string_slice = "deny"
+panic_in_result_fn = "deny"
+panic = "deny"
+exit = "deny"
+as_conversions = "deny"
+module_inception = "allow"
+missing_errors_doc = "allow"
+
+[dependencies]
+bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
+clap = { version = "=4.6.7", features = ["derive"] }
+derive_more = { workspace = true, features = ["deref"] }
+examples_shared = { path = "../shared" }
+freenet = "=0.2.155"
+freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin", features = ["e2e"] }
+lele-bevy-preview = { path = "../../../telegram-bot-helper/crates/lele-bevy-preview" }
+serde.workspace = true
+tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }

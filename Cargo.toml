@@ -4,8 +4,14 @@ members = [
     "crates/common_types",
     "crates/lobby_contract",
     "crates/freenet-libp2p-bevy-plugin",
+    "examples/e2e_check",
+    "examples/lobby_room",
+    "examples/shared",
+    "examples/starboard",
+    "examples/tools",
     "tests/e2e",
     "tests/e2e_macros",
+    "tests/e2e_steps",
 ]
 
 [workspace.package]

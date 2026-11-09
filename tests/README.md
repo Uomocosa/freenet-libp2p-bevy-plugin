@@ -144,7 +144,7 @@ plain command above covers it.
   - `exit-app`: the process exits 0 after logging `script done`;
   - `crash-app`: the process aborts (no quit published, like a crash);
   - `stay`: the process is still running when the run ends (killed by the harness).
-- Script grammar (`examples/shared/script/`): `verb[:arg][@Ns]`, comma-separated.
+- Script grammar (`tests/e2e_steps/src/lib.rs`): `verb[:arg][@Ns]`, comma-separated.
   **Every `wait-*` step must carry `@Ns`, and no other step may.** A wait past its
   deadline fails the script: the peer logs
   `script failed step=<i>/<n> <step> reason=<why>` and exits 3.
@@ -159,9 +159,9 @@ plain command above covers it.
   - `sleep:<n>s` — a deliberate pause, never used to sync peers
   - endings: `exit-app`, `crash-app`, `stay`
 - UI: `create`/`join` go through the on-screen buttons, driven by **real** in-process
-  input (`examples/shared/intent.rs::script_input`): real `KeyboardInput` typing and real
+  input (`examples/shared/src/intent.rs::script_input`): real `KeyboardInput` typing and real
   pointer clicks; the UI's own click handler sends the `discovery::Command`.
-  - discovery test: `--ui custom` (`examples/lobby_room/ui.rs::LobbyUi`); join and room
+  - discovery test: `--ui custom` (`examples/lobby_room/src/ui.rs::LobbyUi`); join and room
     tests: `--ui default`.
 - `on_finish` checks (`common/scenario.rs`):
   - ring: every peer's embedded Freenet node reached the ring (`max_ring_peers>0`

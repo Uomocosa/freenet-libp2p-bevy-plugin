@@ -24,17 +24,7 @@ pub fn build_game(example: &str) -> Result<PathBuf, String> {
         }
     }
     let output = build
-        .args([
-            "build",
-            "-p",
-            "freenet-libp2p-bevy-plugin",
-            "--example",
-            example,
-            "--features",
-            "e2e",
-            "--profile",
-            &profile,
-        ])
+        .args(["build", "-p", example, "--profile", &profile])
         .output()
         .map_err(|e| format!("spawning cargo build: {e}"))?;
     if !output.status.success() {
@@ -50,7 +40,6 @@ pub fn build_game(example: &str) -> Result<PathBuf, String> {
     };
     let bin = target
         .join(folder)
-        .join("examples")
         .join(format!("{example}{}", std::env::consts::EXE_SUFFIX));
     if !bin.exists() {
         return Err(format!("expected build output {} not found", bin.display()));

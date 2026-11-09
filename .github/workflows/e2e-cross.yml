@@ -83,7 +83,7 @@ jobs:
       - shell: powershell
         run: |
           rustup toolchain install
-          cargo build -p freenet-libp2p-bevy-plugin --profile ci-min --features e2e --example starboard --example e2e_check
+          cargo build -p starboard -p e2e_check --profile ci-min
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $lines = cmd /c 'cargo test -p e2e --test e2e --no-run --profile ci-min 2>&1'
           if ($LASTEXITCODE -ne 0) { $lines; exit $LASTEXITCODE }
@@ -91,7 +91,7 @@ jobs:
           if ([string]::IsNullOrEmpty($testBin)) { $lines; Write-Output '::error::e2e test binary not found'; exit 1 }
           $bundle = Join-Path $env:RUNNER_TEMP bundle
           New-Item -ItemType Directory -Force $bundle | Out-Null
-          Copy-Item C:\e2e\target\ci-min\examples\starboard.exe, C:\e2e\target\ci-min\examples\e2e_check.exe $bundle
+          Copy-Item C:\e2e\target\ci-min\starboard.exe, C:\e2e\target\ci-min\e2e_check.exe $bundle
           Copy-Item $testBin (Join-Path $bundle 'e2e-direct-dial.exe')
       - uses: actions/upload-artifact@v7
         with:
@@ -108,11 +108,11 @@ jobs:
       - uses: actions/checkout@v7
       - run: |
           export CARGO_TARGET_DIR="$HOME/.cache/cargo-target/freenet-libp2p-bevy-plugin"
-          cargo build -p freenet-libp2p-bevy-plugin --features e2e --example starboard
+          cargo build -p starboard
           test_bin=$(cargo test -p e2e --test e2e --no-run 2>&1 | tee /dev/stderr | sed -n 's/^ *Executable .*tests\/e2e\/main\.rs (\(.*\))$/\1/p' | head -n1)
           if [ ! -x "$test_bin" ]; then echo "::error::e2e test binary not found"; exit 1; fi
           mkdir -p "$RUNNER_TEMP/bundle"
-          cp "$CARGO_TARGET_DIR/debug/examples/starboard" "$RUNNER_TEMP/bundle/"
+          cp "$CARGO_TARGET_DIR/debug/starboard" "$RUNNER_TEMP/bundle/"
           cp "$test_bin" "$RUNNER_TEMP/bundle/e2e-direct-dial"
           ls "$RUNNER_TEMP/bundle"
       - uses: actions/upload-artifact@v7

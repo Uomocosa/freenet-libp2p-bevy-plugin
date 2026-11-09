@@ -18,13 +18,13 @@ fi
 
 wanted="${1:-all}"
 
-cargo build -p freenet-libp2p-bevy-plugin --features e2e --example starboard
+cargo build -p starboard
 TEST_BIN=$(cargo test -p e2e --test e2e --no-run 2>&1 | tee /dev/stderr | sed -n 's/^ *Executable .*tests\/e2e\/main\.rs (\(.*\))$/\1/p' | head -n1)
 if [ ! -x "$TEST_BIN" ]; then
     echo "e2e test binary not found" >&2
     exit 1
 fi
-GAME_BIN="$CARGO_TARGET_DIR/debug/examples/starboard"
+GAME_BIN="$CARGO_TARGET_DIR/debug/starboard"
 echo "game: $GAME_BIN"
 echo "test: $TEST_BIN"
 
@@ -32,8 +32,8 @@ ROOT=$(mktemp -d)
 echo "results: $ROOT"
 
 # The harness kills stray games on exit; the game command line contains the
-# example path, so this only ever matches game processes.
-trap 'pkill -f "examples/starboard" 2>/dev/null || true' EXIT
+# binary path, so this only ever matches game processes.
+trap 'pkill -f "/starboard" 2>/dev/null || true' EXIT
 
 run_split() {
     local test=$1

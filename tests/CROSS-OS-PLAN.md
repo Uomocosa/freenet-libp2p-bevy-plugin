@@ -43,7 +43,7 @@ host our own relay — that would defeat the purpose of Freenet.
   (gateway, time to join network), libp2p connection kind per peer (tcp/quic/hole-punched/none),
   per-step timings, errors, exit code.
 - **Checker.** Reads every machine's `result.json` + logs and prints one table per scenario:
-  `expected | actual | PASS/FAIL`. The example `cargo run --example e2e_check -- --results-dir <dir> --peer <name>... --expect converge --expect min-members:N --expect may-crash:<user> --expect join-must-fail:<user>` does this.
+  `expected | actual | PASS/FAIL`. The example `cargo run -p e2e_check -- --results-dir <dir> --peer <name>... --expect converge --expect min-members:N --expect may-crash:<user> --expect join-must-fail:<user>` does this.
 - **Logs.** Each peers job uploads `results-windows` / `results-linux`, one `<peer>/` folder each
   (game log, Freenet node logs, `result.json`). Videos go to Telegram, not artifacts.
   Read with `gh run download <run-id>`.

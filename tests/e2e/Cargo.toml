@@ -65,6 +65,8 @@ missing_errors_doc = "allow"
 [dependencies]
 freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin", features = ["e2e"] }
 e2e_macros = { path = "../e2e_macros" }
+e2e_steps = { path = "../e2e_steps" }
+examples_shared = { path = "../../examples/shared" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
 reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
 telegram-bot-helper = { path = "../../../telegram-bot-helper/crates/telegram-bot-helper" }

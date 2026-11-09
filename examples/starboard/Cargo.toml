@@ -1,0 +1,46 @@
+[package]
+name = "starboard"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[lints.rust]
+non_snake_case = "allow"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+unreachable = "deny"
+unimplemented = "deny"
+unchecked_time_subtraction = "deny"
+todo = "deny"
+string_slice = "deny"
+panic_in_result_fn = "deny"
+panic = "deny"
+exit = "deny"
+as_conversions = "deny"
+module_inception = "allow"
+missing_errors_doc = "allow"
+
+[dependencies]
+bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
+bincode.workspace = true
+blake3.workspace = true
+clap = { version = "=4.6.7", features = ["derive"] }
+derive_more = { workspace = true, features = ["deref", "deref_mut", "from"] }
+e2e_steps = { path = "../../tests/e2e_steps" }
+examples_shared = { path = "../shared" }
+freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin", features = ["e2e"] }
+lele-bevy-preview = { path = "../../../telegram-bot-helper/crates/lele-bevy-preview" }
+libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
+serde.workspace = true
+serde_json = "=1.0.154"
+tempfile = "=3.27.0"
+tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }
+zstd = "=0.14.3"
