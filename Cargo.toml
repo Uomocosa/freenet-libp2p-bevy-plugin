@@ -1,6 +1,6 @@
 [package]
 name = "freenet-libp2p-bevy-plugin"
-version = "0.0.8"
+version = "0.0.9"
 edition = "2024"
 description = "Generic P2PBevyPlugin (Freenet discovery + libp2p Kademlia history) — Freenet lobby contract"
 license = "MIT OR Apache-2.0"
@@ -96,10 +96,10 @@ missing_errors_doc = "allow"
 
 [dependencies]
 async-trait = "=0.1.92"
-atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.11" }
+atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.12" }
 bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
 common_types = { path = "common_types", features = ["bevy"] }
-lele-bevy-state-machine = { git = "", rev = "9c914af2f59d114e007e3252eb14b8e1c0ebbcd4" }
+lele-bevy-state-machine = { git = "https://github.com/Uomocosa/lele-bevy-state-machine", tag = "v0.1.0" }
 derive_more = { version = "=2.1.1", features = ["deref", "deref_mut", "display", "from"] }
 libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
@@ -131,15 +131,15 @@ e2e = ["discovery", "default_ui", "testing"]
 
 [dev-dependencies]
 e2e_macros = { path = "tests/e2e/macros" }
-lele-bevy-state-machine = { features = ["testing"] , git = "", rev = "9c914af2f59d114e007e3252eb14b8e1c0ebbcd4" }
+lele-bevy-state-machine = { features = ["testing"] , git = "https://github.com/Uomocosa/lele-bevy-state-machine", tag = "v0.1.0" }
 reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
-telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.14" }
-lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.14" }
+telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.15" }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.15" }
 rstest = "=0.28.0"
 freenet = "=0.2.155"
 tempfile = "=3.27.0"
 freenet-stdlib = { version = "=0.12.1", features = ["contract"] }
-freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.9" }
+freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.10" }
 lobby_contract = { path = "contract/lobby" }
 
 # Early-phase profile: optimise for compile time and peak RAM, not runtime speed.
