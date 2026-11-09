@@ -4286,7 +4286,6 @@ dependencies = [
  "futures",
  "futures-util",
  "http",
- "lele-bevy-preview",
  "lele-bevy-state-machine",
  "libp2p",
  "serde",
@@ -4301,10 +4300,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "freenet-libp2p-bevy-default-ui"
+version = "0.0.9"
+dependencies = [
+ "atomic-delegate-macros",
+ "bevy",
+ "derive_more",
+ "freenet-libp2p-bevy-core",
+ "lele-bevy-preview",
+ "lele-bevy-state-machine",
+ "libp2p",
+ "tracing",
+]
+
+[[package]]
 name = "freenet-libp2p-bevy-plugin"
 version = "0.0.9"
 dependencies = [
  "freenet-libp2p-bevy-core",
+ "freenet-libp2p-bevy-default-ui",
 ]
 
 [[package]]

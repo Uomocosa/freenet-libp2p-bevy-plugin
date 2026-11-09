@@ -15,6 +15,3 @@ pub mod room_sync;
 #[cfg(feature = "testing")]
 pub mod testing;
 pub mod time;
-#[cfg(feature = "default_ui")]
-#[path = "../ui/mod.rs"]
-pub mod ui;

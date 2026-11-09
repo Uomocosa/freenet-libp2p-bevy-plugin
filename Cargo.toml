@@ -4,6 +4,7 @@ members = [
     "crates/common_types",
     "crates/lobby_contract",
     "crates/freenet-libp2p-bevy-core",
+    "crates/freenet-libp2p-bevy-default-ui",
     "crates/freenet-libp2p-bevy-plugin",
     "examples/e2e_check",
     "examples/lobby_room",

@@ -3,7 +3,7 @@ declared_honest = []
 declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "rand::thread_rng", "rand::random", "getrandom::getrandom", "std::fs::read", "std::fs::write", "std::env::var"]
 
 [lele.layout]
-roots = ["src", "ui"]
+roots = ["src"]
 methods_root = "__methods__"
 
 [[lele.boundary]]
@@ -29,9 +29,3 @@ name       = "room_sync does not know how rooms are found"
 why        = "discovery (or any other source) projects rooms and members onto peers entities; room_sync reads only those."
 folders    = ["src/room_sync"]
 cannot_use = ["crate::discovery"]
-
-[[lele.boundary]]
-name       = "logic never depends on ui"
-why        = "ui/ is substitutable by the user; it depends on src/, never the reverse."
-folders    = ["src"]
-cannot_use = ["crate::ui"]

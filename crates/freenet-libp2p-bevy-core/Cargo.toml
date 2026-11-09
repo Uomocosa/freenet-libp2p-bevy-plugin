@@ -56,19 +56,17 @@ http = { version = "=1.5.0", optional = true }
 serde_json = "=1.0.154"
 
 [features]
-default = ["discovery", "default_ui"]
+default = ["discovery"]
 discovery = [
     "dep:freenet-stdlib",
     "dep:tokio-tungstenite",
     "dep:http",
 ]
-default_ui = ["discovery"]
 testing = ["discovery", "tokio/net"]
-e2e = ["discovery", "default_ui", "testing"]
+e2e = ["discovery", "testing"]
 
 [dev-dependencies]
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
-lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.15" }
 tempfile = "=3.27.0"
 freenet-stdlib = { workspace = true, features = ["contract"] }
 tokio = { version = "=1.54.1", features = ["test-util"] }

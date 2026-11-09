@@ -1,0 +1,7 @@
+[honesty]
+declared_honest = []
+declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "rand::thread_rng", "rand::random", "getrandom::getrandom", "std::fs::read", "std::fs::write", "std::env::var"]
+
+[lele.layout]
+roots = ["src"]
+methods_root = "__methods__"
