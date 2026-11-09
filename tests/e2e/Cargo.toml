@@ -1,0 +1,82 @@
+[package]
+name = "e2e"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[[test]]
+name = "lobby_room_discovery"
+path = "tests/lobby_room_discovery.rs"
+
+[[test]]
+name = "lobby_room_join"
+path = "tests/lobby_room_join.rs"
+
+[[test]]
+name = "room_messaging"
+path = "tests/room_messaging.rs"
+
+[[test]]
+name = "starboard_e2e"
+path = "tests/starboard_e2e.rs"
+
+[[test]]
+name = "starboard_history"
+path = "tests/starboard_history.rs"
+
+[[test]]
+name = "starboard_scenarios"
+path = "tests/starboard_scenarios.rs"
+
+[[test]]
+name = "e2e"
+path = "tests/e2e/main.rs"
+
+[[test]]
+name = "freenet_harness"
+path = "tests/freenet_harness.rs"
+
+[[test]]
+name = "freenet_relaunch"
+path = "tests/freenet_relaunch.rs"
+
+[lints.rust]
+non_snake_case = "allow"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+unreachable = "deny"
+unimplemented = "deny"
+unchecked_time_subtraction = "deny"
+todo = "deny"
+string_slice = "deny"
+panic_in_result_fn = "deny"
+panic = "deny"
+exit = "deny"
+as_conversions = "deny"
+module_inception = "allow"
+missing_errors_doc = "allow"
+
+[dependencies]
+freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin", features = ["e2e"] }
+e2e_macros = { path = "../e2e_macros" }
+lele-bevy-state-machine = { workspace = true, features = ["testing"] }
+reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
+telegram-bot-helper = { path = "../../../telegram-bot-helper/crates/telegram-bot-helper" }
+rstest.workspace = true
+freenet = "=0.2.155"
+tempfile = "=3.27.0"
+freenet-stdlib = { workspace = true, features = ["contract"] }
+freenet-contract-harness = { path = "../../../freenet-contract-harness" }
+lobby_contract = { path = "../../crates/lobby_contract" }
+bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
+tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
+serde.workspace = true
+serde_json = "=1.0.154"
+bincode.workspace = true
+async-trait = "=0.1.92"

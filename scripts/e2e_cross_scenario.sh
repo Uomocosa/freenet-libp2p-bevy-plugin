@@ -11,7 +11,7 @@ scenario=$1
 scale=$2
 room=$3
 
-# `count` strokes of the scripted session, as in strokes() of crates/freenet-libp2p-bevy-plugin/tests/common/scenario.rs.
+# `count` strokes of the scripted session, as in strokes() of tests/e2e/tests/common/scenario.rs.
 strokes() {
     local count=$1 verb=$2 index x y
     for ((index = 0; index < count; index++)); do

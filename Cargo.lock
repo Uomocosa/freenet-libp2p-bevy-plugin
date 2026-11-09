@@ -3719,6 +3719,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
+name = "e2e"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bevy",
+ "bincode",
+ "e2e_macros",
+ "freenet",
+ "freenet-contract-harness",
+ "freenet-libp2p-bevy-plugin",
+ "freenet-stdlib",
+ "lele-bevy-state-machine",
+ "lobby_contract",
+ "reqwest",
+ "rstest",
+ "serde",
+ "serde_json",
+ "telegram-bot-helper",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "e2e_macros"
 version = "0.1.0"
 dependencies = [
@@ -4224,9 +4247,7 @@ dependencies = [
  "clap",
  "common_types",
  "derive_more",
- "e2e_macros",
  "freenet",
- "freenet-contract-harness",
  "freenet-stdlib",
  "futures",
  "futures-util",
@@ -4234,9 +4255,6 @@ dependencies = [
  "lele-bevy-preview",
  "lele-bevy-state-machine",
  "libp2p",
- "lobby_contract",
- "reqwest",
- "rstest",
  "serde",
  "serde_json",
  "telegram-bot-helper",
@@ -6616,6 +6634,7 @@ dependencies = [
  "bincode",
  "common_types",
  "derive_more",
+ "freenet-libp2p-bevy-plugin",
  "freenet-macros",
  "freenet-stdlib",
  "rstest",

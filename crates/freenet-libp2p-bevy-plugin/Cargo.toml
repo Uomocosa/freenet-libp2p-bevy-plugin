@@ -24,54 +24,6 @@ name = "starboard"
 path = "examples/starboard/main.rs"
 required-features = ["e2e"]
 
-[[test]]
-name = "lobby_room_discovery"
-path = "tests/lobby_room_discovery.rs"
-required-features = ["e2e"]
-
-[[test]]
-name = "lobby_room_join"
-path = "tests/lobby_room_join.rs"
-required-features = ["e2e"]
-
-[[test]]
-name = "room_messaging"
-path = "tests/room_messaging.rs"
-required-features = ["e2e"]
-
-[[test]]
-name = "starboard_e2e"
-path = "tests/starboard_e2e.rs"
-required-features = ["e2e"]
-
-[[test]]
-name = "starboard_history"
-path = "tests/starboard_history.rs"
-required-features = ["e2e"]
-
-[[test]]
-name = "starboard_scenarios"
-path = "tests/starboard_scenarios.rs"
-required-features = ["e2e"]
-
-[[test]]
-name = "e2e"
-path = "tests/e2e/main.rs"
-required-features = ["e2e"]
-
-[[test]]
-name = "contract_wire"
-path = "tests/contract_wire.rs"
-
-[[test]]
-name = "freenet_harness"
-path = "tests/freenet_harness.rs"
-
-[[test]]
-name = "freenet_relaunch"
-path = "tests/freenet_relaunch.rs"
-required-features = ["e2e"]
-
 [lints.rust]
 non_snake_case = "allow"
 
@@ -130,14 +82,9 @@ testing = ["discovery", "tokio/net"]
 e2e = ["discovery", "default_ui", "testing"]
 
 [dev-dependencies]
-e2e_macros = { path = "tests/e2e/macros" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
-reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
 telegram-bot-helper = { path = "../../../telegram-bot-helper/crates/telegram-bot-helper" }
 lele-bevy-preview = { path = "../../../telegram-bot-helper/crates/lele-bevy-preview" }
-rstest.workspace = true
 freenet = "=0.2.155"
 tempfile = "=3.27.0"
 freenet-stdlib = { workspace = true, features = ["contract"] }
-freenet-contract-harness = { path = "../../../freenet-contract-harness" }
-lobby_contract = { path = "../lobby_contract" }

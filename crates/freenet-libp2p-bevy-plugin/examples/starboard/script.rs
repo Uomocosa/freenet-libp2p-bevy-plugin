@@ -1,4 +1,4 @@
-#[path = "../../tests/starboard_steps/mod.rs"]
+#[path = "../../../../tests/e2e/tests/starboard_steps/mod.rs"]
 pub mod starboard_steps;
 
 pub use starboard_steps::{Cell, StarboardStep, Stroke};

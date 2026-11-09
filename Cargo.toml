@@ -4,7 +4,8 @@ members = [
     "crates/common_types",
     "crates/lobby_contract",
     "crates/freenet-libp2p-bevy-plugin",
-    "crates/freenet-libp2p-bevy-plugin/tests/e2e/macros",
+    "tests/e2e",
+    "tests/e2e_macros",
 ]
 
 [workspace.package]

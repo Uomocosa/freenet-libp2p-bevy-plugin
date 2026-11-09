@@ -56,11 +56,11 @@ preview-stability N="5":
 
 # Real, visual e2e: needs X + the freenet network + N lobby_room windows.
 e2e-discovery N="3":
-    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test lobby_room_discovery -E 'test(lobby_room_discovery)' --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run -p e2e --no-fail-fast --test lobby_room_discovery -E 'test(lobby_room_discovery)' --all-features --run-ignored all -- --nocapture
 
 # Ring health only: no room, no UI, no libp2p mesh — just N embedded Freenet nodes.
 e2e-ring N:
-    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test lobby_room_discovery -E 'test(freenet_ring)' --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_PEERS={{ N }} cargo nextest run -p e2e --no-fail-fast --test lobby_room_discovery -E 'test(freenet_ring)' --all-features --run-ignored all -- --nocapture
 
 # The whole ladder, one network at a time (never 4 x N nodes on one NAT at once).
 e2e-ring-ladder:
@@ -105,7 +105,7 @@ e2e-ring-loop N="3" RUNS="5" KEEP_GOING="0" PAUSE="90":
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     pause="${E2E_LOOP_PAUSE_SECS:-{{ PAUSE }}}"
     # Only this loop's runs are reported: run dirs carry a unix-epoch suffix
-    # (see epoch_secs in crates/freenet-libp2p-bevy-plugin/tests/common/scenario.rs), so --since filters out
+    # (see epoch_secs in tests/e2e/tests/common/scenario.rs), so --since filters out
     # older runs instead of showing stale data.
     started=$(date +%s)
     failed=0
@@ -167,7 +167,7 @@ e2e-ring-check PAUSE="90":
 
 # Saved-node relaunch: one peer launches cold, exits, waits GAP seconds with
 # the app closed, then launches again with the same node folder and game
-# token (see crates/freenet-libp2p-bevy-plugin/tests/freenet_relaunch.rs and crates/freenet-libp2p-bevy-plugin/tests/README.md).
+# token (see tests/e2e/tests/freenet_relaunch.rs and tests/README.md).
 e2e-relaunch GAP="10":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -177,7 +177,7 @@ e2e-relaunch GAP="10":
     # Headless-safe display defaults (overridable); the e2e peer needs X.
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
-    VK_ICD_FILENAMES={{ _lavapipe }} E2E_RELAUNCH_GAP_SECS={{ GAP }} TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test freenet_relaunch -E 'test(freenet_relaunch)' --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_RELAUNCH_GAP_SECS={{ GAP }} TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p e2e --no-fail-fast --test freenet_relaunch -E 'test(freenet_relaunch)' --all-features --run-ignored all -- --nocapture
 
 # Repeat `just e2e-relaunch GAP` up to RUNS pairs; stop at the first failure
 # and always print the stats for the cold and warm runs completed so far.
@@ -195,7 +195,7 @@ e2e-relaunch-loop GAP="10" RUNS="5" PAUSE="90":
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     pause="${E2E_LOOP_PAUSE_SECS:-{{ PAUSE }}}"
     # Only this loop's runs are reported: run dirs carry a unix-epoch suffix
-    # (see epoch_secs in crates/freenet-libp2p-bevy-plugin/tests/common/scenario.rs), so --since filters out
+    # (see epoch_secs in tests/e2e/tests/common/scenario.rs), so --since filters out
     # older runs instead of showing stale data.
     started=$(date +%s)
     failed=0
@@ -258,22 +258,22 @@ _e2e-notify-clips SCENARIO SINCE:
     done <<<"$clips"
 
 e2e-join:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test lobby_room_join --all-features --run-ignored all -- --nocapture
 
 e2e-room:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test room_messaging --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test room_messaging --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: needs X + the freenet network + 3 starboard windows.
 e2e-starboard:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test starboard_e2e --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test starboard_e2e --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: the Kademlia history scenarios (S4a, S4b, S4c) on one machine.
 e2e-history:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test starboard_history --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test starboard_history --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: S3, S5, S6, S7 on one machine.
 e2e-scenarios:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test starboard_scenarios --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test starboard_scenarios --all-features --run-ignored all -- --nocapture
 
 # UI layer on the fake network: fast, for reviewing the UI; Telegram stays silent.
 e2e-ui-no-network TEST="":
@@ -283,9 +283,9 @@ e2e-ui-no-network TEST="":
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     if [ -n "{{ TEST }}" ]; then
-        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p e2e --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
     else
-        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p e2e --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
     fi
 
 # The same scenarios on the public network: the real proof; Telegram sends as usual.
@@ -298,9 +298,9 @@ e2e-mainnet TEST="":
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     if [ -n "{{ TEST }}" ]; then
-        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p e2e --no-fail-fast --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
     else
-        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p freenet-libp2p-bevy-plugin --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
+        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p e2e --no-fail-fast --test e2e --all-features --run-ignored all -- --nocapture
     fi
 
 # Run the starboard example detached (no terminal tie-up; only the app window).
@@ -393,7 +393,7 @@ common-types-lint:
 
 # Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
 freenet-harness:
-    cargo nextest run -p freenet-libp2p-bevy-plugin --test freenet_harness --all-features --run-ignored all -- --nocapture
+    cargo nextest run -p e2e --test freenet_harness --all-features --run-ignored all -- --nocapture
 
 setup:
     prek install -t pre-commit -t pre-push

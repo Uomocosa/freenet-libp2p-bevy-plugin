@@ -1,4 +1,4 @@
-# Cross-OS e2e, see crates/freenet-libp2p-bevy-plugin/tests/CROSS-OS-PLAN.md. Manual trigger only: the peers run on
+# Cross-OS e2e, see tests/CROSS-OS-PLAN.md. Manual trigger only: the peers run on
 # self-hosted machines, and this repo is public.
 name: e2e-cross
 
@@ -85,7 +85,7 @@ jobs:
           rustup toolchain install
           cargo build -p freenet-libp2p-bevy-plugin --profile ci-min --features e2e --example starboard --example e2e_check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $lines = cmd /c 'cargo test -p freenet-libp2p-bevy-plugin --test e2e --no-run --features e2e --profile ci-min 2>&1'
+          $lines = cmd /c 'cargo test -p e2e --test e2e --no-run --profile ci-min 2>&1'
           if ($LASTEXITCODE -ne 0) { $lines; exit $LASTEXITCODE }
           $testBin = ($lines | Select-String 'Executable .*tests[\\/]e2e[\\/]main\.rs \((.*)\)' | ForEach-Object { $_.Matches.Groups[1].Value } | Select-Object -First 1)
           if ([string]::IsNullOrEmpty($testBin)) { $lines; Write-Output '::error::e2e test binary not found'; exit 1 }
@@ -109,7 +109,7 @@ jobs:
       - run: |
           export CARGO_TARGET_DIR="$HOME/.cache/cargo-target/freenet-libp2p-bevy-plugin"
           cargo build -p freenet-libp2p-bevy-plugin --features e2e --example starboard
-          test_bin=$(cargo test -p freenet-libp2p-bevy-plugin --test e2e --no-run --features e2e 2>&1 | tee /dev/stderr | sed -n 's/^ *Executable .*tests\/e2e\/main\.rs (\(.*\))$/\1/p' | head -n1)
+          test_bin=$(cargo test -p e2e --test e2e --no-run 2>&1 | tee /dev/stderr | sed -n 's/^ *Executable .*tests\/e2e\/main\.rs (\(.*\))$/\1/p' | head -n1)
           if [ ! -x "$test_bin" ]; then echo "::error::e2e test binary not found"; exit 1; fi
           mkdir -p "$RUNNER_TEMP/bundle"
           cp "$CARGO_TARGET_DIR/debug/examples/starboard" "$RUNNER_TEMP/bundle/"

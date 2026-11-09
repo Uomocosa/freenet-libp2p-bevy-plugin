@@ -7,15 +7,15 @@ pub use build_game::build_game;
 mod cleanup_stale;
 pub use cleanup_stale::cleanup_stale;
 
-#[path = "../../examples/shared/e2e_report/__basic__/enums.rs"]
+#[path = "../../../../crates/freenet-libp2p-bevy-plugin/examples/shared/e2e_report/__basic__/enums.rs"]
 mod check_layer;
-#[path = "../../examples/shared/e2e_report/expectation_result.rs"]
+#[path = "../../../../crates/freenet-libp2p-bevy-plugin/examples/shared/e2e_report/expectation_result.rs"]
 mod expectation_result;
-#[path = "../../examples/shared/e2e_report/__basic__/structs.rs"]
+#[path = "../../../../crates/freenet-libp2p-bevy-plugin/examples/shared/e2e_report/__basic__/structs.rs"]
 mod freenet_layer_result;
-#[path = "../../examples/shared/e2e_report/__basic__/resources.rs"]
+#[path = "../../../../crates/freenet-libp2p-bevy-plugin/examples/shared/e2e_report/__basic__/resources.rs"]
 mod peer_run_result;
-#[path = "../../examples/shared/e2e_report/scenario_expectation.rs"]
+#[path = "../../../../crates/freenet-libp2p-bevy-plugin/examples/shared/e2e_report/scenario_expectation.rs"]
 mod scenario_expectation;
 
 mod finish_record;

@@ -19,7 +19,7 @@ fi
 wanted="${1:-all}"
 
 cargo build -p freenet-libp2p-bevy-plugin --features e2e --example starboard
-TEST_BIN=$(cargo test -p freenet-libp2p-bevy-plugin --test e2e --no-run --features e2e 2>&1 | tee /dev/stderr | sed -n 's/^ *Executable .*tests\/e2e\/main\.rs (\(.*\))$/\1/p' | head -n1)
+TEST_BIN=$(cargo test -p e2e --test e2e --no-run 2>&1 | tee /dev/stderr | sed -n 's/^ *Executable .*tests\/e2e\/main\.rs (\(.*\))$/\1/p' | head -n1)
 if [ ! -x "$TEST_BIN" ]; then
     echo "e2e test binary not found" >&2
     exit 1

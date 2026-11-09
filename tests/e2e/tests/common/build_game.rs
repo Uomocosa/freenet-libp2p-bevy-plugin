@@ -5,10 +5,11 @@ use std::process::Command;
 /// Returns an error if the cargo build fails or the binary is missing.
 pub fn build_game(example: &str) -> Result<PathBuf, String> {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let target = target_root(manifest)?;
+    let workspace = manifest.join("../..");
+    let target = target_root(&workspace)?;
     let profile = std::env::var("LOBBY_BUILD_PROFILE").unwrap_or_else(|_| "dev".to_string());
     let mut build = Command::new("cargo");
-    build.current_dir(manifest);
+    build.current_dir(&workspace);
     build.env("CARGO_TARGET_DIR", &target);
     for (key, _) in std::env::vars() {
         if key == "CARGO_TARGET_DIR" {
@@ -25,6 +26,8 @@ pub fn build_game(example: &str) -> Result<PathBuf, String> {
     let output = build
         .args([
             "build",
+            "-p",
+            "freenet-libp2p-bevy-plugin",
             "--example",
             example,
             "--features",

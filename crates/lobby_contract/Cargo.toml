@@ -21,6 +21,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true
+freenet-libp2p-bevy-plugin = { path = "../freenet-libp2p-bevy-plugin" }
 
 [lints.clippy]
 pedantic = { level = "deny", priority = -1 }
