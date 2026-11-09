@@ -1,4 +1,4 @@
-use freenet_libp2p_bevy_plugin::identity;
+use freenet_libp2p_bevy_core::identity;
 
 fn main() {
     println!("{}", identity::GameId::generate_new_random_game_id());
@@ -6,7 +6,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_core::identity;
 
     #[test]
     fn test_usage() {
