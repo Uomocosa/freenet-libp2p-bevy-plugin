@@ -1,12 +1,12 @@
 use atomic_delegate_macros::atomic_delegates;
-use tokio::sync::mpsc::UnboundedSender;
+use bevy::prelude::Resource;
 
 use crate::discovery;
 use crate::freenet;
 use crate::identity;
 use crate::p2p;
 
-#[derive(Debug, Clone)]
+#[derive(Resource, Debug, Clone)]
 pub struct Config {
     pub game: identity::GameId,
     pub display_name: identity::Username,
@@ -31,36 +31,14 @@ impl Default for Config {
 
 #[atomic_delegates]
 impl Config {
-    pub async fn run(&self, endpoint: discovery::FreenetPort, channels: discovery::RunChannels) {}
-    pub(crate) async fn run_event_loop(
+    pub async fn run(
         &self,
-        channels: discovery::RunChannels,
-        heartbeat_targets: tokio::sync::watch::Sender<
-            Vec<discovery::state_machine::HeartbeatTarget>,
-        >,
-        lobbies: tokio::sync::mpsc::UnboundedReceiver<discovery::Lobby>,
-        freenet_peers: tokio::sync::mpsc::UnboundedReceiver<Vec<identity::FreenetPeer>>,
+        endpoint: discovery::FreenetPort,
+        swarm: p2p::SwarmChannels,
+        target: tokio::sync::watch::Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
+        lobbies: tokio::sync::mpsc::UnboundedSender<discovery::Lobby>,
+        peers: tokio::sync::mpsc::UnboundedSender<Vec<identity::FreenetPeer>>,
     ) {
-    }
-}
-
-#[rustfmt::skip]
-impl Config {
-    pub(crate) fn flush(
-        outputs: Vec<discovery::state_machine::Output>,
-        libp2p: &UnboundedSender<p2p::Libp2pCommand>,
-        events: &UnboundedSender<discovery::Event>,
-    ) {
-        for output in outputs {
-            match output {
-                discovery::state_machine::Output::Notify(event) => {
-                    let _ = events.send(event);
-                }
-                discovery::state_machine::Output::Libp2pCommand(command) => {
-                    let _ = libp2p.send(command);
-                }
-            }
-        }
     }
 }
 

@@ -7,8 +7,10 @@ pub mod basic;
 pub use basic::constants::*;
 pub use basic::enums::{HowRoomWasEntered, JoinPhase};
 pub use basic::messages::{Command, Event};
-pub use basic::resources::{CommandSender, EventReceiver, FreenetPort, StatusReceiver};
-pub use basic::structs::{JoinedRoom, LobbyTaskChannels, RunChannels};
+pub use basic::resources::{
+    FreenetPeersReceiver, FreenetPort, HeartbeatTargetSender, Libp2pEventTap, LobbyUpdateReceiver,
+};
+pub use basic::structs::{JoinedRoom, LobbyTaskChannels};
 pub use basic::type_aliases::Members;
 pub use common_types::{Lobby, LobbyRoom, RoomMember, RoomMembership, RoomSize, RoomSizeError};
 

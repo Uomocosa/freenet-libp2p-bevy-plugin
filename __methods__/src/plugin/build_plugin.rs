@@ -1,31 +1,58 @@
-use std::sync::Mutex;
-
 use bevy::prelude::*;
-use tracing::error;
+use lele_bevy_state_machine::{StateMachinePlugin, StateMachineSystems};
 
 use crate::direct_dial;
 use crate::discovery;
+use crate::p2p;
 use crate::peers;
 use crate::room_sync;
-#[cfg(feature = "testing")]
-use crate::testing;
 
 pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
+    let config = (**plugin).clone();
     app.init_resource::<discovery::Status>();
+    app.insert_resource(config);
     app.add_message::<discovery::Command>();
     app.add_message::<discovery::Event>();
+    app.init_resource::<p2p::PendingLibp2pCommands>();
+    if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
+        app.insert_resource(discovery::Libp2pEventTap(channel.subscribe()));
+    }
+    app.add_plugins(
+        StateMachinePlugin::<discovery::state_machine::DiscoveryState>::default()
+            .periodic()
+            .steps_on_exit(),
+    );
     app.add_systems(
         Update,
         (
-            discovery::bevy_systems::drain_status,
-            discovery::bevy_systems::drain_events,
-            discovery::bevy_systems::forward_commands,
-        ),
+            discovery::bevy_systems::start_discovery_when_swarm_ready.run_if(not(
+                resource_exists::<discovery::state_machine::DiscoveryState>,
+            )),
+            discovery::bevy_systems::commands_to_discovery_inputs,
+            discovery::bevy_systems::translate_libp2p_events_to_discovery_inputs,
+            discovery::bevy_systems::lobby_updates_to_discovery_inputs,
+            discovery::bevy_systems::own_addrs_to_discovery_inputs,
+        )
+            .in_set(StateMachineSystems::collect_inputs::<
+                discovery::state_machine::DiscoveryState,
+            >()),
+    );
+    app.add_systems(
+        Update,
+        (
+            discovery::bevy_systems::notify_outputs_to_events,
+            discovery::bevy_systems::discovery_outputs_to_libp2p_commands,
+            discovery::bevy_systems::publish_heartbeat_targets,
+            discovery::bevy_systems::refresh_status_from_discovery_state,
+        )
+            .in_set(StateMachineSystems::perform_outputs::<
+                discovery::state_machine::DiscoveryState,
+            >()),
     );
     app.add_systems(
         Update,
         discovery::bevy_systems::project_status_to_entities
-            .after(discovery::bevy_systems::drain_status)
+            .after(discovery::bevy_systems::refresh_status_from_discovery_state)
             .after(peers::bevy_systems::track_peer_connections)
             .before(peers::bevy_systems::despawn_orphan_peers)
             .before(peers::bevy_systems::despawn_orphan_rooms)
@@ -36,78 +63,44 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         Update,
         discovery::bevy_systems::leave_failed_room.after(room_sync::RoomSyncSet::Drive),
     );
-    app.add_systems(Last, discovery::bevy_systems::send_quit_on_exit);
-
-    let (status_tx, status_rx) = tokio::sync::mpsc::unbounded_channel();
-    let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
-    let (command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel();
-    app.insert_resource(discovery::StatusReceiver(Mutex::new(Some(status_rx))));
-    app.insert_resource(discovery::EventReceiver(Mutex::new(Some(event_rx))));
-    app.insert_resource(discovery::CommandSender(command_tx));
-
-    let Some(swarm) = discovery::Plugin::swarm_channels(app) else {
-        error!(target: "discovery", "discovery: p2p resources missing, discovery disabled");
-        return;
-    };
-    let channels = discovery::RunChannels {
-        swarm,
-        commands: command_rx,
-        statuses: status_tx,
-        events: event_tx,
-    };
-    let config = (**plugin).clone();
-    #[cfg(feature = "testing")]
-    if let Some(task_override) = app
-        .world_mut()
-        .remove_resource::<discovery::LobbyTaskOverride>()
-    {
-        let _endpoint = app
-            .world()
-            .get_resource::<discovery::FreenetPort>()
-            .copied()
-            .unwrap_or(discovery::FreenetPort(0));
-        let game = config.game.clone();
-        let (target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
-        let (lobby_tx, lobbies) = tokio::sync::mpsc::unbounded_channel();
-        let (peers_tx, peers) = tokio::sync::mpsc::unbounded_channel();
-        let handle = task_override.spawn_fake_lobby_task(
-            discovery::LobbyTaskChannels {
-                heartbeat_targets: target_rx,
-                lobbies: lobby_tx,
-                freenet_peers: peers_tx,
-            },
-            game,
-        );
-        if let Some(mut handles) = app
-            .world_mut()
-            .get_resource_mut::<testing::FakeTaskHandles>()
-        {
-            handles.lobby = Some(handle);
-        }
-        tokio::spawn(async move {
-            config
-                .run_event_loop(channels, target_tx, lobbies, peers)
-                .await;
-        });
-        return;
-    }
-    let Some(endpoint) = app
-        .world()
-        .get_resource::<discovery::FreenetPort>()
-        .copied()
-    else {
-        error!(target: "discovery", "discovery: FreenetPort missing, discovery disabled");
-        return;
-    };
-    tokio::spawn(async move { config.run(endpoint, channels).await });
+    app.add_systems(
+        Last,
+        discovery::bevy_systems::send_quit_on_exit.in_set(StateMachineSystems::collect_inputs::<
+            discovery::state_machine::DiscoveryState,
+        >()),
+    );
+    app.add_systems(
+        Last,
+        (
+            discovery::bevy_systems::notify_outputs_to_events,
+            discovery::bevy_systems::discovery_outputs_to_libp2p_commands,
+            discovery::bevy_systems::publish_heartbeat_targets,
+            discovery::bevy_systems::refresh_status_from_discovery_state,
+        )
+            .in_set(StateMachineSystems::perform_outputs::<
+                discovery::state_machine::DiscoveryState,
+            >()),
+    );
+    app.add_systems(
+        Last,
+        discovery::bevy_systems::flush_pending_libp2p_commands.after(
+            StateMachineSystems::perform_outputs::<discovery::state_machine::DiscoveryState>(),
+        ),
+    );
+    plugin.spawn_lobby_task(app);
 }
 
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use lele_bevy_state_machine::Now;
+    use lele_bevy_state_machine::testing::FrozenClock;
 
     use super::build_plugin;
     use crate::discovery;
+    use crate::identity;
+    use crate::p2p;
+    use crate::time;
 
     #[tokio::test]
     async fn test_usage() {
@@ -116,5 +109,116 @@ mod tests {
         let plugin = discovery::Plugin::new(discovery::Config::default());
         build_plugin(&plugin, &mut app);
         assert!(app.world().get_resource::<discovery::Status>().is_some());
+    }
+
+    fn app_with_swarm() -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(p2p::ReadyChannel::default());
+        app.insert_resource(p2p::Libp2pEventChannel::default());
+        let (cmd_tx, _cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+        app.insert_resource(p2p::Libp2pCommandSender(cmd_tx));
+        let frozen = time::UnixTime::from_secs(2_000_000_000);
+        app.insert_resource(Now(frozen));
+        app.insert_resource(FrozenClock);
+        let plugin = discovery::Plugin::new(discovery::Config::default());
+        build_plugin(&plugin, &mut app);
+        app
+    }
+
+    #[test]
+    fn inputs_before_swarm_ready_are_processed_after_state_appears() {
+        let mut app = app_with_swarm();
+        let room = identity::RoomName::from("room-a");
+        app.world_mut()
+            .resource_mut::<Messages<discovery::state_machine::Input>>()
+            .write(discovery::state_machine::Input::Command(
+                discovery::Command::Create(room.clone()),
+            ));
+        app.update();
+        assert!(
+            app.world()
+                .get_resource::<discovery::state_machine::DiscoveryState>()
+                .is_none()
+        );
+        let peer = identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: vec![identity::PeerAddr::from("/ip4/1.2.3.4/tcp/4001")],
+        };
+        app.world()
+            .resource::<p2p::ReadyChannel>()
+            .ready_tx
+            .send_replace(Some(peer));
+        app.update();
+        app.update();
+        let state = app
+            .world()
+            .resource::<discovery::state_machine::DiscoveryState>();
+        assert_eq!(state.room.as_ref().map(|joined| &joined.name), Some(&room));
+    }
+
+    #[test]
+    fn quit_on_app_exit_produces_departed_heartbeat_and_leave_handshake() {
+        let mut app = app_with_swarm();
+        let peer = identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: vec![identity::PeerAddr::from("/ip4/1.2.3.4/tcp/4001")],
+        };
+        app.world()
+            .resource::<p2p::ReadyChannel>()
+            .ready_tx
+            .send_replace(Some(peer));
+        app.update();
+        app.update();
+        app.world_mut()
+            .resource_mut::<Messages<discovery::state_machine::Input>>()
+            .write(discovery::state_machine::Input::Command(
+                discovery::Command::Create(identity::RoomName::from("room-a")),
+            ));
+        app.update();
+        app.update();
+        assert!(
+            app.world()
+                .resource::<discovery::state_machine::DiscoveryState>()
+                .room
+                .is_some()
+        );
+        let alice = identity::PeerId::from("alice");
+        app.world_mut()
+            .resource_mut::<discovery::state_machine::DiscoveryState>()
+            .connected
+            .insert(alice.clone());
+        let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::unbounded_channel();
+        app.insert_resource(p2p::Libp2pCommandSender(cmd_tx));
+        app.world_mut()
+            .resource_mut::<p2p::PendingLibp2pCommands>()
+            .take_all();
+        app.world_mut().write_message(AppExit::Success);
+        app.update();
+        let mut saw_handshake = false;
+        while let Ok(command) = cmd_rx.try_recv() {
+            if matches!(
+                &command,
+                p2p::Libp2pCommand::PeerExchange { peer_id, .. } if *peer_id == alice
+            ) {
+                saw_handshake = true;
+            }
+        }
+        assert!(
+            saw_handshake,
+            "quit leaves a handshake for the connected peer"
+        );
+        let targets = app
+            .world()
+            .resource::<discovery::HeartbeatTargetSender>()
+            .borrow()
+            .clone();
+        assert!(!targets.is_empty(), "quit publishes heartbeat targets");
+        assert!(
+            targets
+                .iter()
+                .all(|target| target.membership == discovery::RoomMembership::Departed),
+            "quit marks every heartbeat target Departed"
+        );
     }
 }

@@ -1,11 +1,15 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use discovery::{Command, CommandSender};
 
-pub fn send_quit_on_exit(mut exits: MessageReader<AppExit>, sender: Res<CommandSender>) {
+pub fn send_quit_on_exit(
+    mut exits: MessageReader<AppExit>,
+    mut inputs: MessageWriter<discovery::state_machine::Input>,
+) {
     if exits.read().next().is_some() {
-        sender.into_inner().send(Command::Quit).ok();
+        inputs.write(discovery::state_machine::Input::Command(
+            discovery::Command::Quit,
+        ));
     }
 }
 
@@ -18,15 +22,30 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let mut app = App::new();
-        app.add_message::<AppExit>()
-            .insert_resource(discovery::CommandSender(tx))
-            .add_systems(Last, send_quit_on_exit);
+        app.add_plugins(MinimalPlugins);
+        app.add_message::<AppExit>();
+        app.add_message::<discovery::state_machine::Input>();
+        app.add_systems(Last, send_quit_on_exit);
         app.update();
-        assert!(rx.try_recv().is_err());
+        let count = app
+            .world_mut()
+            .resource_mut::<Messages<discovery::state_machine::Input>>()
+            .drain()
+            .count();
+        assert_eq!(count, 0);
         app.world_mut().write_message(AppExit::Success);
         app.update();
-        assert_eq!(rx.try_recv(), Ok(discovery::Command::Quit));
+        let inputs: Vec<discovery::state_machine::Input> = app
+            .world_mut()
+            .resource_mut::<Messages<discovery::state_machine::Input>>()
+            .drain()
+            .collect();
+        assert_eq!(
+            inputs,
+            vec![discovery::state_machine::Input::Command(
+                discovery::Command::Quit
+            )]
+        );
     }
 }

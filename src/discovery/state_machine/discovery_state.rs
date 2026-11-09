@@ -1,12 +1,16 @@
+use std::time::Duration;
+
 use crate::discovery;
 use crate::identity;
 use crate::p2p;
 use crate::time;
+use bevy::prelude::Resource;
 use discovery::state_machine::{Handshake, HeartbeatTarget, Input, ObservedLobbyHeartbeat, Output};
 use std::collections::{BTreeMap, BTreeSet};
 
 use atomic_delegate_macros::atomic_delegates;
 
+#[derive(Resource)]
 pub struct DiscoveryState {
     pub me: identity::Peer,
     pub lobby: discovery::Lobby,
@@ -29,6 +33,15 @@ pub struct DiscoveryState {
 }
 
 impl DiscoveryState {
+    #[must_use]
+    pub fn from_ready_peer(ready: identity::Peer, config: &discovery::Config) -> Self {
+        let mut state = Self::new(identity::Peer {
+            addrs: identity::PeerAddr::dialable(ready.addrs),
+            id: ready.id,
+        });
+        state.apply_config(config);
+        state
+    }
     #[must_use]
     pub fn new(me: identity::Peer) -> Self {
         let lease = discovery::HolderHeartbeatIntervals::default();
@@ -55,6 +68,38 @@ impl DiscoveryState {
             is_quitting: false,
         }
     }
+}
+
+#[rustfmt::skip]
+impl lele_bevy_state_machine::StateMachine for DiscoveryState {
+    type Input = Input;
+    type Output = Output;
+    type Now = time::UnixTime;
+    fn update(&mut self, input: Self::Input, now: Self::Now) -> Vec<Self::Output> {
+        match input {
+            Input::Command(command) => self.handle_command(command, now),
+            Input::Libp2pEvent(event) => self.handle_libp2p_event(event, now),
+            Input::LobbyUpdated(lobby) => {
+                self.is_lobby_fetched = true;
+                self.handle_lobby(lobby, now)
+            }
+            Input::FreenetPeers(peers) => {
+                self.freenet_peers = peers;
+                Vec::new()
+            }
+            Input::OwnAddrsChanged(addrs) => {
+                self.me.addrs = addrs;
+                Vec::new()
+            }
+            Input::Tick => self.tick(now),
+        }
+    }
+}
+
+#[rustfmt::skip]
+impl lele_bevy_state_machine::PeriodicStateMachine for DiscoveryState {
+    const TICK_INTERVAL: Duration = discovery::TICK;
+    fn tick_input() -> Self::Input { Self::Input::Tick }
 }
 
 #[atomic_delegates]
@@ -179,25 +224,6 @@ impl DiscoveryState {
             self_peer_id: Some(self.me.id.clone()),
         }
     }
-    pub fn update(&mut self, input: Input, now: time::UnixTime) -> Vec<Output> {
-        match input {
-            Input::Command(command) => self.handle_command(command, now),
-            Input::Libp2pEvent(event) => self.handle_libp2p_event(event, now),
-            Input::LobbyUpdated(lobby) => {
-                self.is_lobby_fetched = true;
-                self.handle_lobby(lobby, now)
-            }
-            Input::FreenetPeers(peers) => {
-                self.freenet_peers = peers;
-                Vec::new()
-            }
-            Input::OwnAddrsChanged(addrs) => {
-                self.me.addrs = addrs;
-                Vec::new()
-            }
-            Input::Tick => self.tick(now),
-        }
-    }
     pub(crate) fn quit(&mut self, now: time::UnixTime) -> Vec<Output> {
         let outputs = self.leave(now);
         self.is_quitting = true;
@@ -219,6 +245,11 @@ impl DiscoveryState {
         vec![Output::Notify(discovery::Event::RoomMembersUpdated)]
     }
 }
+
+#[atomic_delegates]
+impl DiscoveryState {
+    pub(crate) fn apply_config(&mut self, config: &discovery::Config) {}
+}
 #[cfg(test)]
 mod tests {
 
@@ -228,6 +259,7 @@ mod tests {
     use crate::p2p;
     use crate::time;
     use discovery::state_machine::{Input, Output};
+    use lele_bevy_state_machine::StateMachine;
 
     #[test]
     fn test_usage() {

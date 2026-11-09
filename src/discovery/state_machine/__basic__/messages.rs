@@ -1,8 +1,10 @@
+use bevy::prelude::Message;
+
 use crate::discovery;
 use crate::identity;
 use crate::p2p;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Message, Debug, Clone, PartialEq, Eq)]
 pub enum Input {
     Command(discovery::Command),
     Libp2pEvent(p2p::Libp2pEvent),
@@ -12,7 +14,7 @@ pub enum Input {
     Tick,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Message, Debug, Clone, PartialEq, Eq)]
 pub enum Output {
     Notify(discovery::Event),
     Libp2pCommand(p2p::Libp2pCommand),

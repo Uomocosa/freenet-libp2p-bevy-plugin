@@ -1,4 +1,5 @@
 mod align_room_created_at;
+mod apply_config;
 mod broadcast_handshake;
 mod collect_room_peers_from_lobby;
 mod dial_candidates;
@@ -19,6 +20,7 @@ mod send_handshake;
 mod tick;
 mod wait_for_contract_self_heal;
 pub use align_room_created_at::align_room_created_at;
+pub use apply_config::apply_config;
 pub use broadcast_handshake::broadcast_handshake;
 pub use collect_room_peers_from_lobby::collect_room_peers_from_lobby;
 pub use dial_candidates::dial_candidates;

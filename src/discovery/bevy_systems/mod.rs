@@ -1,14 +1,35 @@
-mod drain_events;
-pub use drain_events::drain_events;
+mod commands_to_discovery_inputs;
+pub use commands_to_discovery_inputs::commands_to_discovery_inputs;
 
-mod drain_status;
-pub use drain_status::drain_status;
+mod discovery_outputs_to_libp2p_commands;
+pub use discovery_outputs_to_libp2p_commands::discovery_outputs_to_libp2p_commands;
 
-mod forward_commands;
-pub use forward_commands::forward_commands;
+mod flush_pending_libp2p_commands;
+pub use flush_pending_libp2p_commands::flush_pending_libp2p_commands;
+
+mod lobby_updates_to_discovery_inputs;
+pub use lobby_updates_to_discovery_inputs::lobby_updates_to_discovery_inputs;
+
+mod notify_outputs_to_events;
+pub use notify_outputs_to_events::notify_outputs_to_events;
+
+mod own_addrs_to_discovery_inputs;
+pub use own_addrs_to_discovery_inputs::own_addrs_to_discovery_inputs;
+
+mod publish_heartbeat_targets;
+pub use publish_heartbeat_targets::publish_heartbeat_targets;
+
+mod refresh_status_from_discovery_state;
+pub use refresh_status_from_discovery_state::refresh_status_from_discovery_state;
 
 mod send_quit_on_exit;
 pub use send_quit_on_exit::send_quit_on_exit;
+
+mod start_discovery_when_swarm_ready;
+pub use start_discovery_when_swarm_ready::start_discovery_when_swarm_ready;
+
+mod translate_libp2p_events_to_discovery_inputs;
+pub use translate_libp2p_events_to_discovery_inputs::translate_libp2p_events_to_discovery_inputs;
 
 mod follow_room;
 pub use follow_room::follow_room;
