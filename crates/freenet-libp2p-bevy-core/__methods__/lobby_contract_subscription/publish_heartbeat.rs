@@ -18,7 +18,7 @@ pub fn publish_heartbeat(
     let members = BTreeMap::from([(me.clone(), room_member)]);
     let update = discovery::Lobby::from([(
         room.clone(),
-        discovery::LobbyRoom {
+        discovery::Room {
             room_size,
             created_at,
             members,

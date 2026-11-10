@@ -23,7 +23,7 @@ pub fn seed_lobby_for_deploy(
     let members = std::collections::BTreeMap::from([(me.clone(), room_member)]);
     discovery::Lobby::from([(
         target.room.clone(),
-        discovery::LobbyRoom {
+        discovery::Room {
             room_size,
             created_at: target.created_at,
             members,

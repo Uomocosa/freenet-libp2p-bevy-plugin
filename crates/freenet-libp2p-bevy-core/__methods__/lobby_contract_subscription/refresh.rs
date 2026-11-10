@@ -39,7 +39,7 @@ mod tests {
         let key = contract_key();
         let fresh = discovery::Lobby::from([(
             identity::RoomName::from("room-a"),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members: std::collections::BTreeMap::from([(

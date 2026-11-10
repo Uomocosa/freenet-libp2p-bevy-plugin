@@ -3,8 +3,8 @@
 use freenet_stdlib::prelude::*;
 
 pub use common_types::{
-    Lobby, LobbyRoom, Peer, PeerAddr, PeerId, RoomMember, RoomMembership, RoomName, RoomSize,
-    UnixTime, Username,
+    Lobby, Peer, PeerAddr, PeerId, Room, RoomMember, RoomMembership, RoomName, RoomSize, UnixTime,
+    Username,
 };
 
 const MAX_ROOMS: usize = 256;
@@ -55,7 +55,7 @@ impl ContractInterface for LobbyContract {
                 if !Self::valid_room_name(room.as_str()) {
                     continue;
                 }
-                let combined = LobbyRoom::merge_room(merged.remove(&room), record);
+                let combined = Room::merge_room(merged.remove(&room), record);
                 if combined.members.len() > MAX_MEMBERS_PER_ROOM {
                     continue;
                 }
@@ -134,7 +134,7 @@ mod tests {
             .map_or_else(Vec::new, |state| state.as_ref().to_vec())
     }
 
-    fn room(peer: &str, updated_at: UnixTime, created_at: UnixTime) -> LobbyRoom {
+    fn room(peer: &str, updated_at: UnixTime, created_at: UnixTime) -> Room {
         let mut members = BTreeMap::new();
         members.insert(
             PeerId(peer.to_string()),
@@ -148,14 +148,14 @@ mod tests {
                 membership: RoomMembership::Occupant,
             },
         );
-        LobbyRoom {
+        Room {
             room_size: RoomSize::try_from(8).unwrap(),
             created_at,
             members,
         }
     }
 
-    fn room_at(updated_at: UnixTime) -> LobbyRoom {
+    fn room_at(updated_at: UnixTime) -> Room {
         let mut members = BTreeMap::new();
         members.insert(
             PeerId("peer".to_string()),
@@ -169,14 +169,14 @@ mod tests {
                 membership: RoomMembership::Occupant,
             },
         );
-        LobbyRoom {
+        Room {
             room_size: RoomSize::try_from(8).unwrap(),
             created_at: UnixTime::from_secs(1),
             members,
         }
     }
 
-    fn departed_room(updated_at: UnixTime) -> LobbyRoom {
+    fn departed_room(updated_at: UnixTime) -> Room {
         let mut record = room_at(updated_at);
         for heartbeat in record.members.values_mut() {
             heartbeat.membership = RoomMembership::Departed;

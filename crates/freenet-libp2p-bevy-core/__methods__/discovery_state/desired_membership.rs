@@ -20,7 +20,7 @@ pub fn desired_membership(
     {
         member_views.push((&joined.members, room_entity));
     }
-    for (room_name, lobby_room) in state.lobby.iter() {
+    for (room_name, room) in state.lobby.iter() {
         if state
             .room
             .as_ref()
@@ -29,7 +29,7 @@ pub fn desired_membership(
             continue;
         }
         if let Some(room_entity) = room_entity_by_name.get(room_name).copied() {
-            member_views.push((&lobby_room.members, room_entity));
+            member_views.push((&room.members, room_entity));
         }
     }
     let mut desired_in_room: BTreeMap<identity::PeerId, Entity> = BTreeMap::new();
@@ -100,7 +100,7 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::from_secs(10),
                 members: BTreeMap::from([occupant("alice")]),
@@ -131,7 +131,7 @@ mod tests {
         ] {
             lobby.insert(
                 room.clone(),
-                discovery::LobbyRoom {
+                discovery::Room {
                     room_size: discovery::RoomSize::DEFAULT,
                     created_at: time::UnixTime::from_secs(10),
                     members: members.into_iter().collect(),

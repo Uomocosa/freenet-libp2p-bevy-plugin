@@ -148,7 +148,7 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(
@@ -182,7 +182,7 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: seen_at,
                 members: BTreeMap::from([(
@@ -217,7 +217,7 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([
@@ -275,7 +275,7 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(

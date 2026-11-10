@@ -41,7 +41,7 @@ mod tests {
         });
         state.lobby.insert(
             room,
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::from_secs(100),
                 members: BTreeMap::new(),

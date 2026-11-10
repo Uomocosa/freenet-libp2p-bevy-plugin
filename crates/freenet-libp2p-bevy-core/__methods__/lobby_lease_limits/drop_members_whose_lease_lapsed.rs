@@ -64,7 +64,7 @@ mod tests {
     fn lobby_with(room: &str, peer: &str, member: discovery::RoomMember) -> discovery::Lobby {
         discovery::Lobby::from([(
             identity::RoomName::from(room),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(identity::PeerId::from(peer), member)]),
@@ -111,7 +111,7 @@ mod tests {
         )]);
         let mut lobby = discovery::Lobby::from([(
             identity::RoomName::from("r"),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(

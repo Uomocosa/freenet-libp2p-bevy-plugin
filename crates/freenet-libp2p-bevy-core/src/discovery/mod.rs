@@ -12,7 +12,7 @@ pub use basic::resources::{
 };
 pub use basic::structs::{JoinedRoom, LobbyTaskChannels};
 pub use basic::type_aliases::Members;
-pub use common_types::{Lobby, LobbyRoom, RoomMember, RoomMembership, RoomSize, RoomSizeError};
+pub use common_types::{Lobby, Room, RoomMember, RoomMembership, RoomSize, RoomSizeError};
 
 mod lobby_contract_subscription;
 pub use lobby_contract_subscription::LobbyContractSubscription;

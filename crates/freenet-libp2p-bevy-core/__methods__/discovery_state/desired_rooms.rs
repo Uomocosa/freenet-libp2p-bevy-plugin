@@ -29,7 +29,7 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::from_secs(10),
                 members: BTreeMap::new(),

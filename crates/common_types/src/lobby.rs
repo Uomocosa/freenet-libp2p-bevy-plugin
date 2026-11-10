@@ -4,14 +4,14 @@ use atomic_delegate_macros::atomic_delegates;
 use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 
-use crate::LobbyRoom;
+use crate::Room;
 use crate::RoomMembership;
 use crate::RoomName;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Deref, DerefMut, From)]
 #[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
 #[from(forward)]
-pub struct Lobby(pub BTreeMap<RoomName, LobbyRoom>);
+pub struct Lobby(pub BTreeMap<RoomName, Room>);
 
 #[atomic_delegates]
 impl Lobby {
@@ -46,9 +46,9 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::Lobby;
-    use crate::LobbyRoom;
     use crate::Peer;
     use crate::PeerId;
+    use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
     use crate::RoomName;
@@ -68,7 +68,7 @@ mod tests {
         };
         let incoming = Lobby::from([(
             RoomName::from("room-a"),
-            LobbyRoom {
+            Room {
                 room_size: RoomSize::DEFAULT,
                 created_at: UnixTime::EPOCH,
                 members: BTreeMap::from([(PeerId::from("peer"), room_member)]),

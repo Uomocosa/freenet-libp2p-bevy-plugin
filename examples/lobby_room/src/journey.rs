@@ -191,7 +191,7 @@ mod tests {
         for (name, room_size) in [("alpha", 8), ("beta", 4), (JOIN_ROOM, 8)] {
             state.lobby.insert(
                 identity::RoomName::from(name),
-                discovery::LobbyRoom {
+                discovery::Room {
                     room_size: discovery::RoomSize::try_from(room_size)
                         .expect("fixture room size is non-zero"),
                     created_at: time::UnixTime::EPOCH,

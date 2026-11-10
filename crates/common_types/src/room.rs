@@ -9,13 +9,13 @@ use crate::UnixTime;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
-pub struct LobbyRoom {
+pub struct Room {
     pub room_size: RoomSize,
     pub created_at: UnixTime,
     pub members: BTreeMap<PeerId, RoomMember>,
 }
 
-impl LobbyRoom {
+impl Room {
     #[must_use]
     pub fn merge_room(current: Option<Self>, incoming: Self) -> Self {
         match current {
@@ -35,7 +35,7 @@ impl LobbyRoom {
 }
 
 #[rustfmt::skip]
-impl LobbyRoom {
+impl Room {
     #[must_use]
     pub(crate) fn newest_room_member(&self) -> UnixTime {
         self.members

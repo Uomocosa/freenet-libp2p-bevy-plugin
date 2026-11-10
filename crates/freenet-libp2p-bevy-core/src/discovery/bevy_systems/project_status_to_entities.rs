@@ -172,7 +172,7 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::from_secs(10),
                 members: members.into_iter().collect(),
@@ -275,7 +275,7 @@ mod tests {
         let mut lobby = lobby_with_room(&room_a, vec![holder("alice")]);
         lobby.insert(
             room_b.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::from_secs(10),
                 members: BTreeMap::from([holder("alice")]),
@@ -457,7 +457,7 @@ mod tests {
         let mut lobby = lobby_with_room(&room_a, vec![occupant("alice")]);
         lobby.insert(
             room_b.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::from_secs(10),
                 members: BTreeMap::from([occupant("alice"), occupant("bob")]),

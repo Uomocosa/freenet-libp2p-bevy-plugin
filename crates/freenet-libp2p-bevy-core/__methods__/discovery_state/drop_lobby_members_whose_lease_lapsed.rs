@@ -64,7 +64,7 @@ mod tests {
         let raw_lobby = || {
             discovery::Lobby::from([(
                 identity::RoomName::from("r"),
-                discovery::LobbyRoom {
+                discovery::Room {
                     room_size: discovery::RoomSize::DEFAULT,
                     created_at: time::UnixTime::EPOCH,
                     members: BTreeMap::from([(
@@ -110,7 +110,7 @@ mod tests {
         let remote_updated_at = time::UnixTime::from_secs(100);
         state.lobby = discovery::Lobby::from([(
             room.clone(),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(

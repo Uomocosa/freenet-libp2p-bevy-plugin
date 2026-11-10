@@ -49,7 +49,7 @@ mod tests {
     fn room_lobby() -> discovery::Lobby {
         discovery::Lobby::from([(
             identity::RoomName::from("room-a"),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::from([(

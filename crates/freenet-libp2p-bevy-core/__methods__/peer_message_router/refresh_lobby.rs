@@ -18,7 +18,7 @@ pub fn refresh_lobby(
     for target in targets {
         let record = fresh
             .entry(target.room.clone())
-            .or_insert_with(|| discovery::LobbyRoom {
+            .or_insert_with(|| discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: target.created_at,
                 members: BTreeMap::new(),

@@ -57,7 +57,7 @@ mod tests {
     fn with_record(state: &mut DiscoveryState, created_at: u64) {
         state.lobby.insert(
             identity::RoomName::from("r"),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::from_secs(created_at),
                 members: BTreeMap::new(),

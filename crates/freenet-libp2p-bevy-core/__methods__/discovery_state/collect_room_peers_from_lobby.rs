@@ -98,7 +98,7 @@ mod tests {
         ]);
         state.lobby.insert(
             room,
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members,

@@ -78,7 +78,7 @@ mod tests {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             identity::RoomName::from("alpha"),
-            discovery::LobbyRoom {
+            discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
                 members: BTreeMap::new(),

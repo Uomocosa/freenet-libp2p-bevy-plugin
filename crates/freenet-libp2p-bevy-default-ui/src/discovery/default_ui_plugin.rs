@@ -52,7 +52,7 @@ mod tests {
         for (name, room_size) in [("alpha", 8), ("beta", 4)] {
             lobby.insert(
                 identity::RoomName::from(name),
-                core_discovery::LobbyRoom {
+                core_discovery::Room {
                     room_size: core_discovery::RoomSize::try_from(room_size)
                         .expect("fixture room size is non-zero"),
                     created_at: time::UnixTime::EPOCH,

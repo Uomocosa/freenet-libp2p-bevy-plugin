@@ -1,11 +1,11 @@
 use crate::Lobby;
-use crate::LobbyRoom;
 use crate::MAX_LOBBY_ROOMS;
+use crate::Room;
 
 pub fn merge(lobby: &mut Lobby, incoming: Lobby) {
     let Lobby(rooms) = incoming;
     for (room, record) in rooms {
-        let merged = LobbyRoom::merge_room(lobby.remove(&room), record);
+        let merged = Room::merge_room(lobby.remove(&room), record);
         lobby.insert(room, merged);
     }
     lobby.drop_rooms_where_every_member_quit();
@@ -17,17 +17,17 @@ mod tests {
 
     use super::merge;
     use crate::Lobby;
-    use crate::LobbyRoom;
     use crate::MAX_LOBBY_ROOMS;
     use crate::Peer;
     use crate::PeerId;
+    use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
     use crate::RoomName;
     use crate::RoomSize;
     use crate::UnixTime;
 
-    fn record(peer: &str, updated_at: UnixTime) -> LobbyRoom {
+    fn record(peer: &str, updated_at: UnixTime) -> Room {
         let mut members = BTreeMap::new();
         members.insert(
             PeerId::from(peer),
@@ -41,14 +41,14 @@ mod tests {
                 membership: RoomMembership::Occupant,
             },
         );
-        LobbyRoom {
+        Room {
             room_size: RoomSize::DEFAULT,
             created_at: UnixTime::EPOCH,
             members,
         }
     }
 
-    fn departed_room(updated_at: UnixTime) -> LobbyRoom {
+    fn departed_room(updated_at: UnixTime) -> Room {
         let mut record = record("peer", updated_at);
         for room_member in record.members.values_mut() {
             room_member.membership = RoomMembership::Departed;
