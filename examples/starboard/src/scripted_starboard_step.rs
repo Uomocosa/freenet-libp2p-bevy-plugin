@@ -1,5 +1,5 @@
 use derive_more::{Deref, From};
-use freenet_libp2p_bevy_plugin::testing::ScriptStep;
+use freenet_libp2p_bevy_plugin::testing::traits::ScriptStep;
 
 use e2e_steps::starboard_steps::StarboardStep;
 

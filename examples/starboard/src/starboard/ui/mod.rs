@@ -1,5 +1,5 @@
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 
 pub mod bevy_systems;
 

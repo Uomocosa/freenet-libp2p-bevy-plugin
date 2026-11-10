@@ -13,7 +13,7 @@ impl bevy::prelude::Plugin for FriendsUiPlugin {
 
 #[atomic_delegates]
 impl FriendsUiPlugin {
-    pub fn build_plugin(&self, app: &mut App) {}
+    pub fn build_plugin(self, app: &mut App) {}
 }
 
 #[cfg(test)]

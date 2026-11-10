@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::identity;
 use crate::p2p;
 
-pub fn track_room_command<Payload: p2p::Message>(
+pub fn track_room_command<Payload: p2p::traits::Message>(
     task: &p2p::SwarmTaskOverride<Payload>,
     command: &p2p::Libp2pCommand,
     game: &identity::GameId,

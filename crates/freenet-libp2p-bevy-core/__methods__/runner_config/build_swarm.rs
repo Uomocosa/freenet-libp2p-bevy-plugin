@@ -7,7 +7,7 @@ use libp2p::{
 
 use crate::p2p;
 
-pub fn build_swarm<Payload: p2p::Message>(
+pub fn build_swarm<Payload: p2p::traits::Message>(
     config: &p2p::RunnerConfig,
     keypair: Keypair,
 ) -> Result<libp2p::Swarm<p2p::Behaviour<Payload>>, String> {

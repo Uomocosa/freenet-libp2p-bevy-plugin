@@ -1,5 +1,5 @@
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 pub use basic::enums::RoomMembership;
 pub use basic::newtypes::{RoomName, Username};
 pub use basic::structs::RoomMember;
@@ -25,4 +25,4 @@ mod unix_time;
 pub use unix_time::UnixTime;
 
 #[path = "../__methods__/mod.rs"]
-pub mod methods;
+mod methods;

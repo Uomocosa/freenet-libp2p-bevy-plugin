@@ -1,5 +1,5 @@
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 mod cell_under_cursor;
 mod draw_op;
 mod next_size_index;

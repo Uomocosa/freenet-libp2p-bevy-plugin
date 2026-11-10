@@ -5,7 +5,7 @@ use tokio::task::JoinHandle;
 use crate::p2p;
 
 #[must_use]
-pub fn spawn_runner<Payload: p2p::Message>(
+pub fn spawn_runner<Payload: p2p::traits::Message>(
     config: &p2p::RunnerConfig,
     cmd_rx: UnboundedReceiver<p2p::Command<Payload>>,
     libp2p_rx: UnboundedReceiver<p2p::Libp2pCommand>,

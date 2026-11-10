@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::ui_widgets::Button;
 
 use crate::discovery;
-use discovery::basic::constants::{BUTTON_COLOR, PANEL_COLOR};
+use discovery::{BUTTON_COLOR, PANEL_COLOR};
 use discovery::{JoinError, JoinErrorDismissButton, JoinErrorRoot, Screen};
 
 pub fn spawn_join_failed(mut commands: Commands, join_error: Res<JoinError>) {

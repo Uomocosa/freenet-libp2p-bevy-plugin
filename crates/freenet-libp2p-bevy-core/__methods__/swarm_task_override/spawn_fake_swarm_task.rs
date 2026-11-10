@@ -5,7 +5,7 @@ use crate::p2p;
 use crate::testing;
 
 #[must_use]
-pub fn spawn_fake_swarm_task<Payload: p2p::Message>(
+pub fn spawn_fake_swarm_task<Payload: p2p::traits::Message>(
     task_override: p2p::SwarmTaskOverride<Payload>,
     mut commands: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<Payload>>,
     mut libp2p_commands: tokio::sync::mpsc::UnboundedReceiver<p2p::Libp2pCommand>,

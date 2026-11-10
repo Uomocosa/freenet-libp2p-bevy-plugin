@@ -1,9 +1,7 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use discovery::basic::constants::{
-    ACCENT_COLOR, CONNECTING_TEXT_COLOR, SPINNER_SIZE, SPINNER_TRACK_COLOR,
-};
+use discovery::{ACCENT_COLOR, CONNECTING_TEXT_COLOR, SPINNER_SIZE, SPINNER_TRACK_COLOR};
 use discovery::{ConnectingRoot, Screen, SpinnerRing};
 
 pub fn spawn_connecting(mut commands: Commands) {

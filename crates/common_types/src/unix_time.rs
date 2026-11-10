@@ -39,7 +39,7 @@ impl UnixTime {
 }
 
 #[cfg(feature = "bevy")]
-impl lele_bevy_state_machine::Clock for UnixTime {
+impl lele_bevy_state_machine::traits::Clock for UnixTime {
     fn now() -> Self {
         Self::now()
     }
@@ -151,7 +151,7 @@ mod tests {
     #[cfg(feature = "bevy")]
     #[test]
     fn clock_now_matches_unix_time_now() {
-        use lele_bevy_state_machine::Clock;
+        use lele_bevy_state_machine::traits::Clock;
 
         assert!(UnixTime::now() > UnixTime::from_secs(1_700_000_000));
         assert!(<UnixTime as Clock>::now() > UnixTime::from_secs(1_700_000_000));

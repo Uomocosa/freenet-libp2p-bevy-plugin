@@ -36,7 +36,7 @@ impl LocalCheckpointBoard {
 }
 
 #[async_trait]
-impl testing::CheckpointBoard for LocalCheckpointBoard {
+impl testing::traits::CheckpointBoard for LocalCheckpointBoard {
     async fn mark_completed(&self, checkpoint: &testing::ScriptCheckpoint) -> Result<(), String> {
         self.ensure_dir()?;
         std::fs::write(self.checkpoint_path(checkpoint), "")
@@ -75,7 +75,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::LocalCheckpointBoard;
-    use freenet_libp2p_bevy_plugin::testing::CheckpointBoard;
+    use freenet_libp2p_bevy_plugin::testing::traits::CheckpointBoard;
     use freenet_libp2p_bevy_plugin::{identity, testing};
 
     fn board() -> (tempfile::TempDir, LocalCheckpointBoard) {

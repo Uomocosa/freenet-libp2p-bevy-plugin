@@ -1,8 +1,6 @@
 #[path = "__traits__/mod.rs"]
 pub mod traits;
 
-pub use traits::Message;
-
 pub mod message_codec;
 pub use message_codec::MessageCodec;
 
@@ -34,7 +32,7 @@ pub mod runner_config;
 pub use runner_config::RunnerConfig;
 
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 
 pub use basic::constants::*;
 pub use basic::enums::{

@@ -35,12 +35,12 @@ impl<Payload> From<&testing::NetworkArgs> for FakeNetworkPlugin<Payload> {
 }
 
 #[rustfmt::skip]
-impl<Payload: p2p::Message> Plugin for FakeNetworkPlugin<Payload> {
+impl<Payload: p2p::traits::Message> Plugin for FakeNetworkPlugin<Payload> {
     fn build(&self, app: &mut App) { self.build_plugin(app); }
 }
 
 #[atomic_delegates]
-impl<Payload: p2p::Message> FakeNetworkPlugin<Payload> {
+impl<Payload: p2p::traits::Message> FakeNetworkPlugin<Payload> {
     pub fn build_plugin(&self, app: &mut App) {}
 }
 
@@ -75,7 +75,7 @@ mod tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::ReplicatedState for ProofMap {
+    impl room_sync::traits::ReplicatedState for ProofMap {
         type Op = u8;
         type Snapshot = Vec<(u8, u32)>;
 

@@ -1,5 +1,5 @@
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 mod brush_radius;
 mod canvas;
 mod decode_snapshot;

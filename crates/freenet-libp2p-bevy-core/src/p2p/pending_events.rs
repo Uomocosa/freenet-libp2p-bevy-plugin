@@ -5,16 +5,16 @@ use serde::Serialize;
 use crate::p2p;
 
 #[derive(Resource, Deref, DerefMut, Serialize)]
-pub struct PendingEvents<Payload: p2p::Message>(pub Vec<p2p::Event<Payload>>);
+pub struct PendingEvents<Payload: p2p::traits::Message>(pub Vec<p2p::Event<Payload>>);
 
-impl<Payload: p2p::Message> Default for PendingEvents<Payload> {
+impl<Payload: p2p::traits::Message> Default for PendingEvents<Payload> {
     fn default() -> Self {
         Self(Vec::new())
     }
 }
 
 #[rustfmt::skip]
-impl<Payload: p2p::Message> PendingEvents<Payload> {
+impl<Payload: p2p::traits::Message> PendingEvents<Payload> {
     pub fn take_all(&mut self) -> Vec<p2p::Event<Payload>> {
         self.split_off(0)
     }

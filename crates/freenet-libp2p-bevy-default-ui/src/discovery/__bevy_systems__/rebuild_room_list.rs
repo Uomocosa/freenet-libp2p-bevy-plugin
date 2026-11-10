@@ -4,7 +4,7 @@ use bevy::ui_widgets::Button;
 
 use crate::discovery;
 use core_discovery::state_machine::DiscoveryState;
-use discovery::basic::constants::ROOM_COLOR;
+use discovery::ROOM_COLOR;
 use discovery::{HoverGlow, RoomButton, RoomList, RoomRow};
 use freenet_libp2p_bevy_core::discovery as core_discovery;
 

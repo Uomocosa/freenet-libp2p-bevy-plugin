@@ -61,7 +61,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl testing::CheckpointBoard for StubBoard {
+    impl testing::traits::CheckpointBoard for StubBoard {
         async fn mark_completed(
             &self,
             _checkpoint: &testing::ScriptCheckpoint,

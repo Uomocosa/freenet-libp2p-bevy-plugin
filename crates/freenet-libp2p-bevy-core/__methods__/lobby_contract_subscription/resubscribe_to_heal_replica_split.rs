@@ -4,7 +4,7 @@ use freenet_stdlib::prelude::StateSummary;
 use crate::discovery;
 
 pub fn resubscribe_to_heal_replica_split(
-    state: &mut discovery::LobbyContractSubscription,
+    state: &discovery::LobbyContractSubscription,
 ) -> Result<(), discovery::Error> {
     let summary = bincode::serialize(&state.lobby)?;
     let request = ContractRequest::Subscribe {
@@ -36,12 +36,12 @@ mod tests {
     fn test_usage() {
         let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (_read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        let mut subscription = discovery::LobbyContractSubscription {
+        let subscription = discovery::LobbyContractSubscription {
             client: freenet::Client { write, read },
             key: contract_key(),
             lobby: discovery::Lobby::default(),
         };
-        assert!(resubscribe_to_heal_replica_split(&mut subscription).is_ok());
+        assert!(resubscribe_to_heal_replica_split(&subscription).is_ok());
         assert!(write_rx.try_recv().is_ok());
     }
 }

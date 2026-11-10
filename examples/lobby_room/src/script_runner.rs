@@ -2,7 +2,7 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::identity;
-use freenet_libp2p_bevy_plugin::testing::{PollableScriptStep, ScriptStep};
+use freenet_libp2p_bevy_plugin::testing::traits::{PollableScriptStep, ScriptStep};
 use freenet_libp2p_bevy_plugin::{discovery, testing, ui};
 
 use crate::ping;

@@ -1,6 +1,6 @@
 use crate::testing;
 
-pub trait OrchestratedStep: testing::ScriptStep {
+pub trait OrchestratedStep: testing::traits::ScriptStep {
     fn script_text(&self) -> String;
 }
 
@@ -8,12 +8,12 @@ pub trait OrchestratedStep: testing::ScriptStep {
 mod tests {
     use super::OrchestratedStep;
     use crate::testing;
-    use crate::testing::ScriptStep;
+    use crate::testing::traits::ScriptStep;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct ToyStep;
 
-    impl testing::ScriptStep for ToyStep {
+    impl testing::traits::ScriptStep for ToyStep {
         const STEP_NAMES: &'static str = "toy";
 
         fn parse_verb(verb: &str, _arg: &str) -> Option<Result<Self, String>> {

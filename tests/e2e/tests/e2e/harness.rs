@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use freenet_libp2p_bevy_plugin::testing::{
-    CheckpointBoard, Orchestrator, OrchestratorReport, ReportCheck,
+    Orchestrator, OrchestratorReport, ReportCheck, traits::CheckpointBoard,
 };
 
 use crate::check_layer::CheckLayer;

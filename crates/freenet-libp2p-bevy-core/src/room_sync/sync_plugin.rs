@@ -6,14 +6,14 @@ use bevy::prelude::*;
 use crate::identity;
 use crate::room_sync;
 
-pub struct SyncPlugin<Replica: room_sync::ReplicatedState> {
+pub struct SyncPlugin<Replica: room_sync::traits::ReplicatedState> {
     pub game: identity::GameId,
     pub anti_entropy: Option<room_sync::AntiEntropyConfig>,
     pub history: Option<room_sync::HistoryConfig>,
     pub marker: PhantomData<Replica>,
 }
 
-impl<Replica: room_sync::ReplicatedState> SyncPlugin<Replica> {
+impl<Replica: room_sync::traits::ReplicatedState> SyncPlugin<Replica> {
     #[must_use]
     pub fn new(game: identity::GameId) -> Self {
         Self {
@@ -26,13 +26,13 @@ impl<Replica: room_sync::ReplicatedState> SyncPlugin<Replica> {
 }
 
 #[rustfmt::skip]
-impl<Replica: room_sync::ReplicatedState> bevy::prelude::Plugin for SyncPlugin<Replica> {
+impl<Replica: room_sync::traits::ReplicatedState> bevy::prelude::Plugin for SyncPlugin<Replica> {
     fn build(&self, app: &mut App) {
         self.build_plugin(app);
     }
 }
 
-impl<Replica: room_sync::ReplicatedState> SyncPlugin<Replica> {
+impl<Replica: room_sync::traits::ReplicatedState> SyncPlugin<Replica> {
     #[must_use]
     pub const fn with_anti_entropy_config(
         mut self,
@@ -50,7 +50,7 @@ impl<Replica: room_sync::ReplicatedState> SyncPlugin<Replica> {
 }
 
 #[atomic_delegates]
-impl<Replica: room_sync::ReplicatedState> SyncPlugin<Replica> {
+impl<Replica: room_sync::traits::ReplicatedState> SyncPlugin<Replica> {
     pub fn build_plugin(&self, app: &mut App) {}
 }
 

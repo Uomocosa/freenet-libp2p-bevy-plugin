@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::identity;
 use crate::p2p;
 
-pub struct Config<Payload: p2p::Message> {
+pub struct Config<Payload: p2p::traits::Message> {
     pub mode: p2p::TransportMode,
     pub mdns: p2p::MdnsMode,
     pub game: identity::GameId,
@@ -12,7 +12,7 @@ pub struct Config<Payload: p2p::Message> {
     pub marker: PhantomData<Payload>,
 }
 
-impl<Payload: p2p::Message> Config<Payload> {
+impl<Payload: p2p::traits::Message> Config<Payload> {
     #[must_use]
     pub fn new(mode: p2p::TransportMode, mdns: p2p::MdnsMode) -> Self {
         Self {

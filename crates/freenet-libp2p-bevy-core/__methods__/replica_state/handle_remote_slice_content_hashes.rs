@@ -2,7 +2,7 @@ use crate::identity;
 use crate::room_sync;
 
 pub fn handle_remote_slice_content_hashes<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &room_sync::state_machine::ReplicaState<Op>,
     from: &identity::PeerId,
     local: &room_sync::ReplicaSliceContentHashes,
     remote: &room_sync::ReplicaSliceContentHashes,
@@ -53,10 +53,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut state = ReplicaState::<u8>::default();
+        let state = ReplicaState::<u8>::default();
         let local = room_sync::ReplicaSliceContentHashes::default();
         let outputs = handle_remote_slice_content_hashes(
-            &mut state,
+            &state,
             &identity::PeerId::from("peer"),
             &local,
             &local,

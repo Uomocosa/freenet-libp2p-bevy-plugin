@@ -30,7 +30,7 @@ impl<Step> ScriptRunner<Step> {
 }
 
 #[atomic_delegates]
-impl<Step: testing::ScriptStep> ScriptRunner<Step> {
+impl<Step: testing::traits::ScriptStep> ScriptRunner<Step> {
     pub fn advance(
         &mut self,
         delta: Duration,
@@ -40,7 +40,7 @@ impl<Step: testing::ScriptStep> ScriptRunner<Step> {
 }
 
 #[atomic_delegates]
-impl<Step: testing::ScriptStep> ScriptRunner<Step> {
+impl<Step: testing::traits::ScriptStep> ScriptRunner<Step> {
     pub(crate) fn fail(
         &mut self,
         position: &str,

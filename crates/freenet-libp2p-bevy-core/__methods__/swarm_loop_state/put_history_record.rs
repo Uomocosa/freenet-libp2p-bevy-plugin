@@ -4,7 +4,7 @@ use libp2p::kad;
 
 use crate::p2p;
 
-pub fn put_history_record<Payload: p2p::Message>(
+pub fn put_history_record<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     id: &p2p::RoomHistoryRecordKind,
     value: Vec<u8>,

@@ -1,6 +1,6 @@
 use crate::testing;
 
-pub fn fail<Step: testing::ScriptStep>(
+pub fn fail<Step: testing::traits::ScriptStep>(
     runner: &mut testing::ScriptRunner<Step>,
     position: &str,
     raw: &str,

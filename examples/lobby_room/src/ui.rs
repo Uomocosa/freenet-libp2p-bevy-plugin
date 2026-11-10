@@ -12,7 +12,7 @@ use derive_more::Deref;
 use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::discovery;
 use freenet_libp2p_bevy_plugin::identity;
-use freenet_libp2p_bevy_plugin::ui::discovery::basic::constants::{
+use freenet_libp2p_bevy_plugin::ui::discovery::{
     BUTTON_COLOR, BUTTON_LABEL_COLOR, CARET_COLOR, DISABLED_BUTTON_COLOR,
     DISABLED_BUTTON_LABEL_COLOR,
 };

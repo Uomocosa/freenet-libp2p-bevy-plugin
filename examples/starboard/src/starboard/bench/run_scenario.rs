@@ -141,7 +141,7 @@ fn finish_report(
         let canvas = app.world().resource::<starboard::canvas::Canvas>();
         let message = room_sync::ReplicaSyncTopicMessage::<starboard::canvas::DrawOp>::CompareSliceContentHashes {
             room: room.clone(),
-            hashes: room_sync::ReplicatedState::slice_content_hashes(canvas),
+            hashes: room_sync::traits::ReplicatedState::slice_content_hashes(canvas),
         };
         bincode::serialized_size(&message)
             .ok()

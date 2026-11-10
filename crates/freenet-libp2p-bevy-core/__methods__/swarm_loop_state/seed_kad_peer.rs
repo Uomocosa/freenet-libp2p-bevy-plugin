@@ -3,7 +3,7 @@ use libp2p::kad;
 use crate::identity;
 use crate::p2p;
 
-pub fn seed_kad_peer<Payload: p2p::Message>(
+pub fn seed_kad_peer<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     peer_id: &identity::PeerId,
     addrs: &[identity::PeerAddr],

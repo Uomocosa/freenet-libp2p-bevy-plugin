@@ -1,6 +1,6 @@
 use crate::p2p;
 
-pub fn log_mesh_snapshot<Payload: p2p::Message>(state: &p2p::SwarmLoopState<Payload>) {
+pub fn log_mesh_snapshot<Payload: p2p::traits::Message>(state: &p2p::SwarmLoopState<Payload>) {
     let total = state.swarm.behaviour().gossipsub.all_mesh_peers().count();
     let mut topics = Vec::new();
     for topic in state.swarm.behaviour().gossipsub.topics() {

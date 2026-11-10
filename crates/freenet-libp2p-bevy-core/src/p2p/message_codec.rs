@@ -13,7 +13,7 @@ impl<Req, Resp> Default for MessageCodec<Req, Resp> {
     }
 }
 
-impl<Req: p2p::Message, Resp: p2p::Message> Codec for MessageCodec<Req, Resp> {
+impl<Req: p2p::traits::Message, Resp: p2p::traits::Message> Codec for MessageCodec<Req, Resp> {
     type Protocol = StreamProtocol;
     type Request = Req;
     type Response = Resp;

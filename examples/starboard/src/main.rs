@@ -160,13 +160,13 @@ fn add_result_recording(app: &mut App, args: &args::Args, path: std::path::PathB
     app.insert_resource(result::ResultJsonPath(path));
     app.add_systems(
         Update,
-        result::record_peer_run_result
+        result::bevy_systems::record_peer_run_result
             .after(
                 testing::bevy_systems::run_script::<scripted_starboard_step::ScriptedStarboardStep>,
             )
             .run_if(resource_exists::<script_runner::StarboardScriptRunner>),
     );
-    app.add_systems(Last, result::write_peer_run_result);
+    app.add_systems(Last, result::bevy_systems::write_peer_run_result);
 }
 
 // needed helper: the run's time scale, from E2E_TIME_SCALE

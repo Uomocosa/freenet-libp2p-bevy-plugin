@@ -16,7 +16,7 @@ pub struct SwarmTaskOverride<Payload> {
 }
 
 #[atomic_delegates]
-impl<Payload: p2p::Message> SwarmTaskOverride<Payload> {
+impl<Payload: p2p::traits::Message> SwarmTaskOverride<Payload> {
     pub(crate) fn spawn_fake_swarm_task(
         self,
         commands: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<Payload>>,

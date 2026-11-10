@@ -16,8 +16,8 @@ impl bevy::prelude::Plugin for DefaultUiPlugin {
 
 #[atomic_delegates]
 impl DefaultUiPlugin {
-    pub fn build_plugin(&self, app: &mut App) {}
-    pub fn finish_plugin(&self, app: &mut App) {}
+    pub fn build_plugin(self, app: &mut App) {}
+    pub fn finish_plugin(self, app: &mut App) {}
 }
 #[cfg(test)]
 mod tests {

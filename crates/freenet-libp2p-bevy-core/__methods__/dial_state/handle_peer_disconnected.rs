@@ -15,7 +15,7 @@ pub fn handle_peer_disconnected(
         .find(|entry| entry.peer.id == *id)
         .map(|entry| (entry.kind, entry.failed_attempts));
     if let Some((kind, failed_attempts)) = current {
-        let wait = state.backoff_for(&kind, failed_attempts);
+        let wait = state.backoff_for(kind, failed_attempts);
         if let Some(entry) = state.entries.iter_mut().find(|entry| entry.peer.id == *id)
             && let Some(next) = now.checked_add(wait)
         {

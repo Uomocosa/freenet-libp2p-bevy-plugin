@@ -3,7 +3,7 @@ use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use crate::identity;
 use crate::p2p;
 
-pub fn dial_peer<Payload: p2p::Message>(
+pub fn dial_peer<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     peer_id: &identity::PeerId,
     addrs: &[identity::PeerAddr],

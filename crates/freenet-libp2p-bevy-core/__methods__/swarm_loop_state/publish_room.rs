@@ -1,7 +1,7 @@
 use crate::identity;
 use crate::p2p;
 
-pub fn publish_room<Payload: p2p::Message>(
+pub fn publish_room<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     config: &p2p::GossipsubConfig,
     room: &identity::RoomName,

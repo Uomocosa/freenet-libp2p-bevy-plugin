@@ -72,7 +72,7 @@ impl DiscoveryState {
 }
 
 #[rustfmt::skip]
-impl lele_bevy_state_machine::StateMachine for DiscoveryState {
+impl lele_bevy_state_machine::traits::StateMachine for DiscoveryState {
     type Input = Input;
     type Output = Output;
     type Now = time::UnixTime;
@@ -98,7 +98,7 @@ impl lele_bevy_state_machine::StateMachine for DiscoveryState {
 }
 
 #[rustfmt::skip]
-impl lele_bevy_state_machine::PeriodicStateMachine for DiscoveryState {
+impl lele_bevy_state_machine::traits::PeriodicStateMachine for DiscoveryState {
     const TICK_INTERVAL: Duration = discovery::TICK;
     fn tick_input() -> Self::Input { Self::Input::Tick }
 }
@@ -287,7 +287,7 @@ mod tests {
     use crate::p2p;
     use crate::time;
     use discovery::state_machine::{Input, Output};
-    use lele_bevy_state_machine::StateMachine;
+    use lele_bevy_state_machine::traits::StateMachine;
 
     #[test]
     fn test_usage() {

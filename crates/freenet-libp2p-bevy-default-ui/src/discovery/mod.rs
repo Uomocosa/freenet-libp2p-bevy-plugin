@@ -1,5 +1,5 @@
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 
 pub use basic::components::{
     ConnectingRoot, CreateRoomButton, DoorLabel, DoorOpening, DoorPanel, HoverGlow,
@@ -7,6 +7,7 @@ pub use basic::components::{
     LeaveDoor, LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomButton, RoomList, RoomNameInput,
     Root, SpinnerRing,
 };
+pub use basic::constants::*;
 pub use basic::resources::JoinError;
 pub use basic::states::{LeaveDialog, Screen};
 pub use basic::structs::RoomRow;

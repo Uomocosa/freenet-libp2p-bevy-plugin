@@ -7,7 +7,7 @@ use bevy::ui_widgets::Button;
 use crate::direct_dial;
 use crate::discovery;
 use direct_dial::{FriendList, FriendRemoveButton, FriendRow};
-use discovery::basic::constants::{BUTTON_COLOR, ROOM_COLOR};
+use discovery::{BUTTON_COLOR, ROOM_COLOR};
 use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
 use freenet_libp2p_bevy_core::identity;
 use freenet_libp2p_bevy_core::peers;

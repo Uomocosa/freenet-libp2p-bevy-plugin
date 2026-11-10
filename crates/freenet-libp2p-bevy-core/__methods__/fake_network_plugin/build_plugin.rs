@@ -4,7 +4,7 @@ use crate::discovery;
 use crate::p2p;
 use crate::testing;
 
-pub fn build_plugin<Payload: p2p::Message>(
+pub fn build_plugin<Payload: p2p::traits::Message>(
     plugin: &testing::FakeNetworkPlugin<Payload>,
     app: &mut App,
 ) {

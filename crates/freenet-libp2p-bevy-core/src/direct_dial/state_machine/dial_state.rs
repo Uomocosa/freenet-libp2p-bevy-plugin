@@ -21,7 +21,7 @@ impl DialState {
 }
 
 #[rustfmt::skip]
-impl lele_bevy_state_machine::StateMachine for DialState {
+impl lele_bevy_state_machine::traits::StateMachine for DialState {
     type Input = direct_dial::state_machine::Input;
     type Output = direct_dial::state_machine::Output;
     type Now = time::UnixTime;
@@ -47,7 +47,7 @@ impl lele_bevy_state_machine::StateMachine for DialState {
 }
 
 #[rustfmt::skip]
-impl lele_bevy_state_machine::PeriodicStateMachine for DialState {
+impl lele_bevy_state_machine::traits::PeriodicStateMachine for DialState {
     const TICK_INTERVAL: Duration = direct_dial::state_machine::TICK_INTERVAL;
     fn tick_input() -> Self::Input { Self::Input::Tick }
 }
@@ -113,7 +113,7 @@ impl DialState {
     }
     pub(crate) fn backoff_for(
         &self,
-        kind: &direct_dial::KnownPeerKind,
+        kind: direct_dial::KnownPeerKind,
         failed_attempts: u32,
     ) -> std::time::Duration {
     }
@@ -121,7 +121,7 @@ impl DialState {
 
 #[cfg(test)]
 mod tests {
-    use lele_bevy_state_machine::StateMachine;
+    use lele_bevy_state_machine::traits::StateMachine;
 
     use super::DialState;
     use crate::direct_dial;
@@ -161,9 +161,9 @@ mod tests {
     #[test]
     fn backoff_grows_and_caps() {
         let state = fresh_state();
-        let first = state.backoff_for(&direct_dial::KnownPeerKind::Friend, 0);
-        let second = state.backoff_for(&direct_dial::KnownPeerKind::Friend, 1);
-        let capped = state.backoff_for(&direct_dial::KnownPeerKind::Friend, 100);
+        let first = state.backoff_for(direct_dial::KnownPeerKind::Friend, 0);
+        let second = state.backoff_for(direct_dial::KnownPeerKind::Friend, 1);
+        let capped = state.backoff_for(direct_dial::KnownPeerKind::Friend, 100);
         assert!(second > first);
         assert_eq!(capped, direct_dial::state_machine::FRIEND_MAX_BACKOFF);
         assert_eq!(first, direct_dial::state_machine::FRIEND_INITIAL_BACKOFF);

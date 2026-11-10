@@ -35,7 +35,7 @@ impl<Op> SyncState<Op> {
         Vec<room_sync::state_machine::Input<Op>>,
     ) {
     }
-    pub(crate) fn perform<Replica: room_sync::ReplicatedState>(
+    pub(crate) fn perform<Replica: room_sync::traits::ReplicatedState>(
         output: room_sync::state_machine::Output<Replica::Op>,
         room: &mut Replica,
         clock: room_sync::LamportClock,
@@ -46,7 +46,7 @@ impl<Op> SyncState<Op> {
         game: &identity::GameId,
     ) {
     }
-    pub(crate) fn snapshot_frame<Replica: room_sync::ReplicatedState>(
+    pub(crate) fn snapshot_frame<Replica: room_sync::traits::ReplicatedState>(
         room: &Replica,
         room_name: identity::RoomName,
         part: u32,
@@ -57,7 +57,7 @@ impl<Op> SyncState<Op> {
 #[rustfmt::skip]
 impl<Op> SyncState<Op> {
     pub(crate) fn reset_after_leaving(&mut self) { *self = Self(room_sync::state_machine::ReplicaState { slice_anti_entropy: room_sync::state_machine::SliceAntiEntropyState { max_fetches_per_peer: self.slice_anti_entropy.max_fetches_per_peer, ..Default::default() }, kademlia_history: room_sync::state_machine::KademliaHistoryState { is_enabled: self.kademlia_history.is_enabled, max_fetch_retries: self.kademlia_history.max_fetch_retries, per_room_bytes: self.kademlia_history.per_room_bytes, record_ttl: self.kademlia_history.record_ttl, ..Default::default() }, ..Default::default() }); }
-    pub(crate) fn libp2p_event_to_input<Replica: room_sync::ReplicatedState>(
+    pub(crate) fn libp2p_event_to_input<Replica: room_sync::traits::ReplicatedState>(
         event: &p2p::Libp2pEvent,
         state: &SyncState<Replica::Op>,
         clock: &mut room_sync::LamportClock,

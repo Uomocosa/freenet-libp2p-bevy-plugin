@@ -5,7 +5,7 @@ use crate::direct_dial;
 #[must_use]
 pub fn backoff_for(
     state: &direct_dial::state_machine::DialState,
-    kind: &direct_dial::KnownPeerKind,
+    kind: direct_dial::KnownPeerKind,
     failed_attempts: u32,
 ) -> Duration {
     let _ = state;
@@ -35,7 +35,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let state = direct_dial::state_machine::DialState::default();
-        let wait = backoff_for(&state, &direct_dial::KnownPeerKind::Friend, 0);
+        let wait = backoff_for(&state, direct_dial::KnownPeerKind::Friend, 0);
         assert_eq!(wait, direct_dial::state_machine::FRIEND_INITIAL_BACKOFF);
     }
 }

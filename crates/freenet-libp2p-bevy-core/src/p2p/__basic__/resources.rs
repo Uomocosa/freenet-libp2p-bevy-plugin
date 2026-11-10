@@ -5,13 +5,13 @@ use derive_more::Deref;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::p2p;
-use crate::p2p::basic::enums::{Command, Event};
+use crate::p2p::{Command, Event};
 
 #[derive(Resource, Deref)]
-pub struct CommandSender<Payload: p2p::Message>(pub UnboundedSender<Command<Payload>>);
+pub struct CommandSender<Payload: p2p::traits::Message>(pub UnboundedSender<Command<Payload>>);
 
 #[derive(Resource, Deref)]
-pub struct EventReceiver<Payload: p2p::Message>(
+pub struct EventReceiver<Payload: p2p::traits::Message>(
     pub Mutex<Option<UnboundedReceiver<Event<Payload>>>>,
 );
 

@@ -63,7 +63,7 @@ mod tests {
                 padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
                 ..default()
             },
-            BackgroundColor(discovery::basic::constants::PANEL_COLOR),
+            BackgroundColor(discovery::PANEL_COLOR),
             children![(direct_dial::FriendErrorText, Text::new(""),)],
         ));
     }

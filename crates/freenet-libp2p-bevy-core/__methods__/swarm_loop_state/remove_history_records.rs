@@ -1,6 +1,6 @@
 use crate::p2p;
 
-pub fn remove_history_records<Payload: p2p::Message>(
+pub fn remove_history_records<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     prefix: &p2p::HistoryKeyPrefix,
 ) {

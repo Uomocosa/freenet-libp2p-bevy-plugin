@@ -6,9 +6,7 @@ use bevy::ui_widgets::{Button, TextInput};
 
 use crate::direct_dial;
 use crate::discovery;
-use discovery::basic::constants::{
-    BUTTON_COLOR, CARET_COLOR, CARET_SELECTION_COLOR, INPUT_COLOR, PANEL_COLOR,
-};
+use discovery::{BUTTON_COLOR, CARET_COLOR, CARET_SELECTION_COLOR, INPUT_COLOR, PANEL_COLOR};
 
 pub fn spawn_friends_tab(mut commands: Commands) {
     commands.spawn((

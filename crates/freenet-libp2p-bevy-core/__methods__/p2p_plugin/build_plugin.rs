@@ -8,7 +8,10 @@ use crate::plugin;
 #[cfg(feature = "testing")]
 use crate::testing;
 
-pub fn build_plugin<Payload: p2p::Message>(p2p_plugin: &plugin::P2PPlugin<Payload>, app: &mut App) {
+pub fn build_plugin<Payload: p2p::traits::Message>(
+    p2p_plugin: &plugin::P2PPlugin<Payload>,
+    app: &mut App,
+) {
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
     let (libp2p_tx, libp2p_rx) = tokio::sync::mpsc::unbounded_channel();
     let (event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();

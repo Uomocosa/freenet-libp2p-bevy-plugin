@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::testing;
 
-pub fn advance<Step: testing::ScriptStep>(
+pub fn advance<Step: testing::traits::ScriptStep>(
     runner: &mut testing::ScriptRunner<Step>,
     delta: Duration,
     mut poll_step: impl FnMut(&Step, testing::StepClock) -> testing::StepOutcome,

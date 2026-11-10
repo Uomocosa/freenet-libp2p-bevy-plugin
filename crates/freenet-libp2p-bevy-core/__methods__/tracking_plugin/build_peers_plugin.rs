@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::p2p;
 use crate::peers;
 
-pub fn build_peers_plugin(_plugin: &peers::TrackingPlugin, app: &mut App) {
+pub fn build_peers_plugin(_plugin: peers::TrackingPlugin, app: &mut App) {
     if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
         app.insert_resource(peers::PeerEventTap(channel.subscribe()));
     }
@@ -32,7 +32,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(p2p::Libp2pEventChannel::default());
-        build_peers_plugin(&peers::TrackingPlugin, &mut app);
+        build_peers_plugin(peers::TrackingPlugin, &mut app);
         assert!(app.world().get_resource::<peers::PeerEventTap>().is_some());
     }
 }

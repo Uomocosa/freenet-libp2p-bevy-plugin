@@ -13,7 +13,7 @@ impl bevy::prelude::Plugin for TrackingPlugin {
 
 #[atomic_delegates]
 impl TrackingPlugin {
-    pub fn build_peers_plugin(&self, app: &mut App) {}
+    pub fn build_peers_plugin(self, app: &mut App) {}
 }
 
 #[cfg(test)]

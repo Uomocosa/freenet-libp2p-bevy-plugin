@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::direct_dial;
 
-pub fn build_plugin(_plugin: &direct_dial::FriendsUiPlugin, app: &mut App) {
+pub fn build_plugin(_plugin: direct_dial::FriendsUiPlugin, app: &mut App) {
     use direct_dial::bevy_systems as friends;
     app.add_systems(Startup, friends::spawn_friends_tab);
     app.add_systems(Update, friends::rebuild_friend_list);
@@ -22,7 +22,7 @@ pub fn build_plugin(_plugin: &direct_dial::FriendsUiPlugin, app: &mut App) {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
-    use lele_bevy_state_machine::StateMachine;
+    use lele_bevy_state_machine::traits::StateMachine;
 
     use super::build_plugin;
     use crate::direct_dial;
@@ -43,7 +43,7 @@ mod tests {
         app.add_message::<core_direct_dial::state_machine::Input>();
         app.insert_resource(empty_state());
         app.insert_resource(core_direct_dial::FriendAddressError(None));
-        build_plugin(&direct_dial::FriendsUiPlugin, &mut app);
+        build_plugin(direct_dial::FriendsUiPlugin, &mut app);
         app.update();
         let mut tabs = app
             .world_mut()
@@ -61,7 +61,7 @@ mod tests {
         app.add_message::<core_direct_dial::state_machine::Input>();
         app.insert_resource(empty_state());
         app.insert_resource(core_direct_dial::FriendAddressError(None));
-        build_plugin(&direct_dial::FriendsUiPlugin, &mut app);
+        build_plugin(direct_dial::FriendsUiPlugin, &mut app);
         app.update();
         let id = libp2p::PeerId::random();
         let text = format!("/ip4/127.0.0.1/tcp/4001/p2p/{id}");

@@ -2,8 +2,8 @@ use libp2p::kad;
 
 use crate::p2p;
 
-pub fn handle_kademlia_query_result<Payload: p2p::Message>(
-    state: &mut p2p::SwarmLoopState<Payload>,
+pub fn handle_kademlia_query_result<Payload: p2p::traits::Message>(
+    state: &p2p::SwarmLoopState<Payload>,
     result: kad::QueryResult,
 ) {
     let Some(event) = p2p::SwarmLoopState::<Payload>::history_event(result) else {
@@ -39,7 +39,7 @@ mod tests {
     }
 
     fn next_event(
-        state: &mut p2p::SwarmLoopState<u32>,
+        state: &p2p::SwarmLoopState<u32>,
         rx: &mut tokio::sync::mpsc::UnboundedReceiver<p2p::Event<u32>>,
         result: kad::QueryResult,
     ) -> Option<p2p::Libp2pEvent> {
@@ -52,9 +52,9 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         assert_eq!(
-            next_event(&mut state, &mut rx, found(chunk().history_record_key())),
+            next_event(&state, &mut rx, found(chunk().history_record_key())),
             Some(p2p::Libp2pEvent::HistoryRecordFound {
                 id: chunk(),
                 value: vec![1, 2, 3]
@@ -64,27 +64,27 @@ mod tests {
 
     #[test]
     fn test_usage_reports_missing_and_stored_records() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let key = chunk().history_record_key();
         let missing =
             kad::QueryResult::GetRecord(Err(kad::GetRecordError::Timeout { key: key.clone() }));
         let stored = kad::QueryResult::PutRecord(Ok(kad::PutRecordOk { key }));
         assert_eq!(
-            next_event(&mut state, &mut rx, missing),
+            next_event(&state, &mut rx, missing),
             Some(p2p::Libp2pEvent::HistoryRecordNotFound { id: chunk() })
         );
         assert_eq!(
-            next_event(&mut state, &mut rx, stored),
+            next_event(&state, &mut rx, stored),
             Some(p2p::Libp2pEvent::HistoryRecordStored { id: chunk() })
         );
     }
 
     #[test]
     fn test_usage_skips_non_history_keys() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         assert_eq!(
             next_event(
-                &mut state,
+                &state,
                 &mut rx,
                 found(kad::RecordKey::new(&"lobby/room/room-a"))
             ),

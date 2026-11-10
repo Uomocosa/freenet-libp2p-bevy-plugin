@@ -7,7 +7,7 @@ use crate::testing;
 #[derive(Debug, Clone, Args)]
 pub struct E2EArgs<Step>
 where
-    Step: testing::ScriptStep + Clone + Send + Sync + 'static,
+    Step: testing::traits::ScriptStep + Clone + Send + Sync + 'static,
 {
     #[arg(long, value_delimiter = ',')]
     pub script: Option<Vec<String>>,
@@ -20,7 +20,7 @@ where
 #[rustfmt::skip]
 impl<Step> E2EArgs<Step>
 where
-    Step: testing::ScriptStep + Clone + Send + Sync + 'static,
+    Step: testing::traits::ScriptStep + Clone + Send + Sync + 'static,
 {
     pub fn parsed_script(&self) -> Result<Option<Vec<testing::TimedScriptStep<Step>>>, String> { self.script.clone().map(|raw| raw.iter().map(|text| testing::TimedScriptStep::<Step>::try_from(text.as_str())).collect::<Result<Vec<_>, String>>()).transpose() }
 }
@@ -34,7 +34,7 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct ToyStep;
 
-    impl testing::ScriptStep for ToyStep {
+    impl testing::traits::ScriptStep for ToyStep {
         const STEP_NAMES: &'static str = "stay";
 
         fn parse_verb(verb: &str, _arg: &str) -> Option<Result<Self, String>> {

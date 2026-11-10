@@ -1,6 +1,6 @@
 use crate::p2p;
 
-pub fn dispatch_command<Payload: p2p::Message>(
+pub fn dispatch_command<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     config: &p2p::GossipsubConfig,
     cmd: Option<p2p::Command<Payload>>,

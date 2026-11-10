@@ -8,7 +8,7 @@ pub struct Orchestrator {
     pub(crate) network: testing::Network,
     pub(crate) game: String,
     pub(crate) peers: Vec<testing::PeerBuilder>,
-    pub(crate) board: Option<std::sync::Arc<dyn testing::CheckpointBoard>>,
+    pub(crate) board: Option<std::sync::Arc<dyn testing::traits::CheckpointBoard>>,
     pub(crate) published_board_peers: std::collections::HashMap<String, String>,
     pub(crate) marked_board_checkpoints: std::collections::HashSet<String>,
     pub(crate) machine: String,
@@ -46,7 +46,7 @@ impl Orchestrator {
 
     pub fn set_checkpoint_board(
         &mut self,
-        board: std::sync::Arc<dyn testing::CheckpointBoard>,
+        board: std::sync::Arc<dyn testing::traits::CheckpointBoard>,
     ) -> &mut Self {
         self.board = Some(board);
         self
@@ -147,7 +147,7 @@ impl Orchestrator {
         steps: impl IntoIterator<Item = Vec<testing::StepWithDeadline<Step>>>,
     ) -> &mut Self
     where
-        Step: testing::OrchestratedStep,
+        Step: testing::traits::OrchestratedStep,
     {
     }
 

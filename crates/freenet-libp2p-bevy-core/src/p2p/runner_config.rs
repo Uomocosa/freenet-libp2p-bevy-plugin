@@ -13,12 +13,12 @@ pub struct RunnerConfig {
 
 #[atomic_delegates]
 impl RunnerConfig {
-    pub fn build_swarm<Payload: p2p::Message>(
+    pub fn build_swarm<Payload: p2p::traits::Message>(
         &self,
         keypair: libp2p::identity::Keypair,
     ) -> Result<libp2p::Swarm<p2p::Behaviour<Payload>>, String> {
     }
-    pub async fn run<Payload: p2p::Message>(
+    pub async fn run<Payload: p2p::traits::Message>(
         &self,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<Payload>>,
         libp2p_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Libp2pCommand>,
@@ -26,7 +26,7 @@ impl RunnerConfig {
         keypair: libp2p::identity::Keypair,
     ) {
     }
-    pub fn spawn_runner<Payload: p2p::Message>(
+    pub fn spawn_runner<Payload: p2p::traits::Message>(
         &self,
         cmd_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<Payload>>,
         libp2p_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Libp2pCommand>,

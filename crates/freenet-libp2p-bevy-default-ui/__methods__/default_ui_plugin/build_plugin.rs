@@ -4,7 +4,7 @@ use crate::discovery;
 use freenet_libp2p_bevy_core::discovery as core_discovery;
 use freenet_libp2p_bevy_core::room_sync;
 
-pub fn build_plugin(_plugin: &discovery::DefaultUiPlugin, app: &mut App) {
+pub fn build_plugin(_plugin: discovery::DefaultUiPlugin, app: &mut App) {
     use discovery::bevy_systems as ui;
     use discovery::{JoinError, LeaveDialog, Screen};
 
@@ -60,8 +60,8 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
         app.add_message::<core_discovery::Command>();
-        build_plugin(&discovery::DefaultUiPlugin, &mut app);
-        super::super::finish_plugin(&discovery::DefaultUiPlugin, &mut app);
+        build_plugin(discovery::DefaultUiPlugin, &mut app);
+        super::super::finish_plugin(discovery::DefaultUiPlugin, &mut app);
         app.update();
         let mut spinners = app
             .world_mut()

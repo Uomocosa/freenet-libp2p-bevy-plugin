@@ -80,7 +80,7 @@ impl<Op> ReplicaState<Op> {
     ) -> Vec<room_sync::state_machine::Output<Op>> {
     }
     pub fn handle_remote_slice_content_hashes(
-        &mut self,
+        &self,
         from: &identity::PeerId,
         local: &room_sync::ReplicaSliceContentHashes,
         remote: &room_sync::ReplicaSliceContentHashes,

@@ -32,7 +32,7 @@ pub fn handle_dial_failed(
             state.to_peer_book(),
         )];
     }
-    let wait = state.backoff_for(&kind, failed_attempts);
+    let wait = state.backoff_for(kind, failed_attempts);
     if let Some(entry) = state.entries.iter_mut().find(|entry| entry.peer.id == *id)
         && let Some(next) = now.checked_add(wait)
     {

@@ -11,7 +11,7 @@ pub enum TransportMode {
 
 #[atomic_delegates]
 impl TransportMode {
-    pub fn matches_transport(&self, addr: &Multiaddr) -> bool {}
+    pub fn matches_transport(self, addr: &Multiaddr) -> bool {}
 }
 
 #[cfg(test)]

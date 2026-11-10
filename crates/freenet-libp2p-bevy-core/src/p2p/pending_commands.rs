@@ -5,16 +5,16 @@ use serde::Serialize;
 use crate::p2p;
 
 #[derive(Resource, Deref, DerefMut, Serialize)]
-pub struct PendingCommands<Payload: p2p::Message>(pub Vec<p2p::Command<Payload>>);
+pub struct PendingCommands<Payload: p2p::traits::Message>(pub Vec<p2p::Command<Payload>>);
 
-impl<Payload: p2p::Message> Default for PendingCommands<Payload> {
+impl<Payload: p2p::traits::Message> Default for PendingCommands<Payload> {
     fn default() -> Self {
         Self(Vec::new())
     }
 }
 
 #[rustfmt::skip]
-impl<Payload: p2p::Message> PendingCommands<Payload> {
+impl<Payload: p2p::traits::Message> PendingCommands<Payload> {
     pub fn take_all(&mut self) -> Vec<p2p::Command<Payload>> {
         self.split_off(0)
     }

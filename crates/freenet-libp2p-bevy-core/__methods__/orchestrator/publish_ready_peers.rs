@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl testing::CheckpointBoard for RecordingBoard {
+    impl testing::traits::CheckpointBoard for RecordingBoard {
         async fn mark_completed(
             &self,
             checkpoint: &testing::ScriptCheckpoint,

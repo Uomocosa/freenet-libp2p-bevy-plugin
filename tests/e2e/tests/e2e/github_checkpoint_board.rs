@@ -225,7 +225,7 @@ impl GitHubCheckpointBoard {
 }
 
 #[async_trait]
-impl testing::CheckpointBoard for GitHubCheckpointBoard {
+impl testing::traits::CheckpointBoard for GitHubCheckpointBoard {
     async fn mark_completed(&self, checkpoint: &testing::ScriptCheckpoint) -> Result<(), String> {
         let context = Self::checkpoint_context(&self.prefix, &checkpoint.to_string());
         let description = format!("checkpoint {checkpoint} completed");

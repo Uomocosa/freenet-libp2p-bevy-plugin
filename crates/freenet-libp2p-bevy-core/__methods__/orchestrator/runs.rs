@@ -5,7 +5,7 @@ pub fn runs<Step>(
     steps: impl IntoIterator<Item = Vec<testing::StepWithDeadline<Step>>>,
 ) -> &mut testing::Orchestrator
 where
-    Step: testing::OrchestratedStep,
+    Step: testing::traits::OrchestratedStep,
 {
     let Some(last) = orchestrator.peers.last_mut() else {
         return orchestrator;
@@ -30,7 +30,7 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct ToyStep;
 
-    impl testing::ScriptStep for ToyStep {
+    impl testing::traits::ScriptStep for ToyStep {
         const STEP_NAMES: &'static str = "toy";
 
         fn parse_verb(verb: &str, _arg: &str) -> Option<Result<Self, String>> {
@@ -45,7 +45,7 @@ mod tests {
         }
     }
 
-    impl testing::OrchestratedStep for ToyStep {
+    impl testing::traits::OrchestratedStep for ToyStep {
         fn script_text(&self) -> String {
             "toy".to_string()
         }

@@ -15,7 +15,7 @@ use atomic_delegate_macros::atomic_delegates;
 use crate::identity;
 use crate::p2p;
 
-pub struct SwarmLoopState<Payload: p2p::Message> {
+pub struct SwarmLoopState<Payload: p2p::traits::Message> {
     pub(crate) swarm: libp2p::Swarm<p2p::Behaviour<Payload>>,
     pub(crate) event_tx: tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     pub(crate) subscriptions: p2p::swarm_loop::RoomSubscriptions,
@@ -27,7 +27,7 @@ pub struct SwarmLoopState<Payload: p2p::Message> {
     pub(crate) mode: p2p::TransportMode,
 }
 
-impl<Payload: p2p::Message> SwarmLoopState<Payload> {
+impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
     #[must_use]
     pub const fn new(
         swarm: libp2p::Swarm<p2p::Behaviour<Payload>>,
@@ -50,7 +50,7 @@ impl<Payload: p2p::Message> SwarmLoopState<Payload> {
 }
 
 #[atomic_delegates]
-impl<Payload: p2p::Message> SwarmLoopState<Payload> {
+impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
     pub fn dial_peer(
         &mut self,
         peer_id: &identity::PeerId,
@@ -64,7 +64,7 @@ impl<Payload: p2p::Message> SwarmLoopState<Payload> {
         cmd: Option<p2p::Command<Payload>>,
     ) -> bool {
     }
-    pub fn handle_kademlia_query_result(&mut self, result: kad::QueryResult) {}
+    pub fn handle_kademlia_query_result(&self, result: kad::QueryResult) {}
     pub fn log_mesh_snapshot(&self) {}
     pub fn measure_history_store(
         &mut self,
@@ -97,7 +97,7 @@ impl<Payload: p2p::Message> SwarmLoopState<Payload> {
 }
 
 #[rustfmt::skip]
-impl<Payload: p2p::Message> SwarmLoopState<Payload> {
+impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
 pub fn dial_mdns_peers(&mut self, peers: Vec<(libp2p::PeerId, libp2p::Multiaddr)>) {
     for (peer, addr) in peers {
         if !self.mode.matches_transport(&addr) {
@@ -663,7 +663,7 @@ mod tests {
     use libp2p::identity::Keypair;
     use libp2p::swarm::DialError;
 
-    impl<Payload: p2p::Message> SwarmLoopState<Payload> {
+    impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
         pub(crate) fn for_test() -> (
             Self,
             tokio::sync::mpsc::UnboundedReceiver<p2p::Event<Payload>>,

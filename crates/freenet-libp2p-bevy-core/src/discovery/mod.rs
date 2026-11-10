@@ -3,7 +3,7 @@ pub mod bevy_systems;
 pub mod state_machine;
 
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 
 pub use basic::constants::*;
 pub use basic::enums::{HowRoomWasEntered, JoinPhase};

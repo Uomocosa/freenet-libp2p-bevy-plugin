@@ -2,15 +2,10 @@
 pub mod bevy_systems;
 
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 
 #[path = "__traits__/mod.rs"]
 pub mod traits;
-
-pub use traits::CheckpointBoard;
-pub use traits::OrchestratedStep;
-pub use traits::PollableScriptStep;
-pub use traits::ScriptStep;
 
 pub use basic::constants::{
     QUIT_PUBLISH_GRACE, ROOM_PLACEHOLDER, SCRIPT_CHECKPOINT_COMPLETED_PREFIX, SCRIPT_DONE_MARKER,

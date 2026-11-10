@@ -1,5 +1,5 @@
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 mod brush_at;
 mod daily_brush;
 mod day_index;

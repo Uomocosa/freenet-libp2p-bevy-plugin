@@ -5,9 +5,7 @@ use bevy::ui::InteractionDisabled;
 use bevy::ui_widgets::{Button, TextInput};
 
 use crate::discovery;
-use discovery::basic::constants::{
-    BUTTON_COLOR, CARET_COLOR, CARET_SELECTION_COLOR, INPUT_COLOR, PANEL_COLOR,
-};
+use discovery::{BUTTON_COLOR, CARET_COLOR, CARET_SELECTION_COLOR, INPUT_COLOR, PANEL_COLOR};
 use discovery::{
     CreateRoomButton, HoverGlow, HoverOutlineOnly, RoomList, RoomNameInput, Root, Screen,
 };

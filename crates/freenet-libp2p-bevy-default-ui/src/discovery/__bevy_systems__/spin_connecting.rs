@@ -3,8 +3,8 @@ use std::f32::consts::TAU;
 use bevy::prelude::*;
 
 use crate::discovery;
+use discovery::SPIN_TURNS_PER_SEC;
 use discovery::SpinnerRing;
-use discovery::basic::constants::SPIN_TURNS_PER_SEC;
 
 pub fn spin_connecting(time: Res<Time>, mut rings: Query<&mut UiTransform, With<SpinnerRing>>) {
     let angle = time.into_inner().elapsed_secs() * SPIN_TURNS_PER_SEC * TAU;

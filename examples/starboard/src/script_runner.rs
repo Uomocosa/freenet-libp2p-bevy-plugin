@@ -36,7 +36,7 @@ pub struct StarboardStepParam<'w, 's> {
     connected_peers: Query<'w, 's, &'static peers::Peer, With<peers::Connected>>,
 }
 
-impl testing::PollableScriptStep for ScriptedStarboardStep {
+impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
     type Param<'w, 's> = StarboardStepParam<'w, 's>;
 
     fn poll(

@@ -18,7 +18,7 @@ impl FakeWireFraming {
     }
     #[must_use]
     pub fn spawn_server_frame_reader(
-        &self,
+        self,
         reader: tokio::net::tcp::OwnedReadHalf,
     ) -> tokio::sync::mpsc::UnboundedReceiver<testing::FakeWireServerFrame> {
     }

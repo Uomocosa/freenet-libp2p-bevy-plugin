@@ -6,7 +6,7 @@ use bevy::ui::{InteractionDisabled, Pressed};
 use crate::direct_dial;
 use crate::discovery;
 use direct_dial::{AddFriendButton, FriendAddressInput};
-use discovery::basic::constants::{
+use discovery::{
     BUTTON_COLOR, BUTTON_LABEL_COLOR, DISABLED_BUTTON_COLOR, DISABLED_BUTTON_LABEL_COLOR,
 };
 

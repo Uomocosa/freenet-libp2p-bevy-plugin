@@ -1,7 +1,7 @@
 use crate::identity;
 use crate::p2p;
 
-pub fn send_room_sync_request<Payload: p2p::Message>(
+pub fn send_room_sync_request<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     peer_id: &identity::PeerId,
     request: p2p::SnapshotRequest,

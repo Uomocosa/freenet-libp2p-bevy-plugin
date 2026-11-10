@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::identity;
 use crate::p2p;
 
-pub fn handle_server_event<Payload: p2p::Message>(
+pub fn handle_server_event<Payload: p2p::traits::Message>(
     task: &p2p::SwarmTaskOverride<Payload>,
     rooms_by_topic: &BTreeMap<identity::Topic, identity::RoomName>,
     event: p2p::Libp2pEvent,

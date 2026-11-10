@@ -27,7 +27,7 @@ pub enum E2EStep {
 }
 
 #[rustfmt::skip]
-impl testing::ScriptStep for E2EStep {
+impl testing::traits::ScriptStep for E2EStep {
     const STEP_NAMES: &'static str = "create, join, leave, wait-lobby-room, wait-lobby-room-gone, \
         wait-join-succeeded, wait-join-failed, wait-left, wait-members, \
         wait-members-are-strictly-less-than, wait-members-are-less-or-equal-to, wait-room-messages, \
@@ -83,7 +83,7 @@ impl testing::ScriptStep for E2EStep {
 }
 
 #[rustfmt::skip]
-impl testing::OrchestratedStep for E2EStep {
+impl testing::traits::OrchestratedStep for E2EStep {
     fn script_text(&self) -> String {
         match self {
             Self::CreateRoom(name) => format!("create:{name}"),

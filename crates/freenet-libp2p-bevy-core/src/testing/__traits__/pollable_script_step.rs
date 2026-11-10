@@ -2,7 +2,7 @@ use bevy::ecs::system::SystemParam;
 
 use crate::testing;
 
-pub trait PollableScriptStep: testing::ScriptStep {
+pub trait PollableScriptStep: testing::traits::ScriptStep {
     type Param<'w, 's>: SystemParam;
 
     fn poll(
@@ -22,7 +22,7 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct DummyStep;
 
-    impl testing::ScriptStep for DummyStep {
+    impl testing::traits::ScriptStep for DummyStep {
         const STEP_NAMES: &'static str = "dummy";
 
         fn parse_verb(_verb: &str, _arg: &str) -> Option<Result<Self, String>> {

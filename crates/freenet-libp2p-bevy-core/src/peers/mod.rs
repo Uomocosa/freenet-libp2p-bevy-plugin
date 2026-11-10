@@ -1,5 +1,5 @@
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 
 pub use basic::components::{
     Connected, HeldBy, HeldRooms, HistoryHold, HistoryHolders, HoldOf, InRoom, KeepAlive, Me,

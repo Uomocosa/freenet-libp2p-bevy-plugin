@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use core_discovery::state_machine::DiscoveryState;
-use discovery::basic::constants::{CURRENT_ROOM_COLOR, ROOM_COLOR};
+use discovery::{CURRENT_ROOM_COLOR, ROOM_COLOR};
 use discovery::{IsCurrentRoom, RoomButton};
 use freenet_libp2p_bevy_core::discovery as core_discovery;
 

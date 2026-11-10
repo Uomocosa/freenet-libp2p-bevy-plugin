@@ -22,8 +22,8 @@ use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::identity::{PeerId, RoomName};
 use freenet_libp2p_bevy_plugin::testing::{
-    E2EStep, MemberCount, OrchestratedStep, ROOM_PLACEHOLDER, ScriptCheckpoint, ScriptStep,
-    StepWithDeadline,
+    E2EStep, MemberCount, ROOM_PLACEHOLDER, ScriptCheckpoint, StepWithDeadline,
+    traits::{OrchestratedStep, ScriptStep},
 };
 
 /// One cell of the board, as `x.y` in script text.
@@ -410,7 +410,8 @@ pub fn wait_until_friend_is_disconnected(peer: &str) -> Vec<StepWithDeadline<Sta
 #[cfg(test)]
 mod tests {
     use freenet_libp2p_bevy_plugin::testing::{
-        OrchestratedStep, ScriptCheckpoint, ScriptStep, StepWithDeadline, TimedScriptStep,
+        ScriptCheckpoint, StepWithDeadline, TimedScriptStep,
+        traits::{OrchestratedStep, ScriptStep},
     };
 
     use super::{

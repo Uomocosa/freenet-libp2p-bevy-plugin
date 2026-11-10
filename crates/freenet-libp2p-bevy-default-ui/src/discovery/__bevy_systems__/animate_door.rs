@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::ui::Pressed;
 
 use crate::discovery;
-use discovery::basic::constants::{DOOR_OPEN_PER_SEC, DOOR_SWING};
+use discovery::{DOOR_OPEN_PER_SEC, DOOR_SWING};
 use discovery::{DoorLabel, DoorOpening, DoorPanel, LeaveDialog, LeaveDoor};
 
 type DoorParts<'a> = (Option<&'a Hovered>, Has<Pressed>, &'a mut DoorOpening);

@@ -8,7 +8,7 @@ use crate::identity;
 use crate::time;
 
 pub fn publish_heartbeat(
-    state: &mut discovery::LobbyContractSubscription,
+    state: &discovery::LobbyContractSubscription,
     room: &identity::RoomName,
     me: &identity::PeerId,
     room_member: discovery::RoomMember,
@@ -53,7 +53,7 @@ mod tests {
     fn test_usage() {
         let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (_read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        let mut subscription = discovery::LobbyContractSubscription {
+        let subscription = discovery::LobbyContractSubscription {
             client: freenet::Client { write, read },
             key: contract_key(),
             lobby: discovery::Lobby::default(),
@@ -69,7 +69,7 @@ mod tests {
         };
         assert!(
             publish_heartbeat(
-                &mut subscription,
+                &subscription,
                 &identity::RoomName::from("room-a"),
                 &identity::PeerId::from("me"),
                 room_member,

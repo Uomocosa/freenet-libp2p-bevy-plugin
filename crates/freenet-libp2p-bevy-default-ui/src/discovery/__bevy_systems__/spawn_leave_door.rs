@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::ui_widgets::Button;
 
 use crate::discovery;
-use discovery::basic::constants::{
+use discovery::{
     DOOR_FRAME_COLOR, DOOR_HEIGHT, DOOR_KNOB_COLOR, DOOR_LIGHT_COLOR, DOOR_PANEL_COLOR, DOOR_WIDTH,
 };
 use discovery::{DoorLabel, DoorOpening, DoorPanel, LeaveDoor, LeaveDoorRoot, Screen};

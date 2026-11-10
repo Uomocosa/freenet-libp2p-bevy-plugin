@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use discovery::basic::constants::{BUTTON_COLOR, PANEL_COLOR, PROMPT_BACKDROP_COLOR, YES_COLOR};
+use discovery::{BUTTON_COLOR, PANEL_COLOR, PROMPT_BACKDROP_COLOR, YES_COLOR};
 use discovery::{LeaveDialog, LeaveNoButton, LeavePrompt, LeaveYesButton};
 
 const PROMPT_Z: i32 = 100;

@@ -37,7 +37,7 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct ToyWait;
 
-    impl testing::ScriptStep for ToyWait {
+    impl testing::traits::ScriptStep for ToyWait {
         const STEP_NAMES: &'static str = "toy-wait";
 
         fn parse_verb(verb: &str, _arg: &str) -> Option<Result<Self, String>> {
@@ -52,7 +52,7 @@ mod tests {
         }
     }
 
-    impl testing::OrchestratedStep for ToyWait {
+    impl testing::traits::OrchestratedStep for ToyWait {
         fn script_text(&self) -> String {
             "toy-wait".to_string()
         }

@@ -7,7 +7,7 @@ pub mod direct_dial;
 
 pub mod identity;
 #[path = "../__methods__/mod.rs"]
-pub mod methods;
+mod methods;
 pub mod p2p;
 pub mod peers;
 pub mod plugin;

@@ -14,9 +14,9 @@ pub struct LobbyContractSubscription {
 
 #[atomic_delegates]
 impl LobbyContractSubscription {
-    pub fn resubscribe_to_heal_replica_split(&mut self) -> Result<(), discovery::Error> {}
+    pub fn resubscribe_to_heal_replica_split(&self) -> Result<(), discovery::Error> {}
     pub fn publish_heartbeat(
-        &mut self,
+        &self,
         room: &identity::RoomName,
         me: &identity::PeerId,
         room_member: discovery::RoomMember,

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::ui::Pressed;
 
 use crate::discovery;
-use discovery::basic::constants::{ACCENT_COLOR, HOVER_OUTLINE_WIDTH, HOVER_PER_SEC, HOVER_SCALE};
+use discovery::{ACCENT_COLOR, HOVER_OUTLINE_WIDTH, HOVER_PER_SEC, HOVER_SCALE};
 use discovery::{HoverGlow, HoverOutlineOnly};
 
 type Unstyled = (

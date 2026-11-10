@@ -4,8 +4,8 @@ use crate::room_sync;
 pub trait ReplicatedState:
     Default + bevy::prelude::Resource<Mutability = bevy::ecs::component::Mutable>
 {
-    type Op: p2p::Message;
-    type Snapshot: p2p::Message;
+    type Op: p2p::traits::Message;
+    type Snapshot: p2p::traits::Message;
 
     fn apply(&mut self, meta: room_sync::OpMeta, op: &Self::Op);
     fn snapshot(&self) -> Self::Snapshot;

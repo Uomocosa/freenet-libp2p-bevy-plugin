@@ -6,7 +6,7 @@ use tracing::info;
 use freenet_stdlib::client_api::{ClientError, HostResponse};
 
 use crate::freenet;
-use freenet::basic::constants;
+use freenet::CONNECT_TIMEOUT;
 
 pub async fn try_from_host_and_port(
     host: &str,
@@ -19,7 +19,7 @@ pub async fn try_from_host_and_port(
         "encoding-protocol",
         http::HeaderValue::from_static("native"),
     );
-    let ws = tokio::time::timeout(constants::CONNECT_TIMEOUT, connect_async(request));
+    let ws = tokio::time::timeout(CONNECT_TIMEOUT, connect_async(request));
     let (ws_stream, _) = ws.await.map_err(|_| freenet::Error::ConnectionTimeout)??;
     let (mut ws_write, mut ws_read) = ws_stream.split();
     let (write_tx, mut write_rx) = tokio::sync::mpsc::unbounded_channel::<Message>();

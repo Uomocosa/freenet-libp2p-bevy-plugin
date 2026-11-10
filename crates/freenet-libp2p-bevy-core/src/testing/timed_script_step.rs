@@ -9,7 +9,7 @@ pub struct TimedScriptStep<Step> {
     pub raw: String,
 }
 
-impl<Step: testing::ScriptStep> TryFrom<&str> for TimedScriptStep<Step> {
+impl<Step: testing::traits::ScriptStep> TryFrom<&str> for TimedScriptStep<Step> {
     type Error = String;
 
     fn try_from(raw: &str) -> Result<Self, Self::Error> {
@@ -19,7 +19,7 @@ impl<Step: testing::ScriptStep> TryFrom<&str> for TimedScriptStep<Step> {
     }
 }
 
-impl<Step: testing::ScriptStep> TimedScriptStep<Step> {
+impl<Step: testing::traits::ScriptStep> TimedScriptStep<Step> {
     pub(crate) fn try_from_parts(
         verb: &str,
         arg: &str,
@@ -49,7 +49,7 @@ impl<Step: testing::ScriptStep> TimedScriptStep<Step> {
 }
 
 #[rustfmt::skip]
-impl<Step: testing::ScriptStep> TimedScriptStep<Step> {
+impl<Step: testing::traits::ScriptStep> TimedScriptStep<Step> {
     pub(crate) fn split_head(text: &str) -> Result<(&str, &str, Option<Duration>), String> {
         let (body, deadline) = Self::split_deadline(text)?;
         let (verb, arg) = Self::split_verb(body);
@@ -89,7 +89,7 @@ mod tests {
         WaitReady,
     }
 
-    impl testing::ScriptStep for ToyStep {
+    impl testing::traits::ScriptStep for ToyStep {
         const STEP_NAMES: &'static str = "go, wait-ready";
 
         fn parse_verb(verb: &str, _arg: &str) -> Option<Result<Self, String>> {

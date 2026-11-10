@@ -3,7 +3,7 @@ use std::time::Duration;
 use derive_more::Display;
 
 use crate::freenet;
-use freenet::basic::constants;
+use freenet::{DEPLOY_TIMEOUT, DRAIN_TIMEOUT, FETCH_TIMEOUT, REQUEST_TIMEOUT};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 pub enum RequestKind {
@@ -24,10 +24,10 @@ impl RequestKind {
     #[must_use]
     pub const fn timeout(self) -> Duration {
         match self {
-            Self::FetchLobby => constants::FETCH_TIMEOUT,
-            Self::DeployLobby => constants::DEPLOY_TIMEOUT,
-            Self::QueryPeers | Self::QueryNodeStatus => constants::REQUEST_TIMEOUT,
-            Self::PollLobby => constants::DRAIN_TIMEOUT,
+            Self::FetchLobby => FETCH_TIMEOUT,
+            Self::DeployLobby => DEPLOY_TIMEOUT,
+            Self::QueryPeers | Self::QueryNodeStatus => REQUEST_TIMEOUT,
+            Self::PollLobby => DRAIN_TIMEOUT,
         }
     }
 

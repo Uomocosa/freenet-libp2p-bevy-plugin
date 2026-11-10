@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::p2p;
 
-pub fn poll_p2p_events<Payload: p2p::Message>(
+pub fn poll_p2p_events<Payload: p2p::traits::Message>(
     mut events: ResMut<p2p::PendingEvents<Payload>>,
     mut commands: ResMut<p2p::PendingCommands<Payload>>,
     mut pending: ResMut<p2p::PendingLibp2pCommands>,

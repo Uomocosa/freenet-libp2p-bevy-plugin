@@ -20,7 +20,7 @@ impl Default for Canvas {
     }
 }
 
-impl room_sync::ReplicatedState for Canvas {
+impl room_sync::traits::ReplicatedState for Canvas {
     type Op = starboard::canvas::DrawOp;
     type Snapshot = starboard::canvas::CanvasSnapshot;
 
@@ -99,7 +99,9 @@ fn tile_from_cells(cells: &[starboard::canvas::Cell]) -> Option<starboard::canva
 
 #[cfg(test)]
 mod tests {
-    use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, ReplicaSliceIndex, ReplicatedState};
+    use freenet_libp2p_bevy_plugin::room_sync::{
+        OpMeta, ReplicaSliceIndex, traits::ReplicatedState,
+    };
 
     use super::Canvas;
     use crate::starboard;

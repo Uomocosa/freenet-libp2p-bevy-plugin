@@ -4,7 +4,7 @@ use crate::testing;
 
 #[must_use]
 pub fn spawn_server_frame_reader(
-    framing: &testing::FakeWireFraming,
+    framing: testing::FakeWireFraming,
     mut reader: tokio::net::tcp::OwnedReadHalf,
 ) -> tokio::sync::mpsc::UnboundedReceiver<testing::FakeWireServerFrame> {
     let _ = framing;
@@ -61,7 +61,7 @@ mod tests {
             .await
             .expect("connect");
         let (reader, _) = stream.into_split();
-        let mut frames = spawn_server_frame_reader(&framing, reader);
+        let mut frames = spawn_server_frame_reader(framing, reader);
         let mut ticks: u32 = 0;
         let frame = loop {
             tokio::select! {

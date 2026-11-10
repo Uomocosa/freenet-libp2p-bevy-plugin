@@ -7,7 +7,7 @@ use crate::identity;
 use crate::methods;
 use crate::p2p;
 
-pub async fn run<Payload: p2p::Message>(
+pub async fn run<Payload: p2p::traits::Message>(
     config: &p2p::RunnerConfig,
     mut cmd_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Command<Payload>>,
     mut libp2p_rx: tokio::sync::mpsc::UnboundedReceiver<p2p::Libp2pCommand>,

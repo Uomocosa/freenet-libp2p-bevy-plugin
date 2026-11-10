@@ -84,8 +84,8 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
-    use lele_bevy_state_machine::StateMachine;
     use lele_bevy_state_machine::testing::FrozenClock;
+    use lele_bevy_state_machine::traits::StateMachine;
 
     use super::build_friends_plugin;
     use crate::direct_dial;

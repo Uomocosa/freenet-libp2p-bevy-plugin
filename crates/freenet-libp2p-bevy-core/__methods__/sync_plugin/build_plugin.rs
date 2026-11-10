@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::p2p;
 use crate::room_sync;
 
-pub fn build_plugin<Replica: room_sync::ReplicatedState>(
+pub fn build_plugin<Replica: room_sync::traits::ReplicatedState>(
     plugin: &room_sync::SyncPlugin<Replica>,
     app: &mut App,
 ) {
@@ -100,7 +100,7 @@ mod tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::ReplicatedState for Map {
+    impl room_sync::traits::ReplicatedState for Map {
         type Op = Op;
         type Snapshot = Vec<(u8, u32)>;
 

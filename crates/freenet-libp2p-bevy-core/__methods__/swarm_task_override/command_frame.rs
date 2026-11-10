@@ -4,7 +4,7 @@ use crate::identity;
 use crate::p2p;
 use crate::testing;
 
-pub fn command_frame<Payload: p2p::Message>(
+pub fn command_frame<Payload: p2p::traits::Message>(
     task: &p2p::SwarmTaskOverride<Payload>,
     game: &identity::GameId,
     rooms_by_topic: &mut BTreeMap<identity::Topic, identity::RoomName>,

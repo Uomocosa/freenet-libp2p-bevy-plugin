@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::testing;
 
-pub fn run_script<Step: testing::PollableScriptStep>(
+pub fn run_script<Step: testing::traits::PollableScriptStep>(
     time: Res<Time>,
     mut runner: ResMut<testing::ScriptRunner<Step>>,
     mut exits: MessageWriter<AppExit>,
@@ -27,7 +27,7 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct DummyStep;
 
-    impl testing::ScriptStep for DummyStep {
+    impl testing::traits::ScriptStep for DummyStep {
         const STEP_NAMES: &'static str = "dummy";
 
         fn parse_verb(_verb: &str, _arg: &str) -> Option<Result<Self, String>> {
@@ -39,7 +39,7 @@ mod tests {
         }
     }
 
-    impl testing::PollableScriptStep for DummyStep {
+    impl testing::traits::PollableScriptStep for DummyStep {
         type Param<'w, 's> = ();
 
         fn poll(
@@ -76,7 +76,7 @@ mod tests {
         #[derive(Debug, Clone, PartialEq, Eq)]
         struct WaitingStep;
 
-        impl testing::ScriptStep for WaitingStep {
+        impl testing::traits::ScriptStep for WaitingStep {
             const STEP_NAMES: &'static str = "waiting";
 
             fn parse_verb(_verb: &str, _arg: &str) -> Option<Result<Self, String>> {
@@ -88,7 +88,7 @@ mod tests {
             }
         }
 
-        impl testing::PollableScriptStep for WaitingStep {
+        impl testing::traits::PollableScriptStep for WaitingStep {
             type Param<'w, 's> = ();
 
             fn poll(

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::p2p;
 
-pub fn measure_history_store<Payload: p2p::Message>(
+pub fn measure_history_store<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
 ) -> BTreeMap<p2p::HistoryKeyPrefix, p2p::HistoryByteCount> {
     use libp2p::kad::store::RecordStore;
