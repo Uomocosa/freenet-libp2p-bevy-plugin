@@ -6,4 +6,4 @@ declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "
 
 [lele.layout]
 roots = ["src"]
-methods_root = "methods"
+methods_root = "__methods__"

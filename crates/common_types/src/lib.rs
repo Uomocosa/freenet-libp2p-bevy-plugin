@@ -26,5 +26,5 @@ pub use unix_time::UnixTime;
 #[cfg(feature = "bevy")]
 mod clock;
 
-#[path = "../methods/mod.rs"]
+#[path = "../__methods__/mod.rs"]
 pub mod methods;
