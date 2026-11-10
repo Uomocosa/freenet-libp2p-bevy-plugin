@@ -152,90 +152,6 @@ impl Orchestrator {
     }
 
     pub async fn run(&mut self) -> testing::OrchestratorReport {}
-
-    pub(crate) fn peer_id_for_name(
-        &self,
-        token: &str,
-        name: &str,
-    ) -> Result<identity::PeerId, String> {
-    }
-
-    pub(crate) fn live_peer_addresses(
-        &self,
-        running: &[testing::RunningPeer],
-    ) -> Vec<testing::LivePeer> {
-    }
-
-    pub(crate) fn parse_ready_line(
-        line: &str,
-    ) -> Option<(identity::PeerId, Vec<identity::PeerAddr>)> {
-    }
-
-    pub(crate) fn substituted_script(
-        &self,
-        peer_index: usize,
-        room: &str,
-        token: &str,
-        live: &[testing::LivePeer],
-    ) -> Option<String> {
-    }
-
-    pub(crate) fn substitute_fragment(
-        &self,
-        fragment: &str,
-        token: &str,
-        live: &[testing::LivePeer],
-    ) -> Option<String> {
-    }
-
-    pub(crate) fn wait_peer_id(
-        &self,
-        name: &str,
-        token: &str,
-        live: &[testing::LivePeer],
-    ) -> Option<identity::PeerId> {
-    }
-
-    pub(crate) async fn check_book_kind(
-        &self,
-        token: &str,
-        expected: &testing::BookKindExpectation,
-    ) -> testing::ReportCheck {
-    }
-
-    pub(crate) fn runs_here(&self, index: usize) -> bool {}
-
-    pub(crate) fn is_remote_peer(&self, name: &str) -> bool {}
-
-    pub(crate) fn discover_lan_ip() -> Option<String> {}
-
-    pub(crate) fn routable_board_peer(peer: &testing::LivePeer) -> identity::Peer {}
-
-    pub(crate) fn parse_machine_placement(raw: &str) -> Result<Vec<(String, String)>, String> {}
-
-    pub(crate) async fn publish_ready_peers(
-        &mut self,
-        running: &[testing::RunningPeer],
-        token: &str,
-    ) {
-    }
-
-    pub(crate) async fn remote_board_peers(
-        &self,
-        running: &[testing::RunningPeer],
-    ) -> Vec<testing::LivePeer> {
-    }
-
-    pub(crate) async fn run_check_role(
-        &self,
-        dir: &std::path::Path,
-    ) -> testing::OrchestratorReport {
-    }
-
-    pub(crate) fn check_peer_dir(&self, dir: &std::path::Path, name: &str) -> testing::ReportCheck {
-    }
-
-    pub(crate) fn check_results_dir() -> Result<std::path::PathBuf, String> {}
 }
 
 impl Orchestrator {
@@ -364,6 +280,90 @@ impl Orchestrator {
 
 #[atomic_delegates]
 impl Orchestrator {
+    pub(crate) fn peer_id_for_name(
+        &self,
+        token: &str,
+        name: &str,
+    ) -> Result<identity::PeerId, String> {
+    }
+
+    pub(crate) fn live_peer_addresses(
+        &self,
+        running: &[testing::RunningPeer],
+    ) -> Vec<testing::LivePeer> {
+    }
+
+    pub(crate) fn parse_ready_line(
+        line: &str,
+    ) -> Option<(identity::PeerId, Vec<identity::PeerAddr>)> {
+    }
+
+    pub(crate) fn substituted_script(
+        &self,
+        peer_index: usize,
+        room: &str,
+        token: &str,
+        live: &[testing::LivePeer],
+    ) -> Option<String> {
+    }
+
+    pub(crate) fn substitute_fragment(
+        &self,
+        fragment: &str,
+        token: &str,
+        live: &[testing::LivePeer],
+    ) -> Option<String> {
+    }
+
+    pub(crate) fn wait_peer_id(
+        &self,
+        name: &str,
+        token: &str,
+        live: &[testing::LivePeer],
+    ) -> Option<identity::PeerId> {
+    }
+
+    pub(crate) async fn check_book_kind(
+        &self,
+        token: &str,
+        expected: &testing::BookKindExpectation,
+    ) -> testing::ReportCheck {
+    }
+
+    pub(crate) fn runs_here(&self, index: usize) -> bool {}
+
+    pub(crate) fn is_remote_peer(&self, name: &str) -> bool {}
+
+    pub(crate) fn discover_lan_ip() -> Option<String> {}
+
+    pub(crate) fn routable_board_peer(peer: &testing::LivePeer) -> identity::Peer {}
+
+    pub(crate) fn parse_machine_placement(raw: &str) -> Result<Vec<(String, String)>, String> {}
+
+    pub(crate) async fn publish_ready_peers(
+        &mut self,
+        running: &[testing::RunningPeer],
+        token: &str,
+    ) {
+    }
+
+    pub(crate) async fn remote_board_peers(
+        &self,
+        running: &[testing::RunningPeer],
+    ) -> Vec<testing::LivePeer> {
+    }
+
+    pub(crate) async fn run_check_role(
+        &self,
+        dir: &std::path::Path,
+    ) -> testing::OrchestratorReport {
+    }
+
+    pub(crate) fn check_peer_dir(&self, dir: &std::path::Path, name: &str) -> testing::ReportCheck {
+    }
+
+    pub(crate) fn check_results_dir() -> Result<std::path::PathBuf, String> {}
+
     pub(crate) fn peer_script(&self, peer_index: usize, room: &str) -> Result<String, String> {}
 
     pub(crate) async fn spawn_due_peers(

@@ -22,6 +22,6 @@ In particular:
 - Do not delete `#[atomic_delegates]` shells, `__basic__` types, single-field newtypes,
   `test_usage`, `thiserror` enums, or boundary structure because Ponytail calls them
   "lean" findings. RATIONALE §13 *Limits* and SMELLS S5 exempt them.
-- Do not add `shortcut:` comments in `src/` or `methods/` (LELE031). Keep the ledger
+- Do not add `shortcut:` comments in `src/` or `__methods__/` (LELE031). Keep the ledger
   outside `src/`.
 - Do not use Ponytail to clear lint errors; use `lele-lint-fix-rs`.

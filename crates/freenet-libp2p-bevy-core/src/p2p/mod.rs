@@ -1,5 +1,7 @@
-pub mod message;
-pub use message::Message;
+#[path = "__traits__/mod.rs"]
+pub mod traits;
+
+pub use traits::Message;
 
 pub mod message_codec;
 pub use message_codec::MessageCodec;
@@ -74,4 +76,5 @@ mod swarm_task_override;
 #[cfg(feature = "testing")]
 pub use swarm_task_override::SwarmTaskOverride;
 
+#[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;

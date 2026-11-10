@@ -31,6 +31,10 @@ impl LobbyTaskConfig {
         target: &Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
     ) -> discovery::LobbyContractSubscription {
     }
+}
+
+#[atomic_delegates]
+impl LobbyTaskConfig {
     pub(crate) async fn spawn_lobby_tasks(&self, channels: discovery::LobbyTaskChannels) {}
     pub(crate) fn seed_lobby_for_deploy(
         me: &identity::PeerId,

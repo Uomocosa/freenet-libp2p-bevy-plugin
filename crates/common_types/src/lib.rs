@@ -23,8 +23,6 @@ mod room_size_error;
 pub use room_size_error::RoomSizeError;
 mod unix_time;
 pub use unix_time::UnixTime;
-#[cfg(feature = "bevy")]
-mod clock;
 
 #[path = "../__methods__/mod.rs"]
 pub mod methods;

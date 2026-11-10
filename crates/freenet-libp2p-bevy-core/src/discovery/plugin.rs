@@ -26,6 +26,10 @@ impl bevy::prelude::Plugin for Plugin {
 #[atomic_delegates]
 impl Plugin {
     pub fn build_plugin(&self, app: &mut App) {}
+}
+
+#[atomic_delegates]
+impl Plugin {
     pub(crate) fn spawn_lobby_task(&self, app: &mut App) {}
     pub(crate) fn swarm_channels(app: &App) -> Option<p2p::SwarmChannels> {}
 }

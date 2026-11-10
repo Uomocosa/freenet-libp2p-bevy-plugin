@@ -36,6 +36,17 @@ impl UnixTime {
 impl UnixTime {
     #[must_use]
     pub fn now() -> Self {}
+}
+
+#[cfg(feature = "bevy")]
+impl lele_bevy_state_machine::Clock for UnixTime {
+    fn now() -> Self {
+        Self::now()
+    }
+}
+
+#[atomic_delegates]
+impl UnixTime {
     #[must_use]
     pub fn checked_add(self, by: std::time::Duration) -> Option<Self> {}
     #[must_use]
@@ -135,5 +146,14 @@ mod tests {
             bincode::serialize(&time).unwrap_or_default(),
             bincode::serialize(&9_u64).unwrap_or_default()
         );
+    }
+
+    #[cfg(feature = "bevy")]
+    #[test]
+    fn clock_now_matches_unix_time_now() {
+        use lele_bevy_state_machine::Clock;
+
+        assert!(UnixTime::now() > UnixTime::from_secs(1_700_000_000));
+        assert!(<UnixTime as Clock>::now() > UnixTime::from_secs(1_700_000_000));
     }
 }

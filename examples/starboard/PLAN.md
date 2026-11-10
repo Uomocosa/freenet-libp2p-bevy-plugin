@@ -158,7 +158,7 @@ Goal: rooms carry the unix time they were created; it is immutable once set.
 - `src/discovery/freenet/publish_heartbeat.rs` — `created_at` parameter, written into the
   `Room` delta; `run_lobby.rs` and `connect_retry.rs` pass/carry it.
 - All ~22 `Room { … }` and ~17 `JoinedRoom { … }` construction sites (fixtures in
-  `src/discovery/**`, `methods/lobby/**`, `tests/`, `examples/lobby_room/**`) updated.
+  `src/discovery/**`, `__methods__/lobby/**`, `tests/`, `examples/lobby_room/**`) updated.
 
 **Wire compatibility:** bincode is positional, so the field sits at the same index in the
 contract and plugin `Room`. `tests/e2e/tests/contract_wire.rs` now builds the plugin room with
@@ -253,10 +253,10 @@ Goal: app can publish a payload to all peers of a room via gossipsub.
 - `src/p2p/mod.rs` — exports `GossipsubConfig`, `room_topic`, `RunnerConfig`, `Via`.
 - `src/plugin/config.rs` — `Config` gains `game: GameId` (default `"test"`) and
   `gossipsub: GossipsubConfig`; `with_game`/`with_gossipsub` constructors.
-- `methods/p2p_plugin/build_plugin.rs` — builds `RunnerConfig` from the plugin config.
+- `__methods__/p2p_plugin/build_plugin.rs` — builds `RunnerConfig` from the plugin config.
 - `src/discovery/__basic__/enums.rs`, `src/discovery/config.rs` — `AutoSubscribe
   { Enabled, Disabled }` (default `Enabled`), `Config::auto_subscribe`.
-- `methods/plugin/build_plugin.rs` — registers `follow_room` after the
+- `__methods__/plugin/build_plugin.rs` — registers `follow_room` after the
   `net_link` check (so a discovery-without-P2P app does not panic on the missing
   `PendingNetCommands`) and only when `Enabled`.
 - `examples/lobby_room/src/main.rs` — one `game` value is passed to both the p2p and the
@@ -371,7 +371,7 @@ drops `Via`); `src/p2p/__basic__/structs.rs` (`RunnerConfig.gossipsub` → `room
 (`RoomSubscriptions.joined`, set on `register`, cleared on `unregister`);
 `src/p2p/swarm_loop/dispatch_command.rs` (`publish_joined` helper, "no joined room" error);
 `src/p2p/swarm_loop/handle_gossipsub.rs`, `src/p2p/run.rs`, `src/p2p/spawn_runner.rs`,
-`src/plugin/config.rs` (`room` field + `with_room`), `methods/p2p_plugin/build_plugin.rs`,
+`src/plugin/config.rs` (`room` field + `with_room`), `__methods__/p2p_plugin/build_plugin.rs`,
 `README.md`.
 
 **Public API added:** `p2p::{RoomConfig, AntiEntropyConfig}`;
@@ -439,7 +439,7 @@ variants. The responder cannot compute `S::Snapshot` in the swarm loop, so the l
 
 **`room_sync` domain (new):** `ReplicatedState`, `OpMeta`, `LamportClock`, `peer_author`,
 `SyncFrame`, `sync_topic`, `split_parts`/`join_parts`, `PendingOps<S>` writer,
-`SyncPlugin<S>` (+ `methods/sync_plugin/build_plugin.rs`), and a pure `state_machine`
+`SyncPlugin<S>` (+ `__methods__/sync_plugin/build_plugin.rs`), and a pure `state_machine`
 (`State`, `Input`, `Output`, `Phase`, `update`, `fetch_next`, `handle_*`, `tick`) with Bevy
 systems `drive` (inbound) and `write_ops` (outbound).
 
@@ -469,7 +469,7 @@ then gives up (draining buffered ops). Unit test:
   harmless.
 - The plugin type is `room_sync::SyncPlugin` (not `RoomSyncPlugin`): LELE012 forbids a type
   repeating its module name, and a second `Plugin` would collide with discovery's
-  `#[atomic_delegates]` path (`methods/plugin/`).
+  `#[atomic_delegates]` path (`__methods__/plugin/`).
 - `p2p::sync_protocol` (not `room_sync_protocol`): the old name was parsed as a `RoomSync`
   method file.
 
@@ -585,8 +585,8 @@ Goal: heal divergence caused by lossy delivery.
 and the `feat(room_sync):` commit carrying this section.
 
 **Files added (product):**
-- `src/room_sync/replica_slice_index.rs` + `methods/replica_slice_index/from_hash_mismatches.rs`
-- `src/room_sync/replica_slice_content_hash.rs` + `methods/replica_slice_content_hash/from_bytes.rs`
+- `src/room_sync/replica_slice_index.rs` + `__methods__/replica_slice_index/from_hash_mismatches.rs`
+- `src/room_sync/replica_slice_content_hash.rs` + `__methods__/replica_slice_content_hash/from_bytes.rs`
   (blake3, first 8 bytes big-endian — a helper so every `ReplicatedState` hashes slices the same way)
 - `src/room_sync/__basic__/aliases.rs` (`ReplicaSliceContentHashes`), `__basic__/enums.rs`
   (`ReplicaSyncTopicMessage`), `AntiEntropyTimer` in `__basic__/resources.rs`
@@ -596,7 +596,7 @@ and the `feat(room_sync):` commit carrying this section.
 - `src/room_sync/bevy_systems/publish_slice_content_hashes.rs` (timer system)
 
 **Files changed (product):** `replicated_state.rs` (two trait methods), `sync_plugin.rs`
-(`anti_entropy` + `with_anti_entropy`; `new` is no longer `const`), `methods/sync_plugin/build_plugin.rs`,
+(`anti_entropy` + `with_anti_entropy`; `new` is no longer `const`), `__methods__/sync_plugin/build_plugin.rs`,
 `state_machine/{state, update, handle_joined, __basic__/enums}.rs`, `bevy_systems/{drive, mod}.rs`,
 `p2p/__basic__/enums.rs`, `p2p/swarm_loop/{handle_room_sync, dispatch_net_command}.rs`, `README.md`.
 
@@ -731,7 +731,7 @@ default UI shows a black "Joining room <name>" screen and blocks all input until
 `state_machine/__basic__/constants.rs` (`JOIN_HEAL_TIMEOUT`), `ui/__basic__/states.rs`
 (`Screen::JoiningRoom`), `ui/__basic__/components.rs` (`JoiningRoomRoot`),
 `ui/bevy_systems/pick_screen.rs` + `mod.rs`, `ui/mod.rs`,
-`methods/default_ui_plugin/build_plugin.rs`, `examples/lobby_room/overlay.rs`
+`__methods__/default_ui_plugin/build_plugin.rs`, `examples/lobby_room/overlay.rs`
 (`sync_visibility` gates on `phase == Ready`), plus all 22 `JoinedRoom { .. }` fixture
 sites (`phase: Ready` where a test expects `InRoom`).
 

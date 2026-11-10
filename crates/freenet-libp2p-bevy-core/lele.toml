@@ -4,7 +4,6 @@ declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "
 
 [lele.layout]
 roots = ["src"]
-methods_root = "__methods__"
 
 [[lele.boundary]]
 name       = "state_machine is pure protocol logic"

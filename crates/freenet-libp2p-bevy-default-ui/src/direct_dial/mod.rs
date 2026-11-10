@@ -6,6 +6,7 @@ pub use basic::components::{
     FriendRow, FriendsTab, OwnAddressText,
 };
 
+#[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;
 
 mod friends_ui_plugin;

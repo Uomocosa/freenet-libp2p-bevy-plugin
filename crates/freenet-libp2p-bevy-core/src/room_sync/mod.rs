@@ -28,8 +28,10 @@ pub use replica_slice_content_hash::ReplicaSliceContentHash;
 mod replica_slice_index;
 pub use replica_slice_index::ReplicaSliceIndex;
 
-mod replicated_state;
-pub use replicated_state::ReplicatedState;
+#[path = "__traits__/mod.rs"]
+pub mod traits;
+
+pub use traits::ReplicatedState;
 
 mod pending_ops;
 pub use pending_ops::PendingOps;
@@ -39,4 +41,5 @@ pub use sync_plugin::SyncPlugin;
 
 pub mod state_machine;
 
+#[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;

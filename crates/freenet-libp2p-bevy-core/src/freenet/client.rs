@@ -49,6 +49,10 @@ impl Client {
 #[atomic_delegates]
 impl Client {
     pub async fn try_from_host_and_port(host: &str, port: u16) -> Result<Self, freenet::Error> {}
+}
+
+#[atomic_delegates]
+impl Client {
     pub async fn fetch_or_deploy<S>(
         &mut self,
         contract_wasm: &[u8],

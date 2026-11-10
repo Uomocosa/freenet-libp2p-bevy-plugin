@@ -1,7 +1,16 @@
+#[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;
 
 #[path = "__basic__/mod.rs"]
 pub mod basic;
+
+#[path = "__traits__/mod.rs"]
+pub mod traits;
+
+pub use traits::CheckpointBoard;
+pub use traits::OrchestratedStep;
+pub use traits::PollableScriptStep;
+pub use traits::ScriptStep;
 
 pub use basic::constants::{
     QUIT_PUBLISH_GRACE, ROOM_PLACEHOLDER, SCRIPT_CHECKPOINT_COMPLETED_PREFIX, SCRIPT_DONE_MARKER,
@@ -19,9 +28,6 @@ pub use basic::structs::{
 
 mod action;
 pub use action::Action;
-
-mod checkpoint_board;
-pub use checkpoint_board::CheckpointBoard;
 
 mod discovery_state_builder;
 pub use discovery_state_builder::DiscoveryStateBuilder;
@@ -61,9 +67,6 @@ pub use network_args::NetworkArgs;
 mod orchestrator_report;
 pub use orchestrator_report::OrchestratorReport;
 
-mod orchestrated_step;
-pub use orchestrated_step::OrchestratedStep;
-
 mod peer_builder;
 pub(crate) use peer_builder::PeerBuilder;
 
@@ -73,17 +76,11 @@ pub use step_with_deadline::StepWithDeadline;
 mod peer_message_router;
 pub use peer_message_router::PeerMessageRouter;
 
-mod pollable_script_step;
-pub use pollable_script_step::PollableScriptStep;
-
 mod script_checkpoint;
 pub use script_checkpoint::ScriptCheckpoint;
 
 mod script_runner;
 pub use script_runner::ScriptRunner;
-
-mod script_step;
-pub use script_step::ScriptStep;
 
 mod script_verdict;
 pub use script_verdict::ScriptVerdict;

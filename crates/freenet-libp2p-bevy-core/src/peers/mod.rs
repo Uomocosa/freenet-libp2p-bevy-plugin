@@ -13,4 +13,5 @@ pub use peer::Peer;
 mod tracking_plugin;
 pub use tracking_plugin::TrackingPlugin;
 
+#[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;

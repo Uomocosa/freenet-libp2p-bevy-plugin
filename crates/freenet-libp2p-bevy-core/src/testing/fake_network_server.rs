@@ -14,6 +14,10 @@ pub struct FakeNetworkServer(pub u16);
 #[atomic_delegates]
 impl FakeNetworkServer {
     pub async fn start() -> Result<Self, String> {}
+}
+
+#[atomic_delegates]
+impl FakeNetworkServer {
     pub(crate) async fn serve_peer(
         self,
         stream: tokio::net::TcpStream,
