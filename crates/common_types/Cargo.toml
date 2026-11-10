@@ -4,13 +4,14 @@ version = "0.1.0"
 edition.workspace = true
 
 [features]
-bevy = ["dep:bevy_reflect", "dep:lele-bevy-state-machine"]
+bevy = ["dep:bevy_reflect", "dep:bevy_ecs", "dep:lele-bevy-state-machine"]
 
 [dependencies]
 serde.workspace = true
 lele-bevy-state-machine = { workspace = true, optional = true }
 derive_more = { workspace = true, features = ["deref", "deref_mut", "display", "from"] }
 bevy_reflect = { version = "=0.20.1", optional = true }
+bevy_ecs = { version = "=0.20.1", optional = true }
 atomic-delegate-macros.workspace = true
 thiserror.workspace = true
 blake3.workspace = true

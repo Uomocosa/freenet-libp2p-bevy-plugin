@@ -2720,6 +2720,7 @@ name = "common_types"
 version = "0.0.9"
 dependencies = [
  "atomic-delegate-macros",
+ "bevy_ecs",
  "bevy_reflect",
  "bincode",
  "blake3",

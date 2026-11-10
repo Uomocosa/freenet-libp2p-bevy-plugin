@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 )]
 #[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
 #[cfg_attr(feature = "bevy", reflect(Hash))]
+#[cfg_attr(feature = "bevy", derive(bevy_ecs::component::Component))]
 #[from(forward)]
 pub struct RoomName(pub String);
 
