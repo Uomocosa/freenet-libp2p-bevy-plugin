@@ -109,7 +109,7 @@ mod tests {
         let mut app = app_with_system();
         let room = app
             .world_mut()
-            .spawn(peers::Room::from(identity::RoomName::from("lobby")))
+            .spawn(identity::RoomName::from("lobby"))
             .id();
         let member = app
             .world_mut()

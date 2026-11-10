@@ -2,13 +2,14 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
+use crate::identity;
 use crate::peers;
 
 pub fn despawn_orphan_rooms(
     mut commands: Commands,
     found_rooms: Query<(
         Entity,
-        &peers::Room,
+        &identity::RoomName,
         Option<&peers::RoomMembers>,
         Option<&peers::HistoryHolders>,
     )>,
@@ -44,7 +45,7 @@ mod tests {
 
     fn room_count(app: &mut App) -> usize {
         app.world_mut()
-            .query_filtered::<Entity, With<peers::Room>>()
+            .query_filtered::<Entity, With<identity::RoomName>>()
             .iter(app.world())
             .count()
     }
@@ -54,11 +55,11 @@ mod tests {
         let mut app = app_with_system();
         let orphan = app
             .world_mut()
-            .spawn(peers::Room::from(identity::RoomName::from("empty")))
+            .spawn(identity::RoomName::from("empty"))
             .id();
         let lived = app
             .world_mut()
-            .spawn(peers::Room::from(identity::RoomName::from("lived")))
+            .spawn(identity::RoomName::from("lived"))
             .id();
         app.world_mut().spawn((
             peers::Peer::from(identity::PeerId::from("member")),
@@ -76,7 +77,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         let room = app
             .world_mut()
-            .spawn(peers::Room::from(identity::RoomName::from("lobby")))
+            .spawn(identity::RoomName::from("lobby"))
             .id();
         let member = app
             .world_mut()
@@ -96,10 +97,7 @@ mod tests {
     #[test]
     fn me_room_is_kept() {
         let mut app = app_with_system();
-        let room = app
-            .world_mut()
-            .spawn(peers::Room::from(identity::RoomName::from("home")))
-            .id();
+        let room = app.world_mut().spawn(identity::RoomName::from("home")).id();
         app.world_mut().spawn((
             peers::Peer::from(identity::PeerId::from("me")),
             peers::Me,
@@ -114,7 +112,7 @@ mod tests {
         let mut app = app_with_system();
         let room = app
             .world_mut()
-            .spawn(peers::Room::from(identity::RoomName::from("archive")))
+            .spawn(identity::RoomName::from("archive"))
             .id();
         let holder = app
             .world_mut()
@@ -135,7 +133,7 @@ mod tests {
         let mut app = app_with_system();
         let room = app
             .world_mut()
-            .spawn(peers::Room::from(identity::RoomName::from("archive")))
+            .spawn(identity::RoomName::from("archive"))
             .id();
         let holder = app
             .world_mut()
@@ -173,7 +171,7 @@ mod tests {
         );
         let room = app
             .world_mut()
-            .spawn(peers::Room::from(identity::RoomName::from("archive")))
+            .spawn(identity::RoomName::from("archive"))
             .id();
         let holder = app
             .world_mut()

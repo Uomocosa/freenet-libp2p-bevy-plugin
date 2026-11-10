@@ -199,10 +199,7 @@ mod tests {
         prefix: p2p::HistoryKeyPrefix,
         liveness: room_sync::state_machine::RoomLiveness,
     ) {
-        let room_entity = app
-            .world_mut()
-            .spawn((peers::Room::from(room.clone()), prefix, liveness))
-            .id();
+        let room_entity = app.world_mut().spawn((room.clone(), prefix, liveness)).id();
         let me_entities: Vec<Entity> = app
             .world_mut()
             .query_filtered::<Entity, With<peers::Me>>()

@@ -20,7 +20,7 @@ pub fn room_inputs_from_entities<Op>(
     let current_room_entity = me_rooms.iter().next().map(|in_room| **in_room);
     let current = current_room_entity.and_then(|entity| {
         let (room_name, prefix, liveness, members) = room_details.get(entity).ok()?;
-        let room_name = (**room_name).clone();
+        let room_name = room_name.clone();
         let prefix = prefix
             .cloned()
             .unwrap_or_else(|| p2p::HistoryKeyPrefix::new(game, &room_name, time::UnixTime::EPOCH));
@@ -147,10 +147,7 @@ mod tests {
         prefix: p2p::HistoryKeyPrefix,
         liveness: room_sync::state_machine::RoomLiveness,
     ) -> Entity {
-        let room_entity = app
-            .world_mut()
-            .spawn((peers::Room::from(room.clone()), prefix, liveness))
-            .id();
+        let room_entity = app.world_mut().spawn((room.clone(), prefix, liveness)).id();
         app.world_mut().spawn((
             peers::Peer::from(identity::PeerId::from("me")),
             peers::Me,

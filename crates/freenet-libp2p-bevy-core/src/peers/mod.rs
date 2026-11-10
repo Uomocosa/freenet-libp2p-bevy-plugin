@@ -10,9 +10,6 @@ pub use basic::resources::PeerEventTap;
 mod peer;
 pub use peer::Peer;
 
-mod room;
-pub use room::Room;
-
 mod tracking_plugin;
 pub use tracking_plugin::TrackingPlugin;
 

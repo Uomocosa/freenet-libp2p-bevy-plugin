@@ -11,7 +11,7 @@ use discovery::state_machine::DiscoveryState;
 
 type RoomRow<'a> = (
     Entity,
-    &'a peers::Room,
+    &'a identity::RoomName,
     Option<&'a p2p::HistoryKeyPrefix>,
     Option<&'a room_sync::state_machine::RoomLiveness>,
 );
@@ -34,12 +34,12 @@ pub fn project_status_to_entities(
     };
     let mut room_entity_by_name: BTreeMap<identity::RoomName, Entity> = BTreeMap::new();
     for (entity, room, _, _) in &room_entities {
-        room_entity_by_name.insert((**room).clone(), entity);
+        room_entity_by_name.insert(room.clone(), entity);
     }
     for room_name in DiscoveryState::desired_rooms(state) {
         let room_entity = room_entity_by_name
             .entry(room_name.clone())
-            .or_insert_with(|| commands.spawn(peers::Room::from(room_name.clone())).id());
+            .or_insert_with(|| commands.spawn(room_name.clone()).id());
         let room_entity = *room_entity;
         let (prefix, liveness) =
             DiscoveryState::room_prefix_and_lobby_status(Some(state), game, &room_name);
@@ -216,10 +216,10 @@ mod tests {
     }
 
     fn room_by_name(app: &mut App, name: &identity::RoomName) -> Vec<Entity> {
-        let mut found = app.world_mut().query::<(Entity, &peers::Room)>();
+        let mut found = app.world_mut().query::<(Entity, &identity::RoomName)>();
         found
             .iter(app.world())
-            .filter(|(_, room)| ***room == *name)
+            .filter(|(_, room)| **room == *name)
             .map(|(entity, _)| entity)
             .collect()
     }

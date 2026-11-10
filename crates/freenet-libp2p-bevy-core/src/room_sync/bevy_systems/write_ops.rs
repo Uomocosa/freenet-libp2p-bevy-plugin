@@ -10,7 +10,7 @@ pub fn write_ops<Replica: room_sync::ReplicatedState>(
     mut clock: ResMut<room_sync::LamportClock>,
     ready: Res<p2p::ReadyChannel>,
     me_rooms: Query<&peers::InRoom, With<peers::Me>>,
-    room_names: Query<&peers::Room>,
+    room_names: Query<&identity::RoomName>,
     game: Res<room_sync::SyncGame>,
     mut room: ResMut<Replica>,
     mut pending: ResMut<p2p::PendingLibp2pCommands>,
@@ -25,7 +25,7 @@ pub fn write_ops<Replica: room_sync::ReplicatedState>(
         .iter()
         .next()
         .and_then(|in_room| room_names.get(**in_room).ok())
-        .map(|room| (**room).clone());
+        .cloned();
     let (Some(room_name), Some(me)) = (current, ready.ready_rx.borrow().clone()) else {
         writer.restore(ops);
         return;
@@ -122,7 +122,7 @@ mod tests {
         app.add_plugins(room_sync::SyncPlugin::<Map>::new(game));
         let room_entity = app
             .world_mut()
-            .spawn(peers::Room::from(identity::RoomName::from("alpha")))
+            .spawn(identity::RoomName::from("alpha"))
             .id();
         let _ = app
             .world()
