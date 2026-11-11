@@ -142,6 +142,7 @@ impl DiscoveryState {
         current_room_history_bytes: p2p::HistoryByteCount,
     ) -> Vec<identity::RoomName> {
     }
+    pub fn occupants(&self) -> Vec<identity::PeerId> {}
     pub fn record_lobby_heartbeats(&mut self, lobby: &discovery::Lobby, now: time::UnixTime) {}
     pub fn send_handshake(&self, peer: &identity::PeerId) -> Vec<Output> {}
     pub fn tick(&mut self, now: time::UnixTime) -> Vec<Output> {}

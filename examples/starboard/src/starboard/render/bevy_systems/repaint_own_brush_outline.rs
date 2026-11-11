@@ -54,8 +54,13 @@ mod tests {
 
     fn preview_build(app: &mut App) {
         app.insert_resource(ready_status());
+        app.insert_resource(starboard::input::OwnBrush {
+            shape: starboard::identity::Shape::Square,
+            color: starboard::identity::PaletteColor(3),
+            size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+        });
         app.init_resource::<starboard::render::CanvasView>()
-            .init_resource::<starboard::input::OwnBrush>()
+            .init_resource::<starboard::input::CursorCell>()
             .init_resource::<ButtonInput<MouseButton>>()
             .insert_resource(starboard::input::CursorCell(Some(
                 starboard::canvas::CellPos { x: 512, y: 512 },

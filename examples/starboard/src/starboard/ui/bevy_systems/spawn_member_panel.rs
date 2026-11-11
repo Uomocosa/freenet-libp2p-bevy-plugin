@@ -55,7 +55,7 @@ mod tests {
                 },
             );
         }
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::from_secs(1),
@@ -63,21 +63,18 @@ mod tests {
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,
             })
-            .build()
+            .build();
+        state.display_name = identity::Username::from("me-name");
+        state
     }
 
     fn room_brushes(state: &DiscoveryState) -> starboard::room::RoomBrushes {
-        let members = state
-            .room
-            .as_ref()
-            .map(|room| room.members.clone())
-            .unwrap_or_default();
         let created_at = state
             .room
             .as_ref()
             .map_or(time::UnixTime::EPOCH, |room| room.created_at);
         starboard::room::RoomBrushes(starboard::identity::room_brushes(
-            members.keys(),
+            state.occupants().as_slice(),
             created_at,
             time::UnixTime::from_secs(2),
         ))

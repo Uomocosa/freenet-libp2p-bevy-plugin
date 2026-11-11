@@ -71,8 +71,8 @@ mod tests {
     use crate::starboard::app::test_harness;
     use discovery::state_machine::DiscoveryState;
 
-    fn ready_status() -> DiscoveryState {
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+    fn ready_status(me: &identity::PeerId) -> DiscoveryState {
+        testing::DiscoveryStateBuilder::new(me.clone())
             .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
@@ -83,8 +83,38 @@ mod tests {
             .build()
     }
 
+    fn preview_me(created_at: time::UnixTime, now: time::UnixTime) -> identity::PeerId {
+        for index in 0_u32..200 {
+            let candidate = identity::PeerId::from(format!("preview-me-{index}").as_str());
+            let brush = starboard::identity::daily_brush(&candidate, created_at, now);
+            let is_circle_brush = brush.shape == starboard::identity::Shape::Circle;
+            if !is_circle_brush {
+                return candidate;
+            }
+        }
+        identity::PeerId::from("preview-me")
+    }
+
     fn preview_build(app: &mut App) {
-        app.insert_resource(ready_status());
+        let now = time::UnixTime::now();
+        let me = preview_me(time::UnixTime::EPOCH, now);
+        let status = ready_status(&me);
+        let brushes = starboard::room::RoomBrushes(starboard::identity::room_brushes(
+            status.occupants().as_slice(),
+            time::UnixTime::EPOCH,
+            now,
+        ));
+        let brush = brushes
+            .get(&me)
+            .copied()
+            .expect("own brush assigned to the room's only occupant");
+        app.insert_resource(status);
+        app.insert_resource(brushes);
+        app.insert_resource(starboard::input::OwnBrush {
+            shape: brush.shape,
+            color: brush.color,
+            size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+        });
         app.add_plugins(StarboardPlugin);
     }
 

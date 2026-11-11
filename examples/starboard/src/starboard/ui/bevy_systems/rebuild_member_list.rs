@@ -34,16 +34,22 @@ pub fn rebuild_member_list(
     let Some(state) = state else {
         return;
     };
-    let Some(room) = state.room.as_ref() else {
+    if state.room.is_none() {
         return;
-    };
+    }
     commands
         .entity(list)
         .despawn_children()
         .with_children(|rows| {
-            for peer in room.members.keys() {
+            for peer in state.occupants() {
+                let is_me = peer == state.me.id;
+                let name = if is_me && !state.display_name.is_empty() {
+                    state.display_name.to_string()
+                } else {
+                    starboard::room::member_name(state, &peer)
+                };
                 let icon = brushes
-                    .get(peer)
+                    .get(&peer)
                     .copied()
                     .map(|brush| images.add(icon_image(brush)));
                 let mut row = rows.spawn((
@@ -68,10 +74,7 @@ pub fn rebuild_member_list(
                             },
                         ));
                     }
-                    row.spawn((
-                        Text::new(starboard::room::member_name(state, peer)),
-                        TextLayout::no_wrap(),
-                    ));
+                    row.spawn((Text::new(name), TextLayout::no_wrap()));
                 });
             }
         });
@@ -110,7 +113,7 @@ mod tests {
                 },
             );
         }
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::from_secs(1),
@@ -118,21 +121,18 @@ mod tests {
                 members,
                 how_entered: discovery::HowRoomWasEntered::Created,
             })
-            .build()
+            .build();
+        state.display_name = identity::Username::from("me-name");
+        state
     }
 
     fn room_brushes(state: &DiscoveryState) -> starboard::room::RoomBrushes {
-        let members = state
-            .room
-            .as_ref()
-            .map(|room| room.members.clone())
-            .unwrap_or_default();
         let created_at = state
             .room
             .as_ref()
             .map_or(time::UnixTime::EPOCH, |room| room.created_at);
         starboard::room::RoomBrushes(starboard::identity::room_brushes(
-            members.keys(),
+            state.occupants().as_slice(),
             created_at,
             time::UnixTime::from_secs(2),
         ))
@@ -205,6 +205,17 @@ mod tests {
         let mut rows = app
             .world_mut()
             .query_filtered::<(), With<starboard::ui::MemberRow>>();
-        assert_eq!(rows.iter(app.world()).count(), 2);
+        assert_eq!(rows.iter(app.world()).count(), 3);
+        let mut texts = app.world_mut().query::<(&Text, &ChildOf)>();
+        let labels: std::collections::BTreeSet<String> = texts
+            .iter(app.world())
+            .map(|(text, _)| text.0.clone())
+            .collect();
+        assert!(
+            labels.contains(&String::from("me-name")),
+            "own row shows the local display name: {labels:?}"
+        );
+        assert!(labels.contains(&String::from("user0")));
+        assert!(labels.contains(&String::from("user1")));
     }
 }

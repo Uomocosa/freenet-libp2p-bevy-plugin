@@ -14,6 +14,7 @@ pub fn draw_remote_cursors(
         (
             Entity,
             &starboard::render::Owner,
+            &mut starboard::render::CursorBrush,
             &mut Sprite,
             &mut Transform,
         ),
@@ -27,7 +28,7 @@ pub fn draw_remote_cursors(
         return;
     };
     let window_size = window.size();
-    for (entity, owner, mut sprite, mut transform) in &mut sprites {
+    for (entity, owner, mut cursor_brush, mut sprite, mut transform) in &mut sprites {
         let starboard::render::Owner::Peer(peer) = owner else {
             continue;
         };
@@ -41,21 +42,22 @@ pub fn draw_remote_cursors(
         let radius = starboard::canvas::brush_radius(cursor.size_index);
         let outline_side = radius.saturating_mul(2).saturating_add(1);
         let wanted = u32::from(outline_side);
-        let needs_texture = images
+        let size_matches = images
             .get(&sprite.image)
-            .is_none_or(|image| image.texture_descriptor.size.width != wanted);
-        if needs_texture && let Some(mut image) = images.get_mut(&sprite.image) {
+            .is_some_and(|image| image.texture_descriptor.size.width == wanted);
+        let is_brush_changed = cursor_brush.0 != brush;
+        if (!size_matches || is_brush_changed)
+            && let Some(mut image) = images.get_mut(&sprite.image)
+        {
             starboard::render::replace_pixels(&mut image, remote_brush_image(brush, radius));
+            cursor_brush.0 = brush;
         }
         sprite.custom_size = Some(Vec2::splat(f32::from(outline_side) * view.scale));
         transform.translation = starboard::render::cell_center(cursor.cell, view, window_size);
     }
     for (peer, cursor) in cursors.iter() {
         let wanted_owner = starboard::render::Owner::Peer(peer.clone());
-        if sprites
-            .iter()
-            .any(|(_, owner, _, _)| *owner == wanted_owner)
-        {
+        if sprites.iter().any(|(_, owner, ..)| *owner == wanted_owner) {
             continue;
         }
         let Some(brush) = brushes.get(peer).copied() else {
@@ -68,6 +70,7 @@ pub fn draw_remote_cursors(
             .spawn((
                 starboard::render::Cursor,
                 wanted_owner,
+                starboard::render::CursorBrush(brush),
                 Sprite::from_image(image),
                 Transform::default(),
             ))
@@ -95,6 +98,7 @@ mod tests {
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::draw_remote_cursors;
+    use super::remote_brush_image;
     use crate::starboard;
 
     fn members(peers: &[&str]) -> discovery::Members {
@@ -187,6 +191,79 @@ mod tests {
     #[test]
     fn draw_remote_cursors_ui_png_preview() {
         scene().run(&config()).expect("preview");
+    }
+
+    #[test]
+    fn test_usage_1() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            ImagePlugin::default_nearest(),
+        ));
+        let members = members(&["peer-a"]);
+        let peer_a = identity::PeerId::from("peer-a");
+        app.insert_resource(room_brushes(&members));
+        app.init_resource::<starboard::room::RemoteCursors>();
+        app.insert_resource(starboard::render::CanvasView::fit(Vec2::splat(1024.0)));
+        app.world_mut().spawn((
+            bevy::window::PrimaryWindow,
+            Window {
+                resolution: (1024, 1024).into(),
+                ..default()
+            },
+        ));
+        app.add_systems(Update, draw_remote_cursors);
+
+        app.world_mut()
+            .resource_mut::<starboard::room::RemoteCursors>()
+            .insert(peer_a.clone(), cursor(300));
+        app.update();
+
+        let changed = {
+            let brushes = app.world().resource::<starboard::room::RoomBrushes>();
+            let old = brushes
+                .get(&peer_a)
+                .copied()
+                .expect("peer-a brush assigned");
+            starboard::identity::DailyBrush {
+                shape: if old.shape == starboard::identity::Shape::Circle {
+                    starboard::identity::Shape::Square
+                } else {
+                    starboard::identity::Shape::Circle
+                },
+                color: if old.color == starboard::identity::PaletteColor(0) {
+                    starboard::identity::PaletteColor(1)
+                } else {
+                    starboard::identity::PaletteColor(0)
+                },
+            }
+        };
+        app.world_mut()
+            .resource_mut::<starboard::room::RoomBrushes>()
+            .0
+            .insert(peer_a, changed);
+        app.update();
+
+        let mut sprites = app
+            .world_mut()
+            .query_filtered::<&Sprite, With<starboard::render::Cursor>>();
+        let handle = sprites
+            .single(app.world())
+            .expect("one remote cursor")
+            .image
+            .clone();
+        let image = app
+            .world()
+            .resource::<Assets<Image>>()
+            .get(&handle)
+            .expect("cursor image");
+        let expected = remote_brush_image(
+            changed,
+            starboard::canvas::brush_radius(cursor(300).size_index),
+        );
+        assert_eq!(image.texture_descriptor.size.width, expected.side);
+        assert_eq!(image.data.as_deref(), Some(expected.pixels.as_slice()));
     }
 
     #[test]

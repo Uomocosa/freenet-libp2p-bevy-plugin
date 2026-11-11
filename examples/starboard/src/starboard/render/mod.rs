@@ -16,7 +16,9 @@ mod square_image;
 
 pub mod bevy_systems;
 
-pub use basic::components::{BoardBorderSprite, BoardSprite, Cursor, CursorLabel, CursorOutline};
+pub use basic::components::{
+    BoardBorderSprite, BoardSprite, Cursor, CursorBrush, CursorLabel, CursorOutline,
+};
 pub use basic::constants::{
     BOARD_BORDER_COLOR, BOARD_BORDER_PX, BOARD_CHECKER_RGBA, CHECKER_CELLS, LABEL_BACKGROUND,
     LABEL_COLOR, LABEL_FONT_SIZE, LABEL_GAP_PX, LABEL_Z, OWN_CURSOR_Z, OWN_FALLBACK_NAME,

@@ -13,6 +13,7 @@ pub fn follow_brush(
     brush: Res<starboard::input::OwnBrush>,
     buttons: Res<ButtonInput<MouseButton>>,
     mut images: ResMut<Assets<Image>>,
+    mut last_painted: Local<Option<starboard::input::OwnBrush>>,
     mut cursors: Query<
         (
             &starboard::render::Owner,
@@ -24,7 +25,6 @@ pub fn follow_brush(
     >,
 ) {
     let is_in_room = state.is_some_and(|state| starboard::room::is_in_room(state.into_inner()));
-    let is_brush_changed = brush.is_changed();
     let cursor = cursor.into_inner();
     let view = view.into_inner();
     let brush = brush.into_inner();
@@ -34,11 +34,7 @@ pub fn follow_brush(
     else {
         return;
     };
-    if !is_in_room {
-        *visibility = Visibility::Hidden;
-        return;
-    }
-    if is_brush_changed {
+    if last_painted.as_ref() != Some(brush) {
         let next = starboard::render::solid_brush_image(
             brush.shape,
             starboard::canvas::brush_radius(brush.size_index),
@@ -47,6 +43,11 @@ pub fn follow_brush(
         if let Some(mut image) = images.get_mut(&sprite.image) {
             starboard::render::replace_pixels(&mut image, next);
         }
+        *last_painted = Some(*brush);
+    }
+    if !is_in_room {
+        *visibility = Visibility::Hidden;
+        return;
     }
     let Ok(window) = windows.single() else {
         return;
@@ -94,8 +95,12 @@ mod tests {
 
     fn preview_build(app: &mut App) {
         app.insert_resource(ready_status());
+        app.insert_resource(starboard::input::OwnBrush {
+            shape: starboard::identity::Shape::Square,
+            color: starboard::identity::PaletteColor(3),
+            size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+        });
         app.init_resource::<starboard::render::CanvasView>()
-            .init_resource::<starboard::input::OwnBrush>()
             .init_resource::<starboard::input::CursorCell>()
             .init_resource::<ButtonInput<MouseButton>>()
             .add_systems(Startup, starboard::render::bevy_systems::spawn_board)
@@ -199,6 +204,45 @@ mod tests {
         **app
             .world_mut()
             .resource_mut::<starboard::input::CursorCell>() = cell;
+    }
+
+    #[test]
+    fn test_usage_1() {
+        let mut app = app_with_outline();
+        app.insert_resource(DiscoveryState::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        }));
+        let changed = starboard::input::OwnBrush {
+            shape: starboard::identity::Shape::Square,
+            color: starboard::identity::PaletteColor(3),
+            size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+        };
+        *app.world_mut().resource_mut::<starboard::input::OwnBrush>() = changed;
+        app.update();
+        app.insert_resource(ready_status());
+        app.update();
+
+        let mut cursors = app
+            .world_mut()
+            .query_filtered::<&Sprite, With<starboard::render::Cursor>>();
+        let handle = cursors
+            .single(app.world())
+            .expect("one own cursor")
+            .image
+            .clone();
+        let image = app
+            .world()
+            .resource::<Assets<Image>>()
+            .get(&handle)
+            .expect("cursor image");
+        let expected = starboard::render::solid_brush_image(
+            changed.shape,
+            starboard::canvas::brush_radius(changed.size_index),
+            changed.color,
+        );
+        assert_eq!(image.texture_descriptor.size.width, expected.side);
+        assert_eq!(image.data.as_deref(), Some(expected.pixels.as_slice()));
     }
 
     #[test]
