@@ -5,7 +5,7 @@ use bevy::ui_widgets::Button;
 use crate::discovery;
 use core_discovery::state_machine::DiscoveryState;
 use discovery::ROOM_COLOR;
-use discovery::{HoverGlow, RoomButton, RoomList, RoomRow};
+use discovery::{HOVER_OUTLINE_WIDTH, HoverGlow, RoomButton, RoomList, RoomRow};
 use freenet_libp2p_bevy_core::discovery as core_discovery;
 
 pub fn rebuild_room_list(
@@ -49,6 +49,8 @@ pub fn rebuild_room_list(
                     Button,
                     Hovered::default(),
                     HoverGlow::default(),
+                    UiTransform::default(),
+                    Outline::new(Val::Px(HOVER_OUTLINE_WIDTH), Val::ZERO, Color::NONE),
                     Node {
                         padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
                         ..default()
@@ -99,6 +101,39 @@ mod tests {
             .collect();
         names.sort();
         assert_eq!(names, vec!["alpha".to_string(), "beta".to_string()]);
+    }
+
+    #[test]
+    fn fresh_room_row_already_carries_its_hover_styles() {
+        let mut app = App::new();
+        let mut lobby = core_discovery::Lobby::default();
+        lobby.insert(
+            identity::RoomName::from("alpha"),
+            core_discovery::Room {
+                room_size: core_discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::EPOCH,
+                members: std::collections::BTreeMap::new(),
+            },
+        );
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build();
+        app.insert_resource(state);
+        app.world_mut().spawn(discovery::RoomList);
+        app.add_systems(Update, rebuild_room_list);
+        app.update();
+        let mut rows = app
+            .world_mut()
+            .query_filtered::<Entity, With<discovery::RoomButton>>();
+        let row = rows.single(app.world()).expect("row");
+        assert!(
+            app.world().get::<UiTransform>(row).is_some(),
+            "fresh row carries its hover transform at spawn"
+        );
+        assert!(
+            app.world().get::<Outline>(row).is_some(),
+            "fresh row carries its hover outline at spawn"
+        );
     }
 
     fn preview_build(app: &mut App) {

@@ -7,7 +7,8 @@ use bevy::ui_widgets::{Button, TextInput};
 use crate::discovery;
 use discovery::{BUTTON_COLOR, CARET_COLOR, CARET_SELECTION_COLOR, INPUT_COLOR, PANEL_COLOR};
 use discovery::{
-    CreateRoomButton, HoverGlow, HoverOutlineOnly, RoomList, RoomNameInput, Root, Screen,
+    CreateRoomButton, HOVER_OUTLINE_WIDTH, HoverGlow, HoverOutlineOnly, RoomList, RoomNameInput,
+    Root, Screen,
 };
 
 pub fn spawn_root(mut commands: Commands) {
@@ -38,6 +39,8 @@ pub fn spawn_root(mut commands: Commands) {
                 },
                 Hovered::default(),
                 HoverGlow::default(),
+                UiTransform::default(),
+                Outline::new(Val::Px(HOVER_OUTLINE_WIDTH), Val::ZERO, Color::NONE),
                 HoverOutlineOnly,
                 Node {
                     min_width: Val::Px(200.0),
@@ -51,6 +54,8 @@ pub fn spawn_root(mut commands: Commands) {
                 Button,
                 InteractionDisabled,
                 HoverGlow::default(),
+                UiTransform::default(),
+                Outline::new(Val::Px(HOVER_OUTLINE_WIDTH), Val::ZERO, Color::NONE),
                 Node {
                     padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
                     ..default()

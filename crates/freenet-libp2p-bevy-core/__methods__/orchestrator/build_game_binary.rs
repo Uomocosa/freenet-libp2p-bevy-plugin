@@ -69,10 +69,8 @@ pub fn build_game_binary(orchestrator: &testing::Orchestrator) -> Result<PathBuf
     let output = build
         .args([
             "build",
-            "--example",
+            "-p",
             orchestrator.game.as_str(),
-            "--features",
-            "e2e",
             "--profile",
             profile.as_str(),
         ])
@@ -89,7 +87,7 @@ pub fn build_game_binary(orchestrator: &testing::Orchestrator) -> Result<PathBuf
     } else {
         profile.clone()
     };
-    let bin = target.join(folder).join("examples").join(format!(
+    let bin = target.join(folder).join(format!(
         "{}{}",
         orchestrator.game,
         std::env::consts::EXE_SUFFIX
@@ -112,7 +110,8 @@ mod tests {
             "starboard".to_string(),
             testing::Network::Fake,
         );
-        let _ = build_game_binary(&orchestrator).map(|_| ());
+        let bin = build_game_binary(&orchestrator).expect("starboard builds as its own crate");
+        assert!(bin.exists(), "expected built binary at {}", bin.display());
     }
 
     #[test]

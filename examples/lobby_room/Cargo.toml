@@ -33,7 +33,7 @@ derive_more = { workspace = true, features = ["deref"] }
 examples_shared = { path = "../shared" }
 freenet = "=0.2.155"
 freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin", features = ["e2e"] }
-lele-bevy-preview = { path = "../../../telegram-bot-helper/crates/lele-bevy-preview" }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.15" }
 serde.workspace = true
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
 tracing = "=0.1.44"

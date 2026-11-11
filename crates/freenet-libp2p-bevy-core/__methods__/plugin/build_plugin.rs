@@ -40,6 +40,8 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         Update,
         (
             discovery::bevy_systems::notify_outputs_to_events,
+            discovery::bevy_systems::follow_room
+                .after(discovery::bevy_systems::notify_outputs_to_events),
             discovery::bevy_systems::discovery_outputs_to_libp2p_commands,
             discovery::bevy_systems::publish_heartbeat_targets,
         )
@@ -121,6 +123,44 @@ mod tests {
         let plugin = discovery::Plugin::new(discovery::Config::default());
         build_plugin(&plugin, &mut app);
         app
+    }
+
+    #[tokio::test]
+    async fn joining_a_room_subscribes_the_swarm_to_the_room_topic() {
+        let mut app = app_with_swarm();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        app.insert_resource(p2p::Libp2pCommandSender(tx));
+        let peer = identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: vec![identity::PeerAddr::from("/ip4/1.2.3.4/tcp/4001")],
+        };
+        app.world()
+            .resource::<p2p::ReadyChannel>()
+            .ready_tx
+            .send_replace(Some(peer));
+        app.update();
+        app.update();
+        let room = identity::RoomName::from("room-a");
+        app.world_mut()
+            .resource_mut::<Messages<discovery::state_machine::Input>>()
+            .write(discovery::state_machine::Input::Command(
+                discovery::Command::Create(room.clone()),
+            ));
+        app.update();
+        app.update();
+        let mut saw_subscribe = false;
+        while let Ok(command) = rx.try_recv() {
+            if matches!(
+                &command,
+                p2p::Libp2pCommand::SubscribeRoom { room: joined } if *joined == room
+            ) {
+                saw_subscribe = true;
+            }
+        }
+        assert!(
+            saw_subscribe,
+            "joining must subscribe the swarm to the room topic"
+        );
     }
 
     #[test]

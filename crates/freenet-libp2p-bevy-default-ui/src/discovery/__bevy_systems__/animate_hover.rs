@@ -3,13 +3,8 @@ use bevy::prelude::*;
 use bevy::ui::Pressed;
 
 use crate::discovery;
-use discovery::{ACCENT_COLOR, HOVER_OUTLINE_WIDTH, HOVER_PER_SEC, HOVER_SCALE};
+use discovery::{ACCENT_COLOR, HOVER_PER_SEC, HOVER_SCALE};
 use discovery::{HoverGlow, HoverOutlineOnly};
-
-type Unstyled = (
-    With<HoverGlow>,
-    Or<(Without<UiTransform>, Without<Outline>)>,
-);
 
 type HoverParts<'a> = (
     Option<&'a Hovered>,
@@ -20,18 +15,7 @@ type HoverParts<'a> = (
     &'a mut Outline,
 );
 
-pub fn animate_hover(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut fresh: Query<Entity, Unstyled>,
-    mut nodes: Query<HoverParts>,
-) {
-    for entity in &mut fresh {
-        commands.entity(entity).insert_if_new((
-            UiTransform::default(),
-            Outline::new(Val::Px(HOVER_OUTLINE_WIDTH), Val::ZERO, Color::NONE),
-        ));
-    }
+pub fn animate_hover(time: Res<Time>, mut nodes: Query<HoverParts>) {
     let step = HOVER_PER_SEC * time.into_inner().delta_secs();
     for (hovered_state, pressed, outline_only, mut glow, mut transform, mut outline) in &mut nodes {
         let hovered = hovered_state.is_some_and(Hovered::get) || pressed;
@@ -73,7 +57,16 @@ mod tests {
         ));
         let entity = app
             .world_mut()
-            .spawn((hovered, discovery::HoverGlow::default()))
+            .spawn((
+                hovered,
+                discovery::HoverGlow::default(),
+                UiTransform::default(),
+                Outline::new(
+                    Val::Px(discovery::HOVER_OUTLINE_WIDTH),
+                    Val::ZERO,
+                    Color::NONE,
+                ),
+            ))
             .id();
         app.add_systems(Update, animate_hover);
         (app, entity)
@@ -116,6 +109,12 @@ mod tests {
             ChildOf(root),
             discovery::HoverGlow::default(),
             Hovered(true),
+            UiTransform::default(),
+            Outline::new(
+                Val::Px(discovery::HOVER_OUTLINE_WIDTH),
+                Val::ZERO,
+                Color::NONE,
+            ),
             Node {
                 width: Val::Px(180.0),
                 height: Val::Px(56.0),
