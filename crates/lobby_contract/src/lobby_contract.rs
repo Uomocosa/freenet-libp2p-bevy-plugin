@@ -1,0 +1,379 @@
+#![allow(unexpected_cfgs)]
+
+use atomic_delegate_macros::atomic_delegates;
+use freenet_stdlib::prelude::*;
+
+use crate::Lobby;
+use crate::Room;
+use crate::constants;
+
+pub struct LobbyContract;
+
+#[contract]
+impl ContractInterface for LobbyContract {
+    fn validate_state(
+        _parameters: Parameters<'static>,
+        state: State<'static>,
+        _related: RelatedContracts<'static>,
+    ) -> Result<ValidateResult, ContractError> {
+        let lobby: Lobby =
+            bincode::deserialize(state.as_ref()).map_err(|_| ContractError::InvalidState)?;
+        if lobby.len() > constants::MAX_ROOMS {
+            return Err(ContractError::InvalidState);
+        }
+        for (room, record) in lobby.iter() {
+            if !Self::valid_room_name(room.as_str()) {
+                return Err(ContractError::InvalidState);
+            }
+            if record.members.len() > constants::MAX_MEMBERS_PER_ROOM {
+                return Err(ContractError::InvalidState);
+            }
+        }
+        Ok(ValidateResult::Valid)
+    }
+
+    fn update_state(
+        _parameters: Parameters<'static>,
+        state: State<'static>,
+        data: Vec<UpdateData<'static>>,
+    ) -> Result<UpdateModification<'static>, ContractError> {
+        let mut merged: Lobby = bincode::deserialize(state.as_ref()).unwrap_or_default();
+        for update in data {
+            let Some(bytes) = Self::decode_update(&update) else {
+                continue;
+            };
+            if bytes.is_empty() {
+                continue;
+            }
+            let incoming = Self::decode_lobby(&bytes)?;
+            let Lobby(rooms) = incoming;
+            for (room, record) in rooms {
+                if !Self::valid_room_name(room.as_str()) {
+                    continue;
+                }
+                let combined = Room::merge_room(merged.remove(&room), record);
+                if combined.members.len() > constants::MAX_MEMBERS_PER_ROOM {
+                    continue;
+                }
+                merged.insert(room, combined);
+            }
+            merged.drop_rooms_where_every_member_quit();
+            merged.evict_oldest_rooms_until_lobby_fits_capacity(constants::MAX_ROOMS);
+        }
+        Ok(UpdateModification::valid(State::from(bincode::serialize(
+            &merged,
+        )?)))
+    }
+
+    fn summarize_state(
+        _parameters: Parameters<'static>,
+        state: State<'static>,
+    ) -> Result<StateSummary<'static>, ContractError> {
+        let lobby: Lobby =
+            bincode::deserialize(state.as_ref()).map_err(|_| ContractError::InvalidState)?;
+        Ok(StateSummary::from(bincode::serialize(&lobby)?))
+    }
+
+    fn get_state_delta(
+        _parameters: Parameters<'static>,
+        state: State<'static>,
+        summary: StateSummary<'static>,
+    ) -> Result<StateDelta<'static>, ContractError> {
+        let ours: Lobby =
+            bincode::deserialize(state.as_ref()).map_err(|_| ContractError::InvalidState)?;
+        if summary.as_ref() == bincode::serialize(&ours)?.as_slice() {
+            return Ok(StateDelta::from(Vec::new()));
+        }
+        Ok(StateDelta::from(state.as_ref().to_vec()))
+    }
+}
+
+#[atomic_delegates]
+impl LobbyContract {
+    pub fn decode_lobby(bytes: &[u8]) -> Result<Lobby, ContractError> {}
+    pub fn decode_update(data: &UpdateData<'static>) -> Option<Vec<u8>> {}
+    pub fn valid_room_name(name: &str) -> bool {}
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::*;
+    use crate::{
+        Peer, PeerAddr, PeerId, Room, RoomMember, RoomMembership, RoomName, RoomSize, UnixTime,
+    };
+
+    fn state_of(lobby: &Lobby) -> State<'static> {
+        State::from(bincode::serialize(lobby).unwrap())
+    }
+
+    fn state_bytes(modification: UpdateModification<'_>) -> Vec<u8> {
+        modification
+            .new_state
+            .map_or_else(Vec::new, |state| state.as_ref().to_vec())
+    }
+
+    fn room(peer: &str, updated_at: UnixTime, created_at: UnixTime) -> Room {
+        let mut members = BTreeMap::new();
+        members.insert(
+            PeerId(peer.to_string()),
+            RoomMember {
+                peer: Peer {
+                    id: PeerId(peer.to_string()),
+                    addrs: vec![PeerAddr::from("/ip4/127.0.0.1/tcp/1")],
+                },
+                updated_at,
+                display_name: None,
+                membership: RoomMembership::Occupant,
+            },
+        );
+        Room {
+            room_size: RoomSize::try_from(8).unwrap(),
+            created_at,
+            members,
+        }
+    }
+
+    fn room_at(updated_at: UnixTime) -> Room {
+        let mut members = BTreeMap::new();
+        members.insert(
+            PeerId("peer".to_string()),
+            RoomMember {
+                peer: Peer {
+                    id: PeerId("peer".to_string()),
+                    addrs: Vec::new(),
+                },
+                updated_at,
+                display_name: None,
+                membership: RoomMembership::Occupant,
+            },
+        );
+        Room {
+            room_size: RoomSize::try_from(8).unwrap(),
+            created_at: UnixTime::from_secs(1),
+            members,
+        }
+    }
+
+    fn departed_room(updated_at: UnixTime) -> Room {
+        let mut record = room_at(updated_at);
+        for heartbeat in record.members.values_mut() {
+            heartbeat.membership = RoomMembership::Departed;
+        }
+        record
+    }
+
+    fn lobby_with_rooms(count: usize, newest_at: impl Fn(usize) -> UnixTime) -> Lobby {
+        Lobby::from(
+            (0..count)
+                .map(|index| {
+                    (
+                        RoomName(format!("room-{index:03}")),
+                        room_at(newest_at(index)),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>(),
+        )
+    }
+
+    fn apply(params: &Parameters<'static>, base: &Lobby, incoming: &Lobby) -> Lobby {
+        let update = UpdateData::Delta(StateDelta::from(bincode::serialize(incoming).unwrap()));
+        let merged =
+            LobbyContract::update_state(params.clone(), state_of(base), vec![update]).unwrap();
+        bincode::deserialize(&state_bytes(merged)).unwrap()
+    }
+
+    #[test]
+    fn test_usage() {
+        let params = Parameters::from(Vec::new());
+        let related = RelatedContracts::default();
+        let empty = state_of(&Lobby::default());
+        assert!(matches!(
+            LobbyContract::validate_state(params.clone(), empty, related.clone()),
+            Ok(ValidateResult::Valid)
+        ));
+
+        let mut base = Lobby::default();
+        base.insert(
+            RoomName("room-a".to_string()),
+            room("peer", UnixTime::from_secs(5), UnixTime::from_secs(10)),
+        );
+        let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&base).unwrap()));
+        let merged =
+            LobbyContract::update_state(params.clone(), state_of(&Lobby::default()), vec![update])
+                .unwrap();
+        let bytes = state_bytes(merged);
+        let decoded: Lobby = bincode::deserialize(&bytes).unwrap();
+        assert_eq!(decoded.len(), 1);
+
+        let older = UpdateData::Delta(StateDelta::from(
+            bincode::serialize(&{
+                let mut old = Lobby::default();
+                old.insert(
+                    RoomName("room-a".to_string()),
+                    room("peer", UnixTime::from_secs(1), UnixTime::from_secs(10)),
+                );
+                old
+            })
+            .unwrap(),
+        ));
+        let merged = LobbyContract::update_state(params, State::from(bytes), vec![older]).unwrap();
+        let bytes = state_bytes(merged);
+        let decoded: Lobby = bincode::deserialize(&bytes).unwrap();
+        assert_eq!(
+            decoded[&RoomName("room-a".to_string())].members[&PeerId("peer".to_string())]
+                .updated_at,
+            UnixTime::from_secs(5)
+        );
+    }
+
+    #[test]
+    fn recreated_room_replaces_old_generation_both_orders() {
+        let params = Parameters::from(Vec::new());
+        let room_name = RoomName("room-a".to_string());
+        let low = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(100));
+        let high = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(500));
+
+        for (first, second) in [(low.clone(), high.clone()), (high, low)] {
+            let mut base = Lobby::default();
+            base.insert(room_name.clone(), first);
+            let incoming = {
+                let mut other = Lobby::default();
+                other.insert(room_name.clone(), second);
+                other
+            };
+            let update =
+                UpdateData::Delta(StateDelta::from(bincode::serialize(&incoming).unwrap()));
+            let merged =
+                LobbyContract::update_state(params.clone(), state_of(&base), vec![update]).unwrap();
+            let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
+            assert_eq!(
+                decoded[&room_name].created_at,
+                UnixTime::from_secs(500),
+                "the newer generation must win in either merge order"
+            );
+        }
+    }
+
+    #[test]
+    fn departed_tombstone_wins_over_older_heartbeat() {
+        let params = Parameters::from(Vec::new());
+        let name = RoomName("room-a".to_string());
+        let live = room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1));
+        let mut departed = room("peer", UnixTime::from_secs(9), UnixTime::from_secs(1));
+        for heartbeat in departed.members.values_mut() {
+            heartbeat.membership = RoomMembership::Departed;
+        }
+        let base = Lobby::from([(name.clone(), live)]);
+        let incoming = Lobby::from([(name.clone(), departed)]);
+        let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&incoming).unwrap()));
+        let merged = LobbyContract::update_state(params, state_of(&base), vec![update]).unwrap();
+        let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
+        assert!(
+            !decoded.contains_key(&name),
+            "the departed tombstone must win over the older live heartbeat"
+        );
+    }
+
+    #[test]
+    fn all_departed_room_is_dropped_in_either_merge_order() {
+        let params = Parameters::from(Vec::new());
+        let name = RoomName("room-a".to_string());
+        let live = room_at(UnixTime::from_secs(5));
+        let departed = departed_room(UnixTime::from_secs(9));
+        let pairs = [(live.clone(), departed.clone()), (departed, live)];
+        for (base_room, incoming_room) in pairs {
+            let base = Lobby::from([(name.clone(), base_room)]);
+            let incoming = Lobby::from([(name.clone(), incoming_room)]);
+            let merged = apply(&params, &base, &incoming);
+            assert!(
+                !merged.contains_key(&name),
+                "an all-departed room must not survive the merge"
+            );
+        }
+    }
+
+    #[test]
+    fn stale_live_heartbeat_resurrects_a_dropped_room() {
+        let params = Parameters::from(Vec::new());
+        let name = RoomName("room-a".to_string());
+        let dead = Lobby::from([(name.clone(), departed_room(UnixTime::from_secs(9)))]);
+        let dropped = apply(&params, &Lobby::default(), &dead);
+        assert!(!dropped.contains_key(&name));
+        let stale = Lobby::from([(name.clone(), room_at(UnixTime::from_secs(5)))]);
+        let revived = apply(&params, &dropped, &stale);
+        assert!(revived.contains_key(&name));
+    }
+
+    #[test]
+    fn all_departed_room_never_displaces_a_live_room() {
+        let params = Parameters::from(Vec::new());
+        let base = lobby_with_rooms(constants::MAX_ROOMS, |index| {
+            UnixTime::from_secs(u64::try_from(index).unwrap_or_default().saturating_add(1))
+        });
+        let dead = Lobby::from([(
+            RoomName("z-dead".to_string()),
+            departed_room(UnixTime::from_secs(1_000)),
+        )]);
+        let merged = apply(&params, &base, &dead);
+        assert_eq!(merged.len(), constants::MAX_ROOMS);
+        assert!(!merged.contains_key(&RoomName("z-dead".to_string())));
+        assert!(merged.contains_key(&RoomName("room-000".to_string())));
+    }
+
+    #[test]
+    fn cap_evicts_the_oldest_room_and_keeps_the_incoming_one() {
+        let params = Parameters::from(Vec::new());
+        let base = lobby_with_rooms(constants::MAX_ROOMS, |index| {
+            UnixTime::from_secs(u64::try_from(index).unwrap_or_default().saturating_add(1))
+        });
+        let incoming = Lobby::from([(
+            RoomName("z-new".to_string()),
+            room_at(UnixTime::from_secs(1_000)),
+        )]);
+        let merged = apply(&params, &base, &incoming);
+        assert_eq!(merged.len(), constants::MAX_ROOMS);
+        assert!(!merged.contains_key(&RoomName("room-000".to_string())));
+        assert!(merged.contains_key(&RoomName("z-new".to_string())));
+    }
+
+    #[test]
+    fn cap_evicts_the_smaller_name_when_newest_heartbeats_tie() {
+        let params = Parameters::from(Vec::new());
+        let base = lobby_with_rooms(constants::MAX_ROOMS, |_| UnixTime::from_secs(5));
+        let incoming = Lobby::from([(
+            RoomName("z-new".to_string()),
+            room_at(UnixTime::from_secs(5)),
+        )]);
+        let merged = apply(&params, &base, &incoming);
+        assert_eq!(merged.len(), constants::MAX_ROOMS);
+        assert!(!merged.contains_key(&RoomName("room-000".to_string())));
+        assert!(merged.contains_key(&RoomName("z-new".to_string())));
+    }
+
+    #[test]
+    fn cap_evicts_the_incoming_room_when_it_is_the_oldest() {
+        let params = Parameters::from(Vec::new());
+        let base = lobby_with_rooms(constants::MAX_ROOMS, |_| UnixTime::from_secs(100));
+        let incoming = Lobby::from([(
+            RoomName("new-room".to_string()),
+            room_at(UnixTime::from_secs(1)),
+        )]);
+        let merged = apply(&params, &base, &incoming);
+        assert_eq!(merged.len(), constants::MAX_ROOMS);
+        assert!(!merged.contains_key(&RoomName("new-room".to_string())));
+        assert!(merged.contains_key(&RoomName("room-000".to_string())));
+    }
+
+    #[test]
+    fn evicts_the_oldest_rooms_until_the_lobby_fits() {
+        let mut lobby = lobby_with_rooms(3, |index| {
+            UnixTime::from_secs(u64::try_from(index).unwrap_or_default())
+        });
+        lobby.evict_oldest_rooms_until_lobby_fits_capacity(2);
+        assert_eq!(lobby.len(), 2);
+        assert!(!lobby.contains_key(&RoomName("room-000".to_string())));
+        assert!(lobby.contains_key(&RoomName("room-002".to_string())));
+    }
+}

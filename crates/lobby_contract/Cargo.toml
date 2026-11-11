@@ -11,6 +11,7 @@ default = ["freenet-main-contract"]
 freenet-main-contract = []
 
 [dependencies]
+atomic-delegate-macros.workspace = true
 common_types.workspace = true
 derive_more = { workspace = true, features = ["deref"] }
 freenet-stdlib = { workspace = true, features = ["contract"] }

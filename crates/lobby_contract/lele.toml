@@ -6,5 +6,5 @@ declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "
 
 [[lele.lint.clippy_allow_whitelist]]
 allow = "unexpected_cfgs"
-file = "src/lib.rs"
-reason = "the lobby contract's `src/lib.rs`. Deleting it turns `just contract-lint` red: freenet-macros' `#[contract]` expansion emits `cfg(...)` references the compiler cannot resolve from the crate source, and the generated code cannot be edited"
+file = "src/lobby_contract.rs"
+reason = "the lobby contract's `src/lobby_contract.rs`. Deleting it turns `just contract-lint` red: freenet-macros' `#[contract]` expansion emits `cfg(...)` references the compiler cannot resolve from the crate source, and the generated code cannot be edited"

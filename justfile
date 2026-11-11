@@ -358,6 +358,7 @@ bevy-lint:
 sync-methods:
     lele-lint --sync-methods crates/freenet-libp2p-bevy-core
     lele-lint --sync-methods crates/freenet-libp2p-bevy-default-ui
+    lele-lint --sync-methods crates/lobby_contract
 
 # The only way to rebuild the lobby contract wasm. build.rs was removed because it
 # inherited RUSTC_WORKSPACE_WRAPPER=clippy-driver from `cargo clippy`, which rebuilt
