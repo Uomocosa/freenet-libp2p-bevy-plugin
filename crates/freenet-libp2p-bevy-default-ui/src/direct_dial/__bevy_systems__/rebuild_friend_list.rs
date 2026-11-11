@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui_widgets::Button;
@@ -9,26 +7,15 @@ use crate::discovery;
 use direct_dial::{FriendList, FriendRemoveButton, FriendRow};
 use discovery::{BUTTON_COLOR, ROOM_COLOR};
 use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
-use freenet_libp2p_bevy_core::identity;
-use freenet_libp2p_bevy_core::peers;
 
 pub fn rebuild_friend_list(
     mut commands: Commands,
-    state: Res<core_direct_dial::state_machine::DialState>,
-    connected_peers: Query<&peers::Peer, With<peers::Connected>>,
+    view: Option<Res<core_direct_dial::FriendsView>>,
     list: Single<(Entity, Ref<FriendList>)>,
-    mut shown: Local<Vec<(identity::PeerId, bool)>>,
+    mut shown: Local<Vec<core_direct_dial::FriendView>>,
 ) {
-    let state = state.into_inner();
-    let connected: HashSet<identity::PeerId> = connected_peers
-        .iter()
-        .map(|peer| (**peer).clone())
-        .collect();
-    let wanted: Vec<(identity::PeerId, bool)> = state
-        .entries
-        .iter()
-        .map(|entry| (entry.peer.id.clone(), connected.contains(&entry.peer.id)))
-        .collect();
+    let wanted: Vec<core_direct_dial::FriendView> =
+        view.map(|view| (**view).clone()).unwrap_or_default();
     let (list, marker) = list.into_inner();
     if *shown == wanted && !marker.is_added() {
         return;
@@ -38,15 +25,15 @@ pub fn rebuild_friend_list(
         .entity(list)
         .despawn_related::<Children>()
         .with_children(|parent| {
-            for (id, is_connected) in &*shown {
-                let status = if *is_connected {
-                    "connected"
-                } else {
-                    "offline"
+            for friend in &*shown {
+                let status = match friend.presence {
+                    core_direct_dial::FriendPresence::Offline => "offline",
+                    core_direct_dial::FriendPresence::InLobby
+                    | core_direct_dial::FriendPresence::InRoom(_) => "connected",
                 };
-                let label = format!("> {} [{status}]", id.as_str());
+                let label = format!("> {} [{status}]", friend.name);
                 parent.spawn((
-                    FriendRow(id.clone()),
+                    FriendRow(friend.id.clone()),
                     Node {
                         flex_direction: FlexDirection::Row,
                         column_gap: Val::Px(8.0),
@@ -57,7 +44,7 @@ pub fn rebuild_friend_list(
                     children![
                         Text::new(label),
                         (
-                            FriendRemoveButton(id.clone()),
+                            FriendRemoveButton(friend.id.clone()),
                             Button,
                             Hovered::default(),
                             Node {
@@ -75,39 +62,41 @@ pub fn rebuild_friend_list(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use bevy::prelude::*;
 
     use super::rebuild_friend_list;
     use crate::direct_dial;
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
+    use freenet_libp2p_bevy_core::discovery;
     use freenet_libp2p_bevy_core::identity;
-    use freenet_libp2p_bevy_core::peers;
-    use freenet_libp2p_bevy_core::time;
 
-    fn state_with(names: &[&str]) -> core_direct_dial::state_machine::DialState {
-        let mut book = core_direct_dial::PeerBook::default();
-        for name in names {
-            book.add_friend(identity::Peer {
-                id: identity::PeerId::from(*name),
-                addrs: Vec::new(),
-            });
+    fn friend_view(
+        id: &str,
+        presence: core_direct_dial::FriendPresence,
+    ) -> core_direct_dial::FriendView {
+        core_direct_dial::FriendView {
+            id: identity::PeerId::from(id),
+            name: id.to_string(),
+            presence,
         }
-        core_direct_dial::state_machine::DialState::from_peer_book(
-            &book,
-            time::UnixTime::from_secs(10),
-        )
     }
 
-    fn app_with(state: core_direct_dial::state_machine::DialState, connected: &[&str]) -> App {
+    fn labels(app: &mut App) -> Vec<String> {
+        let mut texts = app
+            .world_mut()
+            .query_filtered::<&Text, Without<direct_dial::OwnAddressText>>();
+        texts
+            .iter(app.world())
+            .map(|text| text.as_str().to_string())
+            .collect()
+    }
+
+    fn app_with(view: core_direct_dial::FriendsView) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(state);
-        for name in connected {
-            app.world_mut().spawn((
-                peers::Peer::from(identity::PeerId::from(*name)),
-                peers::Connected,
-            ));
-        }
+        app.insert_resource(view);
         app.world_mut().spawn(direct_dial::FriendList);
         app.add_systems(Update, rebuild_friend_list);
         app
@@ -115,56 +104,63 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut app = app_with(state_with(&["alice", "bob"]), &[]);
+        let mut app = app_with(core_direct_dial::FriendsView(vec![
+            friend_view("alice", core_direct_dial::FriendPresence::Offline),
+            friend_view("bob", core_direct_dial::FriendPresence::InLobby),
+        ]));
         app.update();
         let mut rows = app.world_mut().query::<&direct_dial::FriendRow>();
         assert_eq!(rows.iter(app.world()).count(), 2);
     }
 
     #[test]
-    fn row_flips_connected_and_offline_on_events() {
-        let mut app = app_with(state_with(&["alice"]), &[]);
+    fn rows_follow_the_view() {
+        let mut app = app_with(core_direct_dial::FriendsView(vec![friend_view(
+            "alice",
+            core_direct_dial::FriendPresence::Offline,
+        )]));
         app.update();
-        let label = |world: &mut World| {
-            world
-                .query_filtered::<&Text, Without<direct_dial::OwnAddressText>>()
-                .iter(world)
-                .map(|text| text.as_str().to_string())
-                .collect::<Vec<_>>()
-        };
-        assert!(
-            label(app.world_mut())
-                .iter()
-                .any(|text| text.contains("offline"))
-        );
-        let alice = app
-            .world_mut()
-            .spawn((
-                peers::Peer::from(identity::PeerId::from("alice")),
-                peers::Connected,
-            ))
-            .id();
+        assert!(labels(&mut app).iter().any(|text| text.contains("offline")));
+        *app.world_mut()
+            .resource_mut::<core_direct_dial::FriendsView>() =
+            core_direct_dial::FriendsView(vec![friend_view(
+                "alice",
+                core_direct_dial::FriendPresence::InLobby,
+            )]);
         app.update();
         assert!(
-            label(app.world_mut())
+            labels(&mut app)
                 .iter()
                 .any(|text| text.contains("connected"))
         );
-        app.world_mut()
-            .entity_mut(alice)
-            .remove::<peers::Connected>();
-        app.update();
-        assert!(
-            label(app.world_mut())
-                .iter()
-                .any(|text| text.contains("offline"))
+    }
+
+    #[test]
+    fn the_view_names_and_statuses_drive_the_rows() {
+        let view = core_direct_dial::FriendsView::from_friend_ids(
+            &[identity::PeerId::from(
+                "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
+            )],
+            &discovery::Lobby::default(),
+            &BTreeSet::new(),
         );
+        let mut app = app_with(view);
+        app.update();
+        let shown = labels(&mut app);
+        assert!(shown.iter().any(|text| text.contains("12D3Koo...99RC")));
     }
 
     fn preview_build(app: &mut App) {
-        app.insert_resource(state_with(&["alice"]));
+        app.insert_resource(preview_view());
         app.add_systems(Startup, spawn_list);
         app.add_systems(Update, rebuild_friend_list);
+    }
+
+    fn preview_view() -> core_direct_dial::FriendsView {
+        core_direct_dial::FriendsView(vec![friend_view(
+            "alice",
+            core_direct_dial::FriendPresence::Offline,
+        )])
     }
 
     fn spawn_list(mut commands: Commands) {
@@ -185,10 +181,11 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn connect_alice(world: &mut World) {
-        world.spawn((
-            peers::Peer::from(identity::PeerId::from("alice")),
-            peers::Connected,
-        ));
+        *world.resource_mut::<core_direct_dial::FriendsView>() =
+            core_direct_dial::FriendsView(vec![friend_view(
+                "alice",
+                core_direct_dial::FriendPresence::InLobby,
+            )]);
     }
 
     #[test]

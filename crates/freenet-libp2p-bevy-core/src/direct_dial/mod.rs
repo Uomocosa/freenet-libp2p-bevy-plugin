@@ -2,9 +2,16 @@
 mod basic;
 
 pub use basic::components::Friend;
-pub use basic::enums::KnownPeerKind;
-pub use basic::resources::{Config, DialEventTap, FriendAddressError};
-pub use basic::structs::KnownPeer;
+pub use basic::enums::{FriendPresence, KnownPeerKind};
+pub use basic::messages::FriendAddressSubmitted;
+pub use basic::resources::{Config, DialEventTap, FriendAddressError, OwnShareAddress};
+pub use basic::structs::{FriendView, KnownPeer};
+
+mod own_address;
+pub use own_address::OwnAddress;
+
+mod friends_view;
+pub use friends_view::FriendsView;
 
 pub mod state_machine;
 

@@ -36,3 +36,9 @@ pub use leave_failed_room::leave_failed_room;
 
 mod project_status_to_entities;
 pub use project_status_to_entities::project_status_to_entities;
+
+mod rebuild_lobby_rows;
+pub use rebuild_lobby_rows::rebuild_lobby_rows;
+
+mod rebuild_room_roster;
+pub use rebuild_room_roster::rebuild_room_roster;

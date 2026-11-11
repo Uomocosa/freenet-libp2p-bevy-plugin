@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use lele_bevy_state_machine::{StateMachinePlugin, StateMachineSystems};
 
 use crate::direct_dial;
+use crate::discovery;
 use crate::p2p;
 use crate::peers;
 use crate::time;
@@ -78,6 +79,22 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
         direct_dial::bevy_systems::project_friends_to_entities
             .after(peers::bevy_systems::track_peer_connections)
             .before(peers::bevy_systems::despawn_orphan_peers),
+    );
+    app.add_message::<direct_dial::FriendAddressSubmitted>();
+    app.init_resource::<direct_dial::OwnShareAddress>();
+    app.init_resource::<direct_dial::FriendsView>();
+    app.add_systems(Update, direct_dial::bevy_systems::update_own_share_address);
+    app.add_systems(
+        Update,
+        direct_dial::bevy_systems::rebuild_friends_view
+            .after(peers::bevy_systems::track_peer_connections)
+            .after(discovery::bevy_systems::notify_outputs_to_events),
+    );
+    app.add_systems(
+        Update,
+        direct_dial::bevy_systems::validate_friend_submissions.in_set(
+            StateMachineSystems::collect_inputs::<direct_dial::state_machine::DialState>(),
+        ),
     );
 }
 

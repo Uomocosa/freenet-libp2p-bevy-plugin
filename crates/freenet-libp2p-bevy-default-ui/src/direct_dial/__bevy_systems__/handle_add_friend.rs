@@ -5,50 +5,18 @@ use bevy::ui::Pressed;
 use crate::direct_dial;
 use direct_dial::{AddFriendButton, FriendAddressInput};
 use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
-use freenet_libp2p_bevy_core::identity;
-use freenet_libp2p_bevy_core::p2p;
 
 pub fn handle_add_friend(
     buttons: Query<(), (Added<Pressed>, With<AddFriendButton>)>,
     input: Single<&EditableText, With<FriendAddressInput>>,
-    state: Res<core_direct_dial::state_machine::DialState>,
-    mut inputs: MessageWriter<core_direct_dial::state_machine::Input>,
-    own: Option<Res<p2p::ReadyChannel>>,
-    mut error: ResMut<core_direct_dial::FriendAddressError>,
+    mut submitted: MessageWriter<core_direct_dial::FriendAddressSubmitted>,
 ) {
-    let state = state.into_inner();
-    let typed = input.into_inner().value().to_string();
-    let own_id: Option<identity::PeerId> =
-        own.and_then(|ready| ready.ready_rx.borrow().as_ref().map(|me| me.id.clone()));
-    for () in &buttons {
-        let trimmed = typed.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let Ok(peer) = identity::Peer::try_from(trimmed) else {
-            **error = Some(String::from(
-                "bad address: use /ip4/<host>/tcp/<port>/p2p/<id>",
-            ));
-            continue;
-        };
-        if own_id.as_ref().is_some_and(|id| *id == peer.id) {
-            **error = Some(String::from("that is your own address"));
-            continue;
-        }
-        if state.is_friend(&peer.id) {
-            let same = state
-                .entries
-                .iter()
-                .find(|entry| entry.peer.id == peer.id)
-                .is_some_and(|entry| entry.peer.addrs == peer.addrs);
-            if same {
-                **error = Some(String::from("already a friend"));
-                continue;
-            }
-        }
-        **error = None;
-        inputs.write(core_direct_dial::state_machine::Input::FriendAdded(peer));
+    if buttons.is_empty() {
+        return;
     }
+    submitted.write(core_direct_dial::FriendAddressSubmitted(
+        input.into_inner().value().to_string(),
+    ));
 }
 
 #[cfg(test)]
@@ -60,48 +28,24 @@ mod tests {
     use super::handle_add_friend;
     use crate::direct_dial;
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
-    use freenet_libp2p_bevy_core::identity;
-    use freenet_libp2p_bevy_core::p2p;
-    use freenet_libp2p_bevy_core::time;
 
-    fn friend_text(id: &libp2p::PeerId) -> String {
-        format!("/ip4/127.0.0.1/tcp/4001/p2p/{id}")
-    }
-
-    fn app_with(typed: &str, own_id: Option<identity::PeerId>) -> App {
+    fn app_with(typed: &str, pressed: bool) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.add_message::<core_direct_dial::state_machine::Input>();
-        let book = core_direct_dial::PeerBook::default();
-        app.insert_resource(core_direct_dial::state_machine::DialState::from_peer_book(
-            &book,
-            time::UnixTime::from_secs(10),
-        ));
-        app.insert_resource(core_direct_dial::FriendAddressError::default());
-        if let Some(id) = own_id {
-            let ready = p2p_ready_with(id);
-            app.insert_resource(ready);
-        }
+        app.add_message::<core_direct_dial::FriendAddressSubmitted>();
         app.world_mut()
             .spawn((direct_dial::FriendAddressInput, EditableText::new(typed)));
-        app.world_mut()
-            .spawn((direct_dial::AddFriendButton, Pressed));
+        let mut button = app.world_mut().spawn(direct_dial::AddFriendButton);
+        if pressed {
+            button.insert(Pressed);
+        }
         app.add_systems(Update, handle_add_friend);
         app
     }
 
-    fn p2p_ready_with(id: identity::PeerId) -> p2p::ReadyChannel {
-        let channel = p2p::ReadyChannel::default();
-        channel.ready_tx.send_replace(Some(identity::Peer {
-            id,
-            addrs: Vec::new(),
-        }));
-        channel
-    }
-
-    fn drained_inputs(app: &mut App) -> Vec<core_direct_dial::state_machine::Input> {
+    fn drained(app: &mut App) -> Vec<core_direct_dial::FriendAddressSubmitted> {
         app.world_mut()
-            .resource_mut::<Messages<core_direct_dial::state_machine::Input>>()
+            .resource_mut::<Messages<core_direct_dial::FriendAddressSubmitted>>()
             .drain()
             .collect()
     }
@@ -109,118 +53,24 @@ mod tests {
     #[test]
     fn test_usage() {
         let id = libp2p::PeerId::random();
-        let mut app = app_with(friend_text(&id).as_str(), None);
+        let mut app = app_with(&format!("/ip4/127.0.0.1/tcp/4001/p2p/{id}"), true);
         app.update();
-        let inputs = drained_inputs(&mut app);
-        assert_eq!(inputs.len(), 1);
-        assert!(
-            app.world()
-                .resource::<core_direct_dial::FriendAddressError>()
-                .is_none()
-        );
+        let submitted = drained(&mut app);
+        assert_eq!(submitted.len(), 1);
+        assert_eq!(**submitted[0], format!("/ip4/127.0.0.1/tcp/4001/p2p/{id}"));
     }
 
     #[test]
-    fn duplicate_friend_sets_an_error() {
-        let id = libp2p::PeerId::random();
-        let mut app = app_with(friend_text(&id).as_str(), None);
+    fn an_unpressed_button_submits_nothing() {
+        let mut app = app_with("some address", false);
         app.update();
-        assert_eq!(drained_inputs(&mut app).len(), 1);
-        let peer = identity::Peer::try_from(friend_text(&id).as_str()).expect("peer");
-        app.world_mut()
-            .resource_mut::<core_direct_dial::state_machine::DialState>()
-            .entries
-            .push(core_direct_dial::state_machine::DialKnownPeer {
-                peer,
-                kind: core_direct_dial::KnownPeerKind::Friend,
-                failed_attempts: 0,
-                next_attempt_at: time::UnixTime::from_secs(10),
-            });
-        let button = app
-            .world_mut()
-            .query_filtered::<Entity, With<direct_dial::AddFriendButton>>()
-            .single(app.world())
-            .expect("add button");
-        app.world_mut().entity_mut(button).remove::<Pressed>();
-        app.update();
-        app.world_mut().entity_mut(button).insert(Pressed);
-        app.update();
-        assert!(
-            app.world()
-                .resource::<core_direct_dial::FriendAddressError>()
-                .is_some()
-        );
+        assert_eq!(drained(&mut app), Vec::new());
     }
 
     #[test]
-    fn own_address_is_rejected() {
-        let id = libp2p::PeerId::random();
-        let own = identity::PeerId::from(id.to_string());
-        let mut app = app_with(friend_text(&id).as_str(), Some(own));
+    fn a_pressed_button_submits_the_text_even_when_blank() {
+        let mut app = app_with("   ", true);
         app.update();
-        assert_eq!(drained_inputs(&mut app), Vec::new());
-        assert!(
-            app.world()
-                .resource::<core_direct_dial::FriendAddressError>()
-                .is_some()
-        );
-    }
-
-    #[test]
-    fn bad_address_sets_an_error() {
-        let mut app = app_with("not a multiaddr", None);
-        app.update();
-        assert_eq!(drained_inputs(&mut app), Vec::new());
-        assert!(
-            app.world()
-                .resource::<core_direct_dial::FriendAddressError>()
-                .is_some()
-        );
-    }
-
-    #[test]
-    fn fresh_addresses_for_a_known_friend_merge_without_an_error() {
-        let id = libp2p::PeerId::random();
-        let mut app = app_with(friend_text(&id).as_str(), None);
-        app.update();
-        assert_eq!(drained_inputs(&mut app).len(), 1);
-        let peer = identity::Peer::try_from(friend_text(&id).as_str()).expect("peer");
-        app.world_mut()
-            .resource_mut::<core_direct_dial::state_machine::DialState>()
-            .entries
-            .push(core_direct_dial::state_machine::DialKnownPeer {
-                peer,
-                kind: core_direct_dial::KnownPeerKind::Friend,
-                failed_attempts: 0,
-                next_attempt_at: time::UnixTime::from_secs(10),
-            });
-        let second = format!("/ip4/127.0.0.1/tcp/5001/p2p/{id}");
-        {
-            let world = app.world_mut();
-            let mut inputs =
-                world.query_filtered::<&mut EditableText, With<direct_dial::FriendAddressInput>>();
-            if let Ok(mut input) = inputs.single_mut(world) {
-                *input = EditableText::new(second);
-            } else {
-                panic!("friend input missing");
-            }
-        }
-        app.update();
-        let button = app
-            .world_mut()
-            .query_filtered::<Entity, With<direct_dial::AddFriendButton>>()
-            .single(app.world())
-            .expect("add button");
-        app.world_mut().entity_mut(button).remove::<Pressed>();
-        app.update();
-        app.world_mut().entity_mut(button).insert(Pressed);
-        app.update();
-        let inputs = drained_inputs(&mut app);
-        assert_ne!(inputs, Vec::new());
-        assert!(
-            app.world()
-                .resource::<core_direct_dial::FriendAddressError>()
-                .is_none()
-        );
+        assert_eq!(drained(&mut app).len(), 1);
     }
 }

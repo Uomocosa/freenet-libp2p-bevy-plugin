@@ -3,31 +3,17 @@ use bevy::prelude::*;
 use bevy::ui_widgets::Button;
 
 use crate::discovery;
-use core_discovery::state_machine::DiscoveryState;
-use discovery::ROOM_COLOR;
-use discovery::{HOVER_OUTLINE_WIDTH, HoverGlow, RoomButton, RoomList, RoomRow};
+use discovery::{HOVER_OUTLINE_WIDTH, HoverGlow, ROOM_COLOR, RoomButton, RoomList};
 use freenet_libp2p_bevy_core::discovery as core_discovery;
 
 pub fn rebuild_room_list(
     mut commands: Commands,
-    state: Option<Res<DiscoveryState>>,
+    rows: Option<Res<core_discovery::LobbyRows>>,
     list: Single<(Entity, Ref<RoomList>)>,
-    mut shown: Local<Vec<RoomRow>>,
+    mut shown: Local<Vec<core_discovery::LobbyRow>>,
 ) {
-    let wanted: Vec<RoomRow> = state
-        .map(|state| {
-            state
-                .into_inner()
-                .lobby
-                .iter()
-                .map(|(name, record)| RoomRow {
-                    name: name.clone(),
-                    members: record.members.len(),
-                    room_size: record.room_size,
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let wanted: Vec<core_discovery::LobbyRow> =
+        rows.map(|rows| (**rows).clone()).unwrap_or_default();
     let (list, marker) = list.into_inner();
     if *shown == wanted && !marker.is_added() {
         return;
@@ -41,7 +27,7 @@ pub fn rebuild_room_list(
                 let label = format!(
                     "> {} [{}/{} online]",
                     row.name.as_str(),
-                    row.members,
+                    row.occupants,
                     row.room_size
                 );
                 parent.spawn((
@@ -63,64 +49,161 @@ pub fn rebuild_room_list(
 }
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use crate::discovery;
     use bevy::prelude::*;
+    use freenet_libp2p_bevy_core::discovery as core_discovery;
     use freenet_libp2p_bevy_core::identity;
 
     use super::rebuild_room_list;
-    use core_discovery::state_machine::DiscoveryState;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
-    use freenet_libp2p_bevy_core::testing;
-    use freenet_libp2p_bevy_core::time;
 
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        let mut lobby = core_discovery::Lobby::default();
-        for name in ["alpha", "beta"] {
-            lobby.insert(
-                identity::RoomName::from(name),
-                core_discovery::Room {
-                    room_size: core_discovery::RoomSize::DEFAULT,
-                    created_at: time::UnixTime::EPOCH,
-                    members: std::collections::BTreeMap::new(),
-                },
-            );
+    fn room(members: &[(&str, core_discovery::RoomMembership)]) -> core_discovery::Room {
+        core_discovery::Room {
+            room_size: core_discovery::RoomSize::DEFAULT,
+            created_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
+            members: members
+                .iter()
+                .map(|(peer, membership)| {
+                    (
+                        identity::PeerId::from(*peer),
+                        core_discovery::RoomMember {
+                            peer: identity::Peer {
+                                id: identity::PeerId::from(*peer),
+                                addrs: Vec::new(),
+                            },
+                            display_name: None,
+                            updated_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
+                            membership: *membership,
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>(),
         }
-        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .with_lobby(lobby)
-            .build();
-        app.insert_resource(state);
+    }
+
+    fn app_with(rows: Vec<core_discovery::LobbyRow>) -> App {
+        let mut app = App::new();
+        app.insert_resource(core_discovery::LobbyRows(rows));
         app.world_mut().spawn(discovery::RoomList);
         app.add_systems(Update, rebuild_room_list);
-        app.update();
+        app
+    }
+
+    fn app_with_state(state: core_discovery::state_machine::DiscoveryState) -> App {
+        let mut app = App::new();
+        app.insert_resource(state);
+        app.init_resource::<core_discovery::LobbyRows>();
+        app.world_mut().spawn(discovery::RoomList);
+        app.add_systems(
+            Update,
+            (
+                core_discovery::bevy_systems::rebuild_lobby_rows,
+                rebuild_room_list,
+            )
+                .chain(),
+        );
+        app
+    }
+
+    fn row_labels(app: &mut App) -> Vec<String> {
+        let mut rows = app
+            .world_mut()
+            .query::<(&discovery::RoomButton, &Children)>();
+        let mut labels: Vec<String> = rows
+            .iter(app.world())
+            .map(|(_, children)| {
+                children
+                    .iter()
+                    .filter_map(|child| app.world().get::<Text>(child))
+                    .map(|text| text.as_str().to_string())
+                    .next()
+                    .unwrap_or_default()
+            })
+            .collect();
+        labels.sort();
+        labels
+    }
+
+    fn button_names(app: &mut App) -> Vec<String> {
         let mut buttons = app.world_mut().query::<&discovery::RoomButton>();
         let mut names: Vec<String> = buttons
             .iter(app.world())
             .map(|button| button.as_str().to_string())
             .collect();
         names.sort();
-        assert_eq!(names, vec!["alpha".to_string(), "beta".to_string()]);
+        names
+    }
+
+    #[test]
+    fn test_usage() {
+        let mut lobby = core_discovery::Lobby::default();
+        for name in ["alpha", "beta"] {
+            lobby.insert(identity::RoomName::from(name), room(&[]));
+        }
+        let state = freenet_libp2p_bevy_core::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .with_lobby(lobby)
+        .build();
+        let mut app = app_with_state(state);
+        app.update();
+        assert_eq!(
+            button_names(&mut app),
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
+    }
+
+    #[test]
+    fn the_count_covers_occupant_members_only() {
+        let mut lobby = core_discovery::Lobby::default();
+        lobby.insert(
+            identity::RoomName::from("alpha"),
+            room(&[
+                ("occupant", core_discovery::RoomMembership::Occupant),
+                ("holder", core_discovery::RoomMembership::HistoryHolder),
+                ("departed", core_discovery::RoomMembership::Departed),
+            ]),
+        );
+        let state = freenet_libp2p_bevy_core::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .with_lobby(lobby)
+        .build();
+        let mut app = app_with_state(state);
+        app.update();
+        let labels = row_labels(&mut app);
+        assert_eq!(labels.len(), 1);
+        assert_eq!(labels[0], "> alpha [1/8 online]".to_string());
+    }
+
+    #[test]
+    fn rows_come_from_the_lobby_rows_resource() {
+        let rows = vec![core_discovery::LobbyRow {
+            name: identity::RoomName::from("alpha"),
+            occupants: 3,
+            room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+            occupancy: core_discovery::RoomOccupancy::HasSpace,
+            friends: 0,
+        }];
+        let mut app = app_with(rows);
+        app.update();
+        assert_eq!(
+            row_labels(&mut app),
+            vec!["> alpha [3/8 online]".to_string()]
+        );
     }
 
     #[test]
     fn fresh_room_row_already_carries_its_hover_styles() {
-        let mut app = App::new();
-        let mut lobby = core_discovery::Lobby::default();
-        lobby.insert(
-            identity::RoomName::from("alpha"),
-            core_discovery::Room {
-                room_size: core_discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: std::collections::BTreeMap::new(),
-            },
-        );
-        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .with_lobby(lobby)
-            .build();
-        app.insert_resource(state);
-        app.world_mut().spawn(discovery::RoomList);
-        app.add_systems(Update, rebuild_room_list);
+        let rows = vec![core_discovery::LobbyRow {
+            name: identity::RoomName::from("alpha"),
+            occupants: 0,
+            room_size: core_discovery::RoomSize::DEFAULT,
+            occupancy: core_discovery::RoomOccupancy::Empty,
+            friends: 0,
+        }];
+        let mut app = app_with(rows);
         app.update();
         let mut rows = app
             .world_mut()
@@ -137,12 +220,20 @@ mod tests {
     }
 
     fn preview_build(app: &mut App) {
-        app.insert_resource(preview_snapshot());
+        app.insert_resource(preview_state());
+        app.init_resource::<core_discovery::LobbyRows>();
         app.add_systems(Startup, spawn_list);
-        app.add_systems(Update, rebuild_room_list);
+        app.add_systems(
+            Update,
+            (
+                core_discovery::bevy_systems::rebuild_lobby_rows,
+                rebuild_room_list,
+            )
+                .chain(),
+        );
     }
 
-    fn preview_snapshot() -> DiscoveryState {
+    fn preview_state() -> core_discovery::state_machine::DiscoveryState {
         let mut lobby = core_discovery::Lobby::default();
         for (name, room_size) in [("alpha", 8), ("beta", 4)] {
             lobby.insert(
@@ -150,12 +241,12 @@ mod tests {
                 core_discovery::Room {
                     room_size: core_discovery::RoomSize::try_from(room_size)
                         .expect("fixture room size is non-zero"),
-                    created_at: time::UnixTime::EPOCH,
+                    created_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
                     members: std::collections::BTreeMap::new(),
                 },
             );
         }
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+        freenet_libp2p_bevy_core::testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .with_lobby(lobby)
             .build()
     }
@@ -178,13 +269,13 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn add_room(world: &mut World) {
-        let mut state = world.resource_mut::<DiscoveryState>();
+        let mut state = world.resource_mut::<core_discovery::state_machine::DiscoveryState>();
         state.lobby.insert(
             identity::RoomName::from("gamma"),
             core_discovery::Room {
                 room_size: core_discovery::RoomSize::try_from(4)
                     .expect("fixture room size is non-zero"),
-                created_at: time::UnixTime::EPOCH,
+                created_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
                 members: std::collections::BTreeMap::new(),
             },
         );

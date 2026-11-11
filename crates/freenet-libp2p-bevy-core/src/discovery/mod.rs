@@ -6,12 +6,15 @@ pub mod state_machine;
 mod basic;
 
 pub use basic::constants::*;
-pub use basic::enums::{HowRoomWasEntered, JoinPhase};
+pub use basic::enums::{
+    HowRoomWasEntered, JoinPhase, MemberRoomStatus, OwnRoomStatus, RoomOccupancy,
+};
 pub use basic::messages::{Command, Event};
 pub use basic::resources::{
-    FreenetPeersReceiver, FreenetPort, HeartbeatTargetSender, Libp2pEventTap, LobbyUpdateReceiver,
+    FreenetPeersReceiver, FreenetPort, HeartbeatTargetSender, Libp2pEventTap, LobbyRows,
+    LobbyUpdateReceiver, RoomRoster,
 };
-pub use basic::structs::{JoinedRoom, LobbyTaskChannels};
+pub use basic::structs::{JoinedRoom, LobbyRow, LobbyTaskChannels, RoomRosterEntry};
 pub use basic::type_aliases::Members;
 pub use common_types::{Lobby, Room, RoomMember, RoomMembership, RoomSize, RoomSizeError};
 

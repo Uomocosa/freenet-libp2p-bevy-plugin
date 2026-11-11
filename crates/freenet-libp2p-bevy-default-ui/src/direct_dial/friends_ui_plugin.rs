@@ -30,11 +30,13 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_message::<core_direct_dial::state_machine::Input>();
+        app.add_message::<core_direct_dial::FriendAddressSubmitted>();
         app.insert_resource(core_direct_dial::state_machine::DialState::from_peer_book(
             &core_direct_dial::PeerBook::default(),
             time::UnixTime::from_secs(10),
         ));
         app.insert_resource(core_direct_dial::FriendAddressError(None));
+        app.init_resource::<core_direct_dial::FriendsView>();
         app.add_plugins(FriendsUiPlugin);
         app.update();
         let mut tabs = app

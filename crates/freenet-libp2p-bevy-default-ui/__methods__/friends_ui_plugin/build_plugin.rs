@@ -27,6 +27,7 @@ mod tests {
     use super::build_plugin;
     use crate::direct_dial;
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
+    use freenet_libp2p_bevy_core::identity;
     use freenet_libp2p_bevy_core::time;
 
     fn empty_state() -> core_direct_dial::state_machine::DialState {
@@ -41,8 +42,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_message::<core_direct_dial::state_machine::Input>();
+        app.add_message::<core_direct_dial::FriendAddressSubmitted>();
         app.insert_resource(empty_state());
         app.insert_resource(core_direct_dial::FriendAddressError(None));
+        app.init_resource::<core_direct_dial::FriendsView>();
         build_plugin(direct_dial::FriendsUiPlugin, &mut app);
         app.update();
         let mut tabs = app
@@ -59,8 +62,11 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_message::<core_direct_dial::state_machine::Input>();
+        app.add_message::<core_direct_dial::FriendAddressSubmitted>();
         app.insert_resource(empty_state());
         app.insert_resource(core_direct_dial::FriendAddressError(None));
+        app.init_resource::<core_direct_dial::FriendsView>();
+        app.add_systems(Update, core_direct_dial::bevy_systems::rebuild_friends_view);
         build_plugin(direct_dial::FriendsUiPlugin, &mut app);
         app.update();
         let id = libp2p::PeerId::random();
@@ -70,7 +76,7 @@ mod tests {
             let mut inputs =
                 world.query_filtered::<&mut EditableText, With<direct_dial::FriendAddressInput>>();
             if let Ok(mut input) = inputs.single_mut(world) {
-                *input = EditableText::new(text);
+                *input = EditableText::new(text.clone());
             } else {
                 panic!("friend input missing");
             }
@@ -83,18 +89,20 @@ mod tests {
             .expect("add button");
         app.world_mut().entity_mut(button).insert(Pressed);
         app.update();
-        let pending: Vec<core_direct_dial::state_machine::Input> = app
+        let submitted: Vec<core_direct_dial::FriendAddressSubmitted> = app
             .world_mut()
-            .resource_mut::<Messages<core_direct_dial::state_machine::Input>>()
+            .resource_mut::<Messages<core_direct_dial::FriendAddressSubmitted>>()
             .drain()
             .collect();
-        assert_eq!(pending.len(), 1);
-        let now = time::UnixTime::from_secs(10);
-        for input in pending {
-            app.world_mut()
-                .resource_mut::<core_direct_dial::state_machine::DialState>()
-                .update(input, now);
-        }
+        assert_eq!(submitted.len(), 1);
+        assert_eq!(**submitted[0], text);
+        let peer = identity::Peer::try_from(text.as_str()).expect("peer");
+        app.world_mut()
+            .resource_mut::<core_direct_dial::state_machine::DialState>()
+            .update(
+                core_direct_dial::state_machine::Input::FriendAdded(peer),
+                time::UnixTime::from_secs(10),
+            );
         app.update();
         app.update();
         let mut rows = app

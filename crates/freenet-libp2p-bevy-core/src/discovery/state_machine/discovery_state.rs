@@ -136,6 +136,7 @@ impl DiscoveryState {
     ) -> Vec<Output> {
     }
     pub fn leave(&mut self, now: time::UnixTime) -> Vec<Output> {}
+    pub fn lobby_rows(&self, friend_ids: &[identity::PeerId]) -> Vec<discovery::LobbyRow> {}
     pub fn oldest_held_rooms_to_evict_until_history_fits(
         &self,
         history_bytes_by_held_room: &BTreeMap<identity::RoomName, p2p::HistoryByteCount>,
@@ -144,6 +145,7 @@ impl DiscoveryState {
     }
     pub fn occupants(&self) -> Vec<identity::PeerId> {}
     pub fn record_lobby_heartbeats(&mut self, lobby: &discovery::Lobby, now: time::UnixTime) {}
+    pub fn room_roster(&self, is_swarm_ready: bool) -> discovery::RoomRoster {}
     pub fn send_handshake(&self, peer: &identity::PeerId) -> Vec<Output> {}
     pub fn tick(&mut self, now: time::UnixTime) -> Vec<Output> {}
     pub fn wait_for_contract_self_heal(&mut self, now: time::UnixTime) -> Vec<Output> {}

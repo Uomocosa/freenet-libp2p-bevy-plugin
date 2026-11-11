@@ -15,6 +15,23 @@ pub struct JoinedRoom {
     pub how_entered: discovery::HowRoomWasEntered,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Reflect)]
+pub struct LobbyRow {
+    pub name: identity::RoomName,
+    pub occupants: usize,
+    pub room_size: discovery::RoomSize,
+    pub occupancy: discovery::RoomOccupancy,
+    pub friends: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Reflect)]
+pub struct RoomRosterEntry {
+    pub id: identity::PeerId,
+    pub name: String,
+    pub status: discovery::MemberRoomStatus,
+    pub is_me: bool,
+}
+
 pub struct LobbyTaskChannels {
     pub heartbeat_targets: Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
     pub lobbies: UnboundedSender<discovery::Lobby>,

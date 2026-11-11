@@ -1,34 +1,19 @@
 use bevy::prelude::*;
 
 use crate::direct_dial;
-use freenet_libp2p_bevy_core::identity;
-use freenet_libp2p_bevy_core::p2p;
+use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
 
 pub fn refresh_own_address(
-    ready: Option<Res<p2p::ReadyChannel>>,
+    share: Option<Res<core_direct_dial::OwnShareAddress>>,
     mut texts: Query<&mut Text, With<direct_dial::OwnAddressText>>,
 ) {
-    let snapshot: Option<(identity::Peer, Vec<identity::PeerAddr>)> = ready.and_then(|ready| {
-        let me = ready.ready_rx.borrow().as_ref().cloned()?;
-        let observed: Vec<identity::PeerAddr> = ready
-            .observed_rx
-            .borrow()
-            .as_ref()
-            .map(|addrs| addrs.as_slice().to_vec())
-            .unwrap_or_default();
-        Some((me, observed))
-    });
-    let Some((me, observed)) = snapshot else {
-        for mut text in &mut texts {
-            *text = Text::new("Your address: waiting for network...");
-        }
-        return;
+    let label = match share.map(|share| (**share).clone()) {
+        None | Some(None) => String::from("Your address: waiting for network..."),
+        Some(Some(address)) => match &address.full {
+            Some(full) => format!("Your address: {full}"),
+            None => format!("Your id: {} (listening...)", address.id),
+        },
     };
-    let dialable = identity::PeerAddr::dialable(me.addrs);
-    let label = observed.iter().chain(&dialable).next().map_or_else(
-        || format!("Your id: {} (listening...)", me.id.as_str()),
-        |addr| format!("Your address: {addr}/p2p/{}", me.id.as_str()),
-    );
     for mut text in &mut texts {
         *text = Text::new(label.clone());
     }
@@ -40,16 +25,15 @@ mod tests {
 
     use super::refresh_own_address;
     use crate::direct_dial;
+    use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
     use freenet_libp2p_bevy_core::identity;
-    use freenet_libp2p_bevy_core::p2p;
 
-    fn ready_with(id: &str, addrs: Vec<&str>) -> p2p::ReadyChannel {
-        let channel = p2p::ReadyChannel::default();
-        channel.ready_tx.send_replace(Some(identity::Peer {
-            id: identity::PeerId::from(id),
-            addrs: addrs.into_iter().map(identity::PeerAddr::from).collect(),
-        }));
-        channel
+    fn share_with(full: Option<&str>) -> core_direct_dial::OwnShareAddress {
+        core_direct_dial::OwnShareAddress(Some(core_direct_dial::OwnAddress {
+            id: identity::PeerId::from("me"),
+            short: String::from("me"),
+            full: full.map(String::from),
+        }))
     }
 
     fn labels(app: &mut App) -> Vec<String> {
@@ -66,7 +50,7 @@ mod tests {
     fn test_usage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(ready_with("me", vec!["/ip4/127.0.0.1/tcp/4001"]));
+        app.insert_resource(share_with(Some("/ip4/127.0.0.1/tcp/4001/p2p/me")));
         app.world_mut()
             .spawn((direct_dial::OwnAddressText, Text::new("old")));
         app.add_systems(Update, refresh_own_address);
@@ -77,7 +61,7 @@ mod tests {
     }
 
     #[test]
-    fn waiting_label_without_a_ready_channel() {
+    fn waiting_label_without_the_resource() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.world_mut()
@@ -89,7 +73,21 @@ mod tests {
         assert!(shown[0].contains("waiting"));
     }
 
+    #[test]
+    fn listening_label_while_the_address_is_unknown() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(share_with(None));
+        app.world_mut()
+            .spawn((direct_dial::OwnAddressText, Text::new("old")));
+        app.add_systems(Update, refresh_own_address);
+        app.update();
+        let shown = labels(&mut app);
+        assert_eq!(shown[0], "Your id: me (listening...)");
+    }
+
     fn preview_build(app: &mut App) {
+        app.init_resource::<core_direct_dial::OwnShareAddress>();
         app.add_systems(
             Startup,
             (
@@ -108,7 +106,12 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn show_address(world: &mut World) {
-        world.insert_resource(ready_with("me", vec!["/ip4/127.0.0.1/tcp/4001"]));
+        **world.resource_mut::<core_direct_dial::OwnShareAddress>() =
+            Some(core_direct_dial::OwnAddress {
+                id: identity::PeerId::from("me"),
+                short: String::from("me"),
+                full: Some(String::from("/ip4/127.0.0.1/tcp/4001/p2p/me")),
+            });
     }
 
     #[test]

@@ -10,7 +10,6 @@ pub use basic::components::{
 pub use basic::constants::*;
 pub use basic::resources::JoinError;
 pub use basic::states::{LeaveDialog, Screen};
-pub use basic::structs::RoomRow;
 
 #[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;

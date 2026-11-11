@@ -63,6 +63,18 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
         Update,
         discovery::bevy_systems::leave_failed_room.after(room_sync::RoomSyncSet::Drive),
     );
+    app.init_resource::<discovery::LobbyRows>();
+    app.init_resource::<discovery::RoomRoster>();
+    app.add_systems(
+        Update,
+        (
+            discovery::bevy_systems::rebuild_lobby_rows,
+            discovery::bevy_systems::rebuild_room_roster,
+        )
+            .run_if(resource_exists::<discovery::state_machine::DiscoveryState>)
+            .after(discovery::bevy_systems::notify_outputs_to_events)
+            .after(peers::bevy_systems::track_peer_connections),
+    );
     app.add_systems(
         Last,
         discovery::bevy_systems::send_quit_on_exit.in_set(StateMachineSystems::collect_inputs::<
