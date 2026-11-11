@@ -9,8 +9,8 @@ pub fn spawn_friend_badge(bubble: &mut ChildSpawnerCommands, friends: usize) {
             RoomFriendBadge,
             Node {
                 position_type: PositionType::Absolute,
-                top: Val::Px(-6.0),
-                right: Val::Px(-7.0),
+                top: Val::Px(-14.0),
+                right: Val::Px(-8.0),
                 padding: UiRect::all(Val::Px(3.0)),
                 column_gap: Val::Px(2.0),
                 align_items: AlignItems::Center,
