@@ -402,6 +402,40 @@ impl Scenario {
         }
     }
 
+    /// S4d baseline: two peers start together on a never-seen lobby contract
+    /// (`LobbySetup::Absent`, a fresh `lobby-e2e/absent-<stamp>` token each
+    /// run) and race the empty-seed boot deploy. Both must end up seeing each
+    /// other's room: p1 creates and enters `room-<stamp>`, p2 sees it in the
+    /// lobby, joins, and both wait for 2 members. Measures how often the boot
+    /// race heals on its own before the resubscribe gate work.
+    #[must_use]
+    pub fn starboard_boot_race_heals() -> Self {
+        let runs = vec![
+            now(format!(
+                "{}, wait-members:2@420s, sleep:5s, exit-app",
+                create_and_enter()
+            )),
+            now(format!(
+                "{}, wait-members:2@300s, sleep:5s, exit-app",
+                join_and_enter()
+            )),
+        ];
+        Self {
+            name: "starboard_boot_race_heals".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(20),
+            on_finish: None,
+            expectation: Some(super::scenario_expectation::ScenarioExpectation {
+                canvas_converges: false,
+                min_members: 2,
+                may_crash: std::collections::BTreeSet::new(),
+                join_must_fail: std::collections::BTreeSet::new(),
+            }),
+            lobby: LobbySetup::Absent,
+            ..Self::starboard_base()
+        }
+    }
+
     /// S3: p2 leaves, p1 paints over its cells, p2 rejoins and converges to the new hash.
     /// Every other peer is a bystander that sees the leave and the rejoin: it paints a mark
     /// before it watches for the leave, and p2 leaves only after it sees every mark.
