@@ -18,8 +18,10 @@ use freenet_libp2p_bevy_plugin::testing::{Action, PendingAction};
 /// `create:<room>` focuses the room-name field, types the name with
 /// [`KeyboardInput`] events, and waits for the Create button to become
 /// clickable; `join:<room>` waits for that room's button to appear. Either way
-/// the button is then pressed with a real pointer click (window cursor + a
-/// window mouse-button event) and the click is retried, after a cooldown, until the
+/// the cursor is moved onto that button and pressed with a real pointer click
+/// (window cursor + a window mouse-button event) only once picking really
+/// hovers it — a stale hover would press whatever row the pointer used to be
+/// over — and the click is retried, after a cooldown, until the
 /// room is actually joined — the cooldown avoids toggling back out, since a
 /// second press on the joined room is a `Leave`.
 #[derive(Resource)]
@@ -80,8 +82,8 @@ pub fn script_input<F, C, J>(
     state: Option<Res<discovery::state_machine::DiscoveryState>>,
     mut windows: Query<(Entity, &mut Window), With<PrimaryWindow>>,
     fields: Query<Entity, With<F>>,
-    create: Query<&UiGlobalTransform, (With<C>, With<Hovered>)>,
-    join: Query<(&UiGlobalTransform, &J), With<Hovered>>,
+    create: Query<(&UiGlobalTransform, &Hovered), With<C>>,
+    join: Query<(&UiGlobalTransform, &Hovered, &J)>,
     mut keyboard: MessageWriter<KeyboardInput>,
     mut window_clicks: MessageWriter<WindowEvent>,
     mut focus: ResMut<InputFocus>,
@@ -139,21 +141,17 @@ pub fn script_input<F, C, J>(
             }
         }
         Step::Click => {
-            let transform = match &action {
-                Action::Create(_) => create.iter().next(),
-                Action::Join(room) => join
-                    .iter()
-                    .find(|(_, button)| ***button == *room)
-                    .map(|(transform, _)| transform),
-            };
-            let Some(transform) = transform else {
+            let Some((transform, hovered)) = click_aim(&action, &create, &join) else {
                 return;
             };
+            window.set_physical_cursor_position(Some(transform.translation.as_dvec2()));
+            if !hovered.get() {
+                return;
+            }
             if intent.clicks == 0 {
                 tracing::info!("lobby intent pressed {action:?}");
             }
             intent.cooldown = 0;
-            window.set_physical_cursor_position(Some(transform.translation.as_dvec2()));
             // Picking converts only per-window mouse-button events into
             // pointer presses; a bare MouseButtonInput message never reaches
             // a Bevy 0.20 button.
@@ -192,6 +190,26 @@ pub fn script_input<F, C, J>(
             }
         }
         Step::Done => {}
+    }
+}
+
+// needed helper: finds the button one scripted click aims at — the create button,
+// or the join row whose room name matches the intent
+fn click_aim<'a, C, J>(
+    action: &Action,
+    create: &'a Query<(&UiGlobalTransform, &Hovered), With<C>>,
+    join: &'a Query<(&UiGlobalTransform, &Hovered, &J)>,
+) -> Option<(&'a UiGlobalTransform, &'a Hovered)>
+where
+    C: Component,
+    J: Component + Deref<Target = identity::RoomName>,
+{
+    match action {
+        Action::Create(_) => create.iter().next(),
+        Action::Join(room) => join
+            .iter()
+            .find(|(_, _, button)| ***button == *room)
+            .map(|(transform, hovered, _)| (transform, hovered)),
     }
 }
 
@@ -278,7 +296,7 @@ mod tests {
             .id();
         app.world_mut().spawn((
             TestCreateButton,
-            Hovered(false),
+            Hovered(true),
             UiGlobalTransform::default(),
         ));
         app.world_mut().resource_mut::<Intent>().step = super::Step::Click;
@@ -311,6 +329,69 @@ mod tests {
                 }) if *event_window == window
             )),
             "releasing a scripted click must release the window mouse button, sent {released:?}"
+        );
+    }
+
+    /// A join click must wait until picking really hovers the named room: the
+    /// pointer may rest on another row while the script aims at its room, and
+    /// pressing then joins a stranger's room.
+    #[test]
+    fn a_join_click_waits_for_the_target_room_to_be_really_hovered() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_message::<KeyboardInput>();
+        app.add_message::<MouseButtonInput>();
+        app.add_message::<WindowEvent>();
+
+        app.init_resource::<InputFocus>();
+        let alpha = identity::RoomName::from("alpha");
+        let beta = identity::RoomName::from("beta");
+        app.insert_resource(Intent::new(Some(join(beta.as_str()))));
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+        app.world_mut().spawn((
+            TestJoinButton(alpha),
+            Hovered(true),
+            UiGlobalTransform::default(),
+        ));
+        app.world_mut().spawn((
+            TestJoinButton(beta.clone()),
+            Hovered(false),
+            UiGlobalTransform::default(),
+        ));
+        app.add_systems(
+            Update,
+            script_input::<TestField, TestCreateButton, TestJoinButton>,
+        );
+        app.update();
+        app.update();
+        assert!(
+            window_clicks(&app).is_empty(),
+            "a join click must not press while another row is really hovered"
+        );
+        let beta_row = app
+            .world_mut()
+            .query_filtered::<Entity, (With<TestJoinButton>,)>()
+            .iter(app.world())
+            .find(|row| {
+                app.world()
+                    .get::<TestJoinButton>(*row)
+                    .is_some_and(|button| button.0 == beta)
+            });
+        let Some(beta_row) = beta_row else {
+            panic!("beta row exists");
+        };
+        app.world_mut().entity_mut(beta_row).insert(Hovered(true));
+        app.update();
+        assert!(
+            window_clicks(&app).iter().any(|event| matches!(
+                event,
+                WindowEvent::MouseButtonInput(MouseButtonInput {
+                    button: MouseButton::Left,
+                    state: ButtonState::Pressed,
+                    ..
+                })
+            )),
+            "once the target room is really hovered the join click presses"
         );
     }
 
