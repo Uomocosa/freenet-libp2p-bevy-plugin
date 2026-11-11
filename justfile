@@ -12,7 +12,7 @@ _lavapipe := `ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -n1`
 # Shared e2e log filter: lobby_room=info keeps the script/tick markers the
 # scenario checks read; freenet::config=info keeps the mainnet/local caption
 # detection truthful.
-e2e_log_filter := "warn,script=info,starboard=info,discovery=info,lobby_room=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug"
+e2e_log_filter := "warn,script=info,starboard=info,discovery=info,lobby_room=info,room_sync=info,examples_shared=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug"
 
 build:
     cargo build --workspace --all-targets --all-features
