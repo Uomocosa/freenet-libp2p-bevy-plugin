@@ -266,6 +266,7 @@ mod tests {
         app.insert_resource(FriendIntent::default());
         app.insert_resource(ui::direct_dial::FriendsDrawerState::default());
         app.insert_resource(ui::discovery::EscMenuState::default());
+        app.insert_resource(ui::discovery::FriendsPressBeat::default());
         app.world_mut().spawn((Window::default(), PrimaryWindow));
         app.world_mut()
             .spawn((ui::direct_dial::FriendAddressInput, EditableText::new("")));

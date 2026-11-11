@@ -10,6 +10,7 @@ pub fn build_plugin(_plugin: discovery::DefaultUiPlugin, app: &mut App) {
 
     app.init_resource::<JoinError>();
     app.init_resource::<EscMenuState>();
+    app.init_resource::<discovery::FriendsPressBeat>();
     app.init_resource::<ButtonInput<KeyCode>>();
     app.add_message::<core_discovery::Event>();
     app.add_message::<room_sync::JoinFailure>();
@@ -32,8 +33,9 @@ pub fn build_plugin(_plugin: discovery::DefaultUiPlugin, app: &mut App) {
             (
                 ui::handle_menu_keys,
                 ui::close_menu_on_press,
-                ui::open_drawer_from_menu,
+                ui::start_friends_beat,
                 ui::open_leave_prompt_from_menu,
+                ui::finish_friends_beat,
             )
                 .chain(),
             ui::animate_hover,

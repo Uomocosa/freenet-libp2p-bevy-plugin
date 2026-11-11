@@ -37,6 +37,7 @@ pub const MENU_PANEL_RADIUS: f32 = 12.0;
 pub const MENU_BUTTON_RADIUS: f32 = 8.0;
 pub const MENU_LABEL_FONT_SIZE: f32 = 13.0;
 pub const MENU_HINT_FONT_SIZE: f32 = 10.0;
+pub const MENU_FRIENDS_BEAT_SECS: f32 = 0.12;
 
 pub const HOVER_PER_SEC: f32 = 8.0;
 pub const HOVER_SCALE: f32 = 1.04;

@@ -9,7 +9,7 @@ pub use basic::components::{
     RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, Root, SpinnerRing,
 };
 pub use basic::constants::*;
-pub use basic::resources::JoinError;
+pub use basic::resources::{FriendsPressBeat, JoinError};
 pub use basic::states::{LeaveDialog, Screen};
 mod esc_menu_panel;
 pub use esc_menu_panel::EscMenuPanel;

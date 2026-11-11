@@ -4,11 +4,12 @@ use bevy::ui::Pressed;
 
 use crate::direct_dial;
 use crate::discovery;
-use discovery::{EscMenuFriendsButton, EscMenuState, LeaveDialog};
+use discovery::{EscMenuFriendsButton, EscMenuState, FriendsPressBeat, LeaveDialog};
 
 pub fn handle_menu_keys(
     keys: Option<Res<ButtonInput<KeyCode>>>,
     mut menu: ResMut<EscMenuState>,
+    mut beat: ResMut<FriendsPressBeat>,
     mut drawer: Option<ResMut<direct_dial::FriendsDrawerState>>,
     dialog: Option<Res<State<LeaveDialog>>>,
     next_dialog: Option<ResMut<NextState<LeaveDialog>>>,
@@ -20,6 +21,7 @@ pub fn handle_menu_keys(
     };
     let keys = keys.into_inner();
     if keys.just_pressed(KeyCode::Escape) {
+        **beat = 0.0;
         let is_drawer_open = drawer.as_deref().is_some_and(|drawer| **drawer);
         let is_dialog_open = dialog.is_some_and(|dialog| **dialog == LeaveDialog::Open);
         if is_drawer_open {
@@ -51,8 +53,10 @@ mod tests {
     use bevy::input::InputPlugin;
     use bevy::input::keyboard::{KeyCode, KeyboardInput};
     use bevy::prelude::*;
+    use bevy::time::TimeUpdateStrategy;
 
-    use super::super::open_drawer_from_menu;
+    use super::super::finish_friends_beat;
+    use super::super::start_friends_beat;
     use super::handle_menu_keys;
     use crate::direct_dial;
     use crate::discovery;
@@ -60,8 +64,13 @@ mod tests {
 
     fn app() -> App {
         let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_millis(50),
+        ));
         app.add_plugins(InputPlugin);
         app.init_resource::<EscMenuState>();
+        app.init_resource::<discovery::FriendsPressBeat>();
         app.add_systems(Update, handle_menu_keys);
         app
     }
@@ -151,18 +160,46 @@ mod tests {
     }
 
     #[test]
-    fn a_tab_press_with_the_menu_open_opens_the_drawer_like_a_click() {
+    fn a_tab_press_with_the_menu_open_keeps_the_pressed_beat() {
         let mut app = app_with(false, None);
         **app.world_mut().resource_mut::<EscMenuState>() = true;
         let button = app.world_mut().spawn(EscMenuFriendsButton).id();
-        app.add_systems(Update, open_drawer_from_menu);
+        app.add_systems(Update, start_friends_beat.after(handle_menu_keys));
+        app.add_systems(Update, finish_friends_beat.after(start_friends_beat));
         press(&mut app, KeyCode::Tab);
-        assert!(!is_menu_open(&app));
-        assert!(is_drawer_open(&app));
         assert!(
             app.world().get::<bevy::ui::Pressed>(button).is_some(),
             "the Friends button is pressed like a click"
         );
+        assert!(
+            **app.world().resource::<discovery::FriendsPressBeat>() > 0.0,
+            "the press waits for a visible beat"
+        );
+        for _ in 0..4 {
+            app.update();
+        }
+        assert!(!is_menu_open(&app));
+        assert!(is_drawer_open(&app));
+    }
+
+    #[test]
+    fn escape_cancels_a_pending_friends_beat() {
+        let mut app = app_with(false, None);
+        let button = app.world_mut().spawn(EscMenuFriendsButton).id();
+        app.world_mut().entity_mut(button).insert(bevy::ui::Pressed);
+        **app
+            .world_mut()
+            .resource_mut::<discovery::FriendsPressBeat>() = discovery::MENU_FRIENDS_BEAT_SECS;
+        app.add_systems(Update, finish_friends_beat.after(handle_menu_keys));
+        press(&mut app, KeyCode::Escape);
+        assert!(
+            (**app.world().resource::<discovery::FriendsPressBeat>()).abs() < f32::EPSILON,
+            "Esc during the beat cancels it"
+        );
+        for _ in 0..4 {
+            app.update();
+        }
+        assert!(!is_drawer_open(&app));
     }
 
     #[test]
