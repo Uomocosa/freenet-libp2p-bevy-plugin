@@ -44,6 +44,7 @@ pub fn scroll_room_names(
 
 #[cfg(test)]
 mod tests {
+    use crate::basic;
     use crate::discovery;
     use bevy::prelude::*;
     use bevy::time::TimeUpdateStrategy;
@@ -178,7 +179,7 @@ mod tests {
                 border_radius: BorderRadius::all(Val::Px(8.0)),
                 ..default()
             },
-            BackgroundColor(discovery::ROOM_COLOR),
+            BackgroundColor(basic::constants::ROOM_COLOR),
             children![(
                 discovery::RoomNameClip,
                 Node {

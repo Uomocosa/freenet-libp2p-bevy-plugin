@@ -8,10 +8,10 @@ pub fn refresh_own_address(
     mut texts: Query<&mut Text, With<direct_dial::OwnAddressText>>,
 ) {
     let label = match share.map(|share| (**share).clone()) {
-        None | Some(None) => String::from("Your address: waiting for network..."),
-        Some(Some(address)) => match &address.full {
-            Some(full) => format!("Your address: {full}"),
-            None => format!("Your id: {} (listening...)", address.id),
+        None | Some(None) => String::from("waiting for network..."),
+        Some(Some(address)) => match address.full {
+            Some(_) => address.short,
+            None => String::from("waiting for network..."),
         },
     };
     for mut text in &mut texts {
@@ -31,7 +31,7 @@ mod tests {
     fn share_with(full: Option<&str>) -> core_direct_dial::OwnShareAddress {
         core_direct_dial::OwnShareAddress(Some(core_direct_dial::OwnAddress {
             id: identity::PeerId::from("me"),
-            short: String::from("me"),
+            short: String::from("12D3Koo...99RC"),
             full: full.map(String::from),
         }))
     }
@@ -49,7 +49,6 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
         app.insert_resource(share_with(Some("/ip4/127.0.0.1/tcp/4001/p2p/me")));
         app.world_mut()
             .spawn((direct_dial::OwnAddressText, Text::new("old")));
@@ -57,13 +56,12 @@ mod tests {
         app.update();
         let shown = labels(&mut app);
         assert_eq!(shown.len(), 1);
-        assert!(shown[0].contains("/p2p/me"));
+        assert_eq!(shown[0], "12D3Koo...99RC");
     }
 
     #[test]
     fn waiting_label_without_the_resource() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
         app.world_mut()
             .spawn((direct_dial::OwnAddressText, Text::new("old")));
         app.add_systems(Update, refresh_own_address);
@@ -74,16 +72,27 @@ mod tests {
     }
 
     #[test]
-    fn listening_label_while_the_address_is_unknown() {
+    fn waiting_label_while_the_address_is_unknown() {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
         app.insert_resource(share_with(None));
         app.world_mut()
             .spawn((direct_dial::OwnAddressText, Text::new("old")));
         app.add_systems(Update, refresh_own_address);
         app.update();
+        assert_eq!(labels(&mut app)[0], "waiting for network...");
+    }
+
+    #[test]
+    fn the_chip_shows_the_short_form_never_the_full_address() {
+        let mut app = App::new();
+        app.insert_resource(share_with(Some("/ip4/127.0.0.1/tcp/4001/p2p/12D3KooW")));
+        app.world_mut()
+            .spawn((direct_dial::OwnAddressText, Text::new("old")));
+        app.add_systems(Update, refresh_own_address);
+        app.update();
         let shown = labels(&mut app);
-        assert_eq!(shown[0], "Your id: me (listening...)");
+        assert!(!shown.iter().any(|text| text.contains("/ip4/")));
+        assert_eq!(shown[0], "12D3Koo...99RC");
     }
 
     fn preview_build(app: &mut App) {
@@ -109,7 +118,7 @@ mod tests {
         **world.resource_mut::<core_direct_dial::OwnShareAddress>() =
             Some(core_direct_dial::OwnAddress {
                 id: identity::PeerId::from("me"),
-                short: String::from("me"),
+                short: String::from("12D3Koo...99RC"),
                 full: Some(String::from("/ip4/127.0.0.1/tcp/4001/p2p/me")),
             });
     }
@@ -127,7 +136,7 @@ mod tests {
                     apply: preview_noop,
                 },
                 lele_bevy_preview::scene::State {
-                    label: String::from("own address shown"),
+                    label: String::from("short form on the chip"),
                     apply: show_address,
                 },
             ],

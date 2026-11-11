@@ -2,7 +2,7 @@
 name = "freenet-libp2p-bevy-default-ui"
 version.workspace = true
 edition.workspace = true
-description = "Default Bevy UI for freenet-libp2p-bevy-plugin (lobby + friends tabs) — depends on freenet-libp2p-bevy-core"
+description = "Default Bevy UI for freenet-libp2p-bevy-plugin (lobby + friends drawer) — depends on freenet-libp2p-bevy-core"
 license.workspace = true
 
 [lints.rust]
@@ -29,7 +29,7 @@ missing_errors_doc = "allow"
 
 [dependencies]
 freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core", features = ["discovery"] }
-bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
+bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui", "keyboard", "system_clipboard"] }
 atomic-delegate-macros.workspace = true
 derive_more = { workspace = true, features = ["deref", "deref_mut"] }
 tracing = "=0.1.44"

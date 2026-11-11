@@ -1,11 +1,34 @@
+use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::direct_dial;
+use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
 
 pub fn build_plugin(_plugin: direct_dial::FriendsUiPlugin, app: &mut App) {
     use direct_dial::bevy_systems as friends;
-    app.add_systems(Startup, friends::spawn_friends_tab);
+    app.init_resource::<direct_dial::FriendsDrawerState>();
+    app.init_resource::<ButtonInput<KeyCode>>();
+    app.add_message::<direct_dial::ToggleFriendsDrawer>();
+    app.init_resource::<bevy::clipboard::Clipboard>();
+    app.add_message::<core_direct_dial::FriendAddressSubmitted>();
+    app.add_systems(
+        Startup,
+        (
+            friends::spawn_friends_drawer,
+            friends::spawn_drawer_sections,
+        )
+            .chain(),
+    );
+    app.add_systems(
+        Update,
+        (
+            friends::handle_drawer_keys,
+            friends::toggle_friends_drawer,
+            friends::close_drawer_on_press,
+        ),
+    );
     app.add_systems(Update, friends::rebuild_friend_list);
+    app.add_systems(Update, friends::refresh_friend_counts);
     app.add_systems(Update, friends::gate_add_friend);
     app.add_systems(
         Update,
@@ -17,6 +40,9 @@ pub fn build_plugin(_plugin: direct_dial::FriendsUiPlugin, app: &mut App) {
     );
     app.add_systems(Update, friends::handle_remove_friend);
     app.add_systems(Update, friends::refresh_own_address);
+    app.add_systems(Update, friends::handle_copy_own_address);
+    app.add_systems(Update, friends::animate_friends_drawer);
+    app.add_systems(Update, friends::animate_copy_toast);
 }
 
 #[cfg(test)]
@@ -37,8 +63,7 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_usage() {
+    fn app_with_plugins() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_message::<core_direct_dial::state_machine::Input>();
@@ -46,12 +71,23 @@ mod tests {
         app.insert_resource(empty_state());
         app.insert_resource(core_direct_dial::FriendAddressError(None));
         app.init_resource::<core_direct_dial::FriendsView>();
+        app.init_resource::<core_direct_dial::OwnShareAddress>();
         build_plugin(direct_dial::FriendsUiPlugin, &mut app);
+        app
+    }
+
+    #[test]
+    fn test_usage() {
+        let mut app = app_with_plugins();
         app.update();
-        let mut tabs = app
+        let mut drawers = app
             .world_mut()
-            .query_filtered::<(), With<direct_dial::FriendsTab>>();
-        assert_eq!(tabs.iter(app.world()).count(), 1);
+            .query_filtered::<(), With<direct_dial::FriendsDrawer>>();
+        assert_eq!(drawers.iter(app.world()).count(), 1);
+        let mut states = app
+            .world_mut()
+            .query_filtered::<&direct_dial::FriendsDrawerState, ()>();
+        assert_eq!(states.iter(app.world()).count(), 1);
     }
 
     #[test]
@@ -59,15 +95,8 @@ mod tests {
         use bevy::text::EditableText;
         use bevy::ui::Pressed;
 
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_message::<core_direct_dial::state_machine::Input>();
-        app.add_message::<core_direct_dial::FriendAddressSubmitted>();
-        app.insert_resource(empty_state());
-        app.insert_resource(core_direct_dial::FriendAddressError(None));
-        app.init_resource::<core_direct_dial::FriendsView>();
+        let mut app = app_with_plugins();
         app.add_systems(Update, core_direct_dial::bevy_systems::rebuild_friends_view);
-        build_plugin(direct_dial::FriendsUiPlugin, &mut app);
         app.update();
         let id = libp2p::PeerId::random();
         let text = format!("/ip4/127.0.0.1/tcp/4001/p2p/{id}");
@@ -109,5 +138,33 @@ mod tests {
             .world_mut()
             .query_filtered::<(), With<direct_dial::FriendRow>>();
         assert_eq!(rows.iter(app.world()).count(), 1);
+    }
+
+    #[test]
+    fn the_copy_chip_writes_the_full_address_to_the_clipboard() {
+        use bevy::ui::Pressed;
+
+        let mut app = app_with_plugins();
+        app.update();
+        **app
+            .world_mut()
+            .resource_mut::<core_direct_dial::OwnShareAddress>() =
+            Some(core_direct_dial::OwnAddress {
+                id: identity::PeerId::from("me"),
+                short: String::from("12D3Koo...99RC"),
+                full: Some(String::from("/ip4/127.0.0.1/tcp/4001/p2p/me")),
+            });
+        app.update();
+        let chip = app
+            .world_mut()
+            .query_filtered::<Entity, With<direct_dial::OwnAddressChip>>()
+            .single(app.world())
+            .expect("chip");
+        app.world_mut().entity_mut(chip).insert(Pressed);
+        app.update();
+        let mut toasts = app
+            .world_mut()
+            .query_filtered::<(), With<direct_dial::CopyToast>>();
+        assert_eq!(toasts.iter(app.world()).count(), 1);
     }
 }

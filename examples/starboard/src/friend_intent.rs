@@ -1,5 +1,5 @@
 use bevy::input::ButtonState;
-use bevy::input::keyboard::{Key, KeyCode, KeyboardInput, NativeKeyCode};
+use bevy::input::keyboard::{Key, KeyCode, KeyboardInput, NativeKey, NativeKeyCode};
 use bevy::input::mouse::{MouseButton, MouseButtonInput};
 use bevy::input_focus::{FocusCause, InputFocus};
 use bevy::picking::hover::Hovered;
@@ -17,9 +17,10 @@ const MAX_CLICKS: u32 = 60;
 /// One scripted friend add, driven through real Bevy input.
 ///
 /// The script runner arms the intent with one address at a time; the system
-/// focuses the Friends tab input, types the address, clicks the real add
-/// button, and records the address once the friend book holds the new id.
-/// Typing retries clear the field first so a retry never appends twice.
+/// opens the friends drawer with a real Tab key press, focuses the drawer
+/// input, types the address, clicks the real add button, and records the
+/// address once the friend book holds the new id. Typing retries clear the
+/// field first so a retry never appends twice.
 #[derive(Resource, Default)]
 pub struct FriendIntent {
     active: Option<FriendTyping>,
@@ -35,6 +36,8 @@ struct FriendTyping {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FriendStep {
+    Open,
+    WaitOpen,
     Type,
     WaitTyped,
     Click,
@@ -59,7 +62,7 @@ impl FriendIntent {
         {
             self.active = Some(FriendTyping {
                 addr: addr.to_string(),
-                step: FriendStep::Type,
+                step: FriendStep::Open,
                 frames: 0,
                 clicks: 0,
             });
@@ -73,8 +76,62 @@ impl FriendIntent {
     }
 }
 
+fn press_tab(window: Entity, keyboard: &mut MessageWriter<KeyboardInput>) {
+    for press in [ButtonState::Pressed, ButtonState::Released] {
+        keyboard.write(KeyboardInput {
+            key_code: KeyCode::Tab,
+            logical_key: Key::Unidentified(NativeKey::Unidentified),
+            state: press,
+            text: None,
+            repeat: false,
+            window,
+        });
+    }
+}
+
+fn type_address(
+    field: Entity,
+    window: Entity,
+    addr: &str,
+    focus: &mut InputFocus,
+    keyboard: &mut MessageWriter<KeyboardInput>,
+) {
+    for ch in addr.chars() {
+        let text = ch.to_string();
+        keyboard.write(KeyboardInput {
+            key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
+            logical_key: Key::Character(text.clone().into()),
+            state: ButtonState::Pressed,
+            text: Some(text.into()),
+            repeat: false,
+            window,
+        });
+    }
+    focus.set(field, FocusCause::Pressed);
+}
+
+fn booked_or_retry(
+    typing: &mut FriendTyping,
+    state: &direct_dial::state_machine::DialState,
+) -> bool {
+    let booked =
+        identity::Peer::try_from(typing.addr.as_str()).is_ok_and(|peer| state.is_friend(&peer.id));
+    if booked {
+        return true;
+    }
+    typing.frames = typing.frames.saturating_add(1);
+    if typing.frames >= CLICK_RETRY_FRAMES && typing.clicks >= MAX_CLICKS {
+        return false;
+    }
+    if typing.frames >= CLICK_RETRY_FRAMES {
+        typing.step = FriendStep::Click;
+    }
+    true
+}
+
 pub fn drive_friend_intent(
     mut intent: ResMut<FriendIntent>,
+    drawer: Option<Res<ui::direct_dial::FriendsDrawerState>>,
     mut fields: Query<(Entity, &mut EditableText), With<FriendAddressInput>>,
     buttons: Query<&UiGlobalTransform, (With<AddFriendButton>, With<Hovered>)>,
     state: Res<direct_dial::state_machine::DialState>,
@@ -84,10 +141,30 @@ pub fn drive_friend_intent(
     mut focus: ResMut<InputFocus>,
 ) {
     let state = state.into_inner();
+    let drawer_open = drawer.is_none_or(|drawer| **drawer);
     let mut finished = false;
     let mut abandoned = false;
     if let Some(typing) = intent.active.as_mut() {
         match typing.step {
+            FriendStep::Open => {
+                let Ok((window_entity, _)) = windows.single() else {
+                    return;
+                };
+                press_tab(window_entity, &mut keyboard);
+                typing.step = FriendStep::WaitOpen;
+                typing.frames = 0;
+            }
+            FriendStep::WaitOpen => {
+                if drawer_open {
+                    typing.step = FriendStep::Type;
+                    typing.frames = 0;
+                } else {
+                    typing.frames = typing.frames.saturating_add(1);
+                    if typing.frames >= TYPE_RETRY_FRAMES {
+                        typing.step = FriendStep::Open;
+                    }
+                }
+            }
             FriendStep::Type => {
                 let Ok((field, mut input)) = fields.single_mut() else {
                     return;
@@ -96,18 +173,13 @@ pub fn drive_friend_intent(
                     return;
                 };
                 *input = EditableText::new(String::new());
-                focus.set(field, FocusCause::Pressed);
-                for ch in typing.addr.chars() {
-                    let text = ch.to_string();
-                    keyboard.write(KeyboardInput {
-                        key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
-                        logical_key: Key::Character(text.clone().into()),
-                        state: ButtonState::Pressed,
-                        text: Some(text.into()),
-                        repeat: false,
-                        window: window_entity,
-                    });
-                }
+                type_address(
+                    field,
+                    window_entity,
+                    &typing.addr,
+                    &mut focus,
+                    &mut keyboard,
+                );
                 typing.step = FriendStep::WaitTyped;
                 typing.frames = 0;
             }
@@ -154,19 +226,10 @@ pub fn drive_friend_intent(
                 typing.frames = 0;
             }
             FriendStep::WaitBooked => {
-                let booked = identity::Peer::try_from(typing.addr.as_str())
-                    .is_ok_and(|peer| state.is_friend(&peer.id));
-                if booked {
+                if booked_or_retry(typing, state) {
                     finished = true;
                 } else {
-                    typing.frames = typing.frames.saturating_add(1);
-                    if typing.frames >= CLICK_RETRY_FRAMES {
-                        if typing.clicks >= MAX_CLICKS {
-                            abandoned = true;
-                        } else {
-                            typing.step = FriendStep::Click;
-                        }
-                    }
+                    abandoned = true;
                 }
             }
         }
@@ -194,16 +257,24 @@ mod tests {
     fn app() -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::input::InputPlugin);
         app.add_message::<KeyboardInput>();
         app.add_message::<MouseButtonInput>();
         app.add_message::<WindowEvent>();
         app.init_resource::<InputFocus>();
         app.insert_resource(direct_dial::state_machine::DialState::default());
         app.insert_resource(FriendIntent::default());
+        app.insert_resource(ui::direct_dial::FriendsDrawerState::default());
         app.world_mut().spawn((Window::default(), PrimaryWindow));
         app.world_mut()
             .spawn((ui::direct_dial::FriendAddressInput, EditableText::new("")));
-        app.add_systems(Update, drive_friend_intent);
+        app.add_systems(
+            Update,
+            (
+                drive_friend_intent,
+                ui::direct_dial::bevy_systems::handle_drawer_keys,
+            ),
+        );
         app
     }
 
@@ -219,12 +290,26 @@ mod tests {
     }
 
     #[test]
-    fn typing_sends_one_key_event_per_char() {
+    fn typing_opens_the_drawer_first_and_sends_one_key_event_per_char() {
         let mut app = app();
         app.world_mut().resource_mut::<FriendIntent>().arm("ab");
         app.update();
+        let intent = app.world().resource::<FriendIntent>();
+        assert_eq!(
+            intent.active.as_ref().map(|typing| typing.step),
+            Some(FriendStep::WaitOpen),
+            "the drawer is opened before typing"
+        );
+        app.update();
+        assert!(
+            **app
+                .world()
+                .resource::<ui::direct_dial::FriendsDrawerState>(),
+            "the Tab press opened the drawer"
+        );
+        app.update();
         let keys = app.world().resource::<Messages<KeyboardInput>>();
-        assert_eq!(keys.len(), 2);
+        assert_eq!(keys.len(), 4, "one Tab press+release and two characters");
         let intent = app.world().resource::<FriendIntent>();
         assert_eq!(
             intent.active.as_ref().map(|typing| typing.step),

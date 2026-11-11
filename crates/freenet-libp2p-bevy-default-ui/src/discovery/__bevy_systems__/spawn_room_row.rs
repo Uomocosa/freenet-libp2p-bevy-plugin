@@ -2,11 +2,12 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui_widgets::Button;
 
+use crate::basic;
 use crate::discovery;
 use discovery::{
     BUTTON_LABEL_COLOR, HOVER_OUTLINE_WIDTH, HoverGlow, ROOM_BUBBLE_EMPTY_COLOR,
-    ROOM_BUBBLE_FULL_COLOR, ROOM_BUBBLE_HAS_SPACE_COLOR, ROOM_COLOR, ROOM_NAME_WIDTH,
-    ROOM_ROW_WIDTH, RoomBubble, RoomButton, RoomNameClip, RoomNameScroller,
+    ROOM_BUBBLE_FULL_COLOR, ROOM_BUBBLE_HAS_SPACE_COLOR, ROOM_NAME_WIDTH, ROOM_ROW_WIDTH,
+    RoomBubble, RoomButton, RoomNameClip, RoomNameScroller,
 };
 use freenet_libp2p_bevy_core::discovery as core_discovery;
 
@@ -31,7 +32,7 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
                 align_items: AlignItems::Center,
                 ..default()
             },
-            BackgroundColor(ROOM_COLOR),
+            BackgroundColor(basic::constants::ROOM_COLOR),
         ))
         .with_children(|room| {
             room.spawn((

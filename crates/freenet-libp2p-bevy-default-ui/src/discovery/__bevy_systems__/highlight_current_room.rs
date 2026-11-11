@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
+use crate::basic;
 use crate::discovery;
 use core_discovery::state_machine::DiscoveryState;
-use discovery::{CURRENT_ROOM_COLOR, ROOM_COLOR};
+use discovery::CURRENT_ROOM_COLOR;
 use discovery::{IsCurrentRoom, RoomButton};
 use freenet_libp2p_bevy_core::discovery as core_discovery;
 
@@ -28,7 +29,7 @@ pub fn highlight_current_room(
         let color = if is_current {
             CURRENT_ROOM_COLOR
         } else {
-            ROOM_COLOR
+            basic::constants::ROOM_COLOR
         };
         let BackgroundColor(existing) = &mut *background;
         if *existing != color {

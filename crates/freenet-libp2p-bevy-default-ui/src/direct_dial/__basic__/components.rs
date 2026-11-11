@@ -1,10 +1,34 @@
 use bevy::prelude::Component;
-use derive_more::Deref;
+use derive_more::{Deref, DerefMut};
 
 use freenet_libp2p_bevy_core::identity;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
-pub struct FriendsTab;
+pub struct FriendsDrawer;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct FriendsDrawerBackdrop;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct FriendsDrawerPanel;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct FriendsDrawerCloseButton;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Deref, DerefMut)]
+pub struct FriendsDrawerSlide(pub f32);
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct OwnAddressChip;
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Deref, DerefMut)]
+pub struct CopyToast(pub f32);
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct FriendStatusDot;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct FriendsCountText;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct FriendAddressInput;
