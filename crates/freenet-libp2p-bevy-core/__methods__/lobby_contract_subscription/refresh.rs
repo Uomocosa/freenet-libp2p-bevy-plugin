@@ -69,6 +69,7 @@ mod tests {
             client: freenet::Client { write, read },
             key,
             lobby: discovery::Lobby::default(),
+            has_unread_subscribe_answer: false,
         };
         assert_eq!(refresh(&mut subscription).await.ok(), Some(fresh.clone()));
         assert_eq!(subscription.lobby, fresh);

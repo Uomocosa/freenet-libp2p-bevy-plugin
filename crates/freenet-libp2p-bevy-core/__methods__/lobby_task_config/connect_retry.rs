@@ -33,7 +33,12 @@ pub async fn connect_retry(
             .await;
         match result {
             Ok((key, lobby)) => {
-                return discovery::LobbyContractSubscription { client, key, lobby };
+                return discovery::LobbyContractSubscription {
+                    client,
+                    key,
+                    lobby,
+                    has_unread_subscribe_answer: false,
+                };
             }
             Err(freenet::Error::Timeout(kind)) => {
                 warn!(target: "discovery", tries = tries, kind = %kind, "{kind} timed out, reconnecting");

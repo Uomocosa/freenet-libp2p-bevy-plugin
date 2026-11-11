@@ -10,6 +10,7 @@ pub struct LobbyContractSubscription {
     pub client: freenet::Client,
     pub key: ContractKey,
     pub lobby: discovery::Lobby,
+    pub(crate) has_unread_subscribe_answer: bool,
 }
 
 #[atomic_delegates]
@@ -24,6 +25,7 @@ impl LobbyContractSubscription {
         created_at: time::UnixTime,
     ) -> Result<(), discovery::Error> {
     }
+    pub fn take_subscribe_answer(&mut self) -> bool {}
     pub async fn poll(&mut self) -> Result<discovery::Lobby, discovery::Error> {}
     pub async fn refresh(&mut self) -> Result<discovery::Lobby, discovery::Error> {}
 }

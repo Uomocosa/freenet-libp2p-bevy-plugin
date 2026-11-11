@@ -57,6 +57,7 @@ mod tests {
             client: freenet::Client { write, read },
             key: contract_key(),
             lobby: discovery::Lobby::default(),
+            has_unread_subscribe_answer: false,
         };
         let room_member = discovery::RoomMember {
             peer: identity::Peer {

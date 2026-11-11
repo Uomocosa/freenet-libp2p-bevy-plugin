@@ -9,12 +9,22 @@ pub const TICK: Duration = Duration::from_secs(1);
 /// gateway handshake.
 pub const GATEWAY_WAIT: Duration = Duration::from_secs(30);
 
-/// Bounds replica-healing resubscribe spacing.
+/// Base of the replica-healing resubscribe backoff ladder.
 ///
-/// No River equivalent, River has no timer. Heals split replica groups
-/// with a routed `Subscribe` carrying a summary. The freenet skill
-/// suggests about 30s.
+/// One lobby `Subscribe` is in flight at a time: a send schedules the next
+/// attempt at this delay, each further unanswered send doubles the delay,
+/// and a `SubscribeResponse` observed by `poll` resets the ladder back here.
+/// The delay is capped at `RESUBSCRIBE_BACKOFF_CAP`. Heals split replica
+/// groups with a routed `Subscribe` carrying a summary. No River
+/// equivalent, River has no timer. The freenet skill suggests about 30s.
 pub const RESUBSCRIBE: Duration = Duration::from_secs(10);
+
+/// Cap of the resubscribe backoff ladder.
+///
+/// freenet `SUBSCRIPTION_RENEWAL_INTERVAL` = 120 s: a `Subscribe` is a
+/// freenet transaction that lives about that long on the node, so retrying
+/// faster than this stacks overlapping transactions at the same peer.
+pub const RESUBSCRIBE_BACKOFF_CAP: Duration = Duration::from_secs(120);
 
 /// Bounds lobby refresh spacing.
 ///

@@ -40,6 +40,7 @@ mod tests {
             client: freenet::Client { write, read },
             key: contract_key(),
             lobby: discovery::Lobby::default(),
+            has_unread_subscribe_answer: false,
         };
         assert!(resubscribe_to_heal_replica_split(&subscription).is_ok());
         assert!(write_rx.try_recv().is_ok());

@@ -24,6 +24,9 @@ pub use lobby_lease_limits::LobbyLeaseLimits;
 mod lobby_task_config;
 pub use lobby_task_config::LobbyTaskConfig;
 
+mod resubscribe_gate;
+pub use resubscribe_gate::ResubscribeGate;
+
 #[cfg(feature = "testing")]
 mod lobby_task_override;
 #[cfg(feature = "testing")]

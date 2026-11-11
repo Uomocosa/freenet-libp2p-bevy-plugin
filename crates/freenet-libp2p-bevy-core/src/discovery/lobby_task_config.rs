@@ -1,8 +1,9 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use atomic_delegate_macros::atomic_delegates;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::Receiver;
+use tokio::time::Instant;
 
 use crate::discovery;
 use crate::identity;

@@ -44,6 +44,8 @@ pub mod plugin;
 pub mod replica_slice_content_hash;
 pub mod replica_slice_index;
 pub mod replica_state;
+#[cfg(feature = "discovery")]
+pub mod resubscribe_gate;
 pub mod room_history_record_kind;
 pub mod runner_config;
 #[cfg(feature = "testing")]
