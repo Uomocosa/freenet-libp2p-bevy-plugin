@@ -13,7 +13,7 @@ mod tests {
     use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::testing;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, ui};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, ui};
 
     use crate::overlay;
     use examples_shared::status;
@@ -54,6 +54,13 @@ mod tests {
         app.insert_resource(status::LocalUser(identity::Username::from("alice")));
         app.init_resource::<ButtonInput<KeyCode>>();
         app.init_resource::<discovery::LobbyRows>();
+        app.init_resource::<discovery::RoomRoster>();
+        let ready_channel = p2p::ReadyChannel::default();
+        ready_channel.ready_tx.send_replace(Some(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        }));
+        app.insert_resource(ready_channel);
         app.add_plugins((ui::discovery::DefaultUiPlugin, overlay::Overlay));
         app.add_systems(
             Update,
@@ -65,6 +72,7 @@ mod tests {
                     .before(ui::discovery::bevy_systems::request_leave),
                 fake_backend,
                 discovery::bevy_systems::rebuild_lobby_rows,
+                discovery::bevy_systems::rebuild_room_roster,
             ),
         );
     }

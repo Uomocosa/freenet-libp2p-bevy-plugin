@@ -2,7 +2,6 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui_widgets::Button;
 
-use crate::direct_dial;
 use crate::discovery;
 use discovery::{
     BUTTON_COLOR, BUTTON_LABEL_COLOR, HOVER_OUTLINE_WIDTH, HoverGlow, MENU_BUTTON_RADIUS,
@@ -46,7 +45,7 @@ impl EscMenuPanel {
                 },),
                 (
                     Text::new(hint),
-                    TextColor(direct_dial::DRAWER_DIM_COLOR),
+                    TextColor(crate::basic::constants::DIM_TEXT_COLOR),
                     TextFont {
                         font_size: FontSize::Px(MENU_HINT_FONT_SIZE),
                         ..default()

@@ -2,9 +2,10 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui_widgets::Button;
 
+use crate::basic::constants::DIM_TEXT_COLOR;
 use crate::direct_dial;
 use crate::discovery;
-use direct_dial::{DRAWER_DIM_COLOR, DRAWER_ROW_COLOR, FRIEND_OFFLINE_DOT_COLOR};
+use direct_dial::{DRAWER_ROW_COLOR, FRIEND_OFFLINE_DOT_COLOR};
 use direct_dial::{FriendList, FriendRemoveButton, FriendRow, FriendStatusDot};
 use discovery::{BUTTON_COLOR, FRIEND_BADGE_COLOR, HOVER_OUTLINE_WIDTH, HoverGlow};
 use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
@@ -78,7 +79,7 @@ pub fn rebuild_friend_list(
                         },),
                         (
                             Text::new(where_label),
-                            TextColor(DRAWER_DIM_COLOR),
+                            TextColor(DIM_TEXT_COLOR),
                             TextFont {
                                 font_size: FontSize::Px(10.0),
                                 ..default()

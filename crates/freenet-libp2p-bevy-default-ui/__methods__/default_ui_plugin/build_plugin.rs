@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::discovery;
+use crate::roster;
 use freenet_libp2p_bevy_core::discovery as core_discovery;
 use freenet_libp2p_bevy_core::room_sync;
 
@@ -8,6 +9,7 @@ pub fn build_plugin(_plugin: discovery::DefaultUiPlugin, app: &mut App) {
     use discovery::bevy_systems as ui;
     use discovery::{EscMenuState, JoinError, LeaveDialog, Screen};
 
+    app.add_plugins(roster::UiPlugin);
     app.init_resource::<JoinError>();
     app.init_resource::<EscMenuState>();
     app.init_resource::<discovery::FriendsPressBeat>();

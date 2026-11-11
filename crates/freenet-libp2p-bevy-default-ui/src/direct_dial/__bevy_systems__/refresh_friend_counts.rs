@@ -24,6 +24,7 @@ mod tests {
     use bevy::prelude::*;
 
     use super::refresh_friend_counts;
+    use crate::basic::constants::DIM_TEXT_COLOR;
     use crate::direct_dial;
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
     use freenet_libp2p_bevy_core::identity;
@@ -124,7 +125,7 @@ mod tests {
             ChildOf(root),
             direct_dial::FriendsCountText,
             Text::new("old"),
-            TextColor(direct_dial::DRAWER_DIM_COLOR),
+            TextColor(DIM_TEXT_COLOR),
         ));
     }
 

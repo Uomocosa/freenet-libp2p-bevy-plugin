@@ -2,13 +2,15 @@ use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::{discovery, room_sync};
 
+use freenet_libp2p_bevy_plugin::ui;
+
 use crate::starboard;
 
 pub struct StarboardPlugin;
 
 impl Plugin for StarboardPlugin {
     fn build(&self, app: &mut App) {
-        use starboard::{input, render, room, ui};
+        use starboard::{input, render, room};
         let in_room =
             |state: Option<Res<DiscoveryState>>| state.as_deref().is_some_and(room::is_in_room);
         app.init_resource::<starboard::canvas::Canvas>()
@@ -20,25 +22,20 @@ impl Plugin for StarboardPlugin {
             .init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
             .init_resource::<room::RoomBrushes>()
             .init_resource::<room::RemoteCursors>()
+            .init_resource::<ui::roster::MemberIcons>()
             .insert_resource(room::BrushRefreshTimer(Timer::from_seconds(
                 room::BRUSH_REFRESH_SECONDS,
                 TimerMode::Repeating,
             )))
             .add_message::<input::PendingLocalDraw>()
             .add_message::<discovery::Event>()
-            .add_systems(
-                Startup,
-                (
-                    render::bevy_systems::spawn_board,
-                    ui::bevy_systems::spawn_member_panel,
-                ),
-            )
+            .add_systems(Startup, render::bevy_systems::spawn_board)
             .add_systems(
                 Update,
                 (
                     room::bevy_systems::reset_canvas,
                     room::bevy_systems::refresh_room_brushes,
-                    ui::bevy_systems::rebuild_member_list,
+                    room::bevy_systems::refresh_member_icons,
                     input::bevy_systems::track_cursor,
                     render::bevy_systems::sync_board_visibility,
                     render::bevy_systems::fit_board,

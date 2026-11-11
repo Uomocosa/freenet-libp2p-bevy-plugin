@@ -1,18 +1,14 @@
-//! Status overlay: a top bar with the current room and its peers once joined.
+//! Status overlay: a top bar with the current room once joined.
 //! Reads `DiscoveryState` only; the connecting spinner is the plugin's own screen.
+//! The peer list lives in the default-ui crate's roster bubble.
 #![allow(clippy::needless_pass_by_value)]
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
+use freenet_libp2p_bevy_plugin::discovery;
 
 use examples_shared::status;
 
 const BAR_COLOR: Color = Color::srgb(0.106, 0.122, 0.153);
-const DIM_COLOR: Color = Color::srgb(0.62, 0.66, 0.72);
-const ROW_COLOR: Color = Color::srgb(0.16, 0.18, 0.23);
-const CONNECTED_COLOR: Color = Color::srgb(0.30, 0.82, 0.45);
-const LOST_COLOR: Color = Color::srgb(0.45, 0.48, 0.53);
-const PEER_SUFFIX_LEN: usize = 6;
 
 pub struct Overlay;
 
@@ -27,19 +23,10 @@ impl Plugin for Overlay {
 pub struct RoomBar;
 
 #[derive(Component)]
-pub struct PeerCard;
-
-#[derive(Component)]
 pub struct RoomView;
 
 #[derive(Component)]
 pub struct RoomTitle;
-
-#[derive(Component)]
-pub struct PeerCount;
-
-#[derive(Component)]
-pub struct PeerList;
 
 fn spawn(mut commands: Commands) {
     commands.spawn(Camera2d);
@@ -59,39 +46,6 @@ fn spawn(mut commands: Commands) {
         },
         BackgroundColor(BAR_COLOR),
         children![(RoomTitle, Text::new(""), TextLayout::no_wrap())],
-    ));
-    commands.spawn((
-        PeerCard,
-        RoomView,
-        Node {
-            display: Display::None,
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(12.0),
-            left: Val::Px(12.0),
-            min_width: Val::Px(220.0),
-            flex_direction: FlexDirection::Column,
-            row_gap: Val::Px(6.0),
-            padding: UiRect::all(Val::Px(10.0)),
-            border_radius: BorderRadius::all(Val::Px(8.0)),
-            ..default()
-        },
-        BackgroundColor(BAR_COLOR),
-        children![
-            (
-                PeerCount,
-                Text::new(""),
-                TextColor(DIM_COLOR),
-                TextLayout::no_wrap(),
-            ),
-            (
-                PeerList,
-                Node {
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(4.0),
-                    ..default()
-                },
-            ),
-        ],
     ));
 }
 
@@ -116,12 +70,9 @@ fn sync_visibility(
 }
 
 fn sync_room_bar(
-    mut commands: Commands,
     state: Option<Res<DiscoveryState>>,
     local_user: Res<status::LocalUser>,
-    mut title: Single<&mut Text, (With<RoomTitle>, Without<PeerCount>)>,
-    mut count: Single<&mut Text, (With<PeerCount>, Without<RoomTitle>)>,
-    list: Single<Entity, With<PeerList>>,
+    mut title: Single<&mut Text, With<RoomTitle>>,
 ) {
     let Some(state) = state.as_ref() else {
         return;
@@ -132,61 +83,11 @@ fn sync_room_bar(
     let Some(room) = state.room.as_ref() else {
         return;
     };
-    let connected = state.connected_members().count();
     **title = Text::new(format!(
         "Current room: {}   |   you: {}",
         room.name.as_str(),
         local_user.as_str()
     ));
-    **count = Text::new(format!(
-        "Peers in room ({connected}/{} connected)",
-        room.members.len()
-    ));
-    commands
-        .entity(*list)
-        .despawn_children()
-        .with_children(|rows| {
-            for (peer, member) in &room.members {
-                let dot = match state.peer_connection_status(peer) {
-                    p2p::PeerConnectionStatus::Connected => CONNECTED_COLOR,
-                    p2p::PeerConnectionStatus::NotConnected => LOST_COLOR,
-                };
-                rows.spawn((
-                    Node {
-                        align_items: AlignItems::Center,
-                        column_gap: Val::Px(8.0),
-                        padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
-                        border_radius: BorderRadius::all(Val::Px(6.0)),
-                        ..default()
-                    },
-                    BackgroundColor(ROW_COLOR),
-                    children![
-                        (
-                            Node {
-                                width: Val::Px(8.0),
-                                height: Val::Px(8.0),
-                                border_radius: BorderRadius::MAX,
-                                ..default()
-                            },
-                            BackgroundColor(dot),
-                        ),
-                        (Text::new(peer_label(peer, member)), TextLayout::no_wrap(),),
-                        (
-                            Text::new(status_word(state.peer_connection_status(peer))),
-                            TextColor(DIM_COLOR),
-                            TextLayout::no_wrap(),
-                        ),
-                    ],
-                ));
-            }
-        });
-}
-
-const fn status_word(status: p2p::PeerConnectionStatus) -> &'static str {
-    match status {
-        p2p::PeerConnectionStatus::Connected => "connected",
-        p2p::PeerConnectionStatus::NotConnected => "lost",
-    }
 }
 
 const fn display_for(is_shown: bool) -> Display {
@@ -197,30 +98,14 @@ const fn display_for(is_shown: bool) -> Display {
     }
 }
 
-// needed helper: prefer the peer's chosen name, else a short id
-fn peer_label(peer: &identity::PeerId, member: &discovery::RoomMember) -> String {
-    member
-        .display_name
-        .as_ref()
-        .map_or_else(|| short_peer(peer.as_str()), ToString::to_string)
-}
-
-/// # needed helper: libp2p peer ids share a long `12D3KooW` prefix, so the tail identifies them
-fn short_peer(full: &str) -> String {
-    let start = full.len().saturating_sub(PEER_SUFFIX_LEN);
-    full.get(start..)
-        .map_or_else(|| full.to_string(), |tail| format!("peer {tail}"))
-}
-
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::testing;
-    use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, time};
 
-    use super::{Overlay, short_peer};
+    use super::{Overlay, RoomBar, display_for};
 
     fn preview_build(app: &mut App) {
         app.insert_resource(
@@ -245,48 +130,12 @@ mod tests {
 
     const fn preview_noop(_world: &mut World) {}
 
-    fn join_room(world: &mut World) {
-        let mut state = world.resource_mut::<DiscoveryState>();
-        state.freenet_peers = vec![identity::FreenetPeer {
-            id: identity::FreenetPeerId::from("gateway"),
-            addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
-        }];
-        let mut members = discovery::Members::new();
-        for (peer, name, _status) in [
-            (
-                "12D3KooWbob000Kd2a",
-                Some("bob"),
-                p2p::PeerConnectionStatus::Connected,
-            ),
-            (
-                "12D3KooWcarol0Zm9c",
-                Some("carol"),
-                p2p::PeerConnectionStatus::Connected,
-            ),
-            (
-                "12D3KooWdave00Qx7f",
-                None,
-                p2p::PeerConnectionStatus::NotConnected,
-            ),
-        ] {
-            members.insert(
-                identity::PeerId::from(peer),
-                discovery::RoomMember {
-                    peer: identity::Peer {
-                        id: identity::PeerId::from(peer),
-                        addrs: Vec::new(),
-                    },
-                    updated_at: time::UnixTime::EPOCH,
-                    display_name: name.map(identity::Username::from),
-                    membership: discovery::RoomMembership::Occupant,
-                },
-            );
-        }
-        state.room = Some(discovery::JoinedRoom {
+    fn rename_room(world: &mut World) {
+        world.resource_mut::<DiscoveryState>().room = Some(discovery::JoinedRoom {
             name: identity::RoomName::from("gamma"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
-            members,
+            members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
         });
     }
@@ -299,40 +148,49 @@ mod tests {
         }
     }
 
-    fn scene(
-        timeline: Option<lele_bevy_preview::scene::Timeline>,
-    ) -> lele_bevy_preview::scene::Scene {
+    fn scene() -> lele_bevy_preview::scene::Scene {
         lele_bevy_preview::scene::Scene {
             name: String::from("overlay"),
             kind: lele_bevy_preview::scene::Kind::App,
             build: preview_build,
             states: vec![
                 lele_bevy_preview::scene::State {
-                    label: String::from("room without peers"),
+                    label: String::from("room joined"),
                     apply: preview_noop,
                 },
                 lele_bevy_preview::scene::State {
-                    label: String::from("room with peers"),
-                    apply: join_room,
+                    label: String::from("another room"),
+                    apply: rename_room,
                 },
             ],
-            timeline,
+            timeline: None,
         }
     }
 
     #[test]
     fn test_usage() {
-        assert_eq!(short_peer("12D3KooWabcdefXYZ123"), "peer XYZ123");
-        assert_eq!(short_peer("ab"), "peer ab");
+        assert!(matches!(display_for(true), Display::Flex));
+        assert!(matches!(display_for(false), Display::None));
+        let mut app = App::new();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build(),
+        );
+        app.insert_resource(examples_shared::status::LocalUser(
+            identity::Username::from("alice"),
+        ));
+        app.add_plugins(Overlay);
+        app.update();
+        let mut bars = app.world_mut().query_filtered::<(), With<RoomBar>>();
+        assert_eq!(bars.iter(app.world()).count(), 1);
     }
 
     #[test]
     fn overlay_ui_png_preview() {
-        scene(None).run(&config()).expect("preview");
+        scene().run(&config()).expect("preview");
     }
 
     #[test]
     fn overlay_ui_scene_preview() {
-        scene(None).run(&config()).expect("preview");
+        scene().run(&config()).expect("preview");
     }
 }

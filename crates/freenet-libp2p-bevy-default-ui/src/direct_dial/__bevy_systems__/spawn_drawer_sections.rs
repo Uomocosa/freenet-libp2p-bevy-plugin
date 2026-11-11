@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
+use crate::basic::constants::DIM_TEXT_COLOR;
 use crate::direct_dial;
 use direct_dial::{
-    DRAWER_DIM_COLOR, DRAWER_ERROR_COLOR, DRAWER_SECTION_LABEL_FONT_SIZE, FriendsCountText,
-    FriendsDrawerPanel,
+    DRAWER_ERROR_COLOR, DRAWER_SECTION_LABEL_FONT_SIZE, FriendsCountText, FriendsDrawerPanel,
 };
 
 pub fn spawn_drawer_sections(
@@ -19,7 +19,7 @@ pub fn spawn_drawer_sections(
                 font_size: FontSize::Px(DRAWER_SECTION_LABEL_FONT_SIZE),
                 ..default()
             },
-            TextColor(DRAWER_DIM_COLOR),
+            TextColor(DIM_TEXT_COLOR),
         ));
         direct_dial::bevy_systems::spawn_address_chip(panel);
         panel.spawn((
@@ -28,7 +28,7 @@ pub fn spawn_drawer_sections(
                 font_size: FontSize::Px(DRAWER_SECTION_LABEL_FONT_SIZE),
                 ..default()
             },
-            TextColor(DRAWER_DIM_COLOR),
+            TextColor(DIM_TEXT_COLOR),
         ));
         direct_dial::bevy_systems::spawn_add_friend_row(panel);
         panel.spawn((
@@ -43,7 +43,7 @@ pub fn spawn_drawer_sections(
         panel.spawn((
             FriendsCountText,
             Text::new("FRIENDS  0 online / 0"),
-            TextColor(DRAWER_DIM_COLOR),
+            TextColor(DIM_TEXT_COLOR),
             TextFont {
                 font_size: FontSize::Px(DRAWER_SECTION_LABEL_FONT_SIZE),
                 ..default()
