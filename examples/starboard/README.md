@@ -25,7 +25,8 @@ The app starts an embedded Freenet node and opens the plugin's default lobby UI:
 2. A black **Joining room …** screen shows until the room is ready.
 3. The board replaces the lobby. Paint.
 
-To leave, click the door at the bottom-right or press **Esc**, then confirm.
+To leave, click the door at the bottom-right (or press **Esc** and choose
+*Leave room* in the menu), then confirm.
 
 | Argument | Meaning |
 |---|---|

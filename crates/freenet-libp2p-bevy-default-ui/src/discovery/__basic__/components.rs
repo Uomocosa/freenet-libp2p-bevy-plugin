@@ -74,3 +74,18 @@ pub struct JoinErrorRoot;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct JoinErrorDismissButton;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct EscMenu;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct EscMenuBackdrop;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct EscMenuFriendsButton;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct EscMenuLeaveButton;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct EscMenuResumeButton;

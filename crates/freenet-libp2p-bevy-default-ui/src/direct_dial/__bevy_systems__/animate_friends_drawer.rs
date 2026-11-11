@@ -48,7 +48,7 @@ mod tests {
     use bevy::time::TimeUpdateStrategy;
 
     use super::animate_friends_drawer;
-    use crate::basic::constants::ROOM_COLOR;
+    use crate::basic::constants::{DRAWER_PANEL_COLOR, ROOM_COLOR};
     use crate::direct_dial;
     use crate::discovery;
     use direct_dial::{
@@ -233,7 +233,7 @@ mod tests {
                                 width: Val::Px(DRAWER_WIDTH),
                                 ..default()
                             },
-                            BackgroundColor(direct_dial::DRAWER_PANEL_COLOR),
+                            BackgroundColor(DRAWER_PANEL_COLOR),
                             children![Text::new("drawer")],
                         ),
                     ],

@@ -2,10 +2,11 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui_widgets::Button;
 
+use crate::basic::constants::DRAWER_PANEL_COLOR;
 use crate::direct_dial;
 use direct_dial::{
-    DRAWER_BACKDROP_ALPHA, DRAWER_PANEL_COLOR, DRAWER_WIDTH, DRAWER_Z, FriendsDrawer,
-    FriendsDrawerBackdrop, FriendsDrawerPanel, FriendsDrawerSlide,
+    DRAWER_BACKDROP_ALPHA, DRAWER_WIDTH, DRAWER_Z, FriendsDrawer, FriendsDrawerBackdrop,
+    FriendsDrawerPanel, FriendsDrawerSlide,
 };
 
 pub fn spawn_friends_drawer(mut commands: Commands) {

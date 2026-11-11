@@ -22,7 +22,6 @@ pub fn build_plugin(_plugin: direct_dial::FriendsUiPlugin, app: &mut App) {
     app.add_systems(
         Update,
         (
-            friends::handle_drawer_keys,
             friends::toggle_friends_drawer,
             friends::close_drawer_on_press,
         ),

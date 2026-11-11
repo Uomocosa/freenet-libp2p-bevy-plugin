@@ -24,7 +24,7 @@ pub fn spawn_leave_door(mut commands: Commands) {
         children![
             (
                 DoorLabel,
-                Text::new("Leave Room\n(Esc)"),
+                Text::new("Leave Room"),
                 TextColor(Color::WHITE.with_alpha(0.0)),
             ),
             (

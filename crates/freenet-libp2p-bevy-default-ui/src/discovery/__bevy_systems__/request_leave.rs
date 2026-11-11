@@ -5,32 +5,25 @@ use crate::discovery;
 use discovery::{LeaveDialog, LeaveDoor};
 
 pub fn request_leave(
-    keys: Option<Res<ButtonInput<KeyCode>>>,
     doors: Query<(), (Added<Pressed>, With<LeaveDoor>)>,
     dialog: Res<State<LeaveDialog>>,
     mut next: ResMut<NextState<LeaveDialog>>,
 ) {
+    if doors.is_empty() {
+        return;
+    }
     let is_open = *dialog.into_inner().get() == LeaveDialog::Open;
-    let clicked = doors.iter().next().is_some();
-    let escaped = keys.is_some_and(|keys| keys.just_pressed(KeyCode::Escape));
-    let open = match (clicked, escaped) {
-        (true, _) => true,
-        (false, true) => !is_open,
-        (false, false) => return,
-    };
-    if is_open != open {
-        tracing::info!(target: "discovery", "ui leave prompt open={open}");
-        next.set(if open {
-            LeaveDialog::Open
-        } else {
-            LeaveDialog::Closed
-        });
+    if !is_open {
+        tracing::info!(target: "discovery", "ui leave prompt open=true");
+        next.set(LeaveDialog::Open);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::discovery;
+    use bevy::input::InputPlugin;
+    use bevy::input::keyboard::KeyCode;
     use bevy::prelude::*;
     use bevy::ui::Pressed;
 
@@ -38,9 +31,9 @@ mod tests {
 
     fn app_closed() -> App {
         let mut app = App::new();
+        app.add_plugins(InputPlugin);
         app.insert_resource(State::new(discovery::LeaveDialog::Closed));
         app.init_resource::<NextState<discovery::LeaveDialog>>();
-        app.init_resource::<ButtonInput<KeyCode>>();
         app.add_systems(Update, request_leave);
         app
     }
@@ -58,13 +51,32 @@ mod tests {
         clicked.world_mut().spawn((discovery::LeaveDoor, Pressed));
         clicked.update();
         assert!(opening(&clicked));
+    }
 
-        let mut escaped = app_closed();
-        escaped
-            .world_mut()
+    #[test]
+    fn a_door_press_opens_the_prompt_once() {
+        let mut app = app_closed();
+        app.world_mut().spawn((discovery::LeaveDoor, Pressed));
+        app.update();
+        assert!(opening(&app));
+    }
+
+    #[test]
+    fn an_escape_press_alone_never_opens_the_prompt() {
+        let mut app = app_closed();
+        app.world_mut()
             .resource_mut::<ButtonInput<KeyCode>>()
             .press(KeyCode::Escape);
-        escaped.update();
-        assert!(opening(&escaped));
+        app.update();
+        assert!(!opening(&app));
+    }
+
+    #[test]
+    fn a_door_press_keeps_an_open_prompt_open() {
+        let mut app = app_closed();
+        app.insert_resource(State::new(discovery::LeaveDialog::Open));
+        app.world_mut().spawn((discovery::LeaveDoor, Pressed));
+        app.update();
+        assert!(!opening(&app));
     }
 }

@@ -64,6 +64,7 @@ mod tests {
     use super::spawn_add_friend_row;
     use bevy::prelude::*;
 
+    use crate::basic::constants::DRAWER_PANEL_COLOR;
     use crate::direct_dial;
 
     #[test]
@@ -96,7 +97,7 @@ mod tests {
                     width: Val::Px(240.0),
                     ..default()
                 },
-                BackgroundColor(direct_dial::DRAWER_PANEL_COLOR),
+                BackgroundColor(DRAWER_PANEL_COLOR),
             ))
             .with_children(|panel| {
                 spawn_add_friend_row(panel);

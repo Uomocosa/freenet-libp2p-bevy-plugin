@@ -1,9 +1,9 @@
 //! End-to-end UI preview of the whole `lobby_room` passage, with a fake discovery backend:
 //! app start (plugin connecting screen) -> freenet node reachable + lobby listed -> click Join
 //! on a room -> peers arrive one by one -> hover the leave door -> click it, answer No
-//! -> press Esc, answer Yes -> back in the lobby. Only `DiscoveryState` is faked; the click
-//! goes through the plugin's real `ui::discovery::DefaultUiPlugin` button path and the
-//! real `discovery::Command`.
+//! -> press Esc (the menu opens), choose `Leave room`, answer Yes -> back in the lobby.
+//! Only `DiscoveryState` is faked; the click goes through the plugin's real
+//! `ui::discovery::DefaultUiPlugin` button path and the real `discovery::Command`.
 
 #[cfg(test)]
 mod tests {
@@ -28,8 +28,9 @@ mod tests {
     const CLICK_DOOR_AT: u32 = 130;
     const ANSWER_NO_AT: u32 = 155;
     const PRESS_ESC_AT: u32 = 175;
-    const ANSWER_YES_AT: u32 = 200;
-    const END_AT: u32 = 230;
+    const CHOOSE_LEAVE_AT: u32 = 190;
+    const ANSWER_YES_AT: u32 = 215;
+    const END_AT: u32 = 245;
     const PEERS: [(&str, &str); 3] = [
         ("12D3KooWbob000Kd2a", "bob"),
         ("12D3KooWcarol0Zm9c", "carol"),
@@ -52,6 +53,7 @@ mod tests {
         );
         app.insert_resource(status::LocalUser(identity::Username::from("alice")));
         app.init_resource::<ButtonInput<KeyCode>>();
+        app.init_resource::<discovery::LobbyRows>();
         app.add_plugins((ui::discovery::DefaultUiPlugin, overlay::Overlay));
         app.add_systems(
             Update,
@@ -59,8 +61,10 @@ mod tests {
                 drive_journey
                     .run_if(resource_exists::<JourneyClock>)
                     .before(ui::discovery::bevy_systems::handle_join)
+                    .before(ui::discovery::bevy_systems::handle_menu_keys)
                     .before(ui::discovery::bevy_systems::request_leave),
                 fake_backend,
+                discovery::bevy_systems::rebuild_lobby_rows,
             ),
         );
     }
@@ -113,6 +117,7 @@ mod tests {
                     .resource_mut::<ButtonInput<KeyCode>>()
                     .press(KeyCode::Escape);
             }
+            CHOOSE_LEAVE_AT => press_marker::<ui::discovery::EscMenuLeaveButton>(world),
             ANSWER_YES_AT => press_marker::<ui::discovery::LeaveYesButton>(world),
             _ => {}
         }

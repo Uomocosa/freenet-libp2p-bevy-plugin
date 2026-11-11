@@ -30,6 +30,14 @@ pub const DOOR_KNOB_COLOR: Color = Color::srgb(0.90, 0.75, 0.30);
 pub const PROMPT_BACKDROP_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.6);
 pub const YES_COLOR: Color = Color::srgb(0.62, 0.20, 0.20);
 
+pub const MENU_Z: i32 = 110;
+pub const MENU_WIDTH: f32 = 240.0;
+pub const MENU_BACKDROP_ALPHA: f32 = 0.55;
+pub const MENU_PANEL_RADIUS: f32 = 12.0;
+pub const MENU_BUTTON_RADIUS: f32 = 8.0;
+pub const MENU_LABEL_FONT_SIZE: f32 = 13.0;
+pub const MENU_HINT_FONT_SIZE: f32 = 10.0;
+
 pub const HOVER_PER_SEC: f32 = 8.0;
 pub const HOVER_SCALE: f32 = 1.04;
 pub const HOVER_OUTLINE_WIDTH: f32 = 2.0;

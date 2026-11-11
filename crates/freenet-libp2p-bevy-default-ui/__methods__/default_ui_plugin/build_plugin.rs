@@ -6,9 +6,11 @@ use freenet_libp2p_bevy_core::room_sync;
 
 pub fn build_plugin(_plugin: discovery::DefaultUiPlugin, app: &mut App) {
     use discovery::bevy_systems as ui;
-    use discovery::{JoinError, LeaveDialog, Screen};
+    use discovery::{EscMenuState, JoinError, LeaveDialog, Screen};
 
     app.init_resource::<JoinError>();
+    app.init_resource::<EscMenuState>();
+    app.init_resource::<ButtonInput<KeyCode>>();
     app.add_message::<core_discovery::Event>();
     app.add_message::<room_sync::JoinFailure>();
     app.add_systems(OnEnter(Screen::Connecting), ui::spawn_connecting);
@@ -17,6 +19,7 @@ pub fn build_plugin(_plugin: discovery::DefaultUiPlugin, app: &mut App) {
     app.add_systems(OnEnter(Screen::JoinFailed), ui::spawn_join_failed);
     app.add_systems(OnEnter(Screen::InRoom), ui::spawn_leave_door);
     app.add_systems(OnEnter(LeaveDialog::Open), ui::spawn_leave_prompt);
+    app.add_systems(Startup, ui::spawn_esc_menu);
     app.add_systems(
         Update,
         (
@@ -26,7 +29,16 @@ pub fn build_plugin(_plugin: discovery::DefaultUiPlugin, app: &mut App) {
                 ui::pick_screen,
             )
                 .chain(),
+            (
+                ui::handle_menu_keys,
+                ui::close_menu_on_press,
+                ui::open_drawer_from_menu,
+                ui::open_leave_prompt_from_menu,
+            )
+                .chain(),
             ui::animate_hover,
+            ui::animate_esc_menu,
+            ui::refresh_menu_leave_button,
             ui::spin_connecting.run_if(in_state(Screen::Connecting)),
             ui::dismiss_join_failed.run_if(in_state(Screen::JoinFailed)),
             (

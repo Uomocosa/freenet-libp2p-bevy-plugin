@@ -265,6 +265,7 @@ mod tests {
         app.insert_resource(direct_dial::state_machine::DialState::default());
         app.insert_resource(FriendIntent::default());
         app.insert_resource(ui::direct_dial::FriendsDrawerState::default());
+        app.insert_resource(ui::discovery::EscMenuState::default());
         app.world_mut().spawn((Window::default(), PrimaryWindow));
         app.world_mut()
             .spawn((ui::direct_dial::FriendAddressInput, EditableText::new("")));
@@ -272,7 +273,7 @@ mod tests {
             Update,
             (
                 drive_friend_intent,
-                ui::direct_dial::bevy_systems::handle_drawer_keys,
+                ui::discovery::bevy_systems::handle_menu_keys,
             ),
         );
         app

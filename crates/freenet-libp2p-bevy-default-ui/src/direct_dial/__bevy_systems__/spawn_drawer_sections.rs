@@ -65,6 +65,7 @@ mod tests {
     use bevy::prelude::*;
 
     use super::spawn_drawer_sections;
+    use crate::basic::constants::DRAWER_PANEL_COLOR;
     use crate::direct_dial;
 
     #[test]
@@ -100,7 +101,7 @@ mod tests {
                 padding: UiRect::all(Val::Px(14.0)),
                 ..default()
             },
-            BackgroundColor(direct_dial::DRAWER_PANEL_COLOR),
+            BackgroundColor(DRAWER_PANEL_COLOR),
         ));
     }
 

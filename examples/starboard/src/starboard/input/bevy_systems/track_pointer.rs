@@ -1,14 +1,20 @@
 use bevy::prelude::*;
+use freenet_libp2p_bevy_plugin::ui;
 
 use crate::starboard;
 
 pub fn track_pointer(
     buttons: Res<ButtonInput<MouseButton>>,
+    menu: Option<Res<ui::discovery::EscMenuState>>,
     cursor: Res<starboard::input::CursorCell>,
     brush: Res<starboard::input::OwnBrush>,
     mut latest_painted: ResMut<starboard::input::LatestPaintedCell>,
     mut draws: MessageWriter<starboard::input::PendingLocalDraw>,
 ) {
+    if menu.is_some_and(|menu| **menu) {
+        **latest_painted = None;
+        return;
+    }
     let buttons = buttons.into_inner();
     let cursor = cursor.into_inner();
     let brush = brush.into_inner();
@@ -47,6 +53,7 @@ fn is_held(buttons: &ButtonInput<MouseButton>, button: MouseButton) -> bool {
 mod tests {
     use bevy::prelude::*;
     use freenet_libp2p_bevy_plugin::room_sync;
+    use freenet_libp2p_bevy_plugin::ui;
 
     use super::track_pointer;
     use crate::starboard;
@@ -167,6 +174,46 @@ mod tests {
         assert_eq!(
             sent(&app).get(1).map(|op| op.action),
             Some(starboard::canvas::DrawAction::Erase)
+        );
+    }
+
+    #[test]
+    fn an_open_esc_menu_stops_the_painting() {
+        let mut app = app_with_pointer();
+        app.insert_resource(ui::discovery::EscMenuState(true));
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        set_cursor(
+            &mut app,
+            Some(starboard::canvas::CellPos { x: 100, y: 100 }),
+        );
+        app.update();
+        assert_eq!(sent(&app).len(), 0, "the menu blocks the painting");
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::EscMenuState>() = false;
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .reset_all();
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.update();
+        set_cursor(
+            &mut app,
+            Some(starboard::canvas::CellPos { x: 200, y: 100 }),
+        );
+        app.update();
+        let first = starboard::canvas::CellPos { x: 100, y: 100 };
+        let second = starboard::canvas::CellPos { x: 200, y: 100 };
+        assert_eq!(
+            sent(&app)
+                .iter()
+                .map(|op| (op.from, op.to))
+                .collect::<Vec<_>>(),
+            vec![(first, first), (first, second)],
+            "painting resumes from the fresh cell, not from the pre-menu tail"
         );
     }
 
