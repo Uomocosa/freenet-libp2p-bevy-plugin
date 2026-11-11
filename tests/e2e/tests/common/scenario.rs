@@ -22,6 +22,16 @@ const SCRIPT_DONE_MARKER: &str = "script done";
 const SCRIPT_FAILED_MARKER: &str = "script failed";
 const CRASH_MARKER: &str = "script crash-app";
 
+/// The lobby-expiry window of the room auto-deletion scenario: the lease TTL
+/// plus the remote clock skew margin plus one heartbeat interval of grace, at
+/// the default timings (`HolderHeartbeatIntervals::default`, time scale 1.0).
+const ROOM_AUTO_DELETION_EXPIRY_WINDOW: Duration = Duration::from_mins(12);
+
+/// How often a live member refreshes its lease at the default timings: the
+/// creator of the auto-deletion scenario stays this long to publish
+/// heartbeats before it is `SIGKILL`ed.
+const MEMBER_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
+
 /// When a peer is spawned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PeerStart {
@@ -342,6 +352,51 @@ impl Scenario {
                 min_members: 1,
                 may_crash,
                 join_must_fail: std::iter::once(last).collect(),
+            }),
+            ..Self::starboard_base()
+        }
+    }
+
+    /// Room auto-deletion: p1 creates and enters `room-<stamp>` and p2 sees it
+    /// in its lobby; then p1 is `SIGKILL`ed (`crash-app`, no quit). p2 must stop
+    /// listing the room within the lease-expiry window, and p3 — started only
+    /// after p1 died, a client that never saw p1's heartbeats live — must also
+    /// stop listing it within the same window. Unlike `starboard_peer_killed`
+    /// (the survivors converge a canvas) and `starboard_history_holder_killed`
+    /// (a late joiner must fail joining), this checks the lobby listing itself.
+    #[must_use]
+    pub fn starboard_room_auto_deletion() -> Self {
+        let creator = format!(
+            "{}, sleep:{}s, crash-app",
+            create_and_enter(),
+            MEMBER_HEARTBEAT_INTERVAL.as_secs().saturating_mul(3)
+        );
+        let mut runs = vec![
+            now(creator.clone()),
+            now(format!(
+                "wait-lobby-room:{{room}}@420s, wait-lobby-room-gone:{{room}}@{}s, exit-app",
+                ROOM_AUTO_DELETION_EXPIRY_WINDOW.as_secs()
+            )),
+        ];
+        runs.push(PeerRun {
+            script: format!(
+                "wait-lobby-ready@420s, wait-lobby-room-gone:{{room}}@{}s, exit-app",
+                ROOM_AUTO_DELETION_EXPIRY_WINDOW.as_secs()
+            ),
+            // the step before `crash-app`, which aborts without ever reporting done
+            start: after(0, last_step_matching(&creator, "sleep")),
+            token_override: None,
+        });
+        Self {
+            name: "starboard_room_auto_deletion".to_string(),
+            peers: runs,
+            cap: Duration::from_mins(25),
+            on_finish: None,
+            expectation: Some(super::scenario_expectation::ScenarioExpectation {
+                canvas_converges: false,
+                min_members: 0,
+                may_crash: std::collections::BTreeSet::from(["p1".to_string()]),
+                join_must_fail: std::collections::BTreeSet::new(),
             }),
             ..Self::starboard_base()
         }

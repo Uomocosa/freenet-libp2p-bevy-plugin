@@ -35,3 +35,12 @@ async fn starboard_bad_token() {
         .await
         .assert_all();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "e2e: needs X + freenet network + N starboard windows"]
+#[telegram_bot_helper::telegram_notify]
+async fn starboard_room_auto_deletion() {
+    common::run_scenario(common::Scenario::starboard_room_auto_deletion())
+        .await
+        .assert_all();
+}
