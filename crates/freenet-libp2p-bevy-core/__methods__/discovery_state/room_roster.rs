@@ -1,6 +1,7 @@
 use crate::discovery;
 use crate::identity;
 use discovery::state_machine::DiscoveryState;
+use std::collections::BTreeSet;
 
 pub fn room_roster(state: &DiscoveryState, is_swarm_ready: bool) -> discovery::RoomRoster {
     let Some(room) = state.room.as_ref() else {
@@ -13,8 +14,16 @@ pub fn room_roster(state: &DiscoveryState, is_swarm_ready: bool) -> discovery::R
         discovery::JoinPhase::Joining { .. } => discovery::OwnRoomStatus::Connecting,
         discovery::JoinPhase::Ready => discovery::OwnRoomStatus::Connected,
     };
-    let members = state.occupants();
-    let entries: Vec<discovery::RoomRosterEntry> = members
+    let lobby_record = state.lobby.get(&room.name);
+    let mut present_ids: BTreeSet<identity::PeerId> = state.occupants().into_iter().collect();
+    if let Some(record) = lobby_record {
+        for (peer, member) in &record.members {
+            if member.membership == discovery::RoomMembership::Occupant {
+                present_ids.insert(peer.clone());
+            }
+        }
+    }
+    let entries: Vec<discovery::RoomRosterEntry> = present_ids
         .iter()
         .map(|id| {
             let is_me = *id == state.me.id;
@@ -24,6 +33,11 @@ pub fn room_roster(state: &DiscoveryState, is_swarm_ready: bool) -> discovery::R
                 room.members
                     .get(id)
                     .and_then(|member| member.display_name.as_ref())
+                    .or_else(|| {
+                        lobby_record
+                            .and_then(|record| record.members.get(id))
+                            .and_then(|member| member.display_name.as_ref())
+                    })
             };
             let name = display_name
                 .filter(|username| !username.is_empty())
@@ -54,11 +68,11 @@ pub fn room_roster(state: &DiscoveryState, is_swarm_ready: bool) -> discovery::R
         .collect();
     let mut roster = discovery::RoomRoster {
         own,
-        count: members.len(),
+        count: entries.len(),
         max: state
             .lobby
             .get(&room.name)
-            .map_or(members.len(), |record| usize::from(record.room_size.get())),
+            .map_or(entries.len(), |record| usize::from(record.room_size.get())),
         entries,
     };
     roster
@@ -238,6 +252,106 @@ mod tests {
         assert_eq!(anon.name, "anon");
         assert_eq!(anon.status, discovery::MemberRoomStatus::Connecting);
         assert_eq!(roster.count, 3);
+    }
+
+    #[test]
+    fn lobby_record_occupants_not_yet_connected_show_connecting() {
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
+            identity::RoomName::from("alpha"),
+            discovery::Room {
+                room_size: discovery::RoomSize::try_from(8).expect("8"),
+                created_at: time::UnixTime::EPOCH,
+                members: [
+                    (
+                        "far",
+                        room_member("far", Some("Far"), discovery::RoomMembership::Occupant),
+                    ),
+                    (
+                        "holder",
+                        room_member("holder", None, discovery::RoomMembership::HistoryHolder),
+                    ),
+                    (
+                        "gone",
+                        room_member("gone", None, discovery::RoomMembership::Departed),
+                    ),
+                ]
+                .into_iter()
+                .map(|(peer, member)| (identity::PeerId::from(peer), member))
+                .collect::<BTreeMap<_, _>>(),
+            },
+        );
+        let mut state = state_with("me", Some("Me"), ready(), &["other"]);
+        state.lobby = lobby;
+        let roster = room_roster(&state, true);
+        let ids: Vec<identity::PeerId> = roster
+            .entries
+            .iter()
+            .map(|entry| entry.id.clone())
+            .collect();
+        assert_eq!(
+            ids,
+            vec![
+                identity::PeerId::from("far"),
+                identity::PeerId::from("me"),
+                identity::PeerId::from("other"),
+            ]
+        );
+        let far = roster
+            .entries
+            .iter()
+            .find(|entry| entry.id == identity::PeerId::from("far"))
+            .expect("far");
+        assert_eq!(far.name, "Far");
+        assert_eq!(far.status, discovery::MemberRoomStatus::Connecting);
+        let other = roster
+            .entries
+            .iter()
+            .find(|entry| entry.id == identity::PeerId::from("other"))
+            .expect("other");
+        assert_eq!(other.status, discovery::MemberRoomStatus::Connected);
+        assert_eq!(other.name, "Other");
+        let me = roster
+            .entries
+            .iter()
+            .find(|entry| entry.id == identity::PeerId::from("me"))
+            .expect("me");
+        assert_eq!(me.status, discovery::MemberRoomStatus::Connected);
+        assert_eq!(roster.count, 3);
+    }
+
+    #[test]
+    fn lobby_record_occupants_do_not_duplicate_connected_members() {
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
+            identity::RoomName::from("alpha"),
+            discovery::Room {
+                room_size: discovery::RoomSize::try_from(8).expect("8"),
+                created_at: time::UnixTime::EPOCH,
+                members: std::iter::once((
+                    "other",
+                    room_member("other", Some("Other"), discovery::RoomMembership::Occupant),
+                ))
+                .map(|(peer, member)| (identity::PeerId::from(peer), member))
+                .collect::<BTreeMap<_, _>>(),
+            },
+        );
+        let mut state = state_with("me", Some("Me"), ready(), &["other"]);
+        state.lobby = lobby;
+        let roster = room_roster(&state, true);
+        let ids: Vec<identity::PeerId> = roster
+            .entries
+            .iter()
+            .map(|entry| entry.id.clone())
+            .collect();
+        assert_eq!(
+            ids,
+            vec![
+                identity::PeerId::from("me"),
+                identity::PeerId::from("other"),
+            ]
+        );
+        assert_eq!(roster.count, 2);
     }
 
     #[test]
