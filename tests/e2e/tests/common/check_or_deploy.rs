@@ -9,6 +9,7 @@ use freenet_stdlib::prelude::{
     ContractCode, ContractInstanceId, ContractKey, Parameters, WrappedContract,
 };
 
+use examples_shared::freenet_node_dir::FreenetNodeDir;
 use examples_shared::node::start_embedded_freenet_node;
 
 use super::LobbySetupError;
@@ -35,11 +36,15 @@ const HELPER_HOST: &str = "127.0.0.1";
 /// `Lobby::default()`, and the checker GETs again — from its own copy only, so
 /// "readable from the network" is proven by a node that never hosted it.
 ///
+/// Returns the helper nodes' dirs so the caller keeps them alive until the run
+/// ends: a `Temporary` dir removed on drop deletes the node's folder on disk,
+/// which must not happen while the run's helpers are still working.
+///
 /// # Errors
 /// Returns the setup failure as [`LobbySetupError`] when the helper nodes
 /// cannot start, the deploy cannot land, or the contract is still not readable
 /// after the deploy.
-pub async fn check_or_deploy(token: &LobbyToken) -> Result<(), LobbySetupError> {
+pub async fn check_or_deploy(token: &LobbyToken) -> Result<Vec<FreenetNodeDir>, LobbySetupError> {
     let started = Instant::now();
     let params = identity::GameId::from(token.as_str()).contract_params();
     let instance_id = *lobby_key(&params).id();
@@ -53,8 +58,7 @@ pub async fn check_or_deploy(token: &LobbyToken) -> Result<(), LobbySetupError> 
         .wait_until_get_contract::<discovery::Lobby>(instance_id, absent_budget)
         .await;
     if readable.is_ok() {
-        std::mem::forget(checker_dir);
-        return Ok(());
+        return Ok(vec![checker_dir]);
     }
     let (deployer_dir, deployer_port) = start_embedded_freenet_node(None, &helper_args())
         .await
@@ -92,12 +96,8 @@ pub async fn check_or_deploy(token: &LobbyToken) -> Result<(), LobbySetupError> 
         }
     }
     if let Some(error) = deploy_error {
-        std::mem::forget(checker_dir);
-        std::mem::forget(deployer_dir);
         return Err(LobbySetupError::Deploy(error));
     }
-    std::mem::forget(checker_dir);
-    std::mem::forget(deployer_dir);
     let remaining = ensure_deadline
         .checked_duration_since(Instant::now())
         .unwrap_or_default();
@@ -105,7 +105,7 @@ pub async fn check_or_deploy(token: &LobbyToken) -> Result<(), LobbySetupError> 
         .wait_until_get_contract::<discovery::Lobby>(instance_id, remaining)
         .await;
     readable_after_deploy.map_err(LobbySetupError::NotReadableAfterDeploy)?;
-    Ok(())
+    Ok(vec![checker_dir, deployer_dir])
 }
 
 /// The contract key the game peers compute for this lobby: the committed
@@ -126,10 +126,13 @@ const fn helper_args() -> NetworkArgs {
 
 #[cfg(test)]
 mod tests {
+    use examples_shared::freenet_node_dir::FreenetNodeDir;
+
     use super::ENSURE_BUDGET;
     use super::check_or_deploy;
     use super::lobby_key;
     use freenet_libp2p_bevy_plugin::identity;
+    use std::path::PathBuf;
     use std::time::Instant;
 
     #[test]
@@ -144,5 +147,10 @@ mod tests {
         assert_eq!(ENSURE_BUDGET.as_secs(), 600);
         let _ = check_or_deploy;
         let _ = Instant::now();
+        let helper_dirs = [
+            FreenetNodeDir::Kept(PathBuf::from("/tmp/checker")),
+            FreenetNodeDir::Kept(PathBuf::from("/tmp/deployer")),
+        ];
+        assert_eq!(helper_dirs.len(), 2);
     }
 }

@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 use std::process::Child;
 use std::time::{Duration, Instant};
 
+use examples_shared::freenet_node_dir::FreenetNodeDir;
+
 use super::{
     LobbySetup, LobbyToken, TerminalGuard, build_game, check_or_deploy, cleanup_stale,
     finish_record, history_write_bytes, last_canvas, log_contains, marker_times, max_ring_peers,
@@ -688,6 +690,9 @@ struct Env {
     clip: PathBuf,
     build_secs: f64,
     recording: Option<Child>,
+    /// The lobby-setup helper nodes' dirs, kept alive until the run ends so a
+    /// `Temporary` dir's on-drop deletion cannot hit a still-working helper.
+    helper_nodes: Vec<FreenetNodeDir>,
 }
 
 /// How a peer's process ended.
@@ -724,7 +729,7 @@ pub async fn run_scenario(scenario: Scenario) -> Report {
         Ok(env) => env,
         Err(detail) => return early_report(&scenario, detail),
     };
-    if let Err(detail) = ensure_lobby(&scenario, &env).await {
+    if let Err(detail) = ensure_lobby(&scenario, &mut env).await {
         stop_recording(env.recording.take(), &env.raw, &env.clip);
         return early_report(&scenario, detail);
     }
@@ -785,16 +790,18 @@ pub async fn run_scenario(scenario: Scenario) -> Report {
 
 /// Makes the run's lobby contract exist before any peer spawns: an Ensured
 /// lobby gets `check_or_deploy` (checker GET, deploy from a different node
-/// when absent, checker GET again); Absent and fixed-token runs manage their
-/// own contract (the peers race the boot deploy).
-async fn ensure_lobby(scenario: &Scenario, env: &Env) -> Result<(), String> {
+/// when absent, checker GET again), whose helper nodes' dirs are stored in
+/// `env` and dropped when the run ends; Absent and fixed-token runs manage
+/// their own contract (the peers race the boot deploy).
+async fn ensure_lobby(scenario: &Scenario, env: &mut Env) -> Result<(), String> {
     match (&scenario.fixed_token, scenario.lobby) {
         (Some(_), _) | (None, LobbySetup::Absent) => Ok(()),
         (None, LobbySetup::Ensured) => {
             let token = LobbyToken::from(env.token.as_str());
-            check_or_deploy(&token)
+            env.helper_nodes = check_or_deploy(&token)
                 .await
-                .map_err(|error| format!("{error:?}"))
+                .map_err(|error| format!("{error:?}"))?;
+            Ok(())
         }
     }
 }
@@ -831,6 +838,7 @@ fn prepare(scenario: &Scenario) -> Result<Env, String> {
         clip,
         build_secs,
         recording,
+        helper_nodes: Vec::new(),
     })
 }
 
