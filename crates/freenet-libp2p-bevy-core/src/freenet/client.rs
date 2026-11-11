@@ -80,7 +80,40 @@ impl Client {
         S: serde::de::DeserializeOwned,
     {
     }
+    pub async fn wait_until_get_contract<S>(
+        &mut self,
+        instance_id: ContractInstanceId,
+        budget: Duration,
+    ) -> Result<S, freenet::Error>
+    where
+        S: serde::de::DeserializeOwned,
+    {
+    }
     pub fn send(&self, request: &ClientRequest<'_>) -> Result<(), freenet::Error> {}
+}
+
+impl Client {
+    pub async fn deploy<S>(
+        &mut self,
+        contract_wasm: &[u8],
+        params: &[u8],
+        seed_state: &S,
+        gateway_wait: Duration,
+    ) -> Result<ContractKey, freenet::Error>
+    where
+        S: serde::Serialize + serde::de::DeserializeOwned + Send + Sync,
+    {
+        let (key, _found) = self
+            .fetch_or_deploy(
+                contract_wasm,
+                params,
+                freenet::DeployPolicy::FetchOrDeploy,
+                gateway_wait,
+                seed_state,
+            )
+            .await?;
+        Ok(key)
+    }
 }
 
 #[rustfmt::skip]
@@ -225,11 +258,12 @@ impl Client {
 mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
+    use std::time::Duration;
 
     use freenet_stdlib::client_api::{ContractResponse, HostResponse};
     use freenet_stdlib::prelude::{
-        ContractCode, ContractContainer, ContractKey, ContractWasmAPIVersion, Parameters,
-        WrappedContract, WrappedState,
+        ContractCode, ContractContainer, ContractInstanceId, ContractKey, ContractWasmAPIVersion,
+        Parameters, WrappedContract, WrappedState,
     };
     use serde::{Deserialize, Serialize};
 
@@ -261,6 +295,21 @@ mod tests {
         let mut silent = Client { write, read };
         let result = silent.recv_reply(freenet::RequestKind::PollLobby).await;
         assert!(matches!(result, Err(freenet::Error::Timeout(_))));
+
+        let mut deploy_target = disconnected_client();
+        let deployed = deploy_target
+            .deploy(&[], &[], &TestState::default(), Duration::from_millis(1))
+            .await;
+        assert!(deployed.is_err());
+
+        let mut wait_target = disconnected_client();
+        let waited = wait_target
+            .wait_until_get_contract::<TestState>(
+                ContractInstanceId::from(contract_key()),
+                Duration::ZERO,
+            )
+            .await;
+        assert!(waited.is_err());
     }
 
     fn contract_key() -> ContractKey {

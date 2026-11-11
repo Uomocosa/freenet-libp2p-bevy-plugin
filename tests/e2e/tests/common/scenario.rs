@@ -3,9 +3,9 @@ use std::process::Child;
 use std::time::{Duration, Instant};
 
 use super::{
-    TerminalGuard, build_game, cleanup_stale, finish_record, history_write_bytes, last_canvas,
-    log_contains, marker_times, max_ring_peers, read_head, require_x11, speed_clip, start_record,
-    tile, wakeup_screen,
+    LobbySetup, LobbyToken, TerminalGuard, build_game, check_or_deploy, cleanup_stale,
+    finish_record, history_write_bytes, last_canvas, log_contains, marker_times, max_ring_peers,
+    read_head, require_x11, speed_clip, start_record, tile, wakeup_screen,
 };
 
 /// libp2p-only join target: last joiner's press -> every peer fully meshed.
@@ -54,6 +54,7 @@ pub struct Scenario {
     pub expectation: Option<super::scenario_expectation::ScenarioExpectation>,
     pub fixed_token: Option<String>,
     pub fixed_node_dir: Option<PathBuf>,
+    pub lobby: LobbySetup,
 }
 
 impl Scenario {
@@ -103,6 +104,7 @@ impl Scenario {
         relaunched.name = name;
         relaunched.fixed_token = Some(token);
         relaunched.fixed_node_dir = Some(node_dir);
+        relaunched.lobby = LobbySetup::Absent;
         relaunched
     }
 
@@ -512,10 +514,12 @@ impl Scenario {
             expectation: None,
             fixed_token: None,
             fixed_node_dir: None,
+            lobby: LobbySetup::Ensured,
         }
     }
 
-    // needed helper: the fields every starboard scenario shares
+    // needed helper: the fields every starboard scenario shares; its runs read
+    // the ensured lobby contract, never racing the boot deploy
     fn starboard_base() -> Self {
         Self {
             bin: "starboard",
@@ -720,6 +724,10 @@ pub async fn run_scenario(scenario: Scenario) -> Report {
         Ok(env) => env,
         Err(detail) => return early_report(&scenario, detail),
     };
+    if let Err(detail) = ensure_lobby(&scenario, &env).await {
+        stop_recording(env.recording.take(), &env.raw, &env.clip);
+        return early_report(&scenario, detail);
+    }
     let mut peers: Vec<RunningPeer> = (0..scenario.peers.len())
         .map(|index| RunningPeer {
             log: env
@@ -775,6 +783,22 @@ pub async fn run_scenario(scenario: Scenario) -> Report {
     }
 }
 
+/// Makes the run's lobby contract exist before any peer spawns: an Ensured
+/// lobby gets `check_or_deploy` (checker GET, deploy from a different node
+/// when absent, checker GET again); Absent and fixed-token runs manage their
+/// own contract (the peers race the boot deploy).
+async fn ensure_lobby(scenario: &Scenario, env: &Env) -> Result<(), String> {
+    match (&scenario.fixed_token, scenario.lobby) {
+        (Some(_), _) | (None, LobbySetup::Absent) => Ok(()),
+        (None, LobbySetup::Ensured) => {
+            let token = LobbyToken::from(env.token.as_str());
+            check_or_deploy(&token)
+                .await
+                .map_err(|error| format!("{error:?}"))
+        }
+    }
+}
+
 fn prepare(scenario: &Scenario) -> Result<Env, String> {
     wakeup_screen();
     require_x11()?;
@@ -800,7 +824,7 @@ fn prepare(scenario: &Scenario) -> Result<Env, String> {
         token: scenario
             .fixed_token
             .clone()
-            .unwrap_or_else(|| format!("lobby-e2e/{stamp}")),
+            .unwrap_or_else(|| scenario.lobby.lobby_token(stamp).to_string()),
         room: format!("room-{stamp}"),
         transport: std::env::var("LOBBY_TRANSPORT").unwrap_or_else(|_| "both".to_string()),
         raw,

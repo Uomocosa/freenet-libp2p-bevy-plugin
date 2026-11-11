@@ -3727,6 +3727,7 @@ dependencies = [
  "async-trait",
  "bevy",
  "bincode",
+ "derive_more",
  "e2e_macros",
  "e2e_steps",
  "examples_shared",
@@ -3742,6 +3743,7 @@ dependencies = [
  "serde_json",
  "telegram-bot-helper",
  "tempfile",
+ "thiserror 2.0.21",
  "tokio",
 ]
 

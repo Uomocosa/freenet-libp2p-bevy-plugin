@@ -79,4 +79,11 @@ pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 /// No external source.
 pub const DRAIN_TIMEOUT: Duration = Duration::from_millis(10);
 
+/// Spaces repeated lobby setup `Get`s.
+///
+/// No external source. The lobby setup checker resends a `Get` at this pace
+/// until its deadline, because a `Get` can vanish for freenet's 60s
+/// `OPERATION_TTL` and a `NotFound` may never arrive.
+pub const GET_RETRY_AFTER: Duration = Duration::from_secs(5);
+
 // no test_usage necessary

@@ -4,6 +4,13 @@
 mod build_game;
 pub use build_game::build_game;
 
+#[path = "__basic__/mod.rs"]
+mod basic;
+pub use basic::newtypes::LobbyToken;
+
+mod check_or_deploy;
+pub use check_or_deploy::check_or_deploy;
+
 mod cleanup_stale;
 pub use cleanup_stale::cleanup_stale;
 
@@ -27,6 +34,12 @@ pub use log_parse::{
     CanvasTick, Tick, canvas_ticks, history_write_bytes, last_canvas, last_tick, log_contains,
     log_matches, marker_times, max_ring_peers, read_head, senders_seen_in_room,
 };
+
+mod lobby_setup;
+pub use lobby_setup::LobbySetup;
+
+mod lobby_setup_error;
+pub use lobby_setup_error::LobbySetupError;
 
 mod poke;
 pub use poke::poke;
