@@ -6,8 +6,8 @@ use examples_shared::freenet_node_dir::FreenetNodeDir;
 
 use super::{
     LobbySetup, LobbyToken, TerminalGuard, build_game, check_or_deploy, cleanup_stale,
-    finish_record, history_write_bytes, last_canvas, log_contains, marker_times, max_ring_peers,
-    read_head, require_x11, speed_clip, start_record, tile, wakeup_screen,
+    created_room, finish_record, history_write_bytes, last_canvas, log_contains, marker_times,
+    max_ring_peers, read_head, require_x11, speed_clip, start_record, tile, wakeup_screen,
 };
 
 /// libp2p-only join target: last joiner's press -> every peer fully meshed.
@@ -73,14 +73,18 @@ impl Scenario {
     /// The creator stays in its room; every other peer waits for the room in its lobby.
     #[must_use]
     pub fn discover_only(peers: usize) -> Self {
-        let mut runs = vec![now(format!(
-            "{}, wait-ring-joined@120s, stay",
-            create_and_enter()
-        ))];
+        let creator = format!("{}, wait-ring-joined@120s, stay", create_and_enter());
+        // Joiners start once the creator's node is on the ring: with the lobby contract
+        // already deployed they find the room in seconds and exit, which would end the run
+        // before the creator's own ring check.
+        let creator_on_ring = after(0, last_step_matching(&creator, "wait-ring-joined"));
+        let mut runs = vec![now(creator)];
         for _ in 1..peers {
-            runs.push(now(
-                "wait-lobby-room:{room}@420s, wait-ring-joined@120s, exit-app".to_string(),
-            ));
+            runs.push(PeerRun {
+                script: "wait-lobby-room:{room}@420s, wait-ring-joined@120s, exit-app".to_string(),
+                start: creator_on_ring,
+                token_override: None,
+            });
         }
         Self {
             name: "lobby_room_discovery".to_string(),
@@ -1330,14 +1334,21 @@ fn did_every_peer_join_the_ring(logs: &[PathBuf]) -> Result<String, String> {
     }
 }
 
-/// `on_finish` (discovery): every peer read the room from the lobby and its node reached the ring.
+/// `on_finish` (discovery): every peer found the run's own room and its node reached the ring.
+///
+/// The room is matched by name, not by lobby size: the shared `Ensured` lobby can still
+/// list rooms from earlier runs. p1 creates the room; every other peer waits for it.
 fn did_every_peer_find_the_room_and_join_the_ring(logs: &[PathBuf]) -> Result<String, String> {
+    let Some(room) = logs.first().and_then(|log| created_room(log)) else {
+        return Err("p1 never logged creating its room".to_string());
+    };
+    let created = format!("create:{room}");
+    let found = format!("wait-lobby-room:{room}@");
     let rows: Vec<(usize, bool, Option<usize>)> = logs
         .iter()
         .enumerate()
         .map(|(index, log)| {
-            let saw_room = log_contains(log, "lobby changed rooms=1")
-                || log_contains(log, "lobby fetch found");
+            let saw_room = log_contains(log, &created) || log_contains(log, &found);
             (index.saturating_add(1), saw_room, max_ring_peers(log))
         })
         .collect();

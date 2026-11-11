@@ -271,7 +271,7 @@ e2e-starboard:
 
 # Real, visual e2e: the Kademlia history scenarios (S4a, S4b, S4c) on one machine.
 e2e-history:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test starboard_history --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test starboard_history -j 1 --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: S3, S5, S6, S7 on one machine.
 e2e-scenarios:

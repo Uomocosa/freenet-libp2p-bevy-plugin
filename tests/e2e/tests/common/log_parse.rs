@@ -15,6 +15,23 @@ pub fn log_contains(path: &Path, needle: &str) -> bool {
     strip_ansi(&std::fs::read_to_string(path).unwrap_or_default()).contains(needle)
 }
 
+/// The room a creator's script made, read from its `create:<room>` step-done marker.
+#[must_use]
+pub fn created_room(path: &Path) -> Option<String> {
+    let log = strip_ansi(&std::fs::read_to_string(path).unwrap_or_default());
+    log.lines().find_map(created_room_in_line)
+}
+
+fn created_room_in_line(line: &str) -> Option<String> {
+    let (_, rest) = line.split_once("script step done")?;
+    let (_, after) = rest.split_once("create:")?;
+    let room: String = after
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
+    (!room.is_empty()).then_some(room)
+}
+
 #[must_use]
 pub fn log_matches(path: &Path, needle: &str) -> usize {
     strip_ansi(&std::fs::read_to_string(path).unwrap_or_default())
@@ -218,7 +235,16 @@ fn strip_ansi(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::ring_peers_in_line;
+    use super::{created_room_in_line, ring_peers_in_line};
+
+    #[test]
+    fn create_step_marker_names_the_room() {
+        assert_eq!(
+            created_room_in_line("INFO script step done step=1/4 create:room-1793991122"),
+            Some("room-1793991122".to_string())
+        );
+        assert_eq!(created_room_in_line("lobby changed rooms=1"), None);
+    }
 
     #[test]
     fn ring_joined_line_parses_its_count() {
