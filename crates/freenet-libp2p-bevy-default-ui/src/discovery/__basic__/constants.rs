@@ -3,6 +3,15 @@ use bevy::prelude::Color;
 pub const ROOM_COLOR: Color = Color::srgb(0.12, 0.28, 0.38);
 pub const CURRENT_ROOM_COLOR: Color = Color::srgb(0.18, 0.45, 0.25);
 
+pub const ROOM_ROW_WIDTH: f32 = 212.0;
+pub const ROOM_NAME_WIDTH: f32 = 128.0;
+pub const ROOM_NAME_SCROLL_PER_SEC: f32 = 26.0;
+pub const ROOM_BUBBLE_HAS_SPACE_COLOR: Color = Color::srgb(0.16, 0.44, 0.24);
+pub const ROOM_BUBBLE_EMPTY_COLOR: Color = Color::srgb(0.30, 0.31, 0.35);
+pub const ROOM_BUBBLE_FULL_COLOR: Color = Color::srgb(0.58, 0.20, 0.20);
+pub const FRIEND_BADGE_COLOR: Color = Color::srgb(0.35, 0.80, 0.44);
+pub const FRIEND_BADGE_BG_COLOR: Color = Color::srgb(0.09, 0.12, 0.10);
+
 pub const PANEL_COLOR: Color = Color::srgb(0.30, 0.12, 0.34);
 pub const BUTTON_COLOR: Color = Color::srgb(0.20, 0.24, 0.32);
 pub const BUTTON_LABEL_COLOR: Color = Color::WHITE;

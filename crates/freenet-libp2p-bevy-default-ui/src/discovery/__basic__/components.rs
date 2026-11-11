@@ -15,6 +15,18 @@ pub struct CreateRoomButton;
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomList;
 
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomNameClip;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomNameScroller;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomBubble;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomFriendBadge;
+
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
 pub struct RoomButton(pub identity::RoomName);
 

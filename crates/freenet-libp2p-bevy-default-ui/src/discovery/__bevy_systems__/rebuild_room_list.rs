@@ -1,15 +1,12 @@
-use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
-use bevy::ui_widgets::Button;
 
 use crate::discovery;
-use discovery::{HOVER_OUTLINE_WIDTH, HoverGlow, ROOM_COLOR, RoomButton, RoomList};
 use freenet_libp2p_bevy_core::discovery as core_discovery;
 
 pub fn rebuild_room_list(
     mut commands: Commands,
     rows: Option<Res<core_discovery::LobbyRows>>,
-    list: Single<(Entity, Ref<RoomList>)>,
+    list: Single<(Entity, Ref<discovery::RoomList>)>,
     mut shown: Local<Vec<core_discovery::LobbyRow>>,
 ) {
     let wanted: Vec<core_discovery::LobbyRow> =
@@ -22,37 +19,20 @@ pub fn rebuild_room_list(
     commands
         .entity(list)
         .despawn_related::<Children>()
-        .with_children(|parent| {
+        .with_children(|rooms| {
             for row in &*shown {
-                let label = format!(
-                    "> {} [{}/{} online]",
-                    row.name.as_str(),
-                    row.occupants,
-                    row.room_size
-                );
-                parent.spawn((
-                    RoomButton(row.name.clone()),
-                    Button,
-                    Hovered::default(),
-                    HoverGlow::default(),
-                    UiTransform::default(),
-                    Outline::new(Val::Px(HOVER_OUTLINE_WIDTH), Val::ZERO, Color::NONE),
-                    Node {
-                        padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
-                        ..default()
-                    },
-                    BackgroundColor(ROOM_COLOR),
-                    children![Text::new(label)],
-                ));
+                discovery::bevy_systems::spawn_room_row(&mut rooms.reborrow(), row);
             }
         });
 }
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 
     use crate::discovery;
     use bevy::prelude::*;
+    use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
     use freenet_libp2p_bevy_core::discovery as core_discovery;
     use freenet_libp2p_bevy_core::identity;
 
@@ -106,33 +86,95 @@ mod tests {
         app
     }
 
-    fn row_labels(app: &mut App) -> Vec<String> {
-        let mut rows = app
+    fn list_rows(app: &mut App) -> Vec<Entity> {
+        let list = app
             .world_mut()
-            .query::<(&discovery::RoomButton, &Children)>();
-        let mut labels: Vec<String> = rows
-            .iter(app.world())
-            .map(|(_, children)| {
-                children
-                    .iter()
-                    .filter_map(|child| app.world().get::<Text>(child))
-                    .map(|text| text.as_str().to_string())
-                    .next()
-                    .unwrap_or_default()
-            })
-            .collect();
-        labels.sort();
-        labels
+            .query_filtered::<Entity, With<discovery::RoomList>>()
+            .single(app.world())
+            .expect("list");
+        app.world()
+            .entity(list)
+            .get::<Children>()
+            .expect("list children")
+            .iter()
+            .collect()
     }
 
-    fn button_names(app: &mut App) -> Vec<String> {
-        let mut buttons = app.world_mut().query::<&discovery::RoomButton>();
-        let mut names: Vec<String> = buttons
-            .iter(app.world())
-            .map(|button| button.as_str().to_string())
-            .collect();
-        names.sort();
-        names
+    fn text_of(app: &mut World, entity: Entity) -> String {
+        let mut texts = app.query::<&Text>();
+        texts.get(app, entity).expect("text").as_str().to_string()
+    }
+
+    fn child_with<C: Component>(app: &World, parent: Entity) -> Entity {
+        child_marked::<C>(app, parent).expect("marked child")
+    }
+
+    fn child_marked<C: Component>(app: &World, parent: Entity) -> Option<Entity> {
+        app.entity(parent)
+            .get::<Children>()
+            .expect("children")
+            .iter()
+            .find(|child| app.get::<C>(*child).is_some())
+    }
+
+    struct RowTexts {
+        name: String,
+        bubble: String,
+        badge: Option<String>,
+    }
+
+    fn row_texts(app: &mut App) -> Vec<(String, RowTexts)> {
+        list_rows(app)
+            .iter()
+            .map(|row| {
+                let button = app
+                    .world()
+                    .get::<discovery::RoomButton>(*row)
+                    .expect("room button")
+                    .as_str()
+                    .to_string();
+                let clip = child_with::<discovery::RoomNameClip>(app.world_mut(), *row);
+                let scroller = child_with::<discovery::RoomNameScroller>(app.world_mut(), clip);
+                let name_text = child_with::<Text>(app.world_mut(), scroller);
+                let name = text_of(app.world_mut(), name_text);
+                let bubble = child_with::<discovery::RoomBubble>(app.world_mut(), *row);
+                let bubble_text = child_with::<Text>(app.world_mut(), bubble);
+                let bubble_text = text_of(app.world_mut(), bubble_text);
+                let badge_entity =
+                    child_marked::<discovery::RoomFriendBadge>(app.world_mut(), bubble);
+                let badge = badge_entity.map(|badge| {
+                    let badge_text = child_with::<Text>(app.world_mut(), badge);
+                    text_of(app.world_mut(), badge_text)
+                });
+                (
+                    button,
+                    RowTexts {
+                        name,
+                        bubble: bubble_text,
+                        badge,
+                    },
+                )
+            })
+            .collect()
+    }
+
+    fn bubble_color_of(app: &mut App, button: &str) -> Color {
+        let rows = list_rows(app);
+        let row = rows
+            .iter()
+            .copied()
+            .find(|row| {
+                app.world()
+                    .get::<discovery::RoomButton>(*row)
+                    .is_some_and(|name| name.as_str() == button)
+            })
+            .expect("row");
+        let bubble = child_with::<discovery::RoomBubble>(app.world_mut(), row);
+        let BackgroundColor(color) = app
+            .world()
+            .get::<BackgroundColor>(bubble)
+            .expect("bubble background");
+        *color
     }
 
     #[test]
@@ -148,10 +190,14 @@ mod tests {
         .build();
         let mut app = app_with_state(state);
         app.update();
+        let rows = row_texts(&mut app);
         assert_eq!(
-            button_names(&mut app),
-            vec!["alpha".to_string(), "beta".to_string()]
+            rows.iter()
+                .map(|(button, _)| button.as_str())
+                .collect::<Vec<_>>(),
+            vec!["alpha", "beta"]
         );
+        assert!(rows.iter().all(|(_, texts)| texts.badge.is_none()));
     }
 
     #[test]
@@ -172,9 +218,9 @@ mod tests {
         .build();
         let mut app = app_with_state(state);
         app.update();
-        let labels = row_labels(&mut app);
-        assert_eq!(labels.len(), 1);
-        assert_eq!(labels[0], "> alpha [1/8 online]".to_string());
+        let rows = row_texts(&mut app);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].1.bubble, "1/8".to_string());
     }
 
     #[test]
@@ -188,10 +234,96 @@ mod tests {
         }];
         let mut app = app_with(rows);
         app.update();
+        let rows = row_texts(&mut app);
+        assert_eq!(rows[0].1.name, "alpha".to_string());
+        assert_eq!(rows[0].1.bubble, "3/8".to_string());
+    }
+
+    #[test]
+    fn the_bubble_color_follows_the_occupancy() {
+        let rows = vec![
+            core_discovery::LobbyRow {
+                name: identity::RoomName::from("alpha"),
+                occupants: 3,
+                room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+                occupancy: core_discovery::RoomOccupancy::HasSpace,
+                friends: 0,
+            },
+            core_discovery::LobbyRow {
+                name: identity::RoomName::from("beta"),
+                occupants: 0,
+                room_size: core_discovery::RoomSize::DEFAULT,
+                occupancy: core_discovery::RoomOccupancy::Empty,
+                friends: 0,
+            },
+            core_discovery::LobbyRow {
+                name: identity::RoomName::from("gamma"),
+                occupants: 4,
+                room_size: core_discovery::RoomSize::try_from(4).expect("4"),
+                occupancy: core_discovery::RoomOccupancy::Full,
+                friends: 0,
+            },
+        ];
+        let mut app = app_with(rows);
+        app.update();
         assert_eq!(
-            row_labels(&mut app),
-            vec!["> alpha [3/8 online]".to_string()]
+            bubble_color_of(&mut app, "alpha"),
+            discovery::ROOM_BUBBLE_HAS_SPACE_COLOR
         );
+        assert_eq!(
+            bubble_color_of(&mut app, "beta"),
+            discovery::ROOM_BUBBLE_EMPTY_COLOR
+        );
+        assert_eq!(
+            bubble_color_of(&mut app, "gamma"),
+            discovery::ROOM_BUBBLE_FULL_COLOR
+        );
+    }
+
+    #[test]
+    fn a_room_with_friends_carries_the_friend_badge() {
+        let rows = vec![
+            core_discovery::LobbyRow {
+                name: identity::RoomName::from("alpha"),
+                occupants: 3,
+                room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+                occupancy: core_discovery::RoomOccupancy::HasSpace,
+                friends: 2,
+            },
+            core_discovery::LobbyRow {
+                name: identity::RoomName::from("beta"),
+                occupants: 0,
+                room_size: core_discovery::RoomSize::DEFAULT,
+                occupancy: core_discovery::RoomOccupancy::Empty,
+                friends: 0,
+            },
+        ];
+        let mut app = app_with(rows);
+        app.update();
+        let rows = row_texts(&mut app);
+        assert_eq!(rows[0].1.badge, Some("2".to_string()));
+        assert_eq!(rows[1].1.badge, None);
+    }
+
+    #[test]
+    fn a_long_room_name_is_clipped_unwrapped() {
+        let rows = vec![core_discovery::LobbyRow {
+            name: identity::RoomName::from("very-long-room-name-that-never-fits"),
+            occupants: 1,
+            room_size: core_discovery::RoomSize::try_from(4).expect("4"),
+            occupancy: core_discovery::RoomOccupancy::HasSpace,
+            friends: 0,
+        }];
+        let mut app = app_with(rows);
+        app.update();
+        let row = list_rows(&mut app)[0];
+        let clip = child_with::<discovery::RoomNameClip>(app.world_mut(), row);
+        let clip_node = app.world().get::<Node>(clip).expect("clip node");
+        assert_eq!(clip_node.overflow.x, bevy::ui::OverflowAxis::Clip);
+        let scroller = child_with::<discovery::RoomNameScroller>(app.world_mut(), clip);
+        let name_text = child_with::<Text>(app.world_mut(), scroller);
+        let layout = app.world().get::<TextLayout>(name_text).expect("layout");
+        assert_eq!(layout.linebreak, bevy::text::LineBreak::NoWrap);
     }
 
     #[test]
@@ -219,8 +351,85 @@ mod tests {
         );
     }
 
+    fn preview_friends() -> core_direct_dial::state_machine::DialState {
+        let mut book = core_direct_dial::PeerBook::default();
+        for friend in ["alice", "bob"] {
+            assert!(book.add_friend(identity::Peer {
+                id: identity::PeerId::from(friend),
+                addrs: Vec::new(),
+            }));
+        }
+        core_direct_dial::state_machine::DialState::from_peer_book(
+            &book,
+            freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
+        )
+    }
+
+    fn preview_state() -> core_discovery::state_machine::DiscoveryState {
+        let mut lobby = core_discovery::Lobby::default();
+        let member = |peer: &str| {
+            (identity::PeerId::from(peer), {
+                core_discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: identity::PeerId::from(peer),
+                        addrs: Vec::new(),
+                    },
+                    display_name: None,
+                    updated_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
+                    membership: core_discovery::RoomMembership::Occupant,
+                }
+            })
+        };
+        lobby.insert(
+            identity::RoomName::from("alpha"),
+            core_discovery::Room {
+                room_size: core_discovery::RoomSize::try_from(8)
+                    .expect("fixture room size is non-zero"),
+                created_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
+                members: ["alice", "bob", "carol"]
+                    .into_iter()
+                    .map(member)
+                    .collect::<BTreeMap<_, _>>(),
+            },
+        );
+        lobby.insert(
+            identity::RoomName::from("very-long-room-name-that-never-fits"),
+            core_discovery::Room {
+                room_size: core_discovery::RoomSize::try_from(4)
+                    .expect("fixture room size is non-zero"),
+                created_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
+                members: std::iter::once(member("dave")).collect::<BTreeMap<_, _>>(),
+            },
+        );
+        lobby.insert(
+            identity::RoomName::from("beta"),
+            core_discovery::Room {
+                room_size: core_discovery::RoomSize::try_from(8)
+                    .expect("fixture room size is non-zero"),
+                created_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
+                members: BTreeMap::new(),
+            },
+        );
+        lobby.insert(
+            identity::RoomName::from("gamma"),
+            core_discovery::Room {
+                room_size: core_discovery::RoomSize::try_from(4)
+                    .expect("fixture room size is non-zero"),
+                created_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
+                members: ["erin", "frank", "grace", "henry"]
+                    .into_iter()
+                    .map(member)
+                    .collect::<BTreeMap<_, _>>(),
+            },
+        );
+        freenet_libp2p_bevy_core::testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build()
+    }
+
     fn preview_build(app: &mut App) {
         app.insert_resource(preview_state());
+        app.insert_resource(preview_friends());
         app.init_resource::<core_discovery::LobbyRows>();
         app.add_systems(Startup, spawn_list);
         app.add_systems(
@@ -231,24 +440,6 @@ mod tests {
             )
                 .chain(),
         );
-    }
-
-    fn preview_state() -> core_discovery::state_machine::DiscoveryState {
-        let mut lobby = core_discovery::Lobby::default();
-        for (name, room_size) in [("alpha", 8), ("beta", 4)] {
-            lobby.insert(
-                identity::RoomName::from(name),
-                core_discovery::Room {
-                    room_size: core_discovery::RoomSize::try_from(room_size)
-                        .expect("fixture room size is non-zero"),
-                    created_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
-                    members: std::collections::BTreeMap::new(),
-                },
-            );
-        }
-        freenet_libp2p_bevy_core::testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .with_lobby(lobby)
-            .build()
     }
 
     fn spawn_list(mut commands: Commands) {
@@ -268,19 +459,6 @@ mod tests {
 
     const fn preview_noop(_world: &mut World) {}
 
-    fn add_room(world: &mut World) {
-        let mut state = world.resource_mut::<core_discovery::state_machine::DiscoveryState>();
-        state.lobby.insert(
-            identity::RoomName::from("gamma"),
-            core_discovery::Room {
-                room_size: core_discovery::RoomSize::try_from(4)
-                    .expect("fixture room size is non-zero"),
-                created_at: freenet_libp2p_bevy_core::time::UnixTime::EPOCH,
-                members: std::collections::BTreeMap::new(),
-            },
-        );
-    }
-
     #[test]
     fn rebuild_room_list_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
@@ -288,16 +466,10 @@ mod tests {
             name: String::from("rebuild_room_list"),
             kind: lele_bevy_preview::scene::Kind::System,
             build: preview_build,
-            states: vec![
-                lele_bevy_preview::scene::State {
-                    label: String::from("two rooms"),
-                    apply: preview_noop,
-                },
-                lele_bevy_preview::scene::State {
-                    label: String::from("three rooms"),
-                    apply: add_room,
-                },
-            ],
+            states: vec![lele_bevy_preview::scene::State {
+                label: String::from("four rooms sorted"),
+                apply: preview_noop,
+            }],
             timeline: None,
         }
         .run(&lele_bevy_preview::preview::Config {

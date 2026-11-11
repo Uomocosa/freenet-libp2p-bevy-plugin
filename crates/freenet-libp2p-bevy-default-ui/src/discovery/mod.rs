@@ -4,8 +4,8 @@ mod basic;
 pub use basic::components::{
     ConnectingRoot, CreateRoomButton, DoorLabel, DoorOpening, DoorPanel, HoverGlow,
     HoverOutlineOnly, IsCurrentRoom, JoinErrorDismissButton, JoinErrorRoot, JoiningRoomRoot,
-    LeaveDoor, LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomButton, RoomList, RoomNameInput,
-    Root, SpinnerRing,
+    LeaveDoor, LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble, RoomButton,
+    RoomFriendBadge, RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, Root, SpinnerRing,
 };
 pub use basic::constants::*;
 pub use basic::resources::JoinError;

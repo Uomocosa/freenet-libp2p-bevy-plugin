@@ -30,7 +30,12 @@ pub fn build_plugin(_plugin: discovery::DefaultUiPlugin, app: &mut App) {
             ui::spin_connecting.run_if(in_state(Screen::Connecting)),
             ui::dismiss_join_failed.run_if(in_state(Screen::JoinFailed)),
             (
-                (ui::rebuild_room_list, ui::highlight_current_room).chain(),
+                (
+                    ui::rebuild_room_list,
+                    ui::highlight_current_room,
+                    ui::scroll_room_names,
+                )
+                    .chain(),
                 ui::gate_create,
                 ui::handle_create,
                 ui::handle_join,
