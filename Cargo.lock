@@ -4313,6 +4313,7 @@ dependencies = [
  "lele-bevy-preview",
  "lele-bevy-state-machine",
  "libp2p",
+ "tokio",
  "tracing",
 ]
 

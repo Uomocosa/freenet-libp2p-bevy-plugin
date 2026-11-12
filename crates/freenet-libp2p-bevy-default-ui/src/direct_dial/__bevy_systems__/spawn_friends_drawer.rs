@@ -65,7 +65,7 @@ mod tests {
     use bevy::prelude::*;
 
     use super::spawn_friends_drawer;
-    use crate::basic::constants::ROOM_COLOR;
+    use crate::basic::constants::{DRAWER_SLIDE_SECS, ROOM_COLOR};
     use crate::direct_dial;
     use crate::discovery;
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
@@ -149,7 +149,7 @@ mod tests {
         world.insert_resource(direct_dial::FriendsDrawerState(true));
         let mut slides = world.query_filtered::<&mut direct_dial::FriendsDrawerSlide, With<direct_dial::FriendsDrawerPanel>>();
         if let Ok(mut slide) = slides.single_mut(world) {
-            **slide = direct_dial::DRAWER_SLIDE_SECS;
+            **slide = DRAWER_SLIDE_SECS;
         }
     }
 

@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 
+use crate::basic::constants::DRAWER_SLIDE_SECS;
 use crate::direct_dial;
 use direct_dial::{
-    DRAWER_BACKDROP_ALPHA, DRAWER_SLIDE_SECS, DRAWER_WIDTH, FriendsDrawer, FriendsDrawerBackdrop,
-    FriendsDrawerPanel, FriendsDrawerSlide, FriendsDrawerState,
+    DRAWER_BACKDROP_ALPHA, DRAWER_WIDTH, FriendsDrawer, FriendsDrawerBackdrop, FriendsDrawerPanel,
+    FriendsDrawerSlide, FriendsDrawerState,
 };
 
 type SlideParts<'a> = (&'a mut FriendsDrawerSlide, &'a mut UiTransform);
@@ -48,12 +49,12 @@ mod tests {
     use bevy::time::TimeUpdateStrategy;
 
     use super::animate_friends_drawer;
-    use crate::basic::constants::{DRAWER_PANEL_COLOR, ROOM_COLOR};
+    use crate::basic::constants::{DRAWER_PANEL_COLOR, DRAWER_SLIDE_SECS, ROOM_COLOR};
     use crate::direct_dial;
     use crate::discovery;
     use direct_dial::{
-        DRAWER_BACKDROP_ALPHA, DRAWER_SLIDE_SECS, DRAWER_WIDTH, FriendsDrawer,
-        FriendsDrawerBackdrop, FriendsDrawerPanel, FriendsDrawerSlide, FriendsDrawerState,
+        DRAWER_BACKDROP_ALPHA, DRAWER_WIDTH, FriendsDrawer, FriendsDrawerBackdrop,
+        FriendsDrawerPanel, FriendsDrawerSlide, FriendsDrawerState,
     };
 
     fn app_with(open: bool, slide: f32) -> (App, Entity, Entity, Entity) {

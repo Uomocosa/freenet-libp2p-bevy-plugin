@@ -39,3 +39,4 @@ freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core", features = ["
 lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.15" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
 libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
+tokio = { version = "=1.54.1", features = ["rt", "macros", "time"] }
