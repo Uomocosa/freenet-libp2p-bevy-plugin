@@ -34,7 +34,8 @@ impl Plugin for StarboardPlugin {
                 Update,
                 (
                     room::bevy_systems::reset_canvas,
-                    room::bevy_systems::refresh_room_brushes,
+                    room::bevy_systems::refresh_room_brushes
+                        .in_set(starboard::app::WallClockSystem::RoomBrushes),
                     room::bevy_systems::refresh_member_icons,
                     input::bevy_systems::track_cursor,
                     render::bevy_systems::sync_board_visibility,
@@ -63,7 +64,8 @@ mod tests {
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
 
-    use super::StarboardPlugin;
+    use rstest::rstest;
+
     use crate::starboard;
     use crate::starboard::app::test_harness;
     use discovery::state_machine::DiscoveryState;
@@ -80,55 +82,64 @@ mod tests {
             .build()
     }
 
-    /// # needed helper: a peer whose daily brush is not a circle at the pinned date
-    fn preview_me(created_at: time::UnixTime, now: time::UnixTime) -> identity::PeerId {
-        for index in 0_u32..200 {
-            let candidate = identity::PeerId::from(format!("preview-me-{index}").as_str());
-            let brush = starboard::identity::daily_brush(&candidate, created_at, now);
-            let is_circle_brush = brush.shape == starboard::identity::Shape::Circle;
-            if !is_circle_brush {
-                return candidate;
-            }
-        }
-        identity::PeerId::from("preview-me")
-    }
+    const CIRCLE_RED: starboard::identity::DailyBrush = starboard::identity::DailyBrush {
+        shape: starboard::identity::Shape::Circle,
+        color: starboard::identity::PaletteColor(0),
+    };
+    const SQUARE_BLUE: starboard::identity::DailyBrush = starboard::identity::DailyBrush {
+        shape: starboard::identity::Shape::Square,
+        color: starboard::identity::PaletteColor(6),
+    };
+    const STAR_YELLOW: starboard::identity::DailyBrush = starboard::identity::DailyBrush {
+        shape: starboard::identity::Shape::Star,
+        color: starboard::identity::PaletteColor(11),
+    };
 
-    /// # needed fixture: the date the board preview is pinned to, so the PNG never drifts
-    const BOARD_PREVIEW_NOW: time::UnixTime = time::UnixTime::from_secs(96_400);
+    /// The brush a board preview paints with, stored by its case instead of read from `OwnBrush`.
+    #[derive(Resource, Clone, Copy)]
+    struct CaseBrush(starboard::identity::DailyBrush);
 
-    fn preview_build(app: &mut App) {
-        let now = BOARD_PREVIEW_NOW;
-        let me = preview_me(time::UnixTime::EPOCH, now);
-        let status = ready_status(&me);
-        let brushes = starboard::room::RoomBrushes(starboard::identity::room_brushes(
-            status.occupants().as_slice(),
-            time::UnixTime::EPOCH,
-            now,
+    fn preview_build(app: &mut App, brush: starboard::identity::DailyBrush) {
+        let me = identity::PeerId::from("preview-me");
+        app.insert_resource(ready_status(&me));
+        app.insert_resource(starboard::room::RoomBrushes(
+            std::collections::BTreeMap::from([(me, brush)]),
         ));
-        let brush = brushes
-            .get(&me)
-            .copied()
-            .expect("own brush assigned to the room's only occupant");
-        app.insert_resource(status);
-        app.insert_resource(brushes);
         app.insert_resource(starboard::input::OwnBrush {
             shape: brush.shape,
             color: brush.color,
             size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
         });
-        app.add_plugins(StarboardPlugin);
+        app.insert_resource(CaseBrush(brush));
+        app.add_plugins(starboard::app::StarboardTestPlugin::default());
+    }
+
+    fn build_circle_red(app: &mut App) {
+        preview_build(app, CIRCLE_RED);
+    }
+
+    fn build_square_blue(app: &mut App) {
+        preview_build(app, SQUARE_BLUE);
+    }
+
+    fn build_star_yellow(app: &mut App) {
+        preview_build(app, STAR_YELLOW);
     }
 
     const fn preview_noop(_world: &mut World) {}
 
     fn paint_strokes(world: &mut World) {
-        let brush = *world.resource::<starboard::input::OwnBrush>();
+        let brush = world.resource::<CaseBrush>().0;
         let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
         for index in 0_u16..28 {
             let x = 96_u16.saturating_add(index.saturating_mul(24));
             let y = 300_u16.saturating_add(index.saturating_mul(7));
             let op = starboard::input::draw_op(
-                brush,
+                starboard::input::OwnBrush {
+                    shape: brush.shape,
+                    color: brush.color,
+                    size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+                },
                 starboard::canvas::DrawAction::Paint(brush.color),
                 starboard::canvas::Stroke {
                     from: starboard::canvas::CellPos { x, y },
@@ -164,11 +175,11 @@ mod tests {
         }
     }
 
-    fn scene() -> lele_bevy_preview::scene::Scene {
+    fn board_scene(name: &str, build: fn(&mut App)) -> lele_bevy_preview::scene::Scene {
         lele_bevy_preview::scene::Scene {
-            name: String::from("starboard_board"),
+            name: String::from(name),
             kind: lele_bevy_preview::scene::Kind::App,
-            build: preview_build,
+            build,
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("empty board"),
@@ -187,14 +198,20 @@ mod tests {
         }
     }
 
-    #[test]
-    fn board_ui_png_preview() {
-        scene().run(&config()).expect("preview");
+    #[rstest]
+    #[case::circle_red("starboard_board_circle_red", build_circle_red)]
+    #[case::square_blue("starboard_board_square_blue", build_square_blue)]
+    #[case::star_yellow("starboard_board_star_yellow", build_star_yellow)]
+    fn board_ui_png_preview(#[case] name: &str, #[case] build: fn(&mut App)) {
+        board_scene(name, build).run(&config()).expect("preview");
     }
 
-    #[test]
-    fn board_ui_scene_preview() {
-        scene().run(&config()).expect("preview");
+    #[rstest]
+    #[case::circle_red("starboard_board_circle_red", build_circle_red)]
+    #[case::square_blue("starboard_board_square_blue", build_square_blue)]
+    #[case::star_yellow("starboard_board_star_yellow", build_star_yellow)]
+    fn board_ui_scene_preview(#[case] name: &str, #[case] build: fn(&mut App)) {
+        board_scene(name, build).run(&config()).expect("preview");
     }
 
     const CONVERGE_BUDGET: std::time::Duration = std::time::Duration::from_secs(10);

@@ -33,7 +33,7 @@ pub fn node_with(game: &identity::GameId, history: Option<room_sync::HistoryConf
     app.init_resource::<ButtonInput<MouseButton>>();
     app.init_resource::<AccumulatedMouseScroll>();
     app.add_message::<discovery::Event>();
-    app.add_plugins(starboard::app::StarboardPlugin);
+    app.add_plugins(starboard::app::StarboardTestPlugin::default());
     app.update();
     app
 }

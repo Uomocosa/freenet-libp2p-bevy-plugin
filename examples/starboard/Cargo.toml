@@ -35,7 +35,7 @@ derive_more = { workspace = true, features = ["deref", "deref_mut", "from"] }
 e2e_steps = { path = "../../tests/e2e_steps" }
 examples_shared = { path = "../shared" }
 freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin", features = ["e2e"] }
-lele-bevy-preview = { path = "../../../telegram-bot-helper/crates/lele-bevy-preview" }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.15" }
 libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
 serde.workspace = true
 serde_json = "=1.0.154"
@@ -44,3 +44,6 @@ tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thr
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }
 zstd = "=0.14.3"
+
+[dev-dependencies]
+rstest.workspace = true

@@ -77,9 +77,11 @@ fn stamp_centers(
 mod tests {
     use std::collections::BTreeSet;
 
+    use rstest::rstest;
+
     use super::rasterize;
     use crate::starboard;
-    use crate::starboard::canvas::{CANVAS_SIDE, CellPos, DrawAction, DrawOp};
+    use crate::starboard::canvas::{CANVAS_SIDE, CellPos, DrawAction, DrawOp, is_inside_shape};
     use crate::starboard::identity::{PaletteColor, SHAPES, Shape};
 
     #[test]
@@ -98,11 +100,40 @@ mod tests {
         }
     }
 
-    #[test]
-    fn segment_has_no_gaps_and_clips_at_canvas_borders() {
+    #[rstest]
+    #[case::circle_red(Shape::Circle, PaletteColor(0))]
+    #[case::square_blue(Shape::Square, PaletteColor(6))]
+    #[case::star_yellow(Shape::Star, PaletteColor(11))]
+    fn single_dab_paints_inside_its_shape(#[case] shape: Shape, #[case] color: PaletteColor) {
+        let center = CellPos { x: 100, y: 100 };
+        let dab = DrawOp {
+            action: DrawAction::Paint(color),
+            shape,
+            size_index: 0,
+            from: center,
+            to: center,
+        };
+        let radius = starboard::canvas::brush_radius(0);
+        let covered: BTreeSet<_> = rasterize(&dab).collect();
+        assert!(!covered.is_empty());
+        assert!(covered.iter().all(|pos| {
+            let dx = i32::from(pos.x).saturating_sub(i32::from(center.x));
+            let dy = i32::from(pos.y).saturating_sub(i32::from(center.y));
+            is_inside_shape(shape, radius, dx, dy)
+        }));
+    }
+
+    #[rstest]
+    #[case::circle_red(Shape::Circle, PaletteColor(0))]
+    #[case::square_blue(Shape::Square, PaletteColor(6))]
+    #[case::star_yellow(Shape::Star, PaletteColor(11))]
+    fn segment_has_no_gaps_and_clips_at_canvas_borders(
+        #[case] shape: Shape,
+        #[case] color: PaletteColor,
+    ) {
         let stroke = DrawOp {
-            action: DrawAction::Paint(PaletteColor(1)),
-            shape: Shape::Circle,
+            action: DrawAction::Paint(color),
+            shape,
             size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
             from: CellPos { x: 20, y: 20 },
             to: CellPos { x: 120, y: 20 },
@@ -118,7 +149,7 @@ mod tests {
         let max_coord = u16::try_from(CANVAS_SIDE.saturating_sub(1)).unwrap_or(1023);
         let border_op = DrawOp {
             action: DrawAction::Erase,
-            shape: Shape::Square,
+            shape,
             size_index: 8,
             from: CellPos { x: 0, y: 0 },
             to: CellPos { x: max_coord, y: 0 },

@@ -135,7 +135,10 @@ mod tests {
             max: 8,
             entries: roster_entries(),
         });
-        app.add_plugins((ui::roster::UiPlugin, starboard::app::StarboardPlugin));
+        app.add_plugins((
+            ui::roster::UiPlugin,
+            starboard::app::StarboardTestPlugin::default(),
+        ));
         app.add_systems(Startup, (spawn_board, expand_roster_list));
     }
 

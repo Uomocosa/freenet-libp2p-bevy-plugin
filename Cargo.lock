@@ -9803,6 +9803,7 @@ dependencies = [
  "freenet-libp2p-bevy-plugin",
  "lele-bevy-preview",
  "libp2p",
+ "rstest",
  "serde",
  "serde_json",
  "tempfile",
