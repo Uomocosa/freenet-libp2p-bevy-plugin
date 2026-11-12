@@ -95,6 +95,7 @@ mod tests {
                 size_index: 0,
                 from: CellPos { x: 100, y: 100 },
                 to: CellPos { x: 100, y: 100 },
+                stroke_rank: 1,
             };
             let covered: BTreeSet<_> = rasterize(&click_min_size).collect();
             assert!(!covered.is_empty());
@@ -114,6 +115,7 @@ mod tests {
             size_index: 0,
             from: center,
             to: center,
+            stroke_rank: 1,
         };
         let radius = starboard::canvas::brush_radius(0);
         let covered: BTreeSet<_> = rasterize(&dab).collect();
@@ -139,6 +141,7 @@ mod tests {
             size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
             from: CellPos { x: 20, y: 20 },
             to: CellPos { x: 120, y: 20 },
+            stroke_rank: 1,
         };
         let covered: BTreeSet<_> = rasterize(&stroke).collect();
         for x in 20_u16..=120 {
@@ -155,6 +158,7 @@ mod tests {
             size_index: 8,
             from: CellPos { x: 0, y: 0 },
             to: CellPos { x: max_coord, y: 0 },
+            stroke_rank: 1,
         };
         let border_cells: Vec<_> = rasterize(&border_op).collect();
         assert_ne!(border_cells, []);
@@ -184,6 +188,7 @@ mod tests {
                 size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
                 from: pair.first().copied().unwrap_or_default(),
                 to: pair.last().copied().unwrap_or_default(),
+                stroke_rank: 1,
             };
             let raw: Vec<CellPos> = rasterize(&op).collect();
             assert!(

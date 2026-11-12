@@ -7,11 +7,13 @@ pub fn reset_canvas(
     mut joins: MessageReader<discovery::Event>,
     mut canvas: ResMut<starboard::canvas::Canvas>,
     mut latest_painted: ResMut<starboard::input::LatestPaintedCell>,
+    mut pending: ResMut<starboard::input::PendingPressState>,
 ) {
     for event in joins.read() {
         if matches!(event, discovery::Event::Joined(_)) {
             *canvas = starboard::canvas::Canvas::default();
-            **latest_painted = None;
+            *latest_painted = starboard::input::LatestPaintedCell::default();
+            **pending = None;
         }
     }
 }
@@ -30,6 +32,7 @@ mod tests {
         app.add_message::<discovery::Event>();
         app.init_resource::<starboard::canvas::Canvas>();
         app.init_resource::<starboard::input::LatestPaintedCell>();
+        app.init_resource::<starboard::input::PendingPressState>();
         app.add_systems(Update, reset_canvas);
 
         let cell = starboard::canvas::Cell {
@@ -60,6 +63,38 @@ mod tests {
                 .resource::<starboard::canvas::Canvas>()
                 .dirty_tiles
                 .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_room_change_clears_the_pending_press() {
+        let mut app = App::new();
+        app.add_message::<discovery::Event>();
+        app.init_resource::<starboard::canvas::Canvas>();
+        app.init_resource::<starboard::input::LatestPaintedCell>();
+        app.init_resource::<starboard::input::PendingPressState>();
+        app.add_systems(Update, reset_canvas);
+
+        let press_cell = starboard::canvas::CellPos { x: 9, y: 9 };
+        let press = starboard::input::PendingPress::begin(
+            MouseButton::Left,
+            press_cell,
+            Vec2::ZERO,
+            0.0,
+            5,
+        );
+        **app
+            .world_mut()
+            .resource_mut::<starboard::input::PendingPressState>() = Some(press);
+        app.world_mut()
+            .resource_mut::<Messages<discovery::Event>>()
+            .write(discovery::Event::Joined(identity::RoomName::from("beta")));
+        app.update();
+
+        assert!(
+            app.world()
+                .resource::<starboard::input::PendingPressState>()
+                .is_none()
         );
     }
 }

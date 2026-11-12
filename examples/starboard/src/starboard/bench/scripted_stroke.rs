@@ -26,10 +26,17 @@ pub fn scripted_stroke(
         x: u16::try_from(x.saturating_add(starboard::bench::STROKE_LENGTH)).unwrap_or(u16::MAX),
         y: from.y,
     };
+    let stroke_rank = u32::try_from(
+        tick.saturating_mul(peer_count)
+            .saturating_add(peer_index)
+            .saturating_add(1),
+    )
+    .unwrap_or(u32::MAX);
     starboard::input::draw_op(
         brush,
         starboard::canvas::DrawAction::Paint(brush.color),
         starboard::canvas::Stroke { from, to },
+        stroke_rank,
     )
 }
 

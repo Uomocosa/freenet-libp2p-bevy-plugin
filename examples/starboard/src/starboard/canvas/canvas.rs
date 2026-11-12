@@ -30,7 +30,7 @@ impl room_sync::traits::ReplicatedState for Canvas {
             starboard::canvas::DrawAction::Erase => None,
         };
         let cell = starboard::canvas::Cell {
-            lamport: meta.lamport,
+            lamport: op.stroke_rank,
             author: meta.author,
             color,
         };
@@ -103,8 +103,212 @@ mod tests {
         OpMeta, ReplicaSliceIndex, traits::ReplicatedState,
     };
 
+    use std::collections::BTreeSet;
+
+    use rstest::rstest;
+
     use super::Canvas;
     use crate::starboard;
+    use starboard::canvas::{CellPos, DrawAction, DrawOp};
+    use starboard::identity::{PaletteColor, Shape};
+
+    /// Zig-zag heights in units of `WAVE_UNIT_PX`; the sign changes at i = 3, 9 and 15.
+    const WAVE_HEIGHTS: [i16; 19] = [
+        -6, -4, -2, 0, 2, 4, 6, 4, 2, 0, -2, -4, -6, -4, -2, 0, 2, 4, 6,
+    ];
+    const WAVE_UNIT_PX: i16 = 20;
+    const WAVE_STEP_PX: u16 = 40;
+    const WAVE_ROW: i16 = 450;
+
+    /// Mirrored waves (`sign` 1 and -1) cross exactly at the zeros of `WAVE_HEIGHTS`.
+    fn wave_points(sign: i16) -> Vec<CellPos> {
+        WAVE_HEIGHTS
+            .iter()
+            .enumerate()
+            .map(|(index, height)| CellPos {
+                x: 120_u16.saturating_add(
+                    u16::try_from(index)
+                        .unwrap_or(0)
+                        .saturating_mul(WAVE_STEP_PX),
+                ),
+                y: WAVE_ROW
+                    .saturating_add(sign.saturating_mul(*height).saturating_mul(WAVE_UNIT_PX))
+                    .unsigned_abs(),
+            })
+            .collect()
+    }
+
+    /// One op per segment of a wave, all carrying the stroke's rank and author.
+    fn wave_ops(
+        sign: i16,
+        shape: Shape,
+        action: DrawAction,
+        stroke_rank: u32,
+        author: u16,
+    ) -> Vec<(OpMeta, DrawOp)> {
+        wave_points(sign)
+            .windows(2)
+            .map(|pair| {
+                let op = DrawOp {
+                    action,
+                    shape,
+                    size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+                    from: pair.first().copied().unwrap_or_default(),
+                    to: pair.last().copied().unwrap_or_default(),
+                    stroke_rank,
+                };
+                (
+                    OpMeta {
+                        lamport: stroke_rank,
+                        author,
+                    },
+                    op,
+                )
+            })
+            .collect()
+    }
+
+    fn earlier_wave(action: DrawAction, shape: Shape) -> Vec<(OpMeta, DrawOp)> {
+        wave_ops(1, shape, action, 10, 1)
+    }
+
+    fn later_wave(action: DrawAction, shape: Shape) -> Vec<(OpMeta, DrawOp)> {
+        wave_ops(-1, shape, action, 11, 2)
+    }
+
+    fn canvas_from(ops: &[(OpMeta, DrawOp)]) -> Canvas {
+        let mut canvas = Canvas::default();
+        for (meta, op) in ops {
+            canvas.apply(*meta, op);
+        }
+        canvas
+    }
+
+    fn cells_of(ops: &[(OpMeta, DrawOp)]) -> BTreeSet<CellPos> {
+        ops.iter()
+            .flat_map(|(_, op)| starboard::canvas::rasterize(op))
+            .collect()
+    }
+
+    fn crossing_cells(
+        earlier: &[(OpMeta, DrawOp)],
+        later: &[(OpMeta, DrawOp)],
+    ) -> BTreeSet<CellPos> {
+        cells_of(earlier)
+            .intersection(&cells_of(later))
+            .copied()
+            .collect()
+    }
+
+    fn interleaved(
+        later: &[(OpMeta, DrawOp)],
+        earlier: &[(OpMeta, DrawOp)],
+    ) -> Vec<(OpMeta, DrawOp)> {
+        later
+            .iter()
+            .zip(earlier.iter())
+            .flat_map(|(q, p)| [*q, *p])
+            .collect()
+    }
+
+    fn joined(first: &[(OpMeta, DrawOp)], second: &[(OpMeta, DrawOp)]) -> Vec<(OpMeta, DrawOp)> {
+        first.iter().chain(second.iter()).copied().collect()
+    }
+
+    #[test]
+    fn two_strokes_crossing_three_times_later_start_wins() {
+        let earlier = earlier_wave(DrawAction::Paint(PaletteColor(0)), Shape::Circle);
+        let later = later_wave(DrawAction::Paint(PaletteColor(6)), Shape::Circle);
+        let crossings = crossing_cells(&earlier, &later);
+        assert!(!crossings.is_empty());
+        for x in [240_u16, 480, 720] {
+            assert!(crossings.iter().any(|pos| pos.x.abs_diff(x) <= 4));
+        }
+
+        let mut canvas = Canvas::default();
+        for ((meta_q, op_q), (meta_p, op_p)) in later.iter().zip(earlier.iter()) {
+            canvas.apply(*meta_q, op_q);
+            canvas.apply(*meta_p, op_p);
+        }
+
+        for pos in &crossings {
+            let cell = starboard::canvas::read_cell(&canvas, *pos);
+            assert_eq!(cell.color, Some(PaletteColor(6)), "later stroke at {pos:?}");
+            assert_eq!(cell.lamport, 11);
+        }
+        let earlier_only = cells_of(&earlier)
+            .difference(&cells_of(&later))
+            .copied()
+            .any(|pos| starboard::canvas::read_cell(&canvas, pos).color == Some(PaletteColor(0)));
+        assert!(
+            earlier_only,
+            "the earlier stroke still shows outside the crossings"
+        );
+    }
+
+    #[test]
+    fn delivery_order_does_not_matter() {
+        let earlier = earlier_wave(DrawAction::Paint(PaletteColor(0)), Shape::Circle);
+        let later = later_wave(DrawAction::Paint(PaletteColor(6)), Shape::Circle);
+        let orders = [
+            interleaved(&later, &earlier),
+            joined(&earlier, &later),
+            joined(&later, &earlier),
+            joined(&earlier, &later).into_iter().rev().collect(),
+        ];
+        let hashes: Vec<u64> = orders
+            .iter()
+            .map(|order| starboard::canvas::hash_canvas(&canvas_from(order)))
+            .collect();
+        assert_ne!(hashes.first().copied(), Some(0));
+        assert!(hashes.iter().all(|hash| Some(hash) == hashes.first()));
+    }
+
+    #[rstest]
+    #[case::circle_red(Shape::Circle, PaletteColor(0))]
+    #[case::square_blue(Shape::Square, PaletteColor(6))]
+    #[case::star_yellow(Shape::Star, PaletteColor(11))]
+    fn two_peers_converge(#[case] shape: Shape, #[case] color: PaletteColor) {
+        let other = PaletteColor(if color.0 == 1 { 2 } else { 1 });
+        let earlier = wave_ops(1, shape, DrawAction::Paint(color), 10, 1);
+        let later = wave_ops(-1, shape, DrawAction::Paint(other), 11, 2);
+        let peer_a = canvas_from(&joined(&earlier, &later));
+        let peer_b = canvas_from(&joined(&later, &earlier));
+        assert_eq!(
+            starboard::canvas::hash_canvas(&peer_a),
+            starboard::canvas::hash_canvas(&peer_b)
+        );
+    }
+
+    #[test]
+    fn a_later_erase_beats_earlier_paint() {
+        let earlier = earlier_wave(DrawAction::Paint(PaletteColor(0)), Shape::Circle);
+        let later = later_wave(DrawAction::Erase, Shape::Circle);
+        let crossings = crossing_cells(&earlier, &later);
+        assert!(!crossings.is_empty());
+
+        let canvas = canvas_from(&joined(&later, &earlier));
+        for pos in &crossings {
+            let cell = starboard::canvas::read_cell(&canvas, *pos);
+            assert_eq!(cell.color, None, "erase at {pos:?}");
+            assert_eq!(cell.lamport, 11);
+        }
+    }
+
+    #[test]
+    fn a_later_paint_beats_earlier_erase() {
+        let earlier = earlier_wave(DrawAction::Erase, Shape::Circle);
+        let later = later_wave(DrawAction::Paint(PaletteColor(6)), Shape::Circle);
+        let crossings = crossing_cells(&earlier, &later);
+        assert!(!crossings.is_empty());
+
+        let canvas = canvas_from(&joined(&later, &earlier));
+        for pos in &crossings {
+            let cell = starboard::canvas::read_cell(&canvas, *pos);
+            assert_eq!(cell.color, Some(PaletteColor(6)), "paint at {pos:?}");
+            assert_eq!(cell.lamport, 11);
+        }
+    }
 
     fn sample_op(seed: u64) -> (OpMeta, starboard::canvas::DrawOp) {
         let mut leading = [0_u8; 8];
@@ -143,6 +347,7 @@ mod tests {
                     y: from_y,
                 },
                 to: starboard::canvas::CellPos { x: to_x, y: to_y },
+                stroke_rank: lamport,
             },
         )
     }

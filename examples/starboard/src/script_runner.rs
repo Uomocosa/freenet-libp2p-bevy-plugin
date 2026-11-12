@@ -4,7 +4,7 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
 use e2e_steps::starboard_steps::StarboardStep;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, peers, testing, ui};
+use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, peers, room_sync, testing, ui};
 
 use crate::friend_intent::FriendIntent;
 use crate::scripted_starboard_step::ScriptedStarboardStep;
@@ -28,6 +28,7 @@ pub struct StarboardStepParam<'w, 's> {
     join_error: Option<Res<'w, ui::discovery::JoinError>>,
     canvas: Res<'w, starboard::canvas::Canvas>,
     brush: Res<'w, starboard::input::OwnBrush>,
+    clock: Res<'w, room_sync::LamportClock>,
     draws: MessageWriter<'w, starboard::input::PendingLocalDraw>,
     effects: testing::E2EStepEffectSink<'w>,
     stable: Local<'s, Option<CanvasHashSince>>,
@@ -63,11 +64,12 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
                 poll.outcome
             }
             StarboardStep::Paint(strokes) => {
-                for stroke in strokes {
+                for (index, stroke) in strokes.iter().enumerate() {
                     let action = starboard::canvas::DrawAction::Paint(param.brush.color);
                     let outcome = draw_stroke(
                         action,
                         crate::script::to_canvas_stroke(*stroke),
+                        scripted_stroke_rank(param.clock.saturating_add(1), index),
                         state,
                         *param.brush,
                         &mut param.draws,
@@ -79,10 +81,11 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
                 testing::StepOutcome::Done
             }
             StarboardStep::Erase(strokes) => {
-                for stroke in strokes {
+                for (index, stroke) in strokes.iter().enumerate() {
                     let outcome = draw_stroke(
                         starboard::canvas::DrawAction::Erase,
                         crate::script::to_canvas_stroke(*stroke),
+                        scripted_stroke_rank(param.clock.saturating_add(1), index),
                         state,
                         *param.brush,
                         &mut param.draws,
@@ -170,6 +173,7 @@ fn poll_dial(addrs: &str, param: &mut StarboardStepParam<'_, '_>) -> testing::St
 fn draw_stroke(
     action: starboard::canvas::DrawAction,
     stroke: starboard::canvas::Stroke,
+    stroke_rank: u32,
     state: &DiscoveryState,
     brush: starboard::input::OwnBrush,
     draws: &mut MessageWriter<starboard::input::PendingLocalDraw>,
@@ -178,9 +182,14 @@ fn draw_stroke(
         return testing::StepOutcome::Failed("cannot draw outside a room".to_string());
     }
     draws.write(starboard::input::PendingLocalDraw(
-        starboard::input::draw_op(brush, action, stroke),
+        starboard::input::draw_op(brush, action, stroke, stroke_rank),
     ));
     testing::StepOutcome::Done
+}
+
+// needed helper: strokes of one step start one after another, each with a higher rank
+fn scripted_stroke_rank(first_rank: u32, index: usize) -> u32 {
+    first_rank.saturating_add(u32::try_from(index).unwrap_or(u32::MAX))
 }
 
 // needed helper: whether the canvas hash has held for CANVAS_STABLE_FOR within this step
@@ -227,7 +236,7 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, room_sync, testing};
 
     use super::StarboardScriptRunner;
     use super::dial_peer;
@@ -245,6 +254,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.init_resource::<starboard::canvas::Canvas>();
         app.init_resource::<starboard::input::OwnBrush>();
+        app.init_resource::<room_sync::LamportClock>();
         app.insert_resource(testing::PendingAction::default());
         app.insert_resource(crate::friend_intent::FriendIntent::default());
         app.insert_resource(freenet_libp2p_bevy_plugin::p2p::PendingLibp2pCommands::default());

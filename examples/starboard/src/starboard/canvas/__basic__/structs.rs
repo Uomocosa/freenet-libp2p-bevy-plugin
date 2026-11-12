@@ -38,4 +38,5 @@ pub struct DrawOp {
     pub size_index: u8,
     pub from: CellPos,
     pub to: CellPos,
+    pub stroke_rank: u32,
 }

@@ -34,6 +34,7 @@ mod tests {
             size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
             from: starboard::canvas::CellPos { x: 50, y: 50 },
             to: starboard::canvas::CellPos { x: 50, y: 50 },
+            stroke_rank: 1,
         };
         app.world_mut()
             .write_message(starboard::input::PendingLocalDraw(op));

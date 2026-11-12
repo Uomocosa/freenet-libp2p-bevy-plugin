@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use freenet_libp2p_bevy_plugin::ui;
+use freenet_libp2p_bevy_plugin::{room_sync, ui};
 
 use crate::starboard;
 
@@ -11,11 +11,13 @@ pub fn track_pointer(
     windows: Query<&Window, With<PrimaryWindow>>,
     time: Res<Time>,
     brush: Res<starboard::input::OwnBrush>,
+    clock: Res<room_sync::LamportClock>,
     mut latest_painted: ResMut<starboard::input::LatestPaintedCell>,
     mut pending: ResMut<starboard::input::PendingPressState>,
     mut draws: MessageWriter<starboard::input::PendingLocalDraw>,
 ) {
     let buttons = buttons.into_inner();
+    let clock = clock.into_inner();
     let cursor = cursor.into_inner();
     let time = time.into_inner();
     let brush = *brush.into_inner();
@@ -24,7 +26,7 @@ pub fn track_pointer(
         .into_iter()
         .find(|button| is_held(buttons, *button));
     let (Some(button), false) = (held, is_menu_open) else {
-        **latest_painted = None;
+        *latest_painted = starboard::input::LatestPaintedCell::default();
         **pending = None;
         return;
     };
@@ -40,14 +42,19 @@ pub fn track_pointer(
     } else {
         starboard::canvas::DrawAction::Paint(brush.color)
     };
+    let latest = *latest_painted;
     let current_pending = (**pending).take();
-    let (strokes, next_pending, next_latest) = match (current_pending, **latest_painted) {
+    let (strokes, next_pending, next_latest) = match (current_pending, latest.cell) {
         (Some(mut press), _) if press.button == button => {
             press.record(current);
             if press.has_become_stroke(screen, now) {
-                (press.segments(), None, Some(current))
+                let latched = starboard::input::LatestPaintedCell {
+                    cell: Some(current),
+                    stroke_rank: press.stroke_rank,
+                };
+                (press.segments(), None, latched)
             } else {
-                (Vec::new(), Some(press), **latest_painted)
+                (Vec::new(), Some(press), latest)
             }
         }
         (None, Some(last)) => (
@@ -56,27 +63,45 @@ pub fn track_pointer(
                 to: current,
             }],
             None,
-            Some(current),
+            starboard::input::LatestPaintedCell {
+                cell: Some(current),
+                stroke_rank: latest.stroke_rank,
+            },
         ),
-        _ if buttons.just_pressed(button) => (
-            vec![starboard::canvas::Stroke {
-                from: current,
-                to: current,
-            }],
-            Some(starboard::input::PendingPress::begin(
-                button, current, screen, now,
-            )),
-            Some(current),
+        _ if buttons.just_pressed(button) => {
+            let stroke_rank = clock.saturating_add(1);
+            (
+                vec![starboard::canvas::Stroke {
+                    from: current,
+                    to: current,
+                }],
+                Some(starboard::input::PendingPress::begin(
+                    button,
+                    current,
+                    screen,
+                    now,
+                    stroke_rank,
+                )),
+                starboard::input::LatestPaintedCell {
+                    cell: Some(current),
+                    stroke_rank,
+                },
+            )
+        }
+        _ => (
+            Vec::new(),
+            None,
+            starboard::input::LatestPaintedCell::default(),
         ),
-        _ => (Vec::new(), None, None),
     };
+    let stroke_rank = next_latest.stroke_rank;
     for stroke in strokes {
         draws.write(starboard::input::PendingLocalDraw(
-            starboard::input::draw_op(brush, action, stroke),
+            starboard::input::draw_op(brush, action, stroke, stroke_rank),
         ));
     }
     **pending = next_pending;
-    **latest_painted = next_latest;
+    *latest_painted = next_latest;
 }
 
 // needed helper: a click shorter than one frame still paints, so just_pressed counts as held
@@ -105,6 +130,7 @@ mod tests {
         app.init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>();
         app.insert_resource(starboard::render::CanvasView::fit(Vec2::splat(1024.0)));
         app.insert_resource(starboard::input::OwnBrush::default());
+        app.init_resource::<room_sync::LamportClock>();
         app.init_resource::<starboard::input::LatestPaintedCell>();
         app.init_resource::<starboard::input::PendingPressState>();
         app.init_resource::<starboard::input::CursorCell>();
@@ -162,6 +188,15 @@ mod tests {
             .resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
             .ops
             .clone()
+    }
+
+    /// Stands in for core's `write_ops`, which ticks the clock once per op it writes.
+    fn tick_once_per_sent_op(app: &mut App) {
+        let count = sent(app).len();
+        let mut clock = app.world_mut().resource_mut::<room_sync::LamportClock>();
+        for _ in 0..count {
+            clock.tick();
+        }
     }
 
     fn sent_segments(app: &App) -> Vec<(CellPos, CellPos)> {
@@ -320,7 +355,7 @@ mod tests {
         let latest = app
             .world()
             .resource::<starboard::input::LatestPaintedCell>();
-        assert!((**latest).is_none());
+        assert!(latest.cell.is_none());
     }
 
     #[test]
@@ -347,5 +382,64 @@ mod tests {
             ],
             "painting resumes from the fresh cell, not from the pre-menu tail"
         );
+    }
+    #[test]
+    fn every_op_of_one_press_carries_the_same_stroke_rank() {
+        let mut app = app_with_pointer();
+        point_at(&mut app, Vec2::new(100.0, 100.0));
+        press(&mut app, MouseButton::Left);
+        app.update();
+        for screen in [
+            (103.0, 100.0),
+            (103.0, 102.0),
+            (100.0, 110.0),
+            (160.0, 110.0),
+        ] {
+            point_at(&mut app, Vec2::new(screen.0, screen.1));
+            app.update();
+        }
+
+        let ops = sent(&app);
+        assert!(ops.len() >= 5, "dab, catch-up and live segments");
+        let rank = ops.first().map(|op| op.stroke_rank);
+        assert!(rank.is_some_and(|rank| rank > 0));
+        assert!(ops.iter().all(|op| Some(op.stroke_rank) == rank));
+    }
+
+    #[test]
+    fn a_later_press_ranks_above_an_earlier_one() {
+        let mut app = app_with_pointer();
+        point_at(&mut app, Vec2::new(100.0, 100.0));
+        press(&mut app, MouseButton::Left);
+        app.update();
+        release_all(&mut app);
+        app.update();
+        tick_once_per_sent_op(&mut app);
+
+        point_at(&mut app, Vec2::new(300.0, 300.0));
+        press(&mut app, MouseButton::Left);
+        app.update();
+
+        let ranks: Vec<u32> = sent(&app).iter().map(|op| op.stroke_rank).collect();
+        assert_eq!(ranks.len(), 2);
+        assert!(
+            ranks
+                .get(1)
+                .is_some_and(|later| ranks.first().is_some_and(|first| later > first))
+        );
+    }
+
+    #[test]
+    fn a_press_after_observing_a_remote_op_ranks_above_it() {
+        let mut app = app_with_pointer();
+        app.world_mut()
+            .resource_mut::<room_sync::LamportClock>()
+            .observe(50);
+        point_at(&mut app, Vec2::new(100.0, 100.0));
+        press(&mut app, MouseButton::Left);
+        app.update();
+
+        let rank = sent(&app).first().map(|op| op.stroke_rank);
+        assert!(rank.is_some_and(|rank| rank > 50));
     }
 }

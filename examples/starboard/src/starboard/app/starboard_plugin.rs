@@ -154,28 +154,45 @@ mod tests {
         canvas: &mut starboard::canvas::Canvas,
         brush: starboard::input::OwnBrush,
         stroke: starboard::canvas::Stroke,
-        lamport: &mut u32,
+        stroke_rank: u32,
+        author: u16,
     ) {
-        *lamport = lamport.saturating_add(1);
         let op = starboard::input::draw_op(
             brush,
             starboard::canvas::DrawAction::Paint(brush.color),
             stroke,
+            stroke_rank,
         );
         canvas.apply(
             OpMeta {
-                lamport: *lamport,
-                author: 1,
+                lamport: stroke_rank,
+                author,
             },
             &op,
         );
+    }
+
+    fn paint_points(
+        canvas: &mut starboard::canvas::Canvas,
+        brush: starboard::input::OwnBrush,
+        points: &[starboard::canvas::CellPos],
+        stroke_rank: u32,
+        author: u16,
+    ) {
+        for (from, to) in points.iter().zip(points.iter().skip(1)) {
+            let stroke = starboard::canvas::Stroke {
+                from: *from,
+                to: *to,
+            };
+            paint_op(canvas, brush, stroke, stroke_rank, author);
+        }
     }
 
     fn paint_curve(
         canvas: &mut starboard::canvas::Canvas,
         brush: starboard::input::OwnBrush,
         origin: starboard::canvas::CellPos,
-        lamport: &mut u32,
+        stroke_rank: u32,
     ) {
         let points: Vec<starboard::canvas::CellPos> = CURVE
             .iter()
@@ -184,30 +201,26 @@ mod tests {
                 y: origin.y.saturating_add_signed(dy),
             })
             .collect();
-        for (from, to) in points.iter().zip(points.iter().skip(1)) {
-            let stroke = starboard::canvas::Stroke {
-                from: *from,
-                to: *to,
-            };
-            paint_op(canvas, brush, stroke, lamport);
-        }
+        paint_points(canvas, brush, &points, stroke_rank, 1);
     }
 
-    /// Three curved strokes in the case brush, then three single dots.
+    /// Three curved strokes in the case brush, then three single dots. Each stroke starts later.
     fn paint_strokes(world: &mut World) {
         let brush = brush_of(world.resource::<CaseBrush>().0);
         let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
-        let mut lamport = 0_u32;
+        let mut stroke_rank = 0_u32;
         for y in [150_u16, 400, 650] {
+            stroke_rank = stroke_rank.saturating_add(1);
             let origin = starboard::canvas::CellPos { x: 120, y };
-            paint_curve(&mut canvas, brush, origin, &mut lamport);
+            paint_curve(&mut canvas, brush, origin, stroke_rank);
         }
         for (x, y) in [(820_u16, 200_u16), (860, 260), (820, 330)] {
+            stroke_rank = stroke_rank.saturating_add(1);
             let dot = starboard::canvas::Stroke {
                 from: starboard::canvas::CellPos { x, y },
                 to: starboard::canvas::CellPos { x, y },
             };
-            paint_op(&mut canvas, brush, dot, &mut lamport);
+            paint_op(&mut canvas, brush, dot, stroke_rank, 1);
         }
     }
 
@@ -215,9 +228,55 @@ mod tests {
     fn paint_star_stroke(world: &mut World) {
         let brush = brush_of(STAR_YELLOW);
         let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
-        let mut lamport = 1000_u32;
         let origin = starboard::canvas::CellPos { x: 300, y: 520 };
-        paint_curve(&mut canvas, brush, origin, &mut lamport);
+        paint_curve(&mut canvas, brush, origin, 1001);
+    }
+
+    /// Zig-zag heights in units of `CROSSING_UNIT_PX`, one per point. The sign changes at
+    /// i = 3, 9 and 15, so two strokes mirrored about the middle row cross exactly three times.
+    const CROSSING_HEIGHTS: [i16; 19] = [
+        -6, -4, -2, 0, 2, 4, 6, 4, 2, 0, -2, -4, -6, -4, -2, 0, 2, 4, 6,
+    ];
+    const CROSSING_UNIT_PX: i16 = 20;
+    const CROSSING_STEP_PX: u16 = 40;
+    const CROSSING_ROW: i16 = 450;
+
+    fn crossing_points(sign: i16) -> Vec<starboard::canvas::CellPos> {
+        CROSSING_HEIGHTS
+            .iter()
+            .enumerate()
+            .map(|(index, height)| starboard::canvas::CellPos {
+                x: 120_u16.saturating_add(
+                    u16::try_from(index)
+                        .unwrap_or(0)
+                        .saturating_mul(CROSSING_STEP_PX),
+                ),
+                y: CROSSING_ROW
+                    .saturating_add(
+                        sign.saturating_mul(*height)
+                            .saturating_mul(CROSSING_UNIT_PX),
+                    )
+                    .unsigned_abs(),
+            })
+            .collect()
+    }
+
+    /// Two differently coloured strokes that cross three times. The later-started stroke (higher
+    /// rank) is painted first; the earlier one's segments are applied last and must still lose
+    /// at every crossing.
+    fn paint_crossing_strokes(world: &mut World) {
+        let earlier = starboard::input::OwnBrush {
+            shape: starboard::identity::Shape::Circle,
+            color: starboard::identity::PaletteColor(0),
+            size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+        };
+        let later = starboard::input::OwnBrush {
+            color: starboard::identity::PaletteColor(6),
+            ..earlier
+        };
+        let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
+        paint_points(&mut canvas, later, &crossing_points(-1), 2, 2);
+        paint_points(&mut canvas, earlier, &crossing_points(1), 1, 1);
     }
 
     fn show_cursor(world: &mut World) {
@@ -258,6 +317,10 @@ mod tests {
                     label: String::from("star stroke"),
                     apply: paint_star_stroke,
                 },
+                lele_bevy_preview::scene::State {
+                    label: String::from("crossing strokes"),
+                    apply: paint_crossing_strokes,
+                },
             ],
             timeline: None,
         }
@@ -297,6 +360,7 @@ mod tests {
                             y: y.saturating_add(40),
                         },
                     },
+                    u32::from(index).saturating_add(1),
                 )
             })
             .collect()
