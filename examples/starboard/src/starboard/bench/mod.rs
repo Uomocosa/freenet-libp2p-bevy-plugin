@@ -3,8 +3,10 @@ mod basic;
 
 mod bench_date;
 mod bench_markdown;
+mod bench_report;
 mod bench_starboard;
 mod history_bench;
+mod latency_percentiles;
 mod machine_info;
 mod op_ends;
 mod percentiles;
@@ -17,12 +19,12 @@ pub use basic::constants::{
     BENCH_ROOM, BENCH_SECONDS, BENCH_SIZE_INDEX, BENCH_TICKS, BENCH_WARMUP_SECONDS, REPAINT_ROUNDS,
     REPAINT_TILE_COUNTS, STROKE_BAND_WIDTH, STROKE_LENGTH, STROKE_START_OFFSET,
 };
-pub use basic::structs::{
-    BenchReport, LatencyPercentiles, MachineInfo, PeerTraffic, RepaintCost, ScenarioConfig,
-};
+pub use basic::structs::{PeerTraffic, RepaintCost, ScenarioConfig};
 pub use bench_date::bench_date;
 pub use bench_markdown::bench_markdown;
-pub use machine_info::machine_info;
+pub use bench_report::BenchReport;
+pub use latency_percentiles::LatencyPercentiles;
+pub use machine_info::MachineInfo;
 pub use op_ends::op_ends;
 pub use percentiles::percentiles;
 pub use repaint_cost::repaint_cost;

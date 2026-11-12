@@ -66,10 +66,13 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
             StarboardStep::Paint(strokes) => {
                 for (index, stroke) in strokes.iter().enumerate() {
                     let action = starboard::canvas::DrawAction::Paint(param.brush.color);
-                    let outcome = draw_stroke(
+                    let outcome = StarboardStepParam::draw_stroke(
                         action,
                         crate::script::to_canvas_points(*stroke),
-                        scripted_stroke_rank(param.clock.saturating_add(1), index),
+                        StarboardStepParam::scripted_stroke_rank(
+                            param.clock.saturating_add(1),
+                            index,
+                        ),
                         state,
                         *param.brush,
                         &mut param.draws,
@@ -82,10 +85,13 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
             }
             StarboardStep::Erase(strokes) => {
                 for (index, stroke) in strokes.iter().enumerate() {
-                    let outcome = draw_stroke(
+                    let outcome = StarboardStepParam::draw_stroke(
                         starboard::canvas::DrawAction::Erase,
                         crate::script::to_canvas_points(*stroke),
-                        scripted_stroke_rank(param.clock.saturating_add(1), index),
+                        StarboardStepParam::scripted_stroke_rank(
+                            param.clock.saturating_add(1),
+                            index,
+                        ),
                         state,
                         *param.brush,
                         &mut param.draws,
@@ -103,7 +109,7 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
                     testing::StepOutcome::Pending
                 }
             }
-            StarboardStep::WaitCanvasStable => is_canvas_stable(
+            StarboardStep::WaitCanvasStable => CanvasHashSince::poll_stable(
                 &mut param.stable,
                 starboard::canvas::hash_canvas(&param.canvas),
                 clock,
@@ -118,8 +124,8 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
                     testing::StepOutcome::Pending
                 }
             }
-            StarboardStep::AddFriend(addr) => poll_add_friend(addr, clock, param),
-            StarboardStep::Dial(addrs) => poll_dial(addrs, param),
+            StarboardStep::AddFriend(addr) => param.poll_add_friend(addr, clock),
+            StarboardStep::Dial(addrs) => param.poll_dial(addrs),
             StarboardStep::WaitFriendConnected(id) => {
                 if param.connected_peers.iter().any(|peer| *peer == *id) {
                     testing::StepOutcome::Done
@@ -138,97 +144,94 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
     }
 }
 
-// needed helper: arms the friend intent for one address, failing fast on bad
-// addresses and when the tab never accepts the address
-fn poll_add_friend(
-    addr: &str,
-    clock: testing::StepClock,
-    param: &mut StarboardStepParam<'_, '_>,
-) -> testing::StepOutcome {
-    if param.friend_intent.is_done(addr) {
-        return testing::StepOutcome::Done;
-    }
-    if identity::Peer::try_from(addr).is_err() {
-        return testing::StepOutcome::Failed(format!("bad friend address: {addr}"));
-    }
-    if clock.elapsed >= Duration::from_secs(180) {
-        return testing::StepOutcome::Failed(format!("adding {addr} timed out"));
-    }
-    param.friend_intent.arm(addr);
-    testing::StepOutcome::Pending
-}
-
-// needed helper: pushes one one-off dial command without adding a friend
-fn poll_dial(addrs: &str, param: &mut StarboardStepParam<'_, '_>) -> testing::StepOutcome {
-    match dial_peer(addrs) {
-        Ok(peer) => {
-            param.pending_dials.push(p2p::Libp2pCommand::Dial(peer));
+impl CanvasHashSince {
+    pub(crate) fn poll_stable(
+        stable: &mut Option<Self>,
+        hash: u64,
+        clock: testing::StepClock,
+    ) -> testing::StepOutcome {
+        let held = match *stable {
+            Some(seen) if seen.hash == hash && !clock.is_first_poll => seen,
+            _ => Self {
+                hash,
+                since: clock.elapsed,
+            },
+        };
+        *stable = Some(held);
+        if clock.elapsed.saturating_sub(held.since) >= CANVAS_STABLE_FOR {
             testing::StepOutcome::Done
+        } else {
+            testing::StepOutcome::Pending
         }
-        Err(reason) => testing::StepOutcome::Failed(reason),
     }
 }
 
-// needed helper: draws one scripted stroke; drawing outside a room is a script error
-fn draw_stroke(
-    action: starboard::canvas::DrawAction,
-    points: Vec<starboard::canvas::SubCellPos>,
-    stroke_rank: u32,
-    state: &DiscoveryState,
-    brush: starboard::input::OwnBrush,
-    draws: &mut MessageWriter<starboard::input::PendingLocalDraw>,
-) -> testing::StepOutcome {
-    if !starboard::room::is_in_room(state) {
-        return testing::StepOutcome::Failed("cannot draw outside a room".to_string());
-    }
-    draws.write(starboard::input::PendingLocalDraw(
-        starboard::input::draw_op(brush, action, points, stroke_rank),
-    ));
-    testing::StepOutcome::Done
-}
-
-// needed helper: strokes of one step start one after another, each with a higher rank
-fn scripted_stroke_rank(first_rank: u32, index: usize) -> u32 {
-    first_rank.saturating_add(u32::try_from(index).unwrap_or(u32::MAX))
-}
-
-// needed helper: whether the canvas hash has held for CANVAS_STABLE_FOR within this step
-fn is_canvas_stable(
-    stable: &mut Option<CanvasHashSince>,
-    hash: u64,
-    clock: testing::StepClock,
-) -> testing::StepOutcome {
-    let held = match *stable {
-        Some(seen) if seen.hash == hash && !clock.is_first_poll => seen,
-        _ => CanvasHashSince {
-            hash,
-            since: clock.elapsed,
-        },
-    };
-    *stable = Some(held);
-    if clock.elapsed.saturating_sub(held.since) >= CANVAS_STABLE_FOR {
-        testing::StepOutcome::Done
-    } else {
+impl StarboardStepParam<'_, '_> {
+    pub(crate) fn poll_add_friend(
+        &mut self,
+        addr: &str,
+        clock: testing::StepClock,
+    ) -> testing::StepOutcome {
+        if self.friend_intent.is_done(addr) {
+            return testing::StepOutcome::Done;
+        }
+        if identity::Peer::try_from(addr).is_err() {
+            return testing::StepOutcome::Failed(format!("bad friend address: {addr}"));
+        }
+        if clock.elapsed >= Duration::from_secs(180) {
+            return testing::StepOutcome::Failed(format!("adding {addr} timed out"));
+        }
+        self.friend_intent.arm(addr);
         testing::StepOutcome::Pending
     }
-}
 
-// needed helper: parses one `dial` step into a single one-off dial command
-fn dial_peer(addrs: &str) -> Result<identity::Peer, String> {
-    let mut parsed = Vec::new();
-    for addr in addrs.split_whitespace() {
-        match identity::Peer::try_from(addr) {
-            Ok(peer) => parsed.push(peer),
-            Err(error) => return Err(format!("bad dial address {addr}: {error}")),
+    pub(crate) fn poll_dial(&mut self, addrs: &str) -> testing::StepOutcome {
+        match Self::dial_peer(addrs) {
+            Ok(peer) => {
+                self.pending_dials.push(p2p::Libp2pCommand::Dial(peer));
+                testing::StepOutcome::Done
+            }
+            Err(reason) => testing::StepOutcome::Failed(reason),
         }
     }
-    let Some(first) = parsed.first() else {
-        return Err("dial needs an address".to_string());
-    };
-    Ok(identity::Peer {
-        id: first.id.clone(),
-        addrs: parsed.iter().flat_map(|peer| peer.addrs.clone()).collect(),
-    })
+
+    pub(crate) fn draw_stroke(
+        action: starboard::canvas::DrawAction,
+        points: Vec<starboard::canvas::SubCellPos>,
+        stroke_rank: u32,
+        state: &DiscoveryState,
+        brush: starboard::input::OwnBrush,
+        draws: &mut MessageWriter<starboard::input::PendingLocalDraw>,
+    ) -> testing::StepOutcome {
+        if !starboard::room::is_in_room(state) {
+            return testing::StepOutcome::Failed("cannot draw outside a room".to_string());
+        }
+        draws.write(starboard::input::PendingLocalDraw(
+            starboard::input::draw_op(brush, action, points, stroke_rank),
+        ));
+        testing::StepOutcome::Done
+    }
+
+    pub(crate) fn scripted_stroke_rank(first_rank: u32, index: usize) -> u32 {
+        first_rank.saturating_add(u32::try_from(index).unwrap_or(u32::MAX))
+    }
+
+    pub(crate) fn dial_peer(addrs: &str) -> Result<identity::Peer, String> {
+        let mut parsed = Vec::new();
+        for addr in addrs.split_whitespace() {
+            match identity::Peer::try_from(addr) {
+                Ok(peer) => parsed.push(peer),
+                Err(error) => return Err(format!("bad dial address {addr}: {error}")),
+            }
+        }
+        let Some(first) = parsed.first() else {
+            return Err("dial needs an address".to_string());
+        };
+        Ok(identity::Peer {
+            id: first.id.clone(),
+            addrs: parsed.iter().flat_map(|peer| peer.addrs.clone()).collect(),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -239,7 +242,7 @@ mod tests {
     use freenet_libp2p_bevy_plugin::{discovery, identity, room_sync, testing};
 
     use super::StarboardScriptRunner;
-    use super::dial_peer;
+    use super::StarboardStepParam;
     use crate::scripted_starboard_step::ScriptedStarboardStep;
     use crate::starboard;
 
@@ -330,11 +333,11 @@ mod tests {
         let id = libp2p::PeerId::random();
         let text =
             format!("/ip4/127.0.0.1/tcp/4001/p2p/{id} /ip4/127.0.0.1/udp/4002/quic-v1/p2p/{id}");
-        let peer = dial_peer(&text).expect("dial");
+        let peer = StarboardStepParam::dial_peer(&text).expect("dial");
         assert_eq!(peer.id, identity::PeerId::from(id.to_string()));
         assert_eq!(peer.addrs.len(), 2);
-        assert!(dial_peer("not a multiaddr").is_err());
-        assert!(dial_peer("   ").is_err());
+        assert!(StarboardStepParam::dial_peer("not a multiaddr").is_err());
+        assert!(StarboardStepParam::dial_peer("   ").is_err());
     }
 
     #[test]

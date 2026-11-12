@@ -1,10 +1,17 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use bevy::prelude::*;
 use clap::{Parser, ValueEnum};
+use examples_shared as shared;
+use examples_shared::e2e_report::peer_run_result::PeerRunResult;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 use freenet_libp2p_bevy_plugin::testing::{E2EArgs, NetworkArgs};
+use freenet_libp2p_bevy_plugin::{
+    direct_dial, discovery, identity, p2p, plugin, room_sync, testing, ui,
+};
 
 use crate::scripted_starboard_step::ScriptedStarboardStep;
+use crate::{friend_intent, result, scaled_timings, script_runner, starboard, status, time_scale};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum TransportArg {
@@ -33,6 +40,138 @@ pub struct Args {
     pub network: NetworkArgs,
     #[command(flatten)]
     pub e2e: E2EArgs<ScriptedStarboardStep>,
+}
+
+impl Args {
+    pub(crate) fn run_starboard(
+        &self,
+        ws_port: u16,
+        game: identity::GameId,
+        time_scale: time_scale::Scale,
+    ) -> bevy::app::AppExit {
+        let mut app = App::new();
+        app.add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: format!("starboard-{}", self.username),
+                resolution: (960, 540).into(),
+                ..default()
+            }),
+            ..default()
+        }));
+        app.add_systems(Startup, starboard::app::StarboardPlugin::spawn_camera);
+        app.insert_resource(discovery::FreenetPort(ws_port));
+        app.insert_resource(shared::status::LocalUser(identity::Username::from(
+            self.username.clone(),
+        )));
+        app.insert_resource(shared::intent::Intent::new(None));
+        app.insert_resource(testing::PendingAction::default());
+        app.insert_resource(friend_intent::FriendIntent::default());
+        app.add_systems(Update, friend_intent::drive_friend_intent);
+        app.add_plugins(
+            testing::FakeNetworkPlugin::<starboard::room::CursorUpdate>::from(&self.network),
+        );
+        let base = plugin::Config::<starboard::room::CursorUpdate>::new(
+            transport_mode(self.transport),
+            p2p::MdnsMode::Disabled,
+        )
+        .with_game(game.clone());
+        let keyed = if let Some(path) = &self.identity_file {
+            match Self::load_keypair(path) {
+                Ok(saved) => base.with_keypair(saved),
+                Err(error) => {
+                    eprintln!("{error}");
+                    return bevy::app::AppExit::error();
+                }
+            }
+        } else {
+            base
+        };
+        app.add_plugins(plugin::P2PPlugin(keyed));
+        app.add_plugins(direct_dial::FriendsPlugin::new(direct_dial::Config::from(
+            self.peer_book_file.clone(),
+        )));
+        app.add_plugins(discovery::Plugins(discovery::Config {
+            display_name: identity::Username::from(self.username.clone()),
+            game: game.clone(),
+            lease: scaled_timings::scaled_lease_timings(time_scale),
+            ..discovery::Config::default()
+        }));
+        app.add_plugins(ui::discovery::DefaultUiPlugin);
+        app.add_plugins(ui::direct_dial::FriendsUiPlugin);
+        app.add_plugins(
+            room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game)
+                .with_history_config(Some(scaled_timings::scaled_history_config(time_scale))),
+        );
+        app.add_plugins(starboard::app::StarboardPlugin);
+        app.add_systems(
+            Update,
+            shared::intent::script_input::<
+                ui::discovery::RoomNameInput,
+                ui::discovery::CreateRoomButton,
+                ui::discovery::RoomButton,
+            >,
+        );
+        if let Some(steps) = match self.e2e.parsed_script() {
+            Ok(steps) => steps,
+            Err(error) => {
+                eprintln!("{error}");
+                return bevy::app::AppExit::error();
+            }
+        } {
+            app.insert_resource(script_runner::StarboardScriptRunner::new(steps));
+            app.add_systems(
+                Update,
+                testing::bevy_systems::run_script::<ScriptedStarboardStep>.before(
+                    shared::intent::script_input::<
+                        ui::discovery::RoomNameInput,
+                        ui::discovery::CreateRoomButton,
+                        ui::discovery::RoomButton,
+                    >,
+                ),
+            );
+        }
+        app.add_systems(
+            Update,
+            (
+                shared::intent::log_joined,
+                shared::status::log_tick,
+                shared::status::log_mesh,
+                status::log_canvas_hash,
+            ),
+        );
+        if let Some(path) = self.e2e.result_json.clone() {
+            self.record_result(&mut app, path);
+        }
+        app.run()
+    }
+
+    pub(crate) fn load_keypair(path: &Path) -> Result<identity::SavedKeypair, String> {
+        identity::SavedKeypair::try_from(path).map_err(|error| format!("identity file: {error}"))
+    }
+
+    pub(crate) fn record_result(&self, app: &mut App, path: PathBuf) {
+        app.insert_resource(PeerRunResult {
+            username: self.username.clone(),
+            ..PeerRunResult::default()
+        });
+        app.insert_resource(result::ResultJsonPath(path));
+        app.add_systems(
+            Update,
+            result::bevy_systems::record_peer_run_result
+                .after(testing::bevy_systems::run_script::<ScriptedStarboardStep>)
+                .run_if(resource_exists::<script_runner::StarboardScriptRunner>),
+        );
+        app.add_systems(Last, result::bevy_systems::write_peer_run_result);
+    }
+
+    pub(crate) fn init_tracing() {
+        let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+        tracing_subscriber::fmt()
+            .with_env_filter(filter)
+            .with_ansi(false)
+            .init();
+    }
 }
 
 #[must_use]

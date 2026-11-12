@@ -77,46 +77,16 @@ pub fn shape_pieces(
                 k: bound,
             },
         ]],
-        starboard::identity::Shape::Triangle => origin_sectors(&TRIANGLE_VERTICES, r),
-        starboard::identity::Shape::Hexagon => origin_sectors(&HEXAGON_VERTICES, r),
-        starboard::identity::Shape::Star => origin_sectors(&STAR_VERTICES, r),
+        starboard::identity::Shape::Triangle => {
+            starboard::canvas::HalfPlane::origin_sectors(&TRIANGLE_VERTICES, r)
+        }
+        starboard::identity::Shape::Hexagon => {
+            starboard::canvas::HalfPlane::origin_sectors(&HEXAGON_VERTICES, r)
+        }
+        starboard::identity::Shape::Star => {
+            starboard::canvas::HalfPlane::origin_sectors(&STAR_VERTICES, r)
+        }
     }
-}
-
-// needed helper: each origin-centred sector of a star-convex polygon is one triangle, and the
-// triangle's three edge tests are the three half-planes below
-fn origin_sectors(vertices: &[[i64; 2]], radius: i64) -> Vec<Vec<starboard::canvas::HalfPlane>> {
-    let len = vertices.len();
-    (0..len)
-        .filter_map(|idx| {
-            let [ax0, ay0] = *vertices.get(idx)?;
-            let next = idx.saturating_add(1).checked_rem(len)?;
-            let [bx0, by0] = *vertices.get(next)?;
-            let (ax, ay) = (ax0.saturating_mul(radius), ay0.saturating_mul(radius));
-            let (bx, by) = (bx0.saturating_mul(radius), by0.saturating_mul(radius));
-            Some(vec![
-                starboard::canvas::HalfPlane {
-                    a: ay.saturating_neg(),
-                    b: ax,
-                    k: 0,
-                },
-                starboard::canvas::HalfPlane {
-                    a: by.saturating_sub(ay).saturating_neg(),
-                    b: bx.saturating_sub(ax),
-                    k: bx
-                        .saturating_sub(ax)
-                        .saturating_mul(ay)
-                        .saturating_neg()
-                        .saturating_add(by.saturating_sub(ay).saturating_mul(ax)),
-                },
-                starboard::canvas::HalfPlane {
-                    a: by,
-                    b: bx.saturating_neg(),
-                    k: 0,
-                },
-            ])
-        })
-        .collect()
 }
 
 #[cfg(test)]

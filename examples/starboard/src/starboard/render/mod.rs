@@ -1,6 +1,7 @@
 #[path = "__basic__/mod.rs"]
 mod basic;
 mod brush_image;
+mod brush_outline;
 mod canvas_view;
 mod cell_center;
 mod checker_background_rgba_at;
@@ -24,8 +25,9 @@ pub use basic::constants::{
     LABEL_COLOR, LABEL_FONT_SIZE, LABEL_GAP_PX, LABEL_Z, OWN_CURSOR_Z, OWN_FALLBACK_NAME,
     OWN_LABEL_COLOR, OWN_OUTLINE_PX, OWN_OUTLINE_RGBA, OWN_PREVIEW_ALPHA, PREVIEW_FILL_ALPHA,
 };
-pub use basic::structs::{BrushImage, BrushOutline};
+pub use basic::structs::BrushImage;
 pub use brush_image::brush_image;
+pub use brush_outline::BrushOutline;
 pub use canvas_view::CanvasView;
 pub use cell_center::cell_center;
 pub use checker_background_rgba_at::checker_background_rgba_at;

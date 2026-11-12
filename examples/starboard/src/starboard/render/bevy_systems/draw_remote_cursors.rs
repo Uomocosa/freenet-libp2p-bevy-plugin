@@ -49,7 +49,7 @@ pub fn draw_remote_cursors(
         if (!size_matches || is_brush_changed)
             && let Some(mut image) = images.get_mut(&sprite.image)
         {
-            starboard::render::replace_pixels(&mut image, remote_brush_image(brush, radius));
+            starboard::render::replace_pixels(&mut image, brush.cursor_image(radius));
             cursor_brush.0 = brush;
         }
         sprite.custom_size = Some(Vec2::splat(f32::from(outline_side) * view.scale));
@@ -64,7 +64,7 @@ pub fn draw_remote_cursors(
             continue;
         };
         let radius = starboard::canvas::brush_radius(cursor.size_index);
-        let starboard::render::BrushImage { side, pixels } = remote_brush_image(brush, radius);
+        let starboard::render::BrushImage { side, pixels } = brush.cursor_image(radius);
         let image = images.add(starboard::render::square_image(side, pixels));
         commands
             .spawn((
@@ -80,17 +80,6 @@ pub fn draw_remote_cursors(
     }
 }
 
-// needed helper: a peer's cursor is a half-transparent fill inside a solid edge of its colour
-fn remote_brush_image(
-    brush: starboard::identity::DailyBrush,
-    radius: u16,
-) -> starboard::render::BrushImage {
-    let edge = starboard::render::palette_rgba(brush.color);
-    let [red, green, blue, _] = edge;
-    let fill = [red, green, blue, starboard::render::PREVIEW_FILL_ALPHA];
-    starboard::render::brush_image(brush.shape, radius, fill, edge)
-}
-
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
@@ -98,7 +87,6 @@ mod tests {
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::draw_remote_cursors;
-    use super::remote_brush_image;
     use crate::starboard;
 
     fn members(peers: &[&str]) -> discovery::Members {
@@ -258,10 +246,8 @@ mod tests {
             .resource::<Assets<Image>>()
             .get(&handle)
             .expect("cursor image");
-        let expected = remote_brush_image(
-            changed,
-            starboard::canvas::brush_radius(cursor(300).size_index),
-        );
+        let expected =
+            changed.cursor_image(starboard::canvas::brush_radius(cursor(300).size_index));
         assert_eq!(image.texture_descriptor.size.width, expected.side);
         assert_eq!(image.data.as_deref(), Some(expected.pixels.as_slice()));
     }

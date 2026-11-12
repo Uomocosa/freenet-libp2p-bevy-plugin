@@ -11,6 +11,19 @@ impl Default for Tile {
     }
 }
 
+impl Tile {
+    pub(crate) fn try_from_cells(cells: &[starboard::canvas::Cell]) -> Option<Self> {
+        if cells.len() != starboard::canvas::CELLS_PER_TILE {
+            return None;
+        }
+        let mut tile = Self::default();
+        for (dst, src) in tile.iter_mut().zip(cells.iter()) {
+            *dst = *src;
+        }
+        Some(tile)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Tile;

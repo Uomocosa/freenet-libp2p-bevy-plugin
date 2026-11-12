@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::starboard::app::connection_events::ConnectionEvents;
 use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
@@ -115,35 +116,16 @@ pub fn wait_ready(app: &mut App) -> identity::Peer {
 }
 
 pub fn dial(app: &mut App, target: &identity::Peer) {
-    let mut events = app
-        .world()
-        .resource::<p2p::Libp2pEventChannel>()
-        .subscribe();
+    let mut events = ConnectionEvents(
+        app.world()
+            .resource::<p2p::Libp2pEventChannel>()
+            .subscribe(),
+    );
     app.world()
         .resource::<p2p::Libp2pCommandSender>()
         .send(p2p::Libp2pCommand::Dial(dialable(target)))
         .expect("dial");
-    wait_connected(app, &mut events, &target.id);
-}
-
-// needed helper: pump the app until the swarm reports the peer as connected
-fn wait_connected(
-    app: &mut App,
-    events: &mut tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>,
-    peer: &identity::PeerId,
-) {
-    for _ in 0..MAX_ROUNDS {
-        app.update();
-        while let Ok(event) = events.try_recv() {
-            if let p2p::Libp2pEvent::PeerConnected(id) = event
-                && &id == peer
-            {
-                return;
-            }
-        }
-        std::thread::sleep(SETTLE);
-    }
-    panic!("peer never connected");
+    events.wait_connected(app, &target.id);
 }
 
 // no test_usage necessary

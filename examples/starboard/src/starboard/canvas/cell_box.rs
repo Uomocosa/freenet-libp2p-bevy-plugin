@@ -49,7 +49,7 @@ impl CellBox {
 
     /// The cell indices along one axis whose centre lies within `reach` of the span `[low, high]`.
     #[must_use]
-    fn axis_span(low: i64, high: i64, reach: i64) -> (i64, i64) {
+    pub(crate) fn axis_span(low: i64, high: i64, reach: i64) -> (i64, i64) {
         let step = i64::from(starboard::canvas::SUBCELL_STEPS);
         let half = step / 2;
         let side = i64::try_from(starboard::canvas::CANVAS_SIDE).unwrap_or(0);

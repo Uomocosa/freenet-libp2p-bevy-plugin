@@ -17,15 +17,8 @@ pub fn refresh_member_icons(
     }
     icons.clear();
     for (peer, brush) in brushes.iter() {
-        icons.insert(peer.clone(), images.add(icon_image(*brush)));
+        icons.insert(peer.clone(), images.add(brush.icon_image(ICON_RADIUS)));
     }
-}
-
-// needed helper: the solid texture showing a peer's daily shape and colour
-fn icon_image(brush: starboard::identity::DailyBrush) -> Image {
-    let starboard::render::BrushImage { side, pixels } =
-        starboard::render::solid_brush_image(brush.shape, ICON_RADIUS, brush.color);
-    starboard::render::square_image(side, pixels)
 }
 
 #[cfg(test)]
@@ -142,7 +135,6 @@ mod tests {
         app.add_systems(Startup, (spawn_board, expand_roster_list));
     }
 
-    /// # needed helper: fake roster entries matching the four occupant ids
     fn roster_entries() -> Vec<discovery::RoomRosterEntry> {
         [
             ("peer-0", "user0"),

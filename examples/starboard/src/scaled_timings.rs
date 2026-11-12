@@ -2,15 +2,17 @@ use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::{discovery, room_sync};
 
+use crate::time_scale;
+
 /// The lease and history timings of one run, scaled by `E2E_TIME_SCALE`.
 ///
 /// The scale exists for the slow Windows peer: CROSS-OS-PLAN X9 multiplies every
 /// wait by it, and the lease is the wait a holder's history lives for.
-pub fn scaled_lease_timings(time_scale: f64) -> discovery::HolderHeartbeatIntervals {
+pub fn scaled_lease_timings(time_scale: time_scale::Scale) -> discovery::HolderHeartbeatIntervals {
     discovery::HolderHeartbeatIntervals {
-        interval_between_heartbeats: scaled(Duration::from_secs(30), time_scale),
-        ttl: scaled(Duration::from_secs(90), time_scale),
-        remote_clock_skew_margin: scaled(Duration::from_secs(600), time_scale),
+        interval_between_heartbeats: time_scale.scaled(Duration::from_secs(30)),
+        ttl: time_scale.scaled(Duration::from_secs(90)),
+        remote_clock_skew_margin: time_scale.scaled(Duration::from_secs(600)),
     }
 }
 
@@ -20,21 +22,12 @@ pub fn scaled_lease_timings(time_scale: f64) -> discovery::HolderHeartbeatInterv
 /// (the contract's state can take minutes to reach a cold node) still finds the
 /// board after the holders left the room. The room's death is decided by the
 /// lobby, not by the record.
-pub fn scaled_history_config(time_scale: f64) -> room_sync::HistoryConfig {
+pub fn scaled_history_config(time_scale: time_scale::Scale) -> room_sync::HistoryConfig {
     room_sync::HistoryConfig {
-        write_interval: scaled(Duration::from_secs(30), time_scale),
-        record_ttl: scaled(Duration::from_secs(600), time_scale),
+        write_interval: time_scale.scaled(Duration::from_secs(30)),
+        record_ttl: time_scale.scaled(Duration::from_secs(600)),
         ..room_sync::HistoryConfig::default()
     }
-}
-
-// needed helper: one duration scaled by the run's time scale
-fn scaled(duration: Duration, time_scale: f64) -> Duration {
-    let seconds = duration.as_secs_f64() * time_scale.max(0.0);
-    if seconds <= 0.0 {
-        return Duration::ZERO;
-    }
-    Duration::from_secs_f64(seconds)
 }
 
 #[cfg(test)]
@@ -42,31 +35,32 @@ mod tests {
     use std::time::Duration;
 
     use super::{scaled_history_config, scaled_lease_timings};
+    use crate::time_scale::Scale;
 
     #[test]
     fn test_usage() {
-        let lease = scaled_lease_timings(1.0);
+        let lease = scaled_lease_timings(Scale(1.0));
         assert_eq!(lease.interval_between_heartbeats, Duration::from_secs(30));
         assert_eq!(lease.ttl, Duration::from_secs(90));
         assert_eq!(lease.remote_clock_skew_margin, Duration::from_secs(600));
-        let history = scaled_history_config(1.0);
+        let history = scaled_history_config(Scale(1.0));
         assert_eq!(history.write_interval, Duration::from_secs(30));
         assert_eq!(history.record_ttl, Duration::from_secs(600));
     }
 
     #[test]
     fn a_scale_of_two_doubles_the_timings() {
-        let lease = scaled_lease_timings(2.0);
+        let lease = scaled_lease_timings(Scale(2.0));
         assert_eq!(lease.ttl, Duration::from_secs(180));
         assert_eq!(lease.remote_clock_skew_margin, Duration::from_mins(20));
-        let history = scaled_history_config(2.0);
+        let history = scaled_history_config(Scale(2.0));
         assert_eq!(history.write_interval, Duration::from_secs(60));
         assert_eq!(history.record_ttl, Duration::from_mins(20));
     }
 
     #[test]
     fn a_scale_of_zero_never_waits() {
-        let lease = scaled_lease_timings(0.0);
+        let lease = scaled_lease_timings(Scale(0.0));
         assert_eq!(lease.ttl, Duration::ZERO);
         assert_eq!(lease.remote_clock_skew_margin, Duration::ZERO);
     }

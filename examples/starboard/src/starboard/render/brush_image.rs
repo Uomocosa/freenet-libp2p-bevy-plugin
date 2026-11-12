@@ -21,7 +21,7 @@ pub fn brush_image(
             if !starboard::canvas::is_inside_shape(shape, radius, dx, dy) {
                 continue;
             }
-            let rgba = if is_interior(shape, radius, dx, dy) {
+            let rgba = if shape.is_interior(radius, dx, dy) {
                 fill
             } else {
                 edge
@@ -39,20 +39,6 @@ pub fn brush_image(
         side: u32::from(side),
         pixels,
     }
-}
-
-// needed helper: an edge pixel is inside the shape but has a neighbour outside it
-fn is_interior(shape: starboard::identity::Shape, radius: u16, dx: i32, dy: i32) -> bool {
-    [(1_i32, 0_i32), (-1, 0), (0, 1), (0, -1)]
-        .iter()
-        .all(|(step_x, step_y)| {
-            starboard::canvas::is_inside_shape(
-                shape,
-                radius,
-                dx.saturating_add(*step_x),
-                dy.saturating_add(*step_y),
-            )
-        })
 }
 
 #[cfg(test)]

@@ -49,6 +49,101 @@ impl HistoryBoard {
 }
 
 /// The measured size and latency of one room's Kademlia history.
+impl HistoryBoard {
+    pub(crate) fn seed_kad(app: &App, peer: &identity::Peer) {
+        app.world()
+            .resource::<p2p::Libp2pCommandSender>()
+            .send(p2p::Libp2pCommand::AddKadPeer(peer.clone()))
+            .ok();
+    }
+
+    pub(crate) fn paint(self, app: &mut App) {
+        let brush = *app.world().resource::<starboard::input::OwnBrush>();
+        let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
+        for tick in 0..self.strokes() {
+            let op = starboard::bench::scripted_stroke(0, 1, tick, brush);
+            canvas.apply(
+                room_sync::OpMeta {
+                    lamport: tick.saturating_add(1),
+                    author: 1,
+                },
+                &op,
+            );
+        }
+    }
+
+    pub(crate) fn write_commands(
+        app: &mut App,
+        prefix: &p2p::HistoryKeyPrefix,
+    ) -> (u64, Vec<p2p::Libp2pCommand>) {
+        let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
+        let snapshot = room_sync::traits::ReplicatedState::snapshot(&*canvas);
+        let snapshot_bytes = bincode::serialize(&snapshot).map_or(0, |bytes| bytes.len());
+        let commands = p2p::Libp2pCommand::merge_and_write_history_records(
+            &mut *canvas,
+            prefix,
+            None,
+            None,
+            1,
+            p2p::HistoryByteCount::from(HISTORY_PER_ROOM_BYTES),
+            HISTORY_RECORD_TTL,
+        );
+        (u64::try_from(snapshot_bytes).unwrap_or(0), commands)
+    }
+
+    pub(crate) fn command_sizes(commands: &[p2p::Libp2pCommand]) -> (u64, u32) {
+        let mut bytes = 0_u64;
+        let mut chunks = 0_u32;
+        for command in commands {
+            if let p2p::Libp2pCommand::PutHistoryRecord { id, value, .. } = command
+                && matches!(id, p2p::RoomHistoryRecordKind::Chunk(_))
+            {
+                bytes = bytes.saturating_add(u64::try_from(value.len()).unwrap_or(0));
+                chunks = chunks.saturating_add(1);
+            }
+        }
+        (bytes, chunks)
+    }
+
+    #[allow(clippy::future_not_send)]
+    pub(crate) async fn wait_for_manifest(
+        app: &mut App,
+        events: &mut tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>,
+        started: Instant,
+    ) -> Duration {
+        for _ in 0..MAX_ROUNDS {
+            app.update();
+            while let Ok(event) = events.try_recv() {
+                if let p2p::Libp2pEvent::HistoryRecordStored { id } = &event
+                    && matches!(id, p2p::RoomHistoryRecordKind::Manifest(_))
+                {
+                    return started.elapsed();
+                }
+            }
+            tokio::time::sleep(SETTLE).await;
+        }
+        started.elapsed()
+    }
+
+    #[allow(clippy::future_not_send)]
+    pub(crate) async fn wait_for_found(
+        app: &mut App,
+        events: &mut tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>,
+        started: Instant,
+    ) -> Duration {
+        for _ in 0..MAX_ROUNDS {
+            app.update();
+            while let Ok(event) = events.try_recv() {
+                if matches!(event, p2p::Libp2pEvent::HistoryRecordFound { .. }) {
+                    return started.elapsed();
+                }
+            }
+            tokio::time::sleep(SETTLE).await;
+        }
+        started.elapsed()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HistoryReport {
     pub board: HistoryBoard,
@@ -84,13 +179,13 @@ pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
     starboard::app::test_harness::dial(&mut reader, &peers[0]);
     // The lobby seeds the kademlia routing table of every peer it knows; the
     // bench does the same, or a put has nobody to confirm its quorum.
-    seed_kad(&writer, &starboard::app::test_harness::dialable(&peers[1]));
-    seed_kad(&reader, &starboard::app::test_harness::dialable(&peers[0]));
+    HistoryBoard::seed_kad(&writer, &starboard::app::test_harness::dialable(&peers[1]));
+    HistoryBoard::seed_kad(&reader, &starboard::app::test_harness::dialable(&peers[0]));
 
     let prefix = p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from_secs(1));
-    paint(&mut writer, board);
-    let (snapshot_bytes, commands) = write_commands(&mut writer, &prefix);
-    let (record_bytes, chunk_count) = command_sizes(&commands);
+    board.paint(&mut writer);
+    let (snapshot_bytes, commands) = HistoryBoard::write_commands(&mut writer, &prefix);
+    let (record_bytes, chunk_count) = HistoryBoard::command_sizes(&commands);
 
     let mut writer_events = writer
         .world()
@@ -104,7 +199,7 @@ pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
             .send(command)
             .ok();
     }
-    let put_latency_ms = wait_for_manifest(&mut writer, &mut writer_events, started)
+    let put_latency_ms = HistoryBoard::wait_for_manifest(&mut writer, &mut writer_events, started)
         .await
         .as_millis();
 
@@ -120,7 +215,7 @@ pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
             id: p2p::RoomHistoryRecordKind::Manifest(prefix),
         })
         .ok();
-    let get_latency_ms = wait_for_found(&mut reader, &mut reader_events, started)
+    let get_latency_ms = HistoryBoard::wait_for_found(&mut reader, &mut reader_events, started)
         .await
         .as_millis();
 
@@ -138,7 +233,7 @@ pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
 /// The markdown of the history measurements.
 #[must_use]
 pub fn history_markdown(reports: &[HistoryReport]) -> String {
-    let machine = starboard::bench::machine_info();
+    let machine = starboard::bench::MachineInfo::detect();
     let mut out = String::new();
     out.push_str("# Starboard history measurement\n\n");
     out.push_str("Generated by `just bench-history` — do not edit by hand.\n\n");
@@ -170,102 +265,6 @@ pub fn history_markdown(reports: &[HistoryReport]) -> String {
         );
     }
     out
-}
-
-// needed helper: tells one peer's kademlia about the other, the way the lobby does
-fn seed_kad(app: &App, peer: &identity::Peer) {
-    app.world()
-        .resource::<p2p::Libp2pCommandSender>()
-        .send(p2p::Libp2pCommand::AddKadPeer(peer.clone()))
-        .ok();
-}
-
-// needed helper: paints the measured board on the writer's canvas
-fn paint(app: &mut App, board: HistoryBoard) {
-    let brush = *app.world().resource::<starboard::input::OwnBrush>();
-    let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
-    for tick in 0..board.strokes() {
-        let op = starboard::bench::scripted_stroke(0, 1, tick, brush);
-        canvas.apply(
-            room_sync::OpMeta {
-                lamport: tick.saturating_add(1),
-                author: 1,
-            },
-            &op,
-        );
-    }
-}
-
-// needed helper: the plugin's own writer output for the writer's canvas
-fn write_commands(app: &mut App, prefix: &p2p::HistoryKeyPrefix) -> (u64, Vec<p2p::Libp2pCommand>) {
-    let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
-    let snapshot = room_sync::traits::ReplicatedState::snapshot(&*canvas);
-    let snapshot_bytes = bincode::serialize(&snapshot).map_or(0, |bytes| bytes.len());
-    let commands = p2p::Libp2pCommand::merge_and_write_history_records(
-        &mut *canvas,
-        prefix,
-        None,
-        None,
-        1,
-        p2p::HistoryByteCount::from(HISTORY_PER_ROOM_BYTES),
-        HISTORY_RECORD_TTL,
-    );
-    (u64::try_from(snapshot_bytes).unwrap_or(0), commands)
-}
-
-// needed helper: the total bytes and the chunk count of the write commands
-fn command_sizes(commands: &[p2p::Libp2pCommand]) -> (u64, u32) {
-    let mut bytes = 0_u64;
-    let mut chunks = 0_u32;
-    for command in commands {
-        if let p2p::Libp2pCommand::PutHistoryRecord { id, value, .. } = command
-            && matches!(id, p2p::RoomHistoryRecordKind::Chunk(_))
-        {
-            bytes = bytes.saturating_add(u64::try_from(value.len()).unwrap_or(0));
-            chunks = chunks.saturating_add(1);
-        }
-    }
-    (bytes, chunks)
-}
-
-// needed helper: pumps the writer until it stored the manifest
-#[allow(clippy::future_not_send)]
-async fn wait_for_manifest(
-    app: &mut App,
-    events: &mut tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>,
-    started: Instant,
-) -> Duration {
-    for _ in 0..MAX_ROUNDS {
-        app.update();
-        while let Ok(event) = events.try_recv() {
-            if let p2p::Libp2pEvent::HistoryRecordStored { id } = &event
-                && matches!(id, p2p::RoomHistoryRecordKind::Manifest(_))
-            {
-                return started.elapsed();
-            }
-        }
-        tokio::time::sleep(SETTLE).await;
-    }
-    started.elapsed()
-}
-
-// needed helper: pumps the reader until the manifest arrived
-#[allow(clippy::future_not_send)]
-async fn wait_for_found(
-    app: &mut App,
-    events: &mut tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>,
-    started: Instant,
-) -> Duration {
-    for _ in 0..MAX_ROUNDS {
-        app.update();
-        while let Ok(event) = events.try_recv() {
-            if matches!(event, p2p::Libp2pEvent::HistoryRecordFound { .. }) {
-                return started.elapsed();
-            }
-        }
-        tokio::time::sleep(SETTLE).await;
-    }
-    started.elapsed()
 }
 
 #[tokio::test(flavor = "multi_thread")]

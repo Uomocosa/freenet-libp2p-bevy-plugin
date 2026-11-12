@@ -42,12 +42,14 @@ pub fn bench_markdown(
             "| {} | {:.1} | {} | {} | {:.1} KiB | {:.1} % | {} | {} |",
             report.config.peers,
             report.achieved_ops_per_second,
-            format_duration(report.latency.p50),
-            format_duration(report.latency.p99),
+            starboard::bench::BenchReport::format_duration(report.latency.p50),
+            starboard::bench::BenchReport::format_duration(report.latency.p99),
             report.received_bytes_per_second / 1024.0,
             report.dropped_percent,
-            format_duration(report.convergence),
-            format_bytes(u64::try_from(report.announcement_bytes).unwrap_or(0)),
+            starboard::bench::BenchReport::format_duration(report.convergence),
+            starboard::bench::BenchReport::format_bytes(
+                u64::try_from(report.announcement_bytes).unwrap_or(0)
+            ),
         );
     }
     out.push_str("\n## Inbound bytes per peer\n\n| Peers | Peer | Received |\n|---:|---|---:|\n");
@@ -58,7 +60,7 @@ pub fn bench_markdown(
                 "| {} | {} | {} |",
                 report.config.peers,
                 traffic.peer.as_str(),
-                format_bytes(traffic.received_bytes)
+                starboard::bench::BenchReport::format_bytes(traffic.received_bytes)
             );
         }
     }
@@ -70,7 +72,7 @@ pub fn bench_markdown(
             out,
             "| {} | {} |",
             cost.dirty_tiles,
-            format_duration(Duration::from_micros(cost.micros))
+            starboard::bench::BenchReport::format_duration(Duration::from_micros(cost.micros))
         );
     }
     out.push_str("\n## Limits of this measurement\n\n");
@@ -84,27 +86,6 @@ pub fn bench_markdown(
     out.push_str("- The tap drains every ~1 ms; the `Libp2pEventChannel` holds 1024 events, so a lagging\n  tap would inflate the dropped rate.\n");
     out.push_str("- The 4 MiB GPU texture re-upload while painting (B4's open issue) needs a render\n  world; headless only the CPU repaint above is measurable.\n");
     out
-}
-
-// needed helper: a duration in the unit that keeps one decimal (µs below 1 ms)
-fn format_duration(duration: Duration) -> String {
-    let micros = u64::try_from(duration.as_micros()).unwrap_or(u64::MAX);
-    if micros < 1000 {
-        return format!("{micros} µs");
-    }
-    let whole = micros / 1000;
-    let tenth = micros.saturating_sub(whole.saturating_mul(1000)) / 100;
-    format!("{whole}.{tenth} ms")
-}
-
-// needed helper: a byte count as KiB with one decimal
-fn format_bytes(bytes: u64) -> String {
-    let whole = bytes / 1024;
-    let tenth = bytes
-        .saturating_sub(whole.saturating_mul(1024))
-        .saturating_mul(10)
-        / 1024;
-    format!("{whole}.{tenth} KiB")
 }
 
 #[cfg(test)]

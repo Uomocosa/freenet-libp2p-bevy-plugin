@@ -28,27 +28,8 @@ pub struct SubCellPos {
     pub y: u32,
 }
 
-/// The line `a * x + b * y + k >= 0`, used to describe a brush shape as convex pieces.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HalfPlane {
-    pub a: i64,
-    pub b: i64,
-    pub k: i64,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TouchedTile {
     pub id: starboard::canvas::TileId,
     pub cells: Vec<Cell>,
-}
-
-/// One paint or erase op. `points` is a sub-cell polyline of at least one point: one point is a
-/// dab, more points are sampled along a stroke and rasterized pair by pair.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DrawOp {
-    pub action: starboard::canvas::DrawAction,
-    pub shape: starboard::identity::Shape,
-    pub size_index: u8,
-    pub points: Vec<SubCellPos>,
-    pub stroke_rank: u32,
 }

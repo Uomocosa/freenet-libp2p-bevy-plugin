@@ -6,8 +6,8 @@ pub fn outline_brush(
     radius: u16,
     scale: f32,
 ) -> starboard::render::BrushOutline {
-    let texels_per_cell = ceil_to_u16(scale).max(1);
-    let band = ceil_to_u16(
+    let texels_per_cell = starboard::render::BrushOutline::ceil_to_u16(scale).max(1);
+    let band = starboard::render::BrushOutline::ceil_to_u16(
         f32::from(starboard::render::OWN_OUTLINE_PX) * f32::from(texels_per_cell)
             / scale.max(f32::EPSILON),
     )
@@ -50,13 +50,6 @@ pub fn outline_brush(
         },
         screen_side: f32::from(side) * scale / f32::from(texels_per_cell),
     }
-}
-
-// needed helper: as_conversions is denied, so round a small positive length up by search
-fn ceil_to_u16(length: f32) -> u16 {
-    (0..u16::MAX)
-        .find(|candidate| f32::from(*candidate) >= length)
-        .unwrap_or(u16::MAX)
 }
 
 #[cfg(test)]

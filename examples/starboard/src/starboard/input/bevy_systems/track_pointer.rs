@@ -25,9 +25,9 @@ pub fn track_pointer(
     let is_menu_open = menu.is_some_and(|menu| **menu);
     let held = [MouseButton::Right, MouseButton::Left]
         .into_iter()
-        .find(|button| is_held(buttons, *button));
+        .find(|button| starboard::input::HeldButton(*button).is_held(buttons));
     let (Some(button), false) = (held, is_menu_open) else {
-        flush_stroke(latest, brush, &mut draws);
+        latest.flush_stroke(brush, &mut draws);
         **pending = None;
         return;
     };
@@ -44,7 +44,7 @@ pub fn track_pointer(
         starboard::canvas::DrawAction::Paint(brush.color)
     };
     if latest.cell.is_some() && latest.action != Some(action) {
-        flush_stroke(latest, brush, &mut draws);
+        latest.flush_stroke(brush, &mut draws);
     }
     let mut lists = Vec::new();
     let press = (**pending).take();
@@ -79,40 +79,13 @@ pub fn track_pointer(
         }
         None => latest.cell = None,
     }
-    write_lists(&mut draws, brush, action, latest.stroke_rank, lists);
-}
-
-// needed helper: send the tail of the active stroke, with the action it was painted with
-fn flush_stroke(
-    latest: &mut starboard::input::LatestPaintedCell,
-    brush: starboard::input::OwnBrush,
-    draws: &mut MessageWriter<starboard::input::PendingLocalDraw>,
-) {
-    let (action, stroke_rank) = (latest.action, latest.stroke_rank);
-    let lists = starboard::input::finish_stroke(latest);
-    if let Some(action) = action {
-        write_lists(draws, brush, action, stroke_rank, lists);
-    }
-}
-
-// needed helper: one draw op per point list, every op of a press carries the same rank
-fn write_lists(
-    draws: &mut MessageWriter<starboard::input::PendingLocalDraw>,
-    brush: starboard::input::OwnBrush,
-    action: starboard::canvas::DrawAction,
-    stroke_rank: u32,
-    lists: Vec<Vec<starboard::canvas::SubCellPos>>,
-) {
-    for points in lists {
-        draws.write(starboard::input::PendingLocalDraw(
-            starboard::input::draw_op(brush, action, points, stroke_rank),
-        ));
-    }
-}
-
-// needed helper: a click shorter than one frame still paints, so just_pressed counts as held
-fn is_held(buttons: &ButtonInput<MouseButton>, button: MouseButton) -> bool {
-    buttons.pressed(button) || buttons.just_pressed(button)
+    starboard::input::PendingLocalDraw::write_lists(
+        &mut draws,
+        brush,
+        action,
+        latest.stroke_rank,
+        lists,
+    );
 }
 
 #[cfg(test)]

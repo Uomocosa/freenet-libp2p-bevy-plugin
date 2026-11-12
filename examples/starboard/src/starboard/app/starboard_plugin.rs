@@ -58,6 +58,12 @@ impl Plugin for StarboardPlugin {
     }
 }
 
+impl StarboardPlugin {
+    pub(crate) fn spawn_camera(mut commands: Commands) {
+        commands.spawn(Camera2d);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;

@@ -1,24 +1,17 @@
 use std::time::Duration;
 
 use crate::starboard;
+use crate::starboard::bench::LatencyPercentiles;
 
 #[must_use]
 pub fn percentiles(samples: &[Duration]) -> starboard::bench::LatencyPercentiles {
     let mut sorted = samples.to_vec();
     sorted.sort_unstable();
     starboard::bench::LatencyPercentiles {
-        p50: percentile(&sorted, 50),
-        p99: percentile(&sorted, 99),
+        p50: LatencyPercentiles::nearest_rank(&sorted, 50),
+        p99: LatencyPercentiles::nearest_rank(&sorted, 99),
         samples: sorted.len(),
     }
-}
-
-// needed helper: the nearest-rank sample at the given percentile
-fn percentile(sorted: &[Duration], percent: u32) -> Duration {
-    let len = u32::try_from(sorted.len()).unwrap_or(0);
-    let rank = len.saturating_mul(percent).saturating_add(99) / 100;
-    let index = usize::try_from(rank.saturating_sub(1)).unwrap_or(0);
-    sorted.get(index).copied().unwrap_or_default()
 }
 
 #[cfg(test)]

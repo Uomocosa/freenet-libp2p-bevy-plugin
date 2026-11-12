@@ -1,23 +1,22 @@
-use bevy::prelude::{UVec2, Vec2};
-
 use crate::starboard;
 
-/// Distance between flattened samples, in sub-cell units (a quarter cell).
 const SAMPLE_SPACING_SUBCELLS: f32 = 2.0;
 
-/// The centripetal Catmull-Rom segment from `controls[1]` to `controls[2]`, flattened into
-/// sub-cell points that start and end exactly on those two controls.
 #[must_use]
 pub fn catmull_rom_points(
     controls: [starboard::canvas::SubCellPos; 4],
 ) -> Vec<starboard::canvas::SubCellPos> {
-    let [before, start, end, after] = controls.map(to_vec2);
+    let [before, start, end, after] = controls.map(starboard::input::CentripetalSpline::to_vec2);
     let knot_1 = start.distance(before).sqrt();
     let knot_2 = knot_1 + end.distance(start).sqrt();
     let knot_3 = knot_2 + after.distance(end).sqrt();
     let knots = [0.0, knot_1, knot_2, knot_3];
+    let spline = starboard::input::CentripetalSpline {
+        controls: [before, start, end, after],
+        knots,
+    };
     let chord = end.distance(start);
-    let mut points = vec![to_sub_cell(start)];
+    let mut points = vec![starboard::input::CentripetalSpline::to_sub_cell(start)];
     if chord > 0.0 {
         let fraction_step = SAMPLE_SPACING_SUBCELLS / chord;
         let fractions = std::iter::successors(Some(fraction_step), |fraction| {
@@ -26,57 +25,18 @@ pub fn catmull_rom_points(
         .take_while(|fraction| *fraction < 1.0);
         for fraction in fractions {
             let knot = (knot_2 - knot_1).mul_add(fraction, knot_1);
-            let point = curve_point([before, start, end, after], knots, knot);
-            push_distinct(&mut points, to_sub_cell(point));
+            let point = spline.point_at(knot);
+            starboard::input::CentripetalSpline::push_distinct(
+                &mut points,
+                starboard::input::CentripetalSpline::to_sub_cell(point),
+            );
         }
     }
-    push_distinct(&mut points, to_sub_cell(end));
+    starboard::input::CentripetalSpline::push_distinct(
+        &mut points,
+        starboard::input::CentripetalSpline::to_sub_cell(end),
+    );
     points
-}
-
-// needed helper: one point of the spline at knot `knot`, by the Barry-Goldman pyramid
-fn curve_point(controls: [Vec2; 4], knots: [f32; 4], knot: f32) -> Vec2 {
-    let [before, start, end, after] = controls;
-    let [knot_0, knot_1, knot_2, knot_3] = knots;
-    let a_1 = lerp_knot(before, start, knot_0, knot_1, knot);
-    let a_2 = lerp_knot(start, end, knot_1, knot_2, knot);
-    let a_3 = lerp_knot(end, after, knot_2, knot_3, knot);
-    let b_1 = lerp_knot(a_1, a_2, knot_0, knot_2, knot);
-    let b_2 = lerp_knot(a_2, a_3, knot_1, knot_3, knot);
-    lerp_knot(b_1, b_2, knot_1, knot_2, knot)
-}
-
-// needed helper: a zero knot interval means the two points are equal, so the first one is the answer
-fn lerp_knot(first: Vec2, second: Vec2, knot_first: f32, knot_second: f32, knot: f32) -> Vec2 {
-    let span = knot_second - knot_first;
-    if span <= 0.0 {
-        return first;
-    }
-    first.lerp(second, (knot - knot_first) / span)
-}
-
-// needed helper: a sub-cell point as a float vector, exact for every canvas coordinate
-fn to_vec2(point: starboard::canvas::SubCellPos) -> Vec2 {
-    UVec2::new(point.x, point.y).as_vec2()
-}
-
-// needed helper: the nearest sub-cell point; negative overshoot saturates at the canvas edge
-fn to_sub_cell(point: Vec2) -> starboard::canvas::SubCellPos {
-    let rounded = point.round().as_uvec2();
-    starboard::canvas::SubCellPos {
-        x: rounded.x,
-        y: rounded.y,
-    }
-}
-
-// needed helper: append unless the point repeats the last one, so no zero-length sample is sent
-fn push_distinct(
-    points: &mut Vec<starboard::canvas::SubCellPos>,
-    point: starboard::canvas::SubCellPos,
-) {
-    if points.last() != Some(&point) {
-        points.push(point);
-    }
 }
 
 #[cfg(test)]

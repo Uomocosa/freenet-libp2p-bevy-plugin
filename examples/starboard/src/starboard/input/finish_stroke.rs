@@ -18,7 +18,7 @@ pub fn finish_stroke(
     latest.cell = None;
     latest.action = None;
     latest.earlier_points = [starboard::canvas::SubCellPos::default(); 2];
-    starboard::input::chunk_points(segment)
+    starboard::canvas::DrawOp::chunk_points(segment)
 }
 
 #[cfg(test)]

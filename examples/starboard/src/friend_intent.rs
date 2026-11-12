@@ -27,7 +27,7 @@ pub struct FriendIntent {
     done: Vec<String>,
 }
 
-struct FriendTyping {
+pub struct FriendTyping {
     addr: String,
     step: FriendStep,
     frames: u32,
@@ -69,64 +69,66 @@ impl FriendIntent {
         }
     }
 
-    fn finish_active(&mut self) {
+    pub(crate) fn finish_active(&mut self) {
         if let Some(typing) = self.active.take() {
             self.done.push(typing.addr);
         }
     }
 }
 
-fn press_tab(window: Entity, keyboard: &mut MessageWriter<KeyboardInput>) {
-    for press in [ButtonState::Pressed, ButtonState::Released] {
-        keyboard.write(KeyboardInput {
-            key_code: KeyCode::Tab,
-            logical_key: Key::Unidentified(NativeKey::Unidentified),
-            state: press,
-            text: None,
-            repeat: false,
-            window,
-        });
+impl FriendIntent {
+    pub(crate) fn press_tab(window: Entity, keyboard: &mut MessageWriter<KeyboardInput>) {
+        for press in [ButtonState::Pressed, ButtonState::Released] {
+            keyboard.write(KeyboardInput {
+                key_code: KeyCode::Tab,
+                logical_key: Key::Unidentified(NativeKey::Unidentified),
+                state: press,
+                text: None,
+                repeat: false,
+                window,
+            });
+        }
     }
-}
 
-fn type_address(
-    field: Entity,
-    window: Entity,
-    addr: &str,
-    focus: &mut InputFocus,
-    keyboard: &mut MessageWriter<KeyboardInput>,
-) {
-    for ch in addr.chars() {
-        let text = ch.to_string();
-        keyboard.write(KeyboardInput {
-            key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
-            logical_key: Key::Character(text.clone().into()),
-            state: ButtonState::Pressed,
-            text: Some(text.into()),
-            repeat: false,
-            window,
-        });
+    pub(crate) fn type_address(
+        field: Entity,
+        window: Entity,
+        addr: &str,
+        focus: &mut InputFocus,
+        keyboard: &mut MessageWriter<KeyboardInput>,
+    ) {
+        for ch in addr.chars() {
+            let text = ch.to_string();
+            keyboard.write(KeyboardInput {
+                key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
+                logical_key: Key::Character(text.clone().into()),
+                state: ButtonState::Pressed,
+                text: Some(text.into()),
+                repeat: false,
+                window,
+            });
+        }
+        focus.set(field, FocusCause::Pressed);
     }
-    focus.set(field, FocusCause::Pressed);
-}
 
-fn booked_or_retry(
-    typing: &mut FriendTyping,
-    state: &direct_dial::state_machine::DialState,
-) -> bool {
-    let booked =
-        identity::Peer::try_from(typing.addr.as_str()).is_ok_and(|peer| state.is_friend(&peer.id));
-    if booked {
-        return true;
+    pub(crate) fn booked_or_retry(
+        typing: &mut FriendTyping,
+        state: &direct_dial::state_machine::DialState,
+    ) -> bool {
+        let booked = identity::Peer::try_from(typing.addr.as_str())
+            .is_ok_and(|peer| state.is_friend(&peer.id));
+        if booked {
+            return true;
+        }
+        typing.frames = typing.frames.saturating_add(1);
+        if typing.frames >= CLICK_RETRY_FRAMES && typing.clicks >= MAX_CLICKS {
+            return false;
+        }
+        if typing.frames >= CLICK_RETRY_FRAMES {
+            typing.step = FriendStep::Click;
+        }
+        true
     }
-    typing.frames = typing.frames.saturating_add(1);
-    if typing.frames >= CLICK_RETRY_FRAMES && typing.clicks >= MAX_CLICKS {
-        return false;
-    }
-    if typing.frames >= CLICK_RETRY_FRAMES {
-        typing.step = FriendStep::Click;
-    }
-    true
 }
 
 pub fn drive_friend_intent(
@@ -150,7 +152,7 @@ pub fn drive_friend_intent(
                 let Ok((window_entity, _)) = windows.single() else {
                     return;
                 };
-                press_tab(window_entity, &mut keyboard);
+                FriendIntent::press_tab(window_entity, &mut keyboard);
                 typing.step = FriendStep::WaitOpen;
                 typing.frames = 0;
             }
@@ -173,7 +175,7 @@ pub fn drive_friend_intent(
                     return;
                 };
                 *input = EditableText::new(String::new());
-                type_address(
+                FriendIntent::type_address(
                     field,
                     window_entity,
                     &typing.addr,
@@ -226,7 +228,7 @@ pub fn drive_friend_intent(
                 typing.frames = 0;
             }
             FriendStep::WaitBooked => {
-                if booked_or_retry(typing, state) {
+                if FriendIntent::booked_or_retry(typing, state) {
                     finished = true;
                 } else {
                     abandoned = true;

@@ -8,8 +8,8 @@ pub fn rasterize(
         u16::try_from(u32::from(radius).saturating_mul(starboard::canvas::SUBCELL_STEPS))
             .unwrap_or(u16::MAX);
     let pieces = starboard::canvas::shape_pieces(op.shape, sub_radius);
-    let kept = starboard::canvas::drop_collinear_points(&op.points);
-    let pairs = starboard::canvas::point_pairs(&kept);
+    let kept = starboard::canvas::DrawOp::drop_collinear_points(&op.points);
+    let pairs = starboard::canvas::DrawOp::point_pairs(&kept);
     let reach = i64::from(sub_radius);
     let boxes: Vec<starboard::canvas::CellBox> = pairs
         .iter()
@@ -89,7 +89,6 @@ mod tests {
         }
     }
 
-    // needed helper: the point test widened to i64 offsets, for the reference grids below
     fn point_inside(shape: Shape, radius: u16, dx: i64, dy: i64) -> bool {
         let to_i32 = |value: i64| i32::try_from(value).unwrap_or(i32::MAX);
         starboard::canvas::is_inside_shape(shape, radius, to_i32(dx), to_i32(dy))
@@ -160,7 +159,6 @@ mod tests {
         painted
     }
 
-    // needed helper: a sub-cell point in units of 1/256 cell
     fn scaled_point(point: SubCellPos) -> (i64, i64) {
         let units_per_sub = 256_i64.checked_div(i64::from(SUBCELL_STEPS)).unwrap_or(1);
         (
@@ -350,7 +348,7 @@ mod tests {
             stroke_rank: 1,
         };
         let painted: BTreeSet<_> = rasterize(&stroke).collect();
-        let reference: BTreeSet<_> = starboard::canvas::point_pairs(&points)
+        let reference: BTreeSet<_> = starboard::canvas::DrawOp::point_pairs(&points)
             .into_iter()
             .flat_map(|(from, to)| {
                 let pair = DrawOp {

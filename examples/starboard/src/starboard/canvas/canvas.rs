@@ -55,7 +55,7 @@ impl room_sync::traits::ReplicatedState for Canvas {
     fn merge(&mut self, snapshot: Self::Snapshot) {
         let touched = starboard::canvas::decode_snapshot(&snapshot);
         for entry in touched {
-            if let Some(tile) = tile_from_cells(&entry.cells) {
+            if let Some(tile) = starboard::canvas::Tile::try_from_cells(&entry.cells) {
                 starboard::canvas::merge_tile(self, entry.id, &tile);
             }
         }
@@ -83,18 +83,6 @@ impl room_sync::traits::ReplicatedState for Canvas {
         }
         starboard::canvas::encode_snapshot(&touched)
     }
-}
-
-// needed helper: convert a decoded Vec<Cell> back into a fixed-size Tile if its length matches
-fn tile_from_cells(cells: &[starboard::canvas::Cell]) -> Option<starboard::canvas::Tile> {
-    if cells.len() != starboard::canvas::CELLS_PER_TILE {
-        return None;
-    }
-    let mut tile = starboard::canvas::Tile::default();
-    for (dst, src) in tile.iter_mut().zip(cells.iter()) {
-        *dst = *src;
-    }
-    Some(tile)
 }
 
 #[cfg(test)]

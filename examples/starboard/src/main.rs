@@ -8,19 +8,16 @@ mod script;
 mod script_runner;
 mod scripted_starboard_step;
 mod status;
+mod time_scale;
 
-use bevy::prelude::*;
 use clap::Parser;
 use examples_shared as shared;
-use examples_shared::e2e_report::peer_run_result::PeerRunResult;
-use freenet_libp2p_bevy_plugin::{
-    direct_dial, discovery, identity, p2p, plugin, room_sync, testing, ui,
-};
+use freenet_libp2p_bevy_plugin::identity;
 
 #[tokio::main]
 async fn main() -> bevy::app::AppExit {
     let args = args::Args::parse();
-    init_tracing();
+    args::Args::init_tracing();
     if let Err(error) = args.network.validate() {
         eprintln!("{error}");
         return bevy::app::AppExit::error();
@@ -36,154 +33,5 @@ async fn main() -> bevy::app::AppExit {
         || freenet_libp2p_bevy_plugin::game_id!(),
         identity::GameId::from,
     );
-    run_starboard(&args, ws_port, game, time_scale())
-}
-
-fn run_starboard(
-    args: &args::Args,
-    ws_port: u16,
-    game: identity::GameId,
-    time_scale: f64,
-) -> bevy::app::AppExit {
-    let mut app = App::new();
-    app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            title: format!("starboard-{}", args.username),
-            resolution: (960, 540).into(),
-            ..default()
-        }),
-        ..default()
-    }));
-    app.add_systems(Startup, spawn_camera);
-    app.insert_resource(discovery::FreenetPort(ws_port));
-    app.insert_resource(shared::status::LocalUser(identity::Username::from(
-        args.username.clone(),
-    )));
-    app.insert_resource(shared::intent::Intent::new(None));
-    app.insert_resource(testing::PendingAction::default());
-    app.insert_resource(friend_intent::FriendIntent::default());
-    app.add_systems(Update, friend_intent::drive_friend_intent);
-    app.add_plugins(
-        testing::FakeNetworkPlugin::<starboard::room::CursorUpdate>::from(&args.network),
-    );
-    let base = plugin::Config::<starboard::room::CursorUpdate>::new(
-        args::transport_mode(args.transport),
-        p2p::MdnsMode::Disabled,
-    )
-    .with_game(game.clone());
-    let keyed = if let Some(path) = &args.identity_file {
-        match load_keypair(path) {
-            Ok(saved) => base.with_keypair(saved),
-            Err(error) => {
-                eprintln!("{error}");
-                return bevy::app::AppExit::error();
-            }
-        }
-    } else {
-        base
-    };
-    app.add_plugins(plugin::P2PPlugin(keyed));
-    app.add_plugins(direct_dial::FriendsPlugin::new(direct_dial::Config::from(
-        args.peer_book_file.clone(),
-    )));
-    app.add_plugins(discovery::Plugins(discovery::Config {
-        display_name: identity::Username::from(args.username.clone()),
-        game: game.clone(),
-        lease: scaled_timings::scaled_lease_timings(time_scale),
-        ..discovery::Config::default()
-    }));
-    app.add_plugins(ui::discovery::DefaultUiPlugin);
-    app.add_plugins(ui::direct_dial::FriendsUiPlugin);
-    app.add_plugins(
-        room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game)
-            .with_history_config(Some(scaled_timings::scaled_history_config(time_scale))),
-    );
-    app.add_plugins(starboard::app::StarboardPlugin);
-    app.add_systems(
-        Update,
-        shared::intent::script_input::<
-            ui::discovery::RoomNameInput,
-            ui::discovery::CreateRoomButton,
-            ui::discovery::RoomButton,
-        >,
-    );
-    if let Some(steps) = match args.e2e.parsed_script() {
-        Ok(steps) => steps,
-        Err(error) => {
-            eprintln!("{error}");
-            return bevy::app::AppExit::error();
-        }
-    } {
-        app.insert_resource(script_runner::StarboardScriptRunner::new(steps));
-        app.add_systems(
-            Update,
-            testing::bevy_systems::run_script::<scripted_starboard_step::ScriptedStarboardStep>
-                .before(
-                    shared::intent::script_input::<
-                        ui::discovery::RoomNameInput,
-                        ui::discovery::CreateRoomButton,
-                        ui::discovery::RoomButton,
-                    >,
-                ),
-        );
-    }
-    app.add_systems(
-        Update,
-        (
-            shared::intent::log_joined,
-            shared::status::log_tick,
-            shared::status::log_mesh,
-            status::log_canvas_hash,
-        ),
-    );
-    if let Some(path) = args.e2e.result_json.clone() {
-        add_result_recording(&mut app, args, path);
-    }
-    app.run()
-}
-
-fn spawn_camera(mut commands: Commands) {
-    commands.spawn(Camera2d);
-}
-
-// needed helper: load a saved keypair, naming the failure
-fn load_keypair(path: &std::path::Path) -> Result<identity::SavedKeypair, String> {
-    identity::SavedKeypair::try_from(path).map_err(|error| format!("identity file: {error}"))
-}
-
-// needed helper: record the run result for the e2e harness
-fn add_result_recording(app: &mut App, args: &args::Args, path: std::path::PathBuf) {
-    app.insert_resource(PeerRunResult {
-        username: args.username.clone(),
-        ..PeerRunResult::default()
-    });
-    app.insert_resource(result::ResultJsonPath(path));
-    app.add_systems(
-        Update,
-        result::bevy_systems::record_peer_run_result
-            .after(
-                testing::bevy_systems::run_script::<scripted_starboard_step::ScriptedStarboardStep>,
-            )
-            .run_if(resource_exists::<script_runner::StarboardScriptRunner>),
-    );
-    app.add_systems(Last, result::bevy_systems::write_peer_run_result);
-}
-
-// needed helper: the run's time scale, from E2E_TIME_SCALE
-fn time_scale() -> f64 {
-    std::env::var("E2E_TIME_SCALE")
-        .ok()
-        .and_then(|raw| raw.parse::<f64>().ok())
-        .filter(|scale| scale.is_finite() && *scale > 0.0)
-        .unwrap_or(1.0)
-}
-
-// needed helper: stdout tracing so the run log captures every marker line
-fn init_tracing() {
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_ansi(false)
-        .init();
+    args.run_starboard(ws_port, game, time_scale::Scale::from_env())
 }

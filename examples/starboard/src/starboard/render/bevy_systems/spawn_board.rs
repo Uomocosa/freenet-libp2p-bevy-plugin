@@ -8,7 +8,7 @@ pub fn spawn_board(
     brush: Res<starboard::input::OwnBrush>,
 ) {
     let brush = brush.into_inner();
-    let board = images.add(canvas_image());
+    let board = images.add(starboard::render::CanvasView::checkered_image());
     commands
         .spawn((
             starboard::render::BoardSprite,
@@ -20,7 +20,7 @@ pub fn spawn_board(
             Sprite::from_color(starboard::render::BOARD_BORDER_COLOR, Vec2::ONE),
             Transform::from_xyz(0.0, 0.0, -0.01),
         ));
-    let fill = images.add(own_brush_image(*brush));
+    let fill = images.add(brush.solid_image());
     let outline = images.add(starboard::render::square_image(1, vec![0_u8; 4]));
     commands
         .spawn((
@@ -40,30 +40,6 @@ pub fn spawn_board(
                 starboard::render::OWN_LABEL_COLOR,
             ));
         });
-}
-
-// needed helper: the 1024x1024 checkered canvas kept on the CPU and re-uploaded when a tile changes
-fn canvas_image() -> Image {
-    let side = starboard::canvas::CANVAS_SIDE;
-    let pixels = (0..side.saturating_mul(side))
-        .flat_map(|index| {
-            starboard::render::checker_background_rgba_at(
-                index.checked_rem(side).unwrap_or(0),
-                index.checked_div(side).unwrap_or(0),
-            )
-        })
-        .collect();
-    starboard::render::square_image(u32::try_from(side).unwrap_or(1024), pixels)
-}
-
-// needed helper: the solid cursor texture for the brush that is current when the board spawns
-fn own_brush_image(brush: starboard::input::OwnBrush) -> Image {
-    let starboard::render::BrushImage { side, pixels } = starboard::render::solid_brush_image(
-        brush.shape,
-        starboard::canvas::brush_radius(brush.size_index),
-        brush.color,
-    );
-    starboard::render::square_image(side, pixels)
 }
 
 #[cfg(test)]

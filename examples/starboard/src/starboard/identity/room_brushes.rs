@@ -16,7 +16,7 @@ pub fn room_brushes<'a>(
     let mut assigned = BTreeMap::new();
 
     for peer_id in sorted_peers {
-        let base = starboard::identity::daily_brush(peer_id, created_at, now);
+        let base = starboard::identity::DailyBrush::from_peer(peer_id, created_at, now);
         let shape_idx = starboard::identity::SHAPES
             .iter()
             .position(|shape| *shape == base.shape)
@@ -58,11 +58,12 @@ mod tests {
     fn test_usage() {
         let created_at = UnixTime::from_secs(1_000);
         let now = UnixTime::from_secs(2_000);
-        let target = starboard::identity::daily_brush(&PeerId::from("seed-0"), created_at, now);
+        let target =
+            starboard::identity::DailyBrush::from_peer(&PeerId::from("seed-0"), created_at, now);
         let mut colliding = Vec::new();
         for index in 0_u32..50_000 {
             let candidate = PeerId::from(format!("seed-{index}"));
-            if starboard::identity::daily_brush(&candidate, created_at, now) == target {
+            if starboard::identity::DailyBrush::from_peer(&candidate, created_at, now) == target {
                 colliding.push(candidate);
                 if colliding.len() == 8 {
                     break;

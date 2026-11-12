@@ -1,4 +1,4 @@
-use bevy::prelude::Resource;
+use bevy::prelude::{Image, Resource};
 
 use crate::starboard;
 
@@ -16,6 +16,17 @@ impl Default for OwnBrush {
             color: starboard::identity::PaletteColor(0),
             size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
         }
+    }
+}
+
+impl OwnBrush {
+    pub(crate) fn solid_image(self) -> Image {
+        let starboard::render::BrushImage { side, pixels } = starboard::render::solid_brush_image(
+            self.shape,
+            starboard::canvas::brush_radius(self.size_index),
+            self.color,
+        );
+        starboard::render::square_image(side, pixels)
     }
 }
 
