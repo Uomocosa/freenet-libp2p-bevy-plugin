@@ -5,7 +5,7 @@ use bevy::ui_widgets::Button;
 use crate::basic::constants::DRAWER_PANEL_COLOR;
 use crate::roster;
 use roster::{
-    ROSTER_BUBBLE_RIGHT, ROSTER_BUBBLE_TOP, ROSTER_BUBBLE_Z, ROSTER_COUNT_FONT_SIZE,
+    ROSTER_BUBBLE_LEFT, ROSTER_BUBBLE_ROOM_BAR_CLEARANCE, ROSTER_BUBBLE_Z, ROSTER_COUNT_FONT_SIZE,
     ROSTER_DISCONNECTED_COLOR, ROSTER_DOT_SIZE, ROSTER_LABEL_COLOR, ROSTER_LIST_WIDTH,
     ROSTER_TOOLTIP_FONT_SIZE, ROSTER_TOOLTIP_TEXT_COLOR, RosterBubble, RosterCount,
     RosterCountTooltip, RosterDot, RosterDotTooltip, RosterList, RosterPill,
@@ -15,7 +15,7 @@ pub fn spawn_roster_bubble(mut commands: Commands) {
     let tooltip_node = Node {
         position_type: PositionType::Absolute,
         top: Val::Px(32.0),
-        right: Val::Px(0.0),
+        left: Val::Px(0.0),
         padding: UiRect::all(Val::Px(6.0)),
         border_radius: BorderRadius::all(Val::Px(6.0)),
         ..default()
@@ -32,10 +32,10 @@ pub fn spawn_roster_bubble(mut commands: Commands) {
         Visibility::Hidden,
         Node {
             position_type: PositionType::Absolute,
-            top: Val::Px(ROSTER_BUBBLE_TOP),
-            right: Val::Px(ROSTER_BUBBLE_RIGHT),
+            top: Val::Px(ROSTER_BUBBLE_ROOM_BAR_CLEARANCE),
+            left: Val::Px(ROSTER_BUBBLE_LEFT),
             flex_direction: FlexDirection::Column,
-            align_items: AlignItems::FlexEnd,
+            align_items: AlignItems::FlexStart,
             row_gap: Val::Px(6.0),
             ..default()
         },

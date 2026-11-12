@@ -19,13 +19,24 @@ use freenet_libp2p_bevy_plugin::ui::discovery::{
 
 const FIELD_COLOR: Color = Color::srgb(0.10, 0.11, 0.14);
 const ROOM_COLOR: Color = Color::srgb(0.16, 0.18, 0.22);
+const MEMBER_CONNECTED_COLOR: Color = Color::srgb(0.30, 0.82, 0.45);
+const MEMBER_CONNECTING_COLOR: Color = Color::srgb(0.87, 0.71, 0.22);
+const MEMBER_YOU_COLOR: Color = Color::srgb(0.55, 0.57, 0.64);
 
 pub struct LobbyUi;
 
 impl Plugin for LobbyUi {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn)
-            .add_systems(Update, (rebuild_list, gate_create, on_create, on_join));
+        app.add_systems(Startup, spawn).add_systems(
+            Update,
+            (
+                rebuild_list,
+                rebuild_members,
+                gate_create,
+                on_create,
+                on_join,
+            ),
+        );
     }
 }
 
@@ -37,6 +48,9 @@ pub struct NewRoomButton;
 
 #[derive(Component)]
 struct RoomColumn;
+
+#[derive(Component)]
+struct MemberList;
 
 #[derive(Component, Deref)]
 pub struct JoinButton(pub identity::RoomName);
@@ -105,6 +119,19 @@ fn spawn(mut commands: Commands) {
             ),
         ],
     ));
+    commands.spawn((
+        MemberList,
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(48.0),
+            right: Val::Px(12.0),
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(4.0),
+            padding: UiRect::all(Val::Px(6.0)),
+            ..default()
+        },
+        BackgroundColor(FIELD_COLOR),
+    ));
 }
 
 fn rebuild_list(
@@ -145,6 +172,69 @@ fn rebuild_list(
                         record.room_size
                     ))],
                 ));
+            }
+        });
+}
+
+/// # needed helper: one side-list row per `RoomRoster` entry, rebuilt on roster change
+fn rebuild_members(
+    mut commands: Commands,
+    roster: Option<Res<discovery::RoomRoster>>,
+    list: Single<Entity, With<MemberList>>,
+) {
+    let Some(roster) = roster else {
+        return;
+    };
+    if !roster.is_changed() {
+        return;
+    }
+    commands
+        .entity(*list)
+        .despawn_related::<Children>()
+        .with_children(|rows| {
+            for entry in &roster.entries {
+                rows.spawn((
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(6.0),
+                        padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                        ..default()
+                    },
+                    BackgroundColor(ROOM_COLOR),
+                ))
+                .with_children(|row| {
+                    row.spawn((
+                        Node {
+                            width: Val::Px(6.0),
+                            height: Val::Px(6.0),
+                            ..default()
+                        },
+                        BackgroundColor(match entry.status {
+                            discovery::MemberRoomStatus::Connected => MEMBER_CONNECTED_COLOR,
+                            discovery::MemberRoomStatus::Connecting => MEMBER_CONNECTING_COLOR,
+                        }),
+                    ));
+                    row.spawn((
+                        Text::new(entry.name.clone()),
+                        TextFont {
+                            font_size: FontSize::Px(11.0),
+                            ..default()
+                        },
+                        TextLayout::no_wrap(),
+                        TextColor(BUTTON_LABEL_COLOR),
+                    ));
+                    if entry.is_me {
+                        row.spawn((
+                            Text::new("(you)"),
+                            TextFont {
+                                font_size: FontSize::Px(9.0),
+                                ..default()
+                            },
+                            TextColor(MEMBER_YOU_COLOR),
+                        ));
+                    }
+                });
             }
         });
 }
@@ -322,5 +412,70 @@ mod tests {
         scene("lobby_ui", Some(timeline))
             .run(&config())
             .expect("preview");
+    }
+
+    fn members_preview_build(app: &mut App) {
+        app.add_message::<discovery::Command>();
+        app.insert_resource(discovery::RoomRoster::default());
+        app.add_plugins(LobbyUi);
+    }
+
+    fn room_entry(
+        id: &str,
+        name: &str,
+        status: discovery::MemberRoomStatus,
+        is_me: bool,
+    ) -> discovery::RoomRosterEntry {
+        discovery::RoomRosterEntry {
+            id: identity::PeerId::from(id),
+            name: String::from(name),
+            status,
+            is_me,
+        }
+    }
+
+    fn room_with_members(world: &mut World) {
+        *world.resource_mut::<discovery::RoomRoster>() = discovery::RoomRoster {
+            own: discovery::OwnRoomStatus::Connected,
+            count: 3,
+            max: 8,
+            entries: vec![
+                room_entry(
+                    "12D3KooWcarol0Zm9c",
+                    "carol",
+                    discovery::MemberRoomStatus::Connecting,
+                    false,
+                ),
+                room_entry(
+                    "12D3KooWbob000Kd2a",
+                    "bob",
+                    discovery::MemberRoomStatus::Connected,
+                    false,
+                ),
+                room_entry("me", "alice", discovery::MemberRoomStatus::Connected, true),
+            ],
+        };
+    }
+
+    #[test]
+    fn custom_ui_members_ui_png_preview() {
+        lele_bevy_preview::scene::Scene {
+            name: String::from("custom_ui_members"),
+            kind: lele_bevy_preview::scene::Kind::App,
+            build: members_preview_build,
+            states: vec![
+                lele_bevy_preview::scene::State {
+                    label: String::from("no room yet"),
+                    apply: preview_noop,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("room with members"),
+                    apply: room_with_members,
+                },
+            ],
+            timeline: None,
+        }
+        .run(&config())
+        .expect("preview");
     }
 }

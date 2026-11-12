@@ -1,3 +1,4 @@
+pub mod prune_member_icons;
 pub mod refresh_roster_list;
 pub mod refresh_roster_status;
 pub mod refresh_roster_tooltip;
@@ -5,6 +6,7 @@ pub mod refresh_roster_tooltips_text;
 pub mod spawn_roster_bubble;
 pub mod toggle_roster_list;
 
+pub use prune_member_icons::prune_member_icons;
 pub use refresh_roster_list::refresh_roster_list;
 pub use refresh_roster_status::refresh_roster_status;
 pub use refresh_roster_tooltip::refresh_roster_tooltip;

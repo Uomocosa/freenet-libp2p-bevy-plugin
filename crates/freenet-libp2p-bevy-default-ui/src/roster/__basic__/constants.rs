@@ -3,8 +3,8 @@ use bevy::prelude::Color;
 use crate::basic::constants::DIM_TEXT_COLOR;
 
 pub const ROSTER_BUBBLE_Z: i32 = 90;
-pub const ROSTER_BUBBLE_TOP: f32 = 12.0;
-pub const ROSTER_BUBBLE_RIGHT: f32 = 16.0;
+pub const ROSTER_BUBBLE_ROOM_BAR_CLEARANCE: f32 = 52.0;
+pub const ROSTER_BUBBLE_LEFT: f32 = 16.0;
 pub const ROSTER_DOT_SIZE: f32 = 8.0;
 pub const ROSTER_ROW_ICON_SIDE: f32 = 16.0;
 pub const ROSTER_COUNT_FONT_SIZE: f32 = 11.0;

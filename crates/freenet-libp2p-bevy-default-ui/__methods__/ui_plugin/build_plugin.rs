@@ -10,6 +10,7 @@ pub fn build_plugin(_plugin: roster::UiPlugin, app: &mut App) {
     app.add_systems(
         Update,
         (
+            ui::prune_member_icons,
             ui::refresh_roster_status,
             ui::refresh_roster_tooltips_text,
             ui::refresh_roster_tooltip,
