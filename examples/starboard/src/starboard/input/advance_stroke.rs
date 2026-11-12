@@ -21,7 +21,7 @@ pub fn advance_stroke(
     };
     latest.earlier_points = [previous, current];
     latest.cell = Some(point);
-    starboard::input::chunk_points(segment)
+    starboard::input::chunk_points(starboard::canvas::drop_collinear_points(&segment))
 }
 
 #[cfg(test)]

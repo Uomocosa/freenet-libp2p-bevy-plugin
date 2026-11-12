@@ -9,7 +9,8 @@ pub fn rasterize(
             .unwrap_or(u16::MAX);
     let pieces = starboard::canvas::shape_pieces(op.shape, sub_radius);
     let mut painted = std::collections::BTreeSet::new();
-    for (from, to) in starboard::canvas::point_pairs(&op.points) {
+    let kept = starboard::canvas::drop_collinear_points(&op.points);
+    for (from, to) in starboard::canvas::point_pairs(&kept) {
         let start = (i64::from(from.x), i64::from(from.y));
         let end = (i64::from(to.x), i64::from(to.y));
         let step = (end.0.saturating_sub(start.0), end.1.saturating_sub(start.1));
@@ -304,6 +305,41 @@ mod tests {
         };
         let painted: BTreeSet<_> = rasterize(&stroke).collect();
         let reference = dense_reference(&stroke);
+        assert_eq!(painted, reference);
+    }
+
+    /// A spline stroke, flattened as the drawer sends it, paints exactly the cells that its
+    /// segments paint one pair at a time, so skipping shared cells and dropping collinear points
+    /// changes nothing visible.
+    #[rstest]
+    #[case::circle_red(Shape::Circle, PaletteColor(0))]
+    #[case::square_blue(Shape::Square, PaletteColor(6))]
+    #[case::star_yellow(Shape::Star, PaletteColor(11))]
+    fn curved_spline_paints_the_same_cells_as_its_pairs(
+        #[case] shape: Shape,
+        #[case] color: PaletteColor,
+    ) {
+        let controls =
+            [(20, 100), (60, 60), (100, 40), (140, 60)].map(|(x, y)| cell_centre(CellPos { x, y }));
+        let points = starboard::input::catmull_rom_points(controls);
+        let stroke = DrawOp {
+            action: DrawAction::Paint(color),
+            shape,
+            size_index: 7,
+            points: points.clone(),
+            stroke_rank: 1,
+        };
+        let painted: BTreeSet<_> = rasterize(&stroke).collect();
+        let reference: BTreeSet<_> = starboard::canvas::point_pairs(&points)
+            .into_iter()
+            .flat_map(|(from, to)| {
+                let pair = DrawOp {
+                    points: vec![from, to],
+                    ..stroke.clone()
+                };
+                rasterize(&pair).collect::<Vec<_>>()
+            })
+            .collect();
         assert_eq!(painted, reference);
     }
 
