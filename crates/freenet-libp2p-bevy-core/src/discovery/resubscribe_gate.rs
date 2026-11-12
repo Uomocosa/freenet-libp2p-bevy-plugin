@@ -14,13 +14,17 @@ pub struct ResubscribeGate {
 impl ResubscribeGate {
     pub fn is_due(&self, now: Instant) -> bool {}
     pub fn sent(&mut self, now: Instant) {}
-    pub fn answered(&mut self) -> u32 {}
     pub fn heal_replica_split(
         &mut self,
         subscription: &mut discovery::LobbyContractSubscription,
         now: Instant,
     ) {
     }
+}
+
+#[rustfmt::skip]
+impl ResubscribeGate {
+    pub fn answered(&mut self) -> u32 { std::mem::take(&mut self.unanswered) }
 }
 
 #[cfg(test)]
@@ -37,10 +41,12 @@ mod tests {
         let mut gate = ResubscribeGate::default();
         let started = Instant::now();
         assert!(gate.is_due(started));
+        assert_eq!(gate.answered(), 0);
         gate.sent(started);
         assert!(!gate.is_due(started + discovery::RESUBSCRIBE - Duration::from_millis(1)));
         assert!(gate.is_due(started + discovery::RESUBSCRIBE));
         assert_eq!(gate.answered(), 1);
+        assert_eq!(gate.answered(), 0);
         assert!(!gate.is_due(started + discovery::RESUBSCRIBE - Duration::from_millis(1)));
         assert!(gate.is_due(started + discovery::RESUBSCRIBE));
     }
