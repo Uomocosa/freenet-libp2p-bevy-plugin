@@ -4,39 +4,45 @@ pub fn rasterize(
     op: &starboard::canvas::DrawOp,
 ) -> impl Iterator<Item = starboard::canvas::CellPos> {
     let radius = starboard::canvas::brush_radius(op.size_index);
-    let stride = usize::from((radius / 2).max(1));
-    let centers = stamp_centers(op.from, op.to, stride);
-    let r = i32::from(radius);
-    let min_offset = 0_i32.saturating_sub(r);
-    let shape = op.shape;
+    let offsets = shape_offsets(op.shape, radius);
     let mut cells = Vec::new();
-    for center in centers {
+    for center in stamp_centers(op.from, op.to) {
         let cx = i32::from(center.x);
         let cy = i32::from(center.y);
-        for dy in min_offset..=r {
-            for dx in min_offset..=r {
-                if !starboard::canvas::is_inside_shape(shape, radius, dx, dy) {
-                    continue;
-                }
-                let x = cx.saturating_add(dx);
-                let y = cy.saturating_add(dy);
-                if let (Ok(ux), Ok(uy)) = (u16::try_from(x), u16::try_from(y))
-                    && usize::from(ux) < starboard::canvas::CANVAS_SIDE
-                    && usize::from(uy) < starboard::canvas::CANVAS_SIDE
-                {
-                    cells.push(starboard::canvas::CellPos { x: ux, y: uy });
-                }
+        for &(dx, dy) in &offsets {
+            let x = cx.saturating_add(dx);
+            let y = cy.saturating_add(dy);
+            if let (Ok(ux), Ok(uy)) = (u16::try_from(x), u16::try_from(y))
+                && usize::from(ux) < starboard::canvas::CANVAS_SIDE
+                && usize::from(uy) < starboard::canvas::CANVAS_SIDE
+            {
+                cells.push(starboard::canvas::CellPos { x: ux, y: uy });
             }
         }
     }
+    cells.sort_unstable();
+    cells.dedup();
     cells.into_iter()
 }
 
-// needed helper: step along from -> to with integer Bresenham and emit stamp centers every stride steps
+fn shape_offsets(shape: starboard::identity::Shape, radius: u16) -> Vec<(i32, i32)> {
+    let r = i32::from(radius);
+    let min_offset = 0_i32.saturating_sub(r);
+    let mut offsets = Vec::new();
+    for dy in min_offset..=r {
+        for dx in min_offset..=r {
+            if starboard::canvas::is_inside_shape(shape, radius, dx, dy) {
+                offsets.push((dx, dy));
+            }
+        }
+    }
+    offsets
+}
+
+// needed helper: step along from -> to with integer Bresenham and emit a stamp centre on every cell
 fn stamp_centers(
     from: starboard::canvas::CellPos,
     to: starboard::canvas::CellPos,
-    stride: usize,
 ) -> Vec<starboard::canvas::CellPos> {
     let mut x = i32::from(from.x);
     let mut y = i32::from(from.y);
@@ -47,13 +53,10 @@ fn stamp_centers(
     let dy = 0_i32.saturating_sub((y1.saturating_sub(y)).abs());
     let sy = if y < y1 { 1_i32 } else { -1_i32 };
     let mut err = dx.saturating_add(dy);
-    let mut step = 0_usize;
     let mut centers = Vec::new();
 
     loop {
-        if (step.checked_rem(stride).unwrap_or(0) == 0 || (x == x1 && y == y1))
-            && let (Ok(ux), Ok(uy)) = (u16::try_from(x), u16::try_from(y))
-        {
+        if let (Ok(ux), Ok(uy)) = (u16::try_from(x), u16::try_from(y)) {
             centers.push(starboard::canvas::CellPos { x: ux, y: uy });
         }
         if x == x1 && y == y1 {
@@ -68,18 +71,17 @@ fn stamp_centers(
             err = err.saturating_add(dx);
             y = y.saturating_add(sy);
         }
-        step = step.saturating_add(1);
     }
     centers
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeSet, VecDeque};
 
     use rstest::rstest;
 
-    use super::rasterize;
+    use super::{rasterize, shape_offsets, stamp_centers};
     use crate::starboard;
     use crate::starboard::canvas::{CANVAS_SIDE, CellPos, DrawAction, DrawOp, is_inside_shape};
     use crate::starboard::identity::{PaletteColor, SHAPES, Shape};
@@ -161,5 +163,162 @@ mod tests {
                 usize::from(pos.x) < CANVAS_SIDE && usize::from(pos.y) < CANVAS_SIDE
             })
         );
+    }
+
+    const CURVE: [(u16, u16); 6] = [
+        (20, 100),
+        (60, 60),
+        (100, 40),
+        (140, 60),
+        (180, 100),
+        (200, 160),
+    ];
+
+    fn curve_cells(shape: Shape, color: PaletteColor) -> BTreeSet<CellPos> {
+        let points: Vec<CellPos> = CURVE.iter().map(|&(x, y)| CellPos { x, y }).collect();
+        let mut painted = BTreeSet::new();
+        for pair in points.windows(2) {
+            let op = DrawOp {
+                action: DrawAction::Paint(color),
+                shape,
+                size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+                from: pair.first().copied().unwrap_or_default(),
+                to: pair.last().copied().unwrap_or_default(),
+            };
+            let raw: Vec<CellPos> = rasterize(&op).collect();
+            assert!(
+                raw.iter().zip(raw.iter().skip(1)).all(|(a, b)| a < b),
+                "one segment's output is strictly increasing, so it has no duplicates"
+            );
+            painted.extend(raw);
+        }
+        painted
+    }
+
+    const FOUR_STEPS: [(i32, i32); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];
+    const EIGHT_STEPS: [(i32, i32); 8] = [
+        (1, 0),
+        (-1, 0),
+        (0, 1),
+        (0, -1),
+        (1, 1),
+        (1, -1),
+        (-1, 1),
+        (-1, -1),
+    ];
+
+    fn flood(
+        start: (i32, i32),
+        steps: &[(i32, i32)],
+        is_open: impl Fn((i32, i32)) -> bool,
+    ) -> BTreeSet<(i32, i32)> {
+        let mut seen = BTreeSet::new();
+        let mut queue = VecDeque::from([start]);
+        while let Some(cell) = queue.pop_front() {
+            if !seen.insert(cell) {
+                continue;
+            }
+            for &(dx, dy) in steps {
+                let next = (cell.0.saturating_add(dx), cell.1.saturating_add(dy));
+                if is_open(next) && !seen.contains(&next) {
+                    queue.push_back(next);
+                }
+            }
+        }
+        seen
+    }
+
+    fn box_span(cells: &BTreeSet<(i32, i32)>, axis: fn(&(i32, i32)) -> i32) -> (i32, i32) {
+        let low = cells
+            .iter()
+            .map(axis)
+            .min()
+            .unwrap_or_default()
+            .saturating_sub(1);
+        let high = cells
+            .iter()
+            .map(axis)
+            .max()
+            .unwrap_or_default()
+            .saturating_add(1);
+        (low, high)
+    }
+
+    fn curve_region(shape: Shape, color: PaletteColor) -> BTreeSet<(i32, i32)> {
+        curve_cells(shape, color)
+            .iter()
+            .map(|pos| (i32::from(pos.x), i32::from(pos.y)))
+            .collect()
+    }
+
+    /// The star's spike tips touch their neighbours only diagonally, even as a single dab,
+    /// so the star ribbon is joined by 8-neighbours.
+    #[rstest]
+    #[case::circle_red(Shape::Circle, PaletteColor(0), &FOUR_STEPS)]
+    #[case::square_blue(Shape::Square, PaletteColor(6), &FOUR_STEPS)]
+    #[case::star_yellow(Shape::Star, PaletteColor(11), &EIGHT_STEPS)]
+    fn curved_stroke_is_one_connected_ribbon(
+        #[case] shape: Shape,
+        #[case] color: PaletteColor,
+        #[case] joins: &[(i32, i32)],
+    ) {
+        let cells = curve_region(shape, color);
+        let first = cells.first().copied().unwrap_or_default();
+        let reached = flood(first, joins, |cell| cells.contains(&cell));
+        assert_eq!(
+            reached.len(),
+            cells.len(),
+            "the stroke is one connected region"
+        );
+    }
+
+    #[rstest]
+    #[case::circle_red(Shape::Circle, PaletteColor(0))]
+    #[case::square_blue(Shape::Square, PaletteColor(6))]
+    fn curved_stroke_leaves_no_holes(#[case] shape: Shape, #[case] color: PaletteColor) {
+        let cells = curve_region(shape, color);
+        let (min_x, max_x) = box_span(&cells, |cell| cell.0);
+        let (min_y, max_y) = box_span(&cells, |cell| cell.1);
+        let is_open_in_box = |cell: (i32, i32)| {
+            (min_x..=max_x).contains(&cell.0)
+                && (min_y..=max_y).contains(&cell.1)
+                && !cells.contains(&cell)
+        };
+        let background = flood((min_x, min_y), EIGHT_STEPS.as_slice(), is_open_in_box);
+        let width = max_x.saturating_sub(min_x).saturating_add(1);
+        let height = max_y.saturating_sub(min_y).saturating_add(1);
+        let box_area = width.saturating_mul(height);
+        let unpainted_in_box = box_area.saturating_sub(i32::try_from(cells.len()).unwrap_or(0));
+        assert_eq!(
+            i32::try_from(background.len()).unwrap_or(-1),
+            unpainted_in_box,
+            "every unpainted cell in the box reaches the border, so there are no holes"
+        );
+    }
+
+    #[rstest]
+    #[case::circle_red(Shape::Circle, PaletteColor(0))]
+    #[case::square_blue(Shape::Square, PaletteColor(6))]
+    #[case::star_yellow(Shape::Star, PaletteColor(11))]
+    fn curved_stroke_sweeps_the_whole_brush_at_every_centre(
+        #[case] shape: Shape,
+        #[case] color: PaletteColor,
+    ) {
+        let painted = curve_region(shape, color);
+        let radius = starboard::canvas::brush_radius(starboard::canvas::DEFAULT_SIZE_INDEX);
+        let offsets = shape_offsets(shape, radius);
+        let points: Vec<CellPos> = CURVE.iter().map(|&(x, y)| CellPos { x, y }).collect();
+        for pair in points.windows(2) {
+            for center in stamp_centers(pair[0], pair[1]) {
+                let cx = i32::from(center.x);
+                let cy = i32::from(center.y);
+                for &(dx, dy) in &offsets {
+                    assert!(
+                        painted.contains(&(cx.saturating_add(dx), cy.saturating_add(dy))),
+                        "the brush at {center:?} is missing offset ({dx}, {dy})"
+                    );
+                }
+            }
+        }
     }
 }

@@ -17,6 +17,7 @@ impl Plugin for StarboardPlugin {
             .init_resource::<render::CanvasView>()
             .init_resource::<input::OwnBrush>()
             .init_resource::<input::LatestPaintedCell>()
+            .init_resource::<input::PendingPressState>()
             .init_resource::<input::CursorCell>()
             .init_resource::<room_sync::LamportClock>()
             .init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
@@ -128,35 +129,95 @@ mod tests {
 
     const fn preview_noop(_world: &mut World) {}
 
-    fn paint_strokes(world: &mut World) {
-        let brush = world.resource::<CaseBrush>().0;
-        let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
-        for index in 0_u16..28 {
-            let x = 96_u16.saturating_add(index.saturating_mul(24));
-            let y = 300_u16.saturating_add(index.saturating_mul(7));
-            let op = starboard::input::draw_op(
-                starboard::input::OwnBrush {
-                    shape: brush.shape,
-                    color: brush.color,
-                    size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
-                },
-                starboard::canvas::DrawAction::Paint(brush.color),
-                starboard::canvas::Stroke {
-                    from: starboard::canvas::CellPos { x, y },
-                    to: starboard::canvas::CellPos {
-                        x: x.saturating_add(40),
-                        y: y.saturating_add(60),
-                    },
-                },
-            );
-            canvas.apply(
-                OpMeta {
-                    lamport: u32::from(index).saturating_add(1),
-                    author: 1,
-                },
-                &op,
-            );
+    /// One curved stroke, as segments between these offsets from its origin.
+    const CURVE: [(u16, i16); 9] = [
+        (0, 0),
+        (12, 14),
+        (24, 24),
+        (36, 28),
+        (48, 24),
+        (60, 14),
+        (72, 0),
+        (84, -14),
+        (96, -24),
+    ];
+
+    fn brush_of(brush: starboard::identity::DailyBrush) -> starboard::input::OwnBrush {
+        starboard::input::OwnBrush {
+            shape: brush.shape,
+            color: brush.color,
+            size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
         }
+    }
+
+    fn paint_op(
+        canvas: &mut starboard::canvas::Canvas,
+        brush: starboard::input::OwnBrush,
+        stroke: starboard::canvas::Stroke,
+        lamport: &mut u32,
+    ) {
+        *lamport = lamport.saturating_add(1);
+        let op = starboard::input::draw_op(
+            brush,
+            starboard::canvas::DrawAction::Paint(brush.color),
+            stroke,
+        );
+        canvas.apply(
+            OpMeta {
+                lamport: *lamport,
+                author: 1,
+            },
+            &op,
+        );
+    }
+
+    fn paint_curve(
+        canvas: &mut starboard::canvas::Canvas,
+        brush: starboard::input::OwnBrush,
+        origin: starboard::canvas::CellPos,
+        lamport: &mut u32,
+    ) {
+        let points: Vec<starboard::canvas::CellPos> = CURVE
+            .iter()
+            .map(|&(dx, dy)| starboard::canvas::CellPos {
+                x: origin.x.saturating_add(dx),
+                y: origin.y.saturating_add_signed(dy),
+            })
+            .collect();
+        for (from, to) in points.iter().zip(points.iter().skip(1)) {
+            let stroke = starboard::canvas::Stroke {
+                from: *from,
+                to: *to,
+            };
+            paint_op(canvas, brush, stroke, lamport);
+        }
+    }
+
+    /// Three curved strokes in the case brush, then three single dots.
+    fn paint_strokes(world: &mut World) {
+        let brush = brush_of(world.resource::<CaseBrush>().0);
+        let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
+        let mut lamport = 0_u32;
+        for y in [150_u16, 400, 650] {
+            let origin = starboard::canvas::CellPos { x: 120, y };
+            paint_curve(&mut canvas, brush, origin, &mut lamport);
+        }
+        for (x, y) in [(820_u16, 200_u16), (860, 260), (820, 330)] {
+            let dot = starboard::canvas::Stroke {
+                from: starboard::canvas::CellPos { x, y },
+                to: starboard::canvas::CellPos { x, y },
+            };
+            paint_op(&mut canvas, brush, dot, &mut lamport);
+        }
+    }
+
+    /// One curved stroke with the star brush, painted over the board in later states.
+    fn paint_star_stroke(world: &mut World) {
+        let brush = brush_of(STAR_YELLOW);
+        let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
+        let mut lamport = 1000_u32;
+        let origin = starboard::canvas::CellPos { x: 300, y: 520 };
+        paint_curve(&mut canvas, brush, origin, &mut lamport);
     }
 
     fn show_cursor(world: &mut World) {
@@ -192,6 +253,10 @@ mod tests {
                 lele_bevy_preview::scene::State {
                     label: String::from("brush over the board"),
                     apply: show_cursor,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("star stroke"),
+                    apply: paint_star_stroke,
                 },
             ],
             timeline: None,
