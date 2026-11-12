@@ -1,8 +1,6 @@
 use crate::starboard;
 use crate::starboard::canvas::HalfPlane;
 
-const VERTEX_SCALE: i64 = 1000;
-
 /// Whether the brush shape, moved along `t -> centre - (start + t * step)` for `t` in `[0, 1]`,
 /// ever covers the point at offset `start` from the brush's first centre. Exact, not sampled.
 #[must_use]
@@ -52,7 +50,7 @@ fn piece_meets(piece: &[HalfPlane], start: (i64, i64), step: (i64, i64)) -> bool
     for half_plane in piece {
         let a = i128::from(half_plane.a);
         let b = i128::from(half_plane.b);
-        let scale = i128::from(VERTEX_SCALE);
+        let scale = i128::from(starboard::canvas::VERTEX_SCALE);
         let u = scale
             .saturating_mul(
                 a.saturating_mul(i128::from(start.0))

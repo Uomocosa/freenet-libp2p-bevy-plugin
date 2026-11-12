@@ -8,3 +8,4 @@ pub const DEFAULT_SIZE_INDEX: u8 = 5;
 pub const SIZE_PERCENTS: [u16; 9] = [10, 20, 35, 50, 75, 100, 125, 150, 200];
 pub const BRUSH_RADII: [u16; 9] = [1, 3, 5, 8, 12, 16, 20, 24, 32];
 pub const SUBCELL_STEPS: u32 = 8;
+pub const VERTEX_SCALE: i64 = 1000;
