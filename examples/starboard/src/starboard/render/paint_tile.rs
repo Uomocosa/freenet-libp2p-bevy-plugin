@@ -35,10 +35,7 @@ pub fn paint_tile(
             .saturating_add(local_y);
         let start = y.saturating_mul(side).saturating_add(x).saturating_mul(4);
         if let Some(pixel) = pixels.get_mut(start..start.saturating_add(4)) {
-            pixel.copy_from_slice(&cell.top.color.map_or_else(
-                || starboard::render::checker_background_rgba_at(x, y),
-                starboard::render::palette_rgba,
-            ));
+            pixel.copy_from_slice(&starboard::render::blend_cell_rgba(cell, x, y));
         }
     }
     true

@@ -1,5 +1,6 @@
 #[path = "__basic__/mod.rs"]
 mod basic;
+mod blend_cell_rgba;
 mod brush_image;
 mod brush_outline;
 mod canvas_view;
@@ -26,6 +27,7 @@ pub use basic::constants::{
     OWN_LABEL_COLOR, OWN_OUTLINE_PX, OWN_OUTLINE_RGBA, OWN_PREVIEW_ALPHA, PREVIEW_FILL_ALPHA,
 };
 pub use basic::structs::BrushImage;
+pub use blend_cell_rgba::blend_cell_rgba;
 pub use brush_image::brush_image;
 pub use brush_outline::BrushOutline;
 pub use canvas_view::CanvasView;
