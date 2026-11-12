@@ -18,7 +18,7 @@ impl Tile {
         }
         let mut tile = Self::default();
         for (dst, src) in tile.iter_mut().zip(cells.iter()) {
-            *dst = *src;
+            *dst = src.clone();
         }
         Some(tile)
     }

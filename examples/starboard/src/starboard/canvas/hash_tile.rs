@@ -25,7 +25,7 @@ mod tests {
                 rank: 1,
                 author: 2,
                 color: Some(starboard::identity::PaletteColor(5)),
-                coverage: 200,
+                mask: 200,
             };
         }
         assert_eq!(hash_tile(&empty), hash_tile(&empty));

@@ -25,7 +25,7 @@ pub fn read_cell(
         .tiles
         .get(tile_idx)
         .and_then(Option::as_ref)
-        .and_then(|tile| tile.get(cell_idx).copied())
+        .and_then(|tile| tile.get(cell_idx).cloned())
         .unwrap_or_default()
 }
 
@@ -43,7 +43,7 @@ mod tests {
             rank: 3,
             author: 9,
             color: Some(starboard::identity::PaletteColor(4)),
-            coverage: starboard::canvas::FULL_COVERAGE,
+            mask: starboard::canvas::FULL_MASK,
         };
         let _ = starboard::canvas::write_cell(&mut canvas, pos, expected);
         assert_eq!(read_cell(&canvas, pos).top, expected);

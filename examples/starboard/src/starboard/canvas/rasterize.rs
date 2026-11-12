@@ -17,8 +17,8 @@ mod tests {
     use super::rasterize;
     use crate::starboard;
     use crate::starboard::canvas::{
-        CANVAS_SIDE, CellCoverage, CellPos, DrawAction, DrawOp, SAMPLE_OFFSETS, SUBCELL_STEPS,
-        SubCellPos, cell_centre,
+        CANVAS_SIDE, CellCoverage, CellPos, DrawAction, DrawOp, FULL_MASK, SAMPLE_OFFSETS,
+        SUBCELL_STEPS, SubCellPos, cell_centre,
     };
     use crate::starboard::identity::{PaletteColor, SHAPES, Shape};
 
@@ -81,9 +81,9 @@ mod tests {
                     x.saturating_mul(UNITS_PER_CELL),
                     y.saturating_mul(UNITS_PER_CELL),
                 );
-                let mut inside: u8 = 0;
-                for across_x in SAMPLE_OFFSETS {
-                    for across_y in SAMPLE_OFFSETS {
+                let mut mask: u16 = 0;
+                for (across_x_index, across_x) in SAMPLE_OFFSETS.into_iter().enumerate() {
+                    for (across_y_index, across_y) in SAMPLE_OFFSETS.into_iter().enumerate() {
                         let sample = (
                             origin
                                 .0
@@ -107,7 +107,11 @@ mod tests {
                             )
                         });
                         if hit {
-                            inside = inside.saturating_add(1);
+                            let bit = across_x_index
+                                .saturating_mul(4)
+                                .saturating_add(across_y_index);
+                            let bit = u32::try_from(bit).unwrap_or(0);
+                            mask |= 1_u16.checked_shl(bit).unwrap_or(0);
                         }
                     }
                 }
@@ -115,7 +119,7 @@ mod tests {
                     x: u16::try_from(x).unwrap_or(0),
                     y: u16::try_from(y).unwrap_or(0),
                 };
-                covered.extend(CellCoverage::from_inside_samples(pos, inside));
+                covered.extend(CellCoverage::from_mask(pos, mask));
             }
         }
         covered
@@ -127,6 +131,37 @@ mod tests {
             i64::from(point.x).saturating_mul(units_per_sub),
             i64::from(point.y).saturating_mul(units_per_sub),
         )
+    }
+
+    /// A horizontal stroke at the default brush: the cell on the top edge row has exactly 8 of its
+    /// 16 sub-samples inside (two of its four sample rows), and the centre row is fully covered.
+    #[rstest]
+    #[case::circle_red(Shape::Circle, PaletteColor(0))]
+    #[case::square_blue(Shape::Square, PaletteColor(6))]
+    fn half_covered_straight_edge_cell_has_eight_of_sixteen(
+        #[case] shape: Shape,
+        #[case] color: PaletteColor,
+    ) {
+        let stroke = DrawOp {
+            action: DrawAction::Paint(color),
+            shape,
+            size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+            points: vec![
+                cell_centre(CellPos { x: 40, y: 100 }),
+                cell_centre(CellPos { x: 120, y: 100 }),
+            ],
+            stroke_rank: 1,
+        };
+        let covered: Vec<CellCoverage> = rasterize(&stroke).collect();
+        let mask_at = |x: u16, y: u16| {
+            covered
+                .iter()
+                .find(|cell| cell.pos == CellPos { x, y })
+                .map(|cell| cell.mask)
+        };
+        assert_eq!(mask_at(80, 100), Some(FULL_MASK));
+        assert_eq!(mask_at(80, 84).map(u16::count_ones), Some(8));
+        assert_eq!(mask_at(80, 82), None);
     }
 
     /// Micro-benchmark, not a test: the same 40-cell line as one 2-point op and as a 160-point
@@ -218,7 +253,7 @@ mod tests {
             let inside = sample_inside_count(shape, radius, centre, cell.pos);
             assert!(inside >= 1, "every emitted cell has an inside sample");
             assert!(
-                cell.coverage != 255 || inside == 16,
+                cell.mask != FULL_MASK || inside == 16,
                 "255 means all samples inside"
             );
         }
@@ -306,13 +341,13 @@ mod tests {
         let reference_cells: Vec<CellPos> = reference.iter().map(|cell| cell.pos).collect();
         assert_eq!(painted_cells, reference_cells);
         for (exact, sampled) in painted.iter().zip(reference.iter()) {
-            let difference = i32::from(exact.coverage).abs_diff(i32::from(sampled.coverage));
+            let difference = exact.mask.count_ones().abs_diff(sampled.mask.count_ones());
             assert!(
-                difference <= 16,
+                difference <= 1,
                 "{:?}: exact {} vs sampled {}; the path sampling may miss one sub-sample on a sliver",
                 exact.pos,
-                exact.coverage,
-                sampled.coverage
+                exact.mask,
+                sampled.mask
             );
         }
     }

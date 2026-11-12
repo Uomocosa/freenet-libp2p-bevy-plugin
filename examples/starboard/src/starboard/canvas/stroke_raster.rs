@@ -1,7 +1,7 @@
 use crate::starboard;
 use starboard::canvas::{
-    CellBox, CellCoverage, CellPos, DrawOp, FULL_COVERAGE, HalfPlane, PairBins, SAMPLE_OFFSETS,
-    SAMPLES_PER_CELL, SUBCELL_STEPS, SegmentSweep, SubCellPos,
+    CellBox, CellCoverage, CellPos, DrawOp, FULL_MASK, HalfPlane, PairBins, SAMPLE_OFFSETS,
+    SUBCELL_STEPS, SegmentSweep, SubCellPos,
 };
 
 const CENTRE_REACH_SLACK: i64 = 5;
@@ -81,11 +81,11 @@ impl StrokeRaster {
         {
             return Some(CellCoverage {
                 pos,
-                coverage: FULL_COVERAGE,
+                mask: FULL_MASK,
             });
         }
-        let inside = self.inside_sample_count(&reachable, pos);
-        CellCoverage::from_inside_samples(pos, inside)
+        let mask = self.inside_mask(&reachable, pos);
+        CellCoverage::from_mask(pos, mask)
     }
 
     pub(crate) fn centre_may_reach(&self, index: usize, pos: CellPos) -> bool {
@@ -118,28 +118,32 @@ impl StrokeRaster {
             .is_some_and(|cell_box| cell_box.contains(x, y))
     }
 
-    pub(crate) fn inside_sample_count(&self, reachable: &[usize], pos: CellPos) -> u8 {
+    pub(crate) fn inside_mask(&self, reachable: &[usize], pos: CellPos) -> u16 {
         let origin = starboard::canvas::cell_centre(pos);
         let origin = SubCellPos {
             x: origin.x.saturating_sub(SUBCELL_STEPS / 2),
             y: origin.y.saturating_sub(SUBCELL_STEPS / 2),
         };
-        let mut inside: u32 = 0;
-        for across_x in SAMPLE_OFFSETS {
-            for across_y in SAMPLE_OFFSETS {
+        let mut mask: u16 = 0;
+        for (across_x_index, across_x) in SAMPLE_OFFSETS.into_iter().enumerate() {
+            for (across_y_index, across_y) in SAMPLE_OFFSETS.into_iter().enumerate() {
                 let point = SubCellPos {
                     x: origin.x.saturating_add(across_x),
                     y: origin.y.saturating_add(across_y),
                 };
-                if reachable
+                let is_covered = reachable
                     .iter()
-                    .any(|index| self.sample_covered(*index, point))
-                {
-                    inside = inside.saturating_add(1);
+                    .any(|index| self.sample_covered(*index, point));
+                if is_covered {
+                    let bit = across_x_index
+                        .saturating_mul(SAMPLE_OFFSETS.len())
+                        .saturating_add(across_y_index);
+                    let bit = u32::try_from(bit).unwrap_or(0);
+                    mask |= 1_u16.checked_shl(bit).unwrap_or(0);
                 }
             }
         }
-        u8::try_from(inside.min(SAMPLES_PER_CELL)).unwrap_or(0)
+        mask
     }
 
     pub(crate) fn sample_covered(&self, index: usize, point: SubCellPos) -> bool {

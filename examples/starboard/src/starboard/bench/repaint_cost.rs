@@ -37,7 +37,7 @@ mod tests {
             rank: 1,
             author: 1,
             color: Some(starboard::identity::PaletteColor(2)),
-            coverage: starboard::canvas::FULL_COVERAGE,
+            mask: starboard::canvas::FULL_MASK,
         };
         for index in 0..4_u16 {
             assert!(starboard::canvas::write_cell(

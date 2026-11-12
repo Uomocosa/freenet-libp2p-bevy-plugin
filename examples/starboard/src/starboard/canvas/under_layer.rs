@@ -35,7 +35,7 @@ impl UnderLayer {
             rank: self.rank,
             author: self.author,
             color: self.color,
-            coverage: starboard::canvas::FULL_COVERAGE,
+            mask: starboard::canvas::FULL_MASK,
         }
     }
 }

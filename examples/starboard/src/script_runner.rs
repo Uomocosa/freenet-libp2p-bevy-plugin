@@ -311,7 +311,7 @@ mod tests {
                 rank: 1,
                 author: 1,
                 color: Some(starboard::input::OwnBrush::default().color),
-                coverage: starboard::canvas::FULL_COVERAGE,
+                mask: starboard::canvas::FULL_MASK,
             },
         );
         app.update();

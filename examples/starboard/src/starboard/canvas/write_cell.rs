@@ -40,7 +40,7 @@ pub fn write_cell(
 mod tests {
     use super::write_cell;
     use crate::starboard;
-    use starboard::canvas::{FULL_COVERAGE, Layer};
+    use starboard::canvas::{FULL_MASK, Layer};
 
     #[test]
     fn test_usage() {
@@ -50,13 +50,13 @@ mod tests {
             rank: 1,
             author: 10,
             color: Some(starboard::identity::PaletteColor(2)),
-            coverage: FULL_COVERAGE,
+            mask: FULL_MASK,
         };
         let newer = Layer {
             rank: 2,
             author: 5,
             color: None,
-            coverage: FULL_COVERAGE,
+            mask: FULL_MASK,
         };
         assert!(write_cell(&mut canvas, pos, older));
         assert!(write_cell(&mut canvas, pos, newer));
@@ -72,7 +72,7 @@ mod tests {
             rank: 7,
             author: 42,
             color: Some(starboard::identity::PaletteColor(1)),
-            coverage: FULL_COVERAGE,
+            mask: FULL_MASK,
         };
         let high_color = Layer {
             color: Some(starboard::identity::PaletteColor(9)),

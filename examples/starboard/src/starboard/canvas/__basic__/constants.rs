@@ -12,4 +12,4 @@ pub const MAX_POINTS_PER_OP: usize = 512;
 pub const VERTEX_SCALE: i64 = 1000;
 pub const SAMPLE_OFFSETS: [u32; 4] = [1, 3, 5, 7];
 pub const SAMPLES_PER_CELL: u32 = 16;
-pub const FULL_COVERAGE: u8 = 255;
+pub const FULL_MASK: u16 = 0xFFFF;

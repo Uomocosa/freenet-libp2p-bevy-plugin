@@ -31,7 +31,7 @@ pub fn merge_tile(
 mod tests {
     use super::merge_tile;
     use crate::starboard;
-    use starboard::canvas::{FULL_COVERAGE, Layer};
+    use starboard::canvas::{FULL_MASK, Layer};
 
     #[test]
     fn test_usage() {
@@ -41,13 +41,13 @@ mod tests {
             rank: 5,
             author: 11,
             color: Some(starboard::identity::PaletteColor(3)),
-            coverage: 128,
+            mask: 0x00FF,
         };
         let under = Layer {
             rank: 4,
             author: 2,
             color: Some(starboard::identity::PaletteColor(1)),
-            coverage: FULL_COVERAGE,
+            mask: FULL_MASK,
         };
         if let Some(slot) = remote.get_mut(0) {
             slot.top = top;

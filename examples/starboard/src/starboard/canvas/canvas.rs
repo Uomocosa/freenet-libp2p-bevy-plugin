@@ -34,7 +34,7 @@ impl room_sync::traits::ReplicatedState for Canvas {
                 rank: op.stroke_rank,
                 author: meta.author,
                 color,
-                coverage: covered.coverage,
+                mask: covered.mask,
             };
             let _ = starboard::canvas::write_cell(self, covered.pos, write);
         }
@@ -46,7 +46,7 @@ impl room_sync::traits::ReplicatedState for Canvas {
             if let Some(tile) = maybe_tile {
                 touched.push(starboard::canvas::TouchedTile {
                     id: starboard::canvas::TileId(u16::try_from(idx).unwrap_or(0)),
-                    cells: tile.iter().copied().collect(),
+                    cells: tile.iter().cloned().collect(),
                 });
             }
         }
@@ -79,7 +79,7 @@ impl room_sync::traits::ReplicatedState for Canvas {
         if let Some(Some(tile)) = self.tiles.get(idx) {
             touched.push(starboard::canvas::TouchedTile {
                 id: starboard::canvas::TileId(u16::try_from(idx).unwrap_or(0)),
-                cells: tile.iter().copied().collect(),
+                cells: tile.iter().cloned().collect(),
             });
         }
         starboard::canvas::encode_snapshot(&touched)
@@ -98,6 +98,7 @@ mod tests {
 
     use super::Canvas;
     use crate::starboard;
+    use crate::starboard::canvas::cell_centre;
     use starboard::canvas::{CellPos, DrawAction, DrawOp};
     use starboard::identity::{PaletteColor, Shape};
 
@@ -275,6 +276,62 @@ mod tests {
             starboard::canvas::hash_canvas(&peer_a),
             starboard::canvas::hash_canvas(&peer_b)
         );
+    }
+
+    fn split_ops(op: &DrawOp, parts: usize) -> Vec<DrawOp> {
+        let last = op.points.len().saturating_sub(1);
+        (0..parts)
+            .filter_map(|part| {
+                let start = part.saturating_mul(last).checked_div(parts)?;
+                let end = part
+                    .saturating_add(1)
+                    .saturating_mul(last)
+                    .checked_div(parts)?;
+                let points = op.points.get(start..=end)?.to_vec();
+                Some(DrawOp {
+                    points,
+                    ..op.clone()
+                })
+            })
+            .collect()
+    }
+
+    #[rstest]
+    #[case::circle_red(Shape::Circle, PaletteColor(0))]
+    #[case::square_blue(Shape::Square, PaletteColor(6))]
+    #[case::star_yellow(Shape::Star, PaletteColor(11))]
+    fn a_stroke_split_into_consecutive_ops_paints_the_same_masks(
+        #[case] shape: Shape,
+        #[case] color: PaletteColor,
+    ) {
+        let controls =
+            [(20, 100), (60, 60), (100, 40), (140, 60)].map(|(x, y)| cell_centre(CellPos { x, y }));
+        let whole = DrawOp {
+            action: DrawAction::Paint(color),
+            shape,
+            size_index: 7,
+            points: starboard::input::catmull_rom_points(controls),
+            stroke_rank: 1,
+        };
+        let meta = OpMeta {
+            lamport: 1,
+            author: 1,
+        };
+        let single = canvas_from(&[(meta, whole.clone())]);
+        for parts in [2_usize, 5, 20] {
+            let split_ops: Vec<(OpMeta, DrawOp)> = split_ops(&whole, parts)
+                .into_iter()
+                .map(|op| (meta, op))
+                .collect();
+            let split = canvas_from(&split_ops);
+            for pos in cells_of(&[(meta, whole.clone())]) {
+                assert_eq!(
+                    starboard::canvas::read_cell(&split, pos),
+                    starboard::canvas::read_cell(&single, pos),
+                    "{parts} ops differ at {pos:?}"
+                );
+            }
+        }
     }
 
     #[test]
@@ -483,7 +540,7 @@ mod tests {
                         .as_ref()
                         .map(|tile| starboard::canvas::TouchedTile {
                             id: starboard::canvas::TileId(u16::try_from(idx).unwrap_or(0)),
-                            cells: tile.iter().copied().collect(),
+                            cells: tile.iter().cloned().collect(),
                         })
                 })
                 .collect();

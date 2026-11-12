@@ -66,7 +66,7 @@ mod tests {
                 rank: 1,
                 author: 2,
                 color: Some(color),
-                coverage: starboard::canvas::FULL_COVERAGE,
+                mask: starboard::canvas::FULL_MASK,
             }
         ));
 

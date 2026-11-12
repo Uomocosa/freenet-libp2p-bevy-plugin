@@ -24,7 +24,7 @@ mod tests {
             rank: 1,
             author: 3,
             color: Some(starboard::identity::PaletteColor(4)),
-            coverage: starboard::canvas::FULL_COVERAGE,
+            mask: starboard::canvas::FULL_MASK,
         };
         assert!(starboard::canvas::write_cell(
             &mut canvas,

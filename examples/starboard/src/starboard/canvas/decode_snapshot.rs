@@ -25,9 +25,10 @@ mod tests {
                         rank: 4,
                         author: 8,
                         color: Some(starboard::identity::PaletteColor(2)),
-                        coverage: starboard::canvas::FULL_COVERAGE,
+                        mask: starboard::canvas::FULL_MASK,
                     },
                     under: None,
+                    lower: Box::default(),
                 };
                 starboard::canvas::CELLS_PER_TILE
             ],

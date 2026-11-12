@@ -42,7 +42,7 @@ mod tests {
                 rank: 1,
                 author: 1,
                 color: Some(starboard::identity::PaletteColor(0)),
-                coverage: starboard::canvas::FULL_COVERAGE,
+                mask: starboard::canvas::FULL_MASK,
             },
         );
         assert_ne!(hash_canvas(&canvas), empty_hash);

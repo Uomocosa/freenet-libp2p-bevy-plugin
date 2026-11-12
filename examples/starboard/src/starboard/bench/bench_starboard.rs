@@ -9,7 +9,7 @@ impl starboard::canvas::Canvas {
             rank: 1,
             author: 1,
             color: Some(starboard::identity::PaletteColor(1)),
-            coverage: starboard::canvas::FULL_COVERAGE,
+            mask: starboard::canvas::FULL_MASK,
         };
         let tile_side = u16::try_from(starboard::canvas::TILE_SIDE).unwrap_or(1);
         for index in 0..starboard::canvas::TILE_COUNT {

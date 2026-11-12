@@ -12,7 +12,7 @@ pub fn blend_cell_rgba(cell: &starboard::canvas::Cell, x: usize, y: usize) -> [u
             .color
             .map_or(background, starboard::render::palette_rgba)
     });
-    let alpha = u32::from(cell.top.coverage);
+    let alpha = cell.top.alpha();
     let mut blended = [0_u8; 4];
     for (index, channel) in blended.iter_mut().enumerate() {
         let top_channel = u32::from(top.get(index).copied().unwrap_or(0));
@@ -30,7 +30,7 @@ pub fn blend_cell_rgba(cell: &starboard::canvas::Cell, x: usize, y: usize) -> [u
 mod tests {
     use super::blend_cell_rgba;
     use crate::starboard;
-    use starboard::canvas::{Cell, FULL_COVERAGE, Layer, UnderLayer};
+    use starboard::canvas::{Cell, FULL_MASK, Layer, UnderLayer};
     use starboard::identity::PaletteColor;
 
     #[test]
@@ -45,9 +45,10 @@ mod tests {
                 rank: 1,
                 author: 1,
                 color: Some(red),
-                coverage: FULL_COVERAGE,
+                mask: FULL_MASK,
             },
             under: None,
+            lower: Box::default(),
         };
         assert_eq!(
             blend_cell_rgba(&solid, 0, 0),
@@ -56,10 +57,11 @@ mod tests {
 
         let half_over_background = Cell {
             top: Layer {
-                coverage: 128,
+                mask: 0x00FF,
                 ..solid.top
             },
             under: None,
+            lower: Box::default(),
         };
         let edge = blend_cell_rgba(&half_over_background, 0, 0);
         let expected_red = u32::from(starboard::render::palette_rgba(red)[0])
@@ -70,11 +72,12 @@ mod tests {
 
         let over_blue = Cell {
             top: half_over_background.top,
+            lower: Box::default(),
             under: Some(UnderLayer::from(Layer {
                 rank: 0,
                 author: 0,
                 color: Some(blue),
-                coverage: FULL_COVERAGE,
+                mask: FULL_MASK,
             })),
         };
         let mixed = blend_cell_rgba(&over_blue, 0, 0);

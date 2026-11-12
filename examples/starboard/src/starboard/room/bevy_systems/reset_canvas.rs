@@ -39,7 +39,7 @@ mod tests {
             rank: 3,
             author: 1,
             color: Some(starboard::identity::PaletteColor(1)),
-            coverage: starboard::canvas::FULL_COVERAGE,
+            mask: starboard::canvas::FULL_MASK,
         };
         let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
         let _ = starboard::canvas::write_cell(
