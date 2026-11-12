@@ -162,6 +162,47 @@ mod tests {
         )
     }
 
+    /// Micro-benchmark, not a test: the same 40-cell line as one 2-point op and as a 160-point
+    /// polyline, both at the big brush. Run with `--run-ignored only -- --nocapture`.
+    #[test]
+    #[ignore = "micro-benchmark: prints timings; run with --run-ignored only"]
+    fn rasterize_straight_vs_polyline_micro_bench() {
+        const ROUNDS: u32 = 200;
+        const BIG_BRUSH: u8 = 7;
+        const POLYLINE_POINTS: u32 = 160;
+        let start = cell_centre(CellPos { x: 100, y: 100 });
+        let end = cell_centre(CellPos { x: 140, y: 100 });
+        let straight = op(Shape::Circle, BIG_BRUSH, start, end);
+        let polyline = DrawOp {
+            action: DrawAction::Paint(PaletteColor(0)),
+            shape: Shape::Circle,
+            size_index: BIG_BRUSH,
+            points: (0..POLYLINE_POINTS)
+                .map(|index| SubCellPos {
+                    x: start.x + (end.x - start.x) * index / (POLYLINE_POINTS - 1),
+                    y: start.y,
+                })
+                .collect(),
+            stroke_rank: 1,
+        };
+        let time_rounds = |stroke: &DrawOp| {
+            let started = std::time::Instant::now();
+            for _ in 0..ROUNDS {
+                std::hint::black_box(rasterize(stroke).count());
+            }
+            started.elapsed()
+        };
+        let straight_total = time_rounds(&straight);
+        let polyline_total = time_rounds(&polyline);
+        println!(
+            "rasterize micro-bench ({ROUNDS} rounds, size index {BIG_BRUSH}): \
+             straight 2-point op {straight_total:?} ({} cells), \
+             160-point polyline {polyline_total:?} ({} cells)",
+            rasterize(&straight).count(),
+            rasterize(&polyline).count(),
+        );
+    }
+
     #[test]
     fn test_usage() {
         for shape in SHAPES {

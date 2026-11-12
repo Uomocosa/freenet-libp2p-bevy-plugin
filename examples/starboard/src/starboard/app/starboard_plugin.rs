@@ -473,6 +473,9 @@ mod tests {
 
     const CONVERGE_BUDGET: std::time::Duration = std::time::Duration::from_secs(10);
 
+    const FIRST_SCRIPTED_CELL: starboard::canvas::CellPos =
+        starboard::canvas::CellPos { x: 200, y: 300 };
+
     fn scripted_ops() -> Vec<starboard::canvas::DrawOp> {
         let brush = starboard::input::OwnBrush::default();
         (0_u16..6)
@@ -540,7 +543,17 @@ mod tests {
                 app.update();
             }
             let hashes: Vec<u64> = apps.iter().map(canvas_hash).collect();
-            if hashes.first() == hashes.last() && hashes.first().is_some_and(|hash| *hash != 0) {
+            if hashes.first() == hashes.last() {
+                for app in &apps {
+                    let cell = starboard::canvas::read_cell(
+                        app.world().resource::<starboard::canvas::Canvas>(),
+                        FIRST_SCRIPTED_CELL,
+                    );
+                    assert!(
+                        cell.color.is_some(),
+                        "converged on an empty canvas: {hashes:?}"
+                    );
+                }
                 return;
             }
             assert!(
@@ -594,7 +607,17 @@ mod tests {
                 app.update();
             }
             let hashes: Vec<u64> = apps.iter().map(canvas_hash).collect();
-            if hashes.first() == hashes.last() && hashes.first().is_some_and(|hash| *hash != 0) {
+            if hashes.first() == hashes.last() {
+                for app in &apps {
+                    let cell = starboard::canvas::read_cell(
+                        app.world().resource::<starboard::canvas::Canvas>(),
+                        FIRST_SCRIPTED_CELL,
+                    );
+                    assert!(
+                        cell.color.is_some(),
+                        "converged on an empty canvas: {hashes:?}"
+                    );
+                }
                 return;
             }
             assert!(
@@ -648,7 +671,17 @@ mod tests {
                 app.update();
             }
             let hashes: Vec<u64> = apps.iter().map(canvas_hash).collect();
-            if hashes.first() == hashes.last() && hashes.first().is_some_and(|hash| *hash != 0) {
+            if hashes.first() == hashes.last() {
+                for app in &apps {
+                    let cell = starboard::canvas::read_cell(
+                        app.world().resource::<starboard::canvas::Canvas>(),
+                        FIRST_SCRIPTED_CELL,
+                    );
+                    assert!(
+                        cell.color.is_some(),
+                        "converged on an empty canvas: {hashes:?}"
+                    );
+                }
                 return;
             }
             assert!(
