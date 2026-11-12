@@ -267,14 +267,29 @@ e2e-room:
 
 # Real, visual e2e: needs X + the freenet network + 3 starboard windows.
 e2e-starboard:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Headless-safe display defaults (overridable); the e2e peers need X.
+    export DISPLAY="${DISPLAY:-:0}"
+    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test starboard_e2e --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: the Kademlia history scenarios (S4a, S4b, S4c) on one machine.
 e2e-history:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Headless-safe display defaults (overridable); the e2e peers need X.
+    export DISPLAY="${DISPLAY:-:0}"
+    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test starboard_history -j 1 --all-features --run-ignored all -- --nocapture
 
 # Real, visual e2e: S3, S5, S6, S7 on one machine.
 e2e-scenarios:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Headless-safe display defaults (overridable); the e2e peers need X.
+    export DISPLAY="${DISPLAY:-:0}"
+    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p e2e --no-fail-fast --test starboard_scenarios --all-features --run-ignored all -- --nocapture
 
 # UI layer on the fake network: fast, for reviewing the UI; Telegram stays silent.
