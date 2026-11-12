@@ -8,52 +8,58 @@ pub fn rasterize(
         u16::try_from(u32::from(radius).saturating_mul(starboard::canvas::SUBCELL_STEPS))
             .unwrap_or(u16::MAX);
     let pieces = starboard::canvas::shape_pieces(op.shape, sub_radius);
-    let mut painted = std::collections::BTreeSet::new();
     let kept = starboard::canvas::drop_collinear_points(&op.points);
-    for (from, to) in starboard::canvas::point_pairs(&kept) {
-        let start = (i64::from(from.x), i64::from(from.y));
-        let end = (i64::from(to.x), i64::from(to.y));
-        let step = (end.0.saturating_sub(start.0), end.1.saturating_sub(start.1));
-        let reach = i64::from(sub_radius);
-        let xs = cell_indices(start.0.min(end.0), start.0.max(end.0), reach);
-        let ys = cell_indices(start.1.min(end.1), start.1.max(end.1), reach);
-        for &x in &xs {
-            for &y in &ys {
-                let pos = starboard::canvas::CellPos { x, y };
-                if painted.contains(&pos) {
-                    continue;
-                }
-                let centre = starboard::canvas::cell_centre(pos);
-                let offset = (
-                    i64::from(centre.x).saturating_sub(start.0),
-                    i64::from(centre.y).saturating_sub(start.1),
-                );
-                if starboard::canvas::segment_meets_shape(
-                    op.shape, sub_radius, &pieces, offset, step,
-                ) {
-                    painted.insert(pos);
+    let pairs = starboard::canvas::point_pairs(&kept);
+    let reach = i64::from(sub_radius);
+    let boxes: Vec<starboard::canvas::CellBox> = pairs
+        .iter()
+        .map(|(from, to)| starboard::canvas::CellBox::around_segment(*from, *to, reach))
+        .collect();
+    let mut painted = std::collections::BTreeSet::new();
+    if let Some(union) = boxes
+        .iter()
+        .copied()
+        .reduce(|left, right| left.joined(&right))
+    {
+        let bins = starboard::canvas::PairBins::new(&boxes, union);
+        for x in union.low_x..=union.high_x {
+            for y in union.low_y..=union.high_y {
+                let hits = |&index: &usize| {
+                    let Some((from, to)) = pairs.get(index) else {
+                        return false;
+                    };
+                    if !boxes
+                        .get(index)
+                        .is_some_and(|cell_box| cell_box.contains(x, y))
+                    {
+                        return false;
+                    }
+                    let centre = starboard::canvas::cell_centre(starboard::canvas::CellPos {
+                        x: u16::try_from(x).unwrap_or(0),
+                        y: u16::try_from(y).unwrap_or(0),
+                    });
+                    let offset = (
+                        i64::from(centre.x).saturating_sub(i64::from(from.x)),
+                        i64::from(centre.y).saturating_sub(i64::from(from.y)),
+                    );
+                    let step = (
+                        i64::from(to.x).saturating_sub(i64::from(from.x)),
+                        i64::from(to.y).saturating_sub(i64::from(from.y)),
+                    );
+                    starboard::canvas::segment_meets_shape(
+                        op.shape, sub_radius, &pieces, offset, step,
+                    )
+                };
+                if bins.candidates(x, y).iter().any(hits) {
+                    painted.insert(starboard::canvas::CellPos {
+                        x: u16::try_from(x).unwrap_or(0),
+                        y: u16::try_from(y).unwrap_or(0),
+                    });
                 }
             }
         }
     }
     painted.into_iter()
-}
-
-// needed helper: the cell indices whose centre lies within `reach` of the span [low, high]
-fn cell_indices(low: i64, high: i64, reach: i64) -> Vec<u16> {
-    let step = i64::from(starboard::canvas::SUBCELL_STEPS);
-    let half = step / 2;
-    let side = i64::try_from(starboard::canvas::CANVAS_SIDE).unwrap_or(0);
-    let first = low
-        .saturating_sub(reach)
-        .saturating_sub(half)
-        .saturating_add(step.saturating_sub(1));
-    let last = high.saturating_add(reach).saturating_sub(half);
-    let lo = first.div_euclid(step).max(0);
-    let hi = last.div_euclid(step).min(side.saturating_sub(1));
-    (lo..=hi)
-        .filter_map(|index| u16::try_from(index).ok())
-        .collect()
 }
 
 #[cfg(test)]
@@ -186,6 +192,16 @@ mod tests {
                 .collect(),
             stroke_rank: 1,
         };
+        let curve = DrawOp {
+            action: DrawAction::Paint(PaletteColor(0)),
+            shape: Shape::Circle,
+            size_index: BIG_BRUSH,
+            points: starboard::input::catmull_rom_points(
+                [(20, 100), (60, 60), (100, 40), (140, 60)]
+                    .map(|(x, y)| cell_centre(CellPos { x, y })),
+            ),
+            stroke_rank: 1,
+        };
         let time_rounds = |stroke: &DrawOp| {
             let started = std::time::Instant::now();
             for _ in 0..ROUNDS {
@@ -195,12 +211,16 @@ mod tests {
         };
         let straight_total = time_rounds(&straight);
         let polyline_total = time_rounds(&polyline);
+        let curve_total = time_rounds(&curve);
         println!(
             "rasterize micro-bench ({ROUNDS} rounds, size index {BIG_BRUSH}): \
-             straight 2-point op {straight_total:?} ({} cells), \
-             160-point polyline {polyline_total:?} ({} cells)",
+             (a) straight 2-point op {straight_total:?} ({} cells), \
+             (b) 160-point polyline {polyline_total:?} ({} cells), \
+             (c) curved spline of {} points {curve_total:?} ({} cells)",
             rasterize(&straight).count(),
             rasterize(&polyline).count(),
+            curve.points.len(),
+            rasterize(&curve).count(),
         );
     }
 
