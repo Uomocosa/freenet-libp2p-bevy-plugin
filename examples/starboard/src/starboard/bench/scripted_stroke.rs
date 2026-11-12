@@ -18,14 +18,14 @@ pub fn scripted_stroke(
     let x = band
         .saturating_mul(starboard::bench::STROKE_BAND_WIDTH)
         .saturating_add(starboard::bench::STROKE_START_OFFSET);
-    let from = starboard::canvas::CellPos {
+    let from = starboard::canvas::cell_centre(starboard::canvas::CellPos {
         x: u16::try_from(x).unwrap_or(0),
         y: u16::try_from(row).unwrap_or(0),
-    };
-    let to = starboard::canvas::CellPos {
+    });
+    let to = starboard::canvas::cell_centre(starboard::canvas::CellPos {
         x: u16::try_from(x.saturating_add(starboard::bench::STROKE_LENGTH)).unwrap_or(u16::MAX),
-        y: from.y,
-    };
+        y: u16::try_from(row).unwrap_or(0),
+    });
     let stroke_rank = u32::try_from(
         tick.saturating_mul(peer_count)
             .saturating_add(peer_index)
@@ -59,8 +59,10 @@ mod tests {
                         seen.insert((op.from, op.to)),
                         "stroke repeated at peer {peer} tick {tick}"
                     );
-                    assert!(usize::from(op.to.x) < starboard::canvas::CANVAS_SIDE);
-                    assert!(usize::from(op.to.y) < starboard::canvas::CANVAS_SIDE);
+                    let side = u32::try_from(starboard::canvas::CANVAS_SIDE).unwrap_or(0);
+                    let sub_side = side.saturating_mul(starboard::canvas::SUBCELL_STEPS);
+                    assert!(op.to.x < sub_side);
+                    assert!(op.to.y < sub_side);
                     assert_eq!(op.from.y, op.to.y);
                 }
             }

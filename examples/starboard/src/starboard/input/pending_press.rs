@@ -7,7 +7,7 @@ pub struct PendingPress {
     pub button: MouseButton,
     pub started_at_secs: f32,
     pub press_screen: Vec2,
-    pub path: Vec<starboard::canvas::CellPos>,
+    pub path: Vec<starboard::canvas::SubCellPos>,
     pub stroke_rank: u32,
 }
 
@@ -15,7 +15,7 @@ impl PendingPress {
     #[must_use]
     pub fn begin(
         button: MouseButton,
-        cell: starboard::canvas::CellPos,
+        cell: starboard::canvas::SubCellPos,
         screen: Vec2,
         now_secs: f32,
         stroke_rank: u32,
@@ -29,7 +29,7 @@ impl PendingPress {
         }
     }
 
-    pub fn record(&mut self, cell: starboard::canvas::CellPos) {
+    pub fn record(&mut self, cell: starboard::canvas::SubCellPos) {
         if self.path.last() != Some(&cell) {
             self.path.push(cell);
         }
@@ -63,12 +63,12 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let cell = starboard::canvas::CellPos { x: 10, y: 10 };
+        let cell = starboard::canvas::SubCellPos { x: 80, y: 80 };
         let mut press = PendingPress::begin(MouseButton::Left, cell, Vec2::splat(10.0), 0.0, 7);
         press.record(cell);
         assert!(!press.has_become_stroke(Vec2::splat(10.0), 0.1));
         assert!(press.has_become_stroke(Vec2::splat(10.0), 0.3));
-        press.record(starboard::canvas::CellPos { x: 20, y: 10 });
+        press.record(starboard::canvas::SubCellPos { x: 160, y: 80 });
         assert_eq!(press.segments().len(), 1);
     }
 }

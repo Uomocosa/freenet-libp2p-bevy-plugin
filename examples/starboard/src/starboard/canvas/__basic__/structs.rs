@@ -19,10 +19,27 @@ pub struct CellPos {
     pub y: u16,
 }
 
+/// A cursor position in 1/`SUBCELL_STEPS` of a cell; a cell's centre is at `cell * SUBCELL_STEPS + SUBCELL_STEPS / 2`.
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+pub struct SubCellPos {
+    pub x: u32,
+    pub y: u32,
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Stroke {
-    pub from: CellPos,
-    pub to: CellPos,
+    pub from: SubCellPos,
+    pub to: SubCellPos,
+}
+
+/// The line `a * x + b * y + k >= 0`, used to describe a brush shape as convex pieces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HalfPlane {
+    pub a: i64,
+    pub b: i64,
+    pub k: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,7 +53,7 @@ pub struct DrawOp {
     pub action: starboard::canvas::DrawAction,
     pub shape: starboard::identity::Shape,
     pub size_index: u8,
-    pub from: CellPos,
-    pub to: CellPos,
+    pub from: SubCellPos,
+    pub to: SubCellPos,
     pub stroke_rank: u32,
 }

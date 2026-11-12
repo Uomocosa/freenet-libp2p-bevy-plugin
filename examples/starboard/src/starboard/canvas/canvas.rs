@@ -153,8 +153,8 @@ mod tests {
                     action,
                     shape,
                     size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
-                    from: pair.first().copied().unwrap_or_default(),
-                    to: pair.last().copied().unwrap_or_default(),
+                    from: starboard::canvas::cell_centre(pair.first().copied().unwrap_or_default()),
+                    to: starboard::canvas::cell_centre(pair.last().copied().unwrap_or_default()),
                     stroke_rank,
                 };
                 (
@@ -342,11 +342,11 @@ mod tests {
                 action,
                 shape,
                 size_index: 5,
-                from: starboard::canvas::CellPos {
+                from: starboard::canvas::cell_centre(starboard::canvas::CellPos {
                     x: from_x,
                     y: from_y,
-                },
-                to: starboard::canvas::CellPos { x: to_x, y: to_y },
+                }),
+                to: starboard::canvas::cell_centre(starboard::canvas::CellPos { x: to_x, y: to_y }),
                 stroke_rank: lamport,
             },
         )

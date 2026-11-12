@@ -10,12 +10,12 @@ use crate::starboard;
 // needed helper: everything one run records while the taps are drained
 #[derive(Default)]
 struct TapTally {
-    pending: BTreeMap<(starboard::canvas::CellPos, starboard::canvas::CellPos), Instant>,
+    pending: BTreeMap<(starboard::canvas::SubCellPos, starboard::canvas::SubCellPos), Instant>,
     samples: Vec<Duration>,
     received_bytes: Vec<u64>,
     arrived: BTreeSet<(
         usize,
-        (starboard::canvas::CellPos, starboard::canvas::CellPos),
+        (starboard::canvas::SubCellPos, starboard::canvas::SubCellPos),
     )>,
 }
 

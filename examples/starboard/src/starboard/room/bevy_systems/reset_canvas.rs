@@ -75,7 +75,7 @@ mod tests {
         app.init_resource::<starboard::input::PendingPressState>();
         app.add_systems(Update, reset_canvas);
 
-        let press_cell = starboard::canvas::CellPos { x: 9, y: 9 };
+        let press_cell = starboard::canvas::SubCellPos { x: 76, y: 76 };
         let press = starboard::input::PendingPress::begin(
             MouseButton::Left,
             press_cell,

@@ -19,6 +19,7 @@ impl Plugin for StarboardPlugin {
             .init_resource::<input::LatestPaintedCell>()
             .init_resource::<input::PendingPressState>()
             .init_resource::<input::CursorCell>()
+            .init_resource::<input::CursorPoint>()
             .init_resource::<room_sync::LamportClock>()
             .init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
             .init_resource::<room::RoomBrushes>()
@@ -181,8 +182,8 @@ mod tests {
     ) {
         for (from, to) in points.iter().zip(points.iter().skip(1)) {
             let stroke = starboard::canvas::Stroke {
-                from: *from,
-                to: *to,
+                from: starboard::canvas::cell_centre(*from),
+                to: starboard::canvas::cell_centre(*to),
             };
             paint_op(canvas, brush, stroke, stroke_rank, author);
         }
@@ -216,9 +217,10 @@ mod tests {
         }
         for (x, y) in [(820_u16, 200_u16), (860, 260), (820, 330)] {
             stroke_rank = stroke_rank.saturating_add(1);
+            let cell = starboard::canvas::cell_centre(starboard::canvas::CellPos { x, y });
             let dot = starboard::canvas::Stroke {
-                from: starboard::canvas::CellPos { x, y },
-                to: starboard::canvas::CellPos { x, y },
+                from: cell,
+                to: cell,
             };
             paint_op(&mut canvas, brush, dot, stroke_rank, 1);
         }
@@ -279,6 +281,37 @@ mod tests {
         paint_points(&mut canvas, earlier, &crossing_points(1), 1, 1);
     }
 
+    /// Brush size for the edge close-up: big enough that the swept edge spans many cells.
+    const EDGE_CLOSE_UP_SIZE_INDEX: u8 = 7;
+
+    /// A diagonal stroke off the cell grid and a curved stroke, both with a big brush of the case
+    /// shape, so the swept edge can be inspected on the board.
+    fn paint_edge_close_up(world: &mut World) {
+        let case = brush_of(world.resource::<CaseBrush>().0);
+        let brush = starboard::input::OwnBrush {
+            size_index: EDGE_CLOSE_UP_SIZE_INDEX,
+            ..case
+        };
+        let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
+        let diagonal = starboard::canvas::Stroke {
+            from: starboard::canvas::SubCellPos {
+                x: 600 * 8 + 3,
+                y: 650 * 8 + 5,
+            },
+            to: starboard::canvas::SubCellPos {
+                x: 860 * 8 + 2,
+                y: 830 * 8 + 1,
+            },
+        };
+        paint_op(&mut canvas, brush, diagonal, 1100, 1);
+        paint_curve(
+            &mut canvas,
+            brush,
+            starboard::canvas::CellPos { x: 150, y: 760 },
+            1101,
+        );
+    }
+
     fn show_cursor(world: &mut World) {
         let mut windows = world.query_filtered::<&mut Window, With<PrimaryWindow>>();
         let Ok(mut window) = windows.single_mut(world) else {
@@ -321,6 +354,10 @@ mod tests {
                     label: String::from("crossing strokes"),
                     apply: paint_crossing_strokes,
                 },
+                lele_bevy_preview::scene::State {
+                    label: String::from("edge close-up"),
+                    apply: paint_edge_close_up,
+                },
             ],
             timeline: None,
         }
@@ -354,11 +391,11 @@ mod tests {
                     brush,
                     starboard::canvas::DrawAction::Paint(brush.color),
                     starboard::canvas::Stroke {
-                        from: starboard::canvas::CellPos { x, y },
-                        to: starboard::canvas::CellPos {
+                        from: starboard::canvas::cell_centre(starboard::canvas::CellPos { x, y }),
+                        to: starboard::canvas::cell_centre(starboard::canvas::CellPos {
                             x: x.saturating_add(80),
                             y: y.saturating_add(40),
-                        },
+                        }),
                     },
                     u32::from(index).saturating_add(1),
                 )

@@ -29,7 +29,7 @@ mod tests {
             color: starboard::identity::PaletteColor(3),
             size_index: 2,
         };
-        let cell = starboard::canvas::CellPos { x: 10, y: 11 };
+        let cell = starboard::canvas::SubCellPos { x: 80, y: 88 };
         let stroke = starboard::canvas::Stroke {
             from: cell,
             to: cell,

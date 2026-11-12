@@ -4,10 +4,10 @@ use crate::starboard;
 
 /// Converts a shared step stroke to the game's canvas stroke.
 #[must_use]
-pub const fn to_canvas_stroke(stroke: Stroke) -> starboard::canvas::Stroke {
+pub fn to_canvas_stroke(stroke: Stroke) -> starboard::canvas::Stroke {
     starboard::canvas::Stroke {
-        from: to_canvas_cell(stroke.from),
-        to: to_canvas_cell(stroke.to),
+        from: starboard::canvas::cell_centre(to_canvas_cell(stroke.from)),
+        to: starboard::canvas::cell_centre(to_canvas_cell(stroke.to)),
     }
 }
 

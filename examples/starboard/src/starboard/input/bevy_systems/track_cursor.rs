@@ -7,15 +7,18 @@ pub fn track_cursor(
     windows: Query<&Window, With<PrimaryWindow>>,
     view: Res<starboard::render::CanvasView>,
     mut cursor: ResMut<starboard::input::CursorCell>,
+    mut point: ResMut<starboard::input::CursorPoint>,
 ) {
     let view = view.into_inner();
-    let next = windows
-        .single()
-        .ok()
-        .and_then(Window::cursor_position)
-        .and_then(|position| starboard::input::cell_under_cursor(position, view));
+    let screen = windows.single().ok().and_then(Window::cursor_position);
+    let next = screen.and_then(|position| starboard::input::cell_under_cursor(position, view));
     if **cursor != next {
         **cursor = next;
+    }
+    let next_point =
+        screen.and_then(|position| starboard::input::sub_cell_under_cursor(position, view));
+    if **point != next_point {
+        **point = next_point;
     }
 }
 
@@ -33,6 +36,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(starboard::render::CanvasView::fit(Vec2::splat(1024.0)));
         app.init_resource::<starboard::input::CursorCell>();
+        app.init_resource::<starboard::input::CursorPoint>();
         app.world_mut().spawn((
             PrimaryWindow,
             Window {

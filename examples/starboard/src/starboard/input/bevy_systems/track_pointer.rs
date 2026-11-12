@@ -7,7 +7,7 @@ use crate::starboard;
 pub fn track_pointer(
     buttons: Res<ButtonInput<MouseButton>>,
     menu: Option<Res<ui::discovery::EscMenuState>>,
-    cursor: Res<starboard::input::CursorCell>,
+    cursor: Res<starboard::input::CursorPoint>,
     windows: Query<&Window, With<PrimaryWindow>>,
     time: Res<Time>,
     brush: Res<starboard::input::OwnBrush>,
@@ -126,7 +126,7 @@ mod tests {
 
     use super::track_pointer;
     use crate::starboard;
-    use starboard::canvas::{CellPos, DrawAction, DrawOp};
+    use starboard::canvas::{DrawAction, DrawOp, SubCellPos};
 
     fn app_with_pointer() -> App {
         let mut app = App::new();
@@ -139,6 +139,7 @@ mod tests {
         app.init_resource::<starboard::input::LatestPaintedCell>();
         app.init_resource::<starboard::input::PendingPressState>();
         app.init_resource::<starboard::input::CursorCell>();
+        app.init_resource::<starboard::input::CursorPoint>();
         app.init_resource::<ButtonInput<MouseButton>>();
         app.add_message::<starboard::input::PendingLocalDraw>();
         app.world_mut().spawn((
@@ -204,12 +205,17 @@ mod tests {
         }
     }
 
-    fn sent_segments(app: &App) -> Vec<(CellPos, CellPos)> {
+    fn sent_segments(app: &App) -> Vec<(SubCellPos, SubCellPos)> {
         sent(app).iter().map(|op| (op.from, op.to)).collect()
     }
 
-    const fn cell(x: u16, y: u16) -> CellPos {
-        CellPos { x, y }
+    /// A whole screen pixel at scale 1 is a sub-cell point of `8 * pixel`, so the expectations
+    /// below stay readable.
+    const fn pixel(x: u32, y: u32) -> SubCellPos {
+        SubCellPos {
+            x: x.saturating_mul(8),
+            y: y.saturating_mul(8),
+        }
     }
 
     #[test]
@@ -221,7 +227,7 @@ mod tests {
 
         let ops = sent(&app);
         assert_eq!(ops.len(), 1);
-        let stamp = cell(100, 100);
+        let stamp = pixel(100, 100);
         assert_eq!(ops.first().map(|op| (op.from, op.to)), Some((stamp, stamp)));
         assert!(matches!(
             ops.first().map(|op| op.action),
@@ -239,7 +245,10 @@ mod tests {
         release_all(&mut app);
         app.update();
 
-        assert_eq!(sent_segments(&app), vec![(cell(100, 100), cell(100, 100))]);
+        assert_eq!(
+            sent_segments(&app),
+            vec![(pixel(100, 100), pixel(100, 100))]
+        );
     }
 
     #[test]
@@ -255,8 +264,8 @@ mod tests {
         assert_eq!(
             sent_segments(&app),
             vec![
-                (cell(100, 100), cell(100, 100)),
-                (cell(100, 100), cell(110, 100))
+                (pixel(100, 100), pixel(100, 100)),
+                (pixel(100, 100), pixel(110, 100))
             ]
         );
     }
@@ -277,7 +286,7 @@ mod tests {
         app.update();
         assert_eq!(
             sent_segments(&app).last(),
-            Some(&(cell(100, 100), cell(200, 100)))
+            Some(&(pixel(100, 100), pixel(200, 100)))
         );
     }
 
@@ -292,7 +301,10 @@ mod tests {
         point_at(&mut app, Vec2::new(103.0, 100.0));
         app.update();
 
-        assert_eq!(sent_segments(&app), vec![(cell(100, 100), cell(100, 100))]);
+        assert_eq!(
+            sent_segments(&app),
+            vec![(pixel(100, 100), pixel(100, 100))]
+        );
     }
 
     #[test]
@@ -309,11 +321,29 @@ mod tests {
         assert_eq!(
             sent_segments(&app),
             vec![
-                (cell(100, 100), cell(100, 100)),
-                (cell(100, 100), cell(103, 100)),
-                (cell(103, 100), cell(103, 102)),
-                (cell(103, 102), cell(100, 110)),
+                (pixel(100, 100), pixel(100, 100)),
+                (pixel(100, 100), pixel(103, 100)),
+                (pixel(103, 100), pixel(103, 102)),
+                (pixel(103, 102), pixel(100, 110)),
             ]
+        );
+    }
+
+    #[test]
+    fn a_sub_pixel_move_still_extends_the_stroke() {
+        let mut app = app_with_pointer();
+        point_at(&mut app, Vec2::new(100.0, 100.0));
+        press(&mut app, MouseButton::Left);
+        app.update();
+        point_at(&mut app, Vec2::new(110.0, 100.0));
+        app.update();
+        point_at(&mut app, Vec2::new(110.4, 100.0));
+        app.update();
+
+        assert_eq!(
+            sent_segments(&app).last(),
+            Some(&(pixel(110, 100), SubCellPos { x: 883, y: 800 })),
+            "a move of a fraction of a cell is sent at sub-cell precision"
         );
     }
 
@@ -334,7 +364,7 @@ mod tests {
         assert_eq!(ops.get(1).map(|op| op.action), Some(DrawAction::Erase));
         assert_eq!(
             ops.get(2).map(|op| (op.action, op.from, op.to)),
-            Some((DrawAction::Erase, cell(100, 100), cell(110, 100)))
+            Some((DrawAction::Erase, pixel(100, 100), pixel(110, 100)))
         );
     }
 
@@ -350,8 +380,8 @@ mod tests {
         assert_eq!(
             sent_segments(&app),
             vec![
-                (cell(100, 100), cell(100, 100)),
-                (cell(100, 100), cell(200, 100))
+                (pixel(100, 100), pixel(100, 100)),
+                (pixel(100, 100), pixel(200, 100))
             ]
         );
 
@@ -382,8 +412,8 @@ mod tests {
         assert_eq!(
             sent_segments(&app),
             vec![
-                (cell(100, 100), cell(100, 100)),
-                (cell(100, 100), cell(200, 100))
+                (pixel(100, 100), pixel(100, 100)),
+                (pixel(100, 100), pixel(200, 100))
             ],
             "painting resumes from the fresh cell, not from the pre-menu tail"
         );

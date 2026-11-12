@@ -32,8 +32,8 @@ mod tests {
             action: starboard::canvas::DrawAction::Paint(starboard::identity::PaletteColor(5)),
             shape: starboard::identity::Shape::Circle,
             size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
-            from: starboard::canvas::CellPos { x: 50, y: 50 },
-            to: starboard::canvas::CellPos { x: 50, y: 50 },
+            from: starboard::canvas::SubCellPos { x: 400, y: 400 },
+            to: starboard::canvas::SubCellPos { x: 400, y: 400 },
             stroke_rank: 1,
         };
         app.world_mut()
@@ -46,7 +46,7 @@ mod tests {
         assert_eq!(pending.ops.len(), 1);
         assert_eq!(
             pending.ops.first().map(|op| op.from),
-            Some(starboard::canvas::CellPos { x: 50, y: 50 })
+            Some(starboard::canvas::SubCellPos { x: 400, y: 400 })
         );
     }
 }
