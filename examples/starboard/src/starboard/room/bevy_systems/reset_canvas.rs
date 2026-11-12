@@ -35,10 +35,11 @@ mod tests {
         app.init_resource::<starboard::input::PendingPressState>();
         app.add_systems(Update, reset_canvas);
 
-        let cell = starboard::canvas::Cell {
-            lamport: 3,
+        let cell = starboard::canvas::Layer {
+            rank: 3,
             author: 1,
             color: Some(starboard::identity::PaletteColor(1)),
+            coverage: starboard::canvas::FULL_COVERAGE,
         };
         let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
         let _ = starboard::canvas::write_cell(

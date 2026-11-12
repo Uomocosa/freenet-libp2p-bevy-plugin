@@ -21,9 +21,13 @@ mod tests {
             id: starboard::canvas::TileId(7),
             cells: vec![
                 starboard::canvas::Cell {
-                    lamport: 4,
-                    author: 8,
-                    color: Some(starboard::identity::PaletteColor(2)),
+                    top: starboard::canvas::Layer {
+                        rank: 4,
+                        author: 8,
+                        color: Some(starboard::identity::PaletteColor(2)),
+                        coverage: starboard::canvas::FULL_COVERAGE,
+                    },
+                    under: None,
                 };
                 starboard::canvas::CELLS_PER_TILE
             ],

@@ -20,10 +20,11 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut canvas = starboard::canvas::Canvas::default();
-        let cell = starboard::canvas::Cell {
-            lamport: 1,
+        let cell = starboard::canvas::Layer {
+            rank: 1,
             author: 3,
             color: Some(starboard::identity::PaletteColor(4)),
+            coverage: starboard::canvas::FULL_COVERAGE,
         };
         assert!(starboard::canvas::write_cell(
             &mut canvas,

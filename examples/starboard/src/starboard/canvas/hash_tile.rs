@@ -4,12 +4,9 @@ use crate::starboard;
 
 #[must_use]
 pub fn hash_tile(tile: &starboard::canvas::Tile) -> room_sync::ReplicaSliceContentHash {
-    let mut bytes = Vec::with_capacity(starboard::canvas::CELLS_PER_TILE.saturating_mul(7));
+    let mut bytes = Vec::with_capacity(starboard::canvas::CELLS_PER_TILE.saturating_mul(24));
     for cell in tile.iter() {
-        bytes.extend_from_slice(&cell.lamport.to_be_bytes());
-        bytes.extend_from_slice(&cell.author.to_be_bytes());
-        let color_tag = cell.color.map_or(255_u8, |palette_color| *palette_color);
-        bytes.push(color_tag);
+        bytes.extend_from_slice(&bincode::serialize(cell).unwrap_or_default());
     }
     room_sync::ReplicaSliceContentHash::from(bytes.as_slice())
 }
@@ -24,10 +21,11 @@ mod tests {
         let empty = starboard::canvas::Tile::default();
         let mut painted = starboard::canvas::Tile::default();
         if let Some(slot) = painted.get_mut(10) {
-            *slot = starboard::canvas::Cell {
-                lamport: 1,
+            slot.top = starboard::canvas::Layer {
+                rank: 1,
                 author: 2,
                 color: Some(starboard::identity::PaletteColor(5)),
+                coverage: 200,
             };
         }
         assert_eq!(hash_tile(&empty), hash_tile(&empty));

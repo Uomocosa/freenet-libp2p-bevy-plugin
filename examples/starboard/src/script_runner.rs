@@ -116,6 +116,7 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
             ),
             StarboardStep::WaitCellPainted(pos) => {
                 if starboard::canvas::read_cell(&param.canvas, crate::script::to_canvas_cell(*pos))
+                    .top
                     .color
                     .is_some()
                 {
@@ -306,10 +307,11 @@ mod tests {
         let _ = starboard::canvas::write_cell(
             &mut canvas,
             starboard::canvas::CellPos { x: 10, y: 20 },
-            starboard::canvas::Cell {
-                lamport: 1,
+            starboard::canvas::Layer {
+                rank: 1,
                 author: 1,
                 color: Some(starboard::input::OwnBrush::default().color),
+                coverage: starboard::canvas::FULL_COVERAGE,
             },
         );
         app.update();

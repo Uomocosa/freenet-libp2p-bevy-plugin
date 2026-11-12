@@ -38,10 +38,11 @@ mod tests {
         let _ = starboard::canvas::write_cell(
             &mut canvas,
             starboard::canvas::CellPos { x: 4, y: 4 },
-            starboard::canvas::Cell {
-                lamport: 1,
+            starboard::canvas::Layer {
+                rank: 1,
                 author: 1,
                 color: Some(starboard::identity::PaletteColor(0)),
+                coverage: starboard::canvas::FULL_COVERAGE,
             },
         );
         assert_ne!(hash_canvas(&canvas), empty_hash);

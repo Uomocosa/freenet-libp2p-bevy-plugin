@@ -2,64 +2,10 @@ use crate::starboard;
 
 pub fn rasterize(
     op: &starboard::canvas::DrawOp,
-) -> impl Iterator<Item = starboard::canvas::CellPos> {
-    let radius = starboard::canvas::brush_radius(op.size_index);
-    let sub_radius =
-        u16::try_from(u32::from(radius).saturating_mul(starboard::canvas::SUBCELL_STEPS))
-            .unwrap_or(u16::MAX);
-    let pieces = starboard::canvas::shape_pieces(op.shape, sub_radius);
-    let kept = starboard::canvas::DrawOp::drop_collinear_points(&op.points);
-    let pairs = starboard::canvas::DrawOp::point_pairs(&kept);
-    let reach = i64::from(sub_radius);
-    let boxes: Vec<starboard::canvas::CellBox> = pairs
-        .iter()
-        .map(|(from, to)| starboard::canvas::CellBox::around_segment(*from, *to, reach))
-        .collect();
-    let mut painted = std::collections::BTreeSet::new();
-    if let Some(union) = boxes
-        .iter()
-        .copied()
-        .reduce(|left, right| left.joined(&right))
-    {
-        let bins = starboard::canvas::PairBins::new(&boxes, union);
-        for x in union.low_x..=union.high_x {
-            for y in union.low_y..=union.high_y {
-                let hits = |&index: &usize| {
-                    let Some((from, to)) = pairs.get(index) else {
-                        return false;
-                    };
-                    if !boxes
-                        .get(index)
-                        .is_some_and(|cell_box| cell_box.contains(x, y))
-                    {
-                        return false;
-                    }
-                    let centre = starboard::canvas::cell_centre(starboard::canvas::CellPos {
-                        x: u16::try_from(x).unwrap_or(0),
-                        y: u16::try_from(y).unwrap_or(0),
-                    });
-                    let offset = (
-                        i64::from(centre.x).saturating_sub(i64::from(from.x)),
-                        i64::from(centre.y).saturating_sub(i64::from(from.y)),
-                    );
-                    let step = (
-                        i64::from(to.x).saturating_sub(i64::from(from.x)),
-                        i64::from(to.y).saturating_sub(i64::from(from.y)),
-                    );
-                    starboard::canvas::segment_meets_shape(
-                        op.shape, sub_radius, &pieces, offset, step,
-                    )
-                };
-                if bins.candidates(x, y).iter().any(hits) {
-                    painted.insert(starboard::canvas::CellPos {
-                        x: u16::try_from(x).unwrap_or(0),
-                        y: u16::try_from(y).unwrap_or(0),
-                    });
-                }
-            }
-        }
-    }
-    painted.into_iter()
+) -> impl Iterator<Item = starboard::canvas::CellCoverage> {
+    starboard::canvas::StrokeRaster::new(op)
+        .covered_cells()
+        .into_iter()
 }
 
 #[cfg(test)]
@@ -71,7 +17,8 @@ mod tests {
     use super::rasterize;
     use crate::starboard;
     use crate::starboard::canvas::{
-        CANVAS_SIDE, CellPos, DrawAction, DrawOp, SUBCELL_STEPS, SubCellPos, cell_centre,
+        CANVAS_SIDE, CellCoverage, CellPos, DrawAction, DrawOp, SAMPLE_OFFSETS, SUBCELL_STEPS,
+        SubCellPos, cell_centre,
     };
     use crate::starboard::identity::{PaletteColor, SHAPES, Shape};
 
@@ -94,10 +41,11 @@ mod tests {
         starboard::canvas::is_inside_shape(shape, radius, to_i32(dx), to_i32(dy))
     }
 
-    /// Brute force: sample the segment every 1/128 cell and paint every cell whose centre is
-    /// inside the brush at some sample. Works in units of 1/256 cell, so it stays integer.
-    fn dense_reference(op: &DrawOp) -> BTreeSet<CellPos> {
+    /// Brute force: sample the segment every 1/128 cell and count, per cell, how many of its 16
+    /// sub-samples the brush covers at some sample. Works in units of 1/256 cell, so it stays integer.
+    fn dense_reference(op: &DrawOp) -> Vec<CellCoverage> {
         const UNITS_PER_CELL: i64 = 256;
+        const UNITS_PER_SUB: i64 = 32;
         // 1/32 misses the sliver at a star vertex; 1/128 is the densest that stays fast enough
         const SAMPLE_UNITS: i64 = 2;
         let radius = i64::from(starboard::canvas::brush_radius(op.size_index));
@@ -126,37 +74,51 @@ mod tests {
         };
         let x_range = cell_span(from.0.min(to.0), from.0.max(to.0));
         let y_range = cell_span(from.1.min(to.1), from.1.max(to.1));
-        let half = UNITS_PER_CELL / 2;
-        let mut painted = BTreeSet::new();
+        let mut covered = Vec::new();
         for x in x_range {
             for y in y_range.clone() {
-                let centre = (
-                    x.saturating_mul(UNITS_PER_CELL).saturating_add(half),
-                    y.saturating_mul(UNITS_PER_CELL).saturating_add(half),
+                let origin = (
+                    x.saturating_mul(UNITS_PER_CELL),
+                    y.saturating_mul(UNITS_PER_CELL),
                 );
-                let hit = (0..=samples).any(|k| {
-                    let along = |start: i64, delta: i64| {
-                        start.saturating_add(
-                            delta.saturating_mul(k).checked_div(samples).unwrap_or(0),
-                        )
-                    };
-                    let (px, py) = (along(from.0, dx), along(from.1, dy));
-                    point_inside(
-                        op.shape,
-                        unit_radius,
-                        centre.0.saturating_sub(px),
-                        centre.1.saturating_sub(py),
-                    )
-                });
-                if hit {
-                    painted.insert(CellPos {
-                        x: u16::try_from(x).unwrap_or(0),
-                        y: u16::try_from(y).unwrap_or(0),
-                    });
+                let mut inside: u8 = 0;
+                for across_x in SAMPLE_OFFSETS {
+                    for across_y in SAMPLE_OFFSETS {
+                        let sample = (
+                            origin
+                                .0
+                                .saturating_add(i64::from(across_x).saturating_mul(UNITS_PER_SUB)),
+                            origin
+                                .1
+                                .saturating_add(i64::from(across_y).saturating_mul(UNITS_PER_SUB)),
+                        );
+                        let hit = (0..=samples).any(|k| {
+                            let along = |start: i64, delta: i64| {
+                                start.saturating_add(
+                                    delta.saturating_mul(k).checked_div(samples).unwrap_or(0),
+                                )
+                            };
+                            let (px, py) = (along(from.0, dx), along(from.1, dy));
+                            point_inside(
+                                op.shape,
+                                unit_radius,
+                                sample.0.saturating_sub(px),
+                                sample.1.saturating_sub(py),
+                            )
+                        });
+                        if hit {
+                            inside = inside.saturating_add(1);
+                        }
+                    }
                 }
+                let pos = CellPos {
+                    x: u16::try_from(x).unwrap_or(0),
+                    y: u16::try_from(y).unwrap_or(0),
+                };
+                covered.extend(CellCoverage::from_inside_samples(pos, inside));
             }
         }
-        painted
+        covered
     }
 
     fn scaled_point(point: SubCellPos) -> (i64, i64) {
@@ -231,7 +193,7 @@ mod tests {
                 cell_centre(CellPos { x: 100, y: 100 }),
                 cell_centre(CellPos { x: 100, y: 100 }),
             );
-            let covered: BTreeSet<_> = rasterize(&click).collect();
+            let covered: BTreeSet<_> = rasterize(&click).map(|cell| cell.pos).collect();
             assert!(covered.contains(&CellPos { x: 100, y: 100 }));
         }
     }
@@ -249,18 +211,35 @@ mod tests {
             points: vec![centre, centre],
             stroke_rank: 1,
         };
-        let covered: BTreeSet<_> = rasterize(&dab).collect();
-        assert!(!covered.is_empty());
-        let radius = starboard::canvas::brush_radius(0);
-        assert!(covered.iter().all(|pos| {
-            let c = cell_centre(*pos);
-            point_inside(
-                shape,
-                radius.saturating_mul(8),
-                i64::from(c.x).saturating_sub(i64::from(centre.x)),
-                i64::from(c.y).saturating_sub(i64::from(centre.y)),
-            )
-        }));
+        let covered: Vec<CellCoverage> = rasterize(&dab).collect();
+        assert_ne!(covered, []);
+        let radius = starboard::canvas::brush_radius(0).saturating_mul(8);
+        for cell in &covered {
+            let inside = sample_inside_count(shape, radius, centre, cell.pos);
+            assert!(inside >= 1, "every emitted cell has an inside sample");
+            assert!(
+                cell.coverage != 255 || inside == 16,
+                "255 means all samples inside"
+            );
+        }
+    }
+
+    fn sample_inside_count(shape: Shape, radius: u16, centre: SubCellPos, pos: CellPos) -> usize {
+        let origin_x = u32::from(pos.x).saturating_mul(SUBCELL_STEPS);
+        let origin_y = u32::from(pos.y).saturating_mul(SUBCELL_STEPS);
+        let mut inside: usize = 0;
+        for across_x in SAMPLE_OFFSETS {
+            for across_y in SAMPLE_OFFSETS {
+                let dx = i64::from(origin_x.saturating_add(across_x))
+                    .saturating_sub(i64::from(centre.x));
+                let dy = i64::from(origin_y.saturating_add(across_y))
+                    .saturating_sub(i64::from(centre.y));
+                if point_inside(shape, radius, dx, dy) {
+                    inside = inside.saturating_add(1);
+                }
+            }
+        }
+        inside
     }
 
     #[rstest]
@@ -281,7 +260,7 @@ mod tests {
             ],
             stroke_rank: 1,
         };
-        let covered: BTreeSet<_> = rasterize(&stroke).collect();
+        let covered: BTreeSet<_> = rasterize(&stroke).map(|cell| cell.pos).collect();
         for x in 20_u16..=120 {
             assert!(
                 covered.contains(&CellPos { x, y: 20 }),
@@ -297,7 +276,7 @@ mod tests {
             points: vec![sub(0, 0), sub(max_coord.saturating_mul(SUBCELL_STEPS), 0)],
             stroke_rank: 1,
         };
-        let border_cells: Vec<_> = rasterize(&border).collect();
+        let border_cells: Vec<_> = rasterize(&border).map(|cell| cell.pos).collect();
         assert_ne!(border_cells, []);
         assert!(
             border_cells.iter().all(|pos| {
@@ -321,9 +300,21 @@ mod tests {
             points: vec![sub(80, 80), sub(482, 303)],
             stroke_rank: 1,
         };
-        let painted: BTreeSet<_> = rasterize(&stroke).collect();
+        let painted: Vec<CellCoverage> = rasterize(&stroke).collect();
         let reference = dense_reference(&stroke);
-        assert_eq!(painted, reference);
+        let painted_cells: Vec<CellPos> = painted.iter().map(|cell| cell.pos).collect();
+        let reference_cells: Vec<CellPos> = reference.iter().map(|cell| cell.pos).collect();
+        assert_eq!(painted_cells, reference_cells);
+        for (exact, sampled) in painted.iter().zip(reference.iter()) {
+            let difference = i32::from(exact.coverage).abs_diff(i32::from(sampled.coverage));
+            assert!(
+                difference <= 16,
+                "{:?}: exact {} vs sampled {}; the path sampling may miss one sub-sample on a sliver",
+                exact.pos,
+                exact.coverage,
+                sampled.coverage
+            );
+        }
     }
 
     /// A spline stroke, flattened as the drawer sends it, paints exactly the cells that its
@@ -347,7 +338,7 @@ mod tests {
             points: points.clone(),
             stroke_rank: 1,
         };
-        let painted: BTreeSet<_> = rasterize(&stroke).collect();
+        let painted: BTreeSet<_> = rasterize(&stroke).map(|cell| cell.pos).collect();
         let reference: BTreeSet<_> = starboard::canvas::DrawOp::point_pairs(&points)
             .into_iter()
             .flat_map(|(from, to)| {
@@ -355,7 +346,7 @@ mod tests {
                     points: vec![from, to],
                     ..stroke.clone()
                 };
-                rasterize(&pair).collect::<Vec<_>>()
+                rasterize(&pair).map(|cell| cell.pos).collect::<Vec<_>>()
             })
             .collect();
         assert_eq!(painted, reference);
@@ -392,7 +383,9 @@ mod tests {
                 ],
                 stroke_rank: 1,
             };
-            painted.extend(rasterize(&stroke).map(|pos| (i32::from(pos.x), i32::from(pos.y))));
+            painted.extend(
+                rasterize(&stroke).map(|cell| (i32::from(cell.pos.x), i32::from(cell.pos.y))),
+            );
         }
         painted
     }

@@ -39,12 +39,13 @@ mod tests {
         let mut canvas = starboard::canvas::Canvas::default();
         let pos = starboard::canvas::CellPos { x: 10, y: 20 };
         assert_eq!(read_cell(&canvas, pos), starboard::canvas::Cell::default());
-        let expected = starboard::canvas::Cell {
-            lamport: 3,
+        let expected = starboard::canvas::Layer {
+            rank: 3,
             author: 9,
             color: Some(starboard::identity::PaletteColor(4)),
+            coverage: starboard::canvas::FULL_COVERAGE,
         };
         let _ = starboard::canvas::write_cell(&mut canvas, pos, expected);
-        assert_eq!(read_cell(&canvas, pos), expected);
+        assert_eq!(read_cell(&canvas, pos).top, expected);
     }
 }

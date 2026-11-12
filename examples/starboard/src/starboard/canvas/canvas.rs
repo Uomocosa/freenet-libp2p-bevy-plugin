@@ -29,13 +29,14 @@ impl room_sync::traits::ReplicatedState for Canvas {
             starboard::canvas::DrawAction::Paint(palette_color) => Some(palette_color),
             starboard::canvas::DrawAction::Erase => None,
         };
-        let cell = starboard::canvas::Cell {
-            lamport: op.stroke_rank,
-            author: meta.author,
-            color,
-        };
-        for pos in starboard::canvas::rasterize(op) {
-            let _ = starboard::canvas::write_cell(self, pos, cell);
+        for covered in starboard::canvas::rasterize(op) {
+            let write = starboard::canvas::Layer {
+                rank: op.stroke_rank,
+                author: meta.author,
+                color,
+                coverage: covered.coverage,
+            };
+            let _ = starboard::canvas::write_cell(self, covered.pos, write);
         }
     }
 
@@ -176,7 +177,7 @@ mod tests {
 
     fn cells_of(ops: &[(OpMeta, DrawOp)]) -> BTreeSet<CellPos> {
         ops.iter()
-            .flat_map(|(_, op)| starboard::canvas::rasterize(op))
+            .flat_map(|(_, op)| starboard::canvas::rasterize(op).map(|covered| covered.pos))
             .collect()
     }
 
@@ -223,13 +224,19 @@ mod tests {
 
         for pos in &crossings {
             let cell = starboard::canvas::read_cell(&canvas, *pos);
-            assert_eq!(cell.color, Some(PaletteColor(6)), "later stroke at {pos:?}");
-            assert_eq!(cell.lamport, 11);
+            assert_eq!(
+                cell.top.color,
+                Some(PaletteColor(6)),
+                "later stroke at {pos:?}"
+            );
+            assert_eq!(cell.top.rank, 11);
         }
         let earlier_only = cells_of(&earlier)
             .difference(&cells_of(&later))
             .copied()
-            .any(|pos| starboard::canvas::read_cell(&canvas, pos).color == Some(PaletteColor(0)));
+            .any(|pos| {
+                starboard::canvas::read_cell(&canvas, pos).top.color == Some(PaletteColor(0))
+            });
         assert!(
             earlier_only,
             "the earlier stroke still shows outside the crossings"
@@ -271,6 +278,26 @@ mod tests {
     }
 
     #[test]
+    fn earlier_full_stroke_shows_through_a_later_partial_edge() {
+        let earlier = earlier_wave(DrawAction::Paint(PaletteColor(0)), Shape::Circle);
+        let later = later_wave(DrawAction::Paint(PaletteColor(6)), Shape::Circle);
+        let canvas = canvas_from(&joined(&earlier, &later));
+
+        let mut showing_through = 0_usize;
+        for pos in cells_of(&later) {
+            let cell = starboard::canvas::read_cell(&canvas, pos);
+            if cell.top.color != Some(PaletteColor(6)) || cell.top.is_full() {
+                continue;
+            }
+            if let Some(under) = cell.under {
+                assert_eq!(under.color, Some(PaletteColor(0)), "under at {pos:?}");
+                showing_through = showing_through.saturating_add(1);
+            }
+        }
+        assert_ne!(showing_through, 0);
+    }
+
+    #[test]
     fn a_later_erase_beats_earlier_paint() {
         let earlier = earlier_wave(DrawAction::Paint(PaletteColor(0)), Shape::Circle);
         let later = later_wave(DrawAction::Erase, Shape::Circle);
@@ -280,8 +307,8 @@ mod tests {
         let canvas = canvas_from(&joined(&later, &earlier));
         for pos in &crossings {
             let cell = starboard::canvas::read_cell(&canvas, *pos);
-            assert_eq!(cell.color, None, "erase at {pos:?}");
-            assert_eq!(cell.lamport, 11);
+            assert_eq!(cell.top.color, None, "erase at {pos:?}");
+            assert_eq!(cell.top.rank, 11);
         }
     }
 
@@ -295,8 +322,8 @@ mod tests {
         let canvas = canvas_from(&joined(&later, &earlier));
         for pos in &crossings {
             let cell = starboard::canvas::read_cell(&canvas, *pos);
-            assert_eq!(cell.color, Some(PaletteColor(6)), "paint at {pos:?}");
-            assert_eq!(cell.lamport, 11);
+            assert_eq!(cell.top.color, Some(PaletteColor(6)), "paint at {pos:?}");
+            assert_eq!(cell.top.rank, 11);
         }
     }
 

@@ -5,10 +5,11 @@ use crate::starboard;
 impl starboard::canvas::Canvas {
     pub(crate) fn filled() -> Self {
         let mut canvas = Self::default();
-        let cell = starboard::canvas::Cell {
-            lamport: 1,
+        let cell = starboard::canvas::Layer {
+            rank: 1,
             author: 1,
             color: Some(starboard::identity::PaletteColor(1)),
+            coverage: starboard::canvas::FULL_COVERAGE,
         };
         let tile_side = u16::try_from(starboard::canvas::TILE_SIDE).unwrap_or(1);
         for index in 0..starboard::canvas::TILE_COUNT {

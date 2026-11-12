@@ -35,7 +35,7 @@ pub fn paint_tile(
             .saturating_add(local_y);
         let start = y.saturating_mul(side).saturating_add(x).saturating_mul(4);
         if let Some(pixel) = pixels.get_mut(start..start.saturating_add(4)) {
-            pixel.copy_from_slice(&cell.color.map_or_else(
+            pixel.copy_from_slice(&cell.top.color.map_or_else(
                 || starboard::render::checker_background_rgba_at(x, y),
                 starboard::render::palette_rgba,
             ));
@@ -53,10 +53,11 @@ mod tests {
     fn test_usage() {
         let mut canvas = starboard::canvas::Canvas::default();
         let color = starboard::identity::PaletteColor(0);
-        let cell = starboard::canvas::Cell {
-            lamport: 1,
+        let cell = starboard::canvas::Layer {
+            rank: 1,
             author: 7,
             color: Some(color),
+            coverage: starboard::canvas::FULL_COVERAGE,
         };
         assert!(starboard::canvas::write_cell(
             &mut canvas,

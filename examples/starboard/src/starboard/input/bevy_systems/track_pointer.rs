@@ -521,7 +521,10 @@ mod tests {
     }
 
     fn painted_cells(ops: &[DrawOp]) -> std::collections::BTreeSet<starboard::canvas::CellPos> {
-        ops.iter().flat_map(starboard::canvas::rasterize).collect()
+        ops.iter()
+            .flat_map(starboard::canvas::rasterize)
+            .map(|covered| covered.pos)
+            .collect()
     }
 
     /// The sub-cell point under a screen pixel at scale 1, rounded to the nearest sub-cell.

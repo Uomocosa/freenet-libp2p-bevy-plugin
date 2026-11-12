@@ -8,6 +8,8 @@ pub const DEFAULT_SIZE_INDEX: u8 = 5;
 pub const SIZE_PERCENTS: [u16; 9] = [10, 20, 35, 50, 75, 100, 125, 150, 200];
 pub const BRUSH_RADII: [u16; 9] = [1, 3, 5, 8, 12, 16, 20, 24, 32];
 pub const SUBCELL_STEPS: u32 = 8;
-/// Longest point list one op carries, so a fast flick stays far below the gossip frame cap.
 pub const MAX_POINTS_PER_OP: usize = 512;
 pub const VERTEX_SCALE: i64 = 1000;
+pub const SAMPLE_OFFSETS: [u32; 4] = [1, 3, 5, 7];
+pub const SAMPLES_PER_CELL: u32 = 16;
+pub const FULL_COVERAGE: u8 = 255;

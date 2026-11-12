@@ -62,10 +62,11 @@ mod tests {
         assert!(starboard::canvas::write_cell(
             &mut canvas,
             starboard::canvas::CellPos { x: 5, y: 7 },
-            starboard::canvas::Cell {
-                lamport: 1,
+            starboard::canvas::Layer {
+                rank: 1,
                 author: 2,
                 color: Some(color),
+                coverage: starboard::canvas::FULL_COVERAGE,
             }
         ));
 

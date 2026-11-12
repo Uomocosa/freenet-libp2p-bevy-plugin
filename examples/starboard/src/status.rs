@@ -40,6 +40,6 @@ pub fn log_canvas_hash(
         starboard::canvas::hash_canvas(canvas),
         cell.x,
         cell.y,
-        held.color
+        held.top.color
     );
 }

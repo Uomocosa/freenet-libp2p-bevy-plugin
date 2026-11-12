@@ -556,7 +556,7 @@ mod tests {
                         FIRST_SCRIPTED_CELL,
                     );
                     assert!(
-                        cell.color.is_some(),
+                        cell.top.color.is_some(),
                         "converged on an empty canvas: {hashes:?}"
                     );
                 }
@@ -620,7 +620,7 @@ mod tests {
                         FIRST_SCRIPTED_CELL,
                     );
                     assert!(
-                        cell.color.is_some(),
+                        cell.top.color.is_some(),
                         "converged on an empty canvas: {hashes:?}"
                     );
                 }
@@ -684,7 +684,7 @@ mod tests {
                         FIRST_SCRIPTED_CELL,
                     );
                     assert!(
-                        cell.color.is_some(),
+                        cell.top.color.is_some(),
                         "converged on an empty canvas: {hashes:?}"
                     );
                 }
@@ -777,6 +777,7 @@ mod tests {
         color: starboard::identity::PaletteColor,
     ) -> bool {
         starboard::canvas::read_cell(app.world().resource::<starboard::canvas::Canvas>(), cell)
+            .top
             .color
             == Some(color)
     }

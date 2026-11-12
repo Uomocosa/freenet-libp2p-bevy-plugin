@@ -7,7 +7,7 @@ pub struct Tile(pub [starboard::canvas::Cell; starboard::canvas::CELLS_PER_TILE]
 
 impl Default for Tile {
     fn default() -> Self {
-        Self([starboard::canvas::Cell::default(); starboard::canvas::CELLS_PER_TILE])
+        Self(std::array::from_fn(|_| starboard::canvas::Cell::default()))
     }
 }
 
