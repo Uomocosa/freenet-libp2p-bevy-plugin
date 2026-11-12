@@ -14,7 +14,6 @@ pub mod spawn_address_chip;
 pub mod spawn_drawer_header;
 pub mod spawn_drawer_sections;
 pub mod spawn_friends_drawer;
-pub mod toggle_friends_drawer;
 
 pub use animate_copy_toast::animate_copy_toast;
 pub use animate_friends_drawer::animate_friends_drawer;
@@ -32,4 +31,3 @@ pub use spawn_address_chip::spawn_address_chip;
 pub use spawn_drawer_header::spawn_drawer_header;
 pub use spawn_drawer_sections::spawn_drawer_sections;
 pub use spawn_friends_drawer::spawn_friends_drawer;
-pub use toggle_friends_drawer::toggle_friends_drawer;

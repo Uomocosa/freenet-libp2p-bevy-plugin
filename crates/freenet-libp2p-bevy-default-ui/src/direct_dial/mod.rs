@@ -8,7 +8,6 @@ pub use basic::components::{
     OwnAddressChip, OwnAddressText,
 };
 pub use basic::constants::*;
-pub use basic::messages::ToggleFriendsDrawer;
 
 #[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;

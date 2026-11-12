@@ -8,7 +8,6 @@ pub fn build_plugin(_plugin: direct_dial::FriendsUiPlugin, app: &mut App) {
     use direct_dial::bevy_systems as friends;
     app.init_resource::<direct_dial::FriendsDrawerState>();
     app.init_resource::<ButtonInput<KeyCode>>();
-    app.add_message::<direct_dial::ToggleFriendsDrawer>();
     app.init_resource::<bevy::clipboard::Clipboard>();
     app.add_message::<core_direct_dial::FriendAddressSubmitted>();
     app.add_systems(
@@ -19,13 +18,7 @@ pub fn build_plugin(_plugin: direct_dial::FriendsUiPlugin, app: &mut App) {
         )
             .chain(),
     );
-    app.add_systems(
-        Update,
-        (
-            friends::toggle_friends_drawer,
-            friends::close_drawer_on_press,
-        ),
-    );
+    app.add_systems(Update, friends::close_drawer_on_press);
     app.add_systems(Update, friends::rebuild_friend_list);
     app.add_systems(Update, friends::refresh_friend_counts);
     app.add_systems(Update, friends::gate_add_friend);
