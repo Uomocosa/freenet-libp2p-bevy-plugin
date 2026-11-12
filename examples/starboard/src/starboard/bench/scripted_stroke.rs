@@ -35,7 +35,7 @@ pub fn scripted_stroke(
     starboard::input::draw_op(
         brush,
         starboard::canvas::DrawAction::Paint(brush.color),
-        starboard::canvas::Stroke { from, to },
+        vec![from, to],
         stroke_rank,
     )
 }
@@ -56,14 +56,17 @@ mod tests {
                 for peer in 0..peers {
                     let op = scripted_stroke(peer, peers, tick, brush);
                     assert!(
-                        seen.insert((op.from, op.to)),
+                        seen.insert(starboard::bench::op_ends(&op)),
                         "stroke repeated at peer {peer} tick {tick}"
                     );
                     let side = u32::try_from(starboard::canvas::CANVAS_SIDE).unwrap_or(0);
                     let sub_side = side.saturating_mul(starboard::canvas::SUBCELL_STEPS);
-                    assert!(op.to.x < sub_side);
-                    assert!(op.to.y < sub_side);
-                    assert_eq!(op.from.y, op.to.y);
+                    assert!(starboard::bench::op_ends(&op).1.x < sub_side);
+                    assert!(starboard::bench::op_ends(&op).1.y < sub_side);
+                    assert_eq!(
+                        starboard::bench::op_ends(&op).0.y,
+                        starboard::bench::op_ends(&op).1.y
+                    );
                 }
             }
         }

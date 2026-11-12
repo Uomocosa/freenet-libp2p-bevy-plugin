@@ -154,14 +154,14 @@ mod tests {
     fn paint_op(
         canvas: &mut starboard::canvas::Canvas,
         brush: starboard::input::OwnBrush,
-        stroke: starboard::canvas::Stroke,
+        points: Vec<starboard::canvas::SubCellPos>,
         stroke_rank: u32,
         author: u16,
     ) {
         let op = starboard::input::draw_op(
             brush,
             starboard::canvas::DrawAction::Paint(brush.color),
-            stroke,
+            points,
             stroke_rank,
         );
         canvas.apply(
@@ -181,11 +181,11 @@ mod tests {
         author: u16,
     ) {
         for (from, to) in points.iter().zip(points.iter().skip(1)) {
-            let stroke = starboard::canvas::Stroke {
-                from: starboard::canvas::cell_centre(*from),
-                to: starboard::canvas::cell_centre(*to),
-            };
-            paint_op(canvas, brush, stroke, stroke_rank, author);
+            let segment = vec![
+                starboard::canvas::cell_centre(*from),
+                starboard::canvas::cell_centre(*to),
+            ];
+            paint_op(canvas, brush, segment, stroke_rank, author);
         }
     }
 
@@ -218,10 +218,7 @@ mod tests {
         for (x, y) in [(820_u16, 200_u16), (860, 260), (820, 330)] {
             stroke_rank = stroke_rank.saturating_add(1);
             let cell = starboard::canvas::cell_centre(starboard::canvas::CellPos { x, y });
-            let dot = starboard::canvas::Stroke {
-                from: cell,
-                to: cell,
-            };
+            let dot = vec![cell, cell];
             paint_op(&mut canvas, brush, dot, stroke_rank, 1);
         }
     }
@@ -293,16 +290,16 @@ mod tests {
             ..case
         };
         let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
-        let diagonal = starboard::canvas::Stroke {
-            from: starboard::canvas::SubCellPos {
+        let diagonal = vec![
+            starboard::canvas::SubCellPos {
                 x: 600 * 8 + 3,
                 y: 650 * 8 + 5,
             },
-            to: starboard::canvas::SubCellPos {
+            starboard::canvas::SubCellPos {
                 x: 860 * 8 + 2,
                 y: 830 * 8 + 1,
             },
-        };
+        ];
         paint_op(&mut canvas, brush, diagonal, 1100, 1);
         paint_curve(
             &mut canvas,
@@ -310,6 +307,93 @@ mod tests {
             starboard::canvas::CellPos { x: 150, y: 760 },
             1101,
         );
+    }
+
+    const S_CURVE_START: u16 = 120;
+    const S_CURVE_LENGTH: u16 = 720;
+    const S_CURVE_AMPLITUDE: f32 = 90.0;
+    const FAST_STEP_CELLS: u16 = 40;
+    const SLOW_STEP_CELLS: u16 = 2;
+
+    /// Cell centres of one sine S curve centred on `row`, `step` cells apart in x.
+    fn s_curve_cells(row: u16, step: u16) -> Vec<starboard::canvas::CellPos> {
+        let count = S_CURVE_LENGTH.checked_div(step).unwrap_or(0);
+        (0..=count)
+            .map(|index| {
+                let offset = index.saturating_mul(step);
+                let progress = f32::from(offset) / f32::from(S_CURVE_LENGTH);
+                let lift = (std::f32::consts::TAU * progress).sin();
+                let y = S_CURVE_AMPLITUDE.mul_add(lift, f32::from(row));
+                let x = S_CURVE_START.saturating_add(offset);
+                let cell = Vec2::new(f32::from(x), y).round().as_uvec2();
+                starboard::canvas::CellPos {
+                    x: u16::try_from(cell.x).unwrap_or(0),
+                    y: u16::try_from(cell.y).unwrap_or(0),
+                }
+            })
+            .collect()
+    }
+
+    /// Paints one stroke through `cells` the way the drawer does: the same lookahead window and
+    /// spline flattening, then each op is applied to the canvas.
+    fn paint_spline(
+        canvas: &mut starboard::canvas::Canvas,
+        brush: starboard::input::OwnBrush,
+        cells: &[starboard::canvas::CellPos],
+        stroke_rank: u32,
+        author: u16,
+    ) {
+        let action = starboard::canvas::DrawAction::Paint(brush.color);
+        let mut latest = starboard::input::LatestPaintedCell::default();
+        let mut points = cells
+            .iter()
+            .map(|cell| starboard::canvas::cell_centre(*cell));
+        let mut lists = Vec::new();
+        if let Some(first) = points.next() {
+            starboard::input::start_stroke(&mut latest, first, action, stroke_rank);
+            lists.push(vec![first]);
+        }
+        for point in points {
+            lists.extend(starboard::input::advance_stroke(&mut latest, point));
+        }
+        lists.extend(starboard::input::finish_stroke(&mut latest));
+        for points in lists {
+            let op = starboard::input::draw_op(brush, action, points, stroke_rank);
+            canvas.apply(
+                OpMeta {
+                    lamport: stroke_rank,
+                    author,
+                },
+                &op,
+            );
+        }
+    }
+
+    /// The case brush at the edge close-up size: big enough that the swept edge is readable.
+    fn big_case_brush(world: &World) -> starboard::input::OwnBrush {
+        starboard::input::OwnBrush {
+            size_index: EDGE_CLOSE_UP_SIZE_INDEX,
+            ..brush_of(world.resource::<CaseBrush>().0)
+        }
+    }
+
+    /// One S curve with a big brush, sampled every 40 cells: the far-apart points a fast
+    /// movement produces.
+    fn paint_fast_broad_stroke(world: &mut World) {
+        let brush = big_case_brush(world);
+        let cells = s_curve_cells(450, FAST_STEP_CELLS);
+        let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
+        paint_spline(&mut canvas, brush, &cells, 1201, 1);
+    }
+
+    /// The same S curve twice: sampled every 2 cells on top, every 40 cells below.
+    fn paint_slow_and_fast(world: &mut World) {
+        let brush = big_case_brush(world);
+        let slow = s_curve_cells(250, SLOW_STEP_CELLS);
+        let fast = s_curve_cells(650, FAST_STEP_CELLS);
+        let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
+        paint_spline(&mut canvas, brush, &slow, 1301, 1);
+        paint_spline(&mut canvas, brush, &fast, 1302, 2);
     }
 
     fn show_cursor(world: &mut World) {
@@ -358,6 +442,14 @@ mod tests {
                     label: String::from("edge close-up"),
                     apply: paint_edge_close_up,
                 },
+                lele_bevy_preview::scene::State {
+                    label: String::from("fast broad stroke"),
+                    apply: paint_fast_broad_stroke,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("slow vs fast"),
+                    apply: paint_slow_and_fast,
+                },
             ],
             timeline: None,
         }
@@ -390,13 +482,13 @@ mod tests {
                 starboard::input::draw_op(
                     brush,
                     starboard::canvas::DrawAction::Paint(brush.color),
-                    starboard::canvas::Stroke {
-                        from: starboard::canvas::cell_centre(starboard::canvas::CellPos { x, y }),
-                        to: starboard::canvas::cell_centre(starboard::canvas::CellPos {
+                    vec![
+                        starboard::canvas::cell_centre(starboard::canvas::CellPos { x, y }),
+                        starboard::canvas::cell_centre(starboard::canvas::CellPos {
                             x: x.saturating_add(80),
                             y: y.saturating_add(40),
                         }),
-                    },
+                    ],
                     u32::from(index).saturating_add(1),
                 )
             })
@@ -438,7 +530,7 @@ mod tests {
         for op in scripted_ops() {
             apps[0]
                 .world_mut()
-                .write_message(starboard::input::PendingLocalDraw(op));
+                .write_message(starboard::input::PendingLocalDraw(op.clone()));
             apps[0].update();
         }
 
@@ -491,7 +583,7 @@ mod tests {
         for op in scripted_ops() {
             for app in &mut apps {
                 app.world_mut()
-                    .write_message(starboard::input::PendingLocalDraw(op));
+                    .write_message(starboard::input::PendingLocalDraw(op.clone()));
                 app.update();
             }
         }
@@ -542,11 +634,11 @@ mod tests {
         for op in scripted_ops() {
             apps[1]
                 .world_mut()
-                .write_message(starboard::input::PendingLocalDraw(op));
+                .write_message(starboard::input::PendingLocalDraw(op.clone()));
             apps[1].update();
             apps[0]
                 .world_mut()
-                .write_message(starboard::input::PendingLocalDraw(op));
+                .write_message(starboard::input::PendingLocalDraw(op.clone()));
             apps[0].update();
         }
 
@@ -742,12 +834,14 @@ mod tests {
         start_held_stroke(&mut apps[0], start);
         drag_held(&mut apps[0], rest);
 
-        pump_until_shown(&mut apps, 0, &path, color);
+        let (_, shown_while_held) = path.split_last().expect("a path");
+        pump_until_shown(&mut apps, 0, shown_while_held, color);
         assert!(
             held(&apps[0]),
             "the stroke is still held when it is checked"
         );
         release_left(&mut apps[0]);
+        pump_until_shown(&mut apps, 0, &path, color);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -773,12 +867,13 @@ mod tests {
         start_held_stroke(&mut apps[0], start);
         drag_held(&mut apps[0], partial);
 
-        let (seen_so_far, _) = path.split_at(4);
+        let (seen_so_far, _) = path.split_at(3);
         pump_until_shown(&mut apps, 1, seen_so_far, color);
         assert!(held(&apps[0]), "peer A still holds the button");
 
         drag_held(&mut apps[0], extension);
-        pump_until_shown(&mut apps, 1, &path, color);
+        let (_, shown_while_held) = path.split_last().expect("a path");
+        pump_until_shown(&mut apps, 1, shown_while_held, color);
         assert!(held(&apps[0]), "peer A still holds the button");
 
         release_left(&mut apps[0]);

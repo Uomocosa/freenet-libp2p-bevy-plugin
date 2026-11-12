@@ -40,18 +40,6 @@ impl PendingPress {
         screen.distance(self.press_screen) > starboard::input::DRAG_SLOP_PX
             || now_secs - self.started_at_secs >= starboard::input::DOT_MAX_HOLD_SECS
     }
-
-    #[must_use]
-    pub fn segments(&self) -> Vec<starboard::canvas::Stroke> {
-        self.path
-            .iter()
-            .zip(self.path.iter().skip(1))
-            .map(|(from, to)| starboard::canvas::Stroke {
-                from: *from,
-                to: *to,
-            })
-            .collect()
-    }
 }
 
 #[cfg(test)]
@@ -69,6 +57,6 @@ mod tests {
         assert!(!press.has_become_stroke(Vec2::splat(10.0), 0.1));
         assert!(press.has_become_stroke(Vec2::splat(10.0), 0.3));
         press.record(starboard::canvas::SubCellPos { x: 160, y: 80 });
-        assert_eq!(press.segments().len(), 1);
+        assert_eq!(press.path.len(), 2);
     }
 }

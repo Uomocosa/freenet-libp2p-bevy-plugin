@@ -8,7 +8,7 @@ pub fn send_local_draws(
     mut pending: ResMut<room_sync::PendingOps<starboard::canvas::Canvas>>,
 ) {
     for draw in draws.read() {
-        pending.send(**draw);
+        pending.send((**draw).clone());
     }
 }
 
@@ -32,8 +32,7 @@ mod tests {
             action: starboard::canvas::DrawAction::Paint(starboard::identity::PaletteColor(5)),
             shape: starboard::identity::Shape::Circle,
             size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
-            from: starboard::canvas::SubCellPos { x: 400, y: 400 },
-            to: starboard::canvas::SubCellPos { x: 400, y: 400 },
+            points: vec![starboard::canvas::SubCellPos { x: 400, y: 400 }],
             stroke_rank: 1,
         };
         app.world_mut()
@@ -45,7 +44,10 @@ mod tests {
             .resource::<room_sync::PendingOps<starboard::canvas::Canvas>>();
         assert_eq!(pending.ops.len(), 1);
         assert_eq!(
-            pending.ops.first().map(|op| op.from),
+            pending
+                .ops
+                .first()
+                .and_then(|op| op.points.first().copied()),
             Some(starboard::canvas::SubCellPos { x: 400, y: 400 })
         );
     }

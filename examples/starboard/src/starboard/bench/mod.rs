@@ -6,6 +6,7 @@ mod bench_markdown;
 mod bench_starboard;
 mod history_bench;
 mod machine_info;
+mod op_ends;
 mod percentiles;
 mod repaint_cost;
 mod run_scenario;
@@ -22,6 +23,7 @@ pub use basic::structs::{
 pub use bench_date::bench_date;
 pub use bench_markdown::bench_markdown;
 pub use machine_info::machine_info;
+pub use op_ends::op_ends;
 pub use percentiles::percentiles;
 pub use repaint_cost::repaint_cost;
 pub use run_scenario::run_scenario;

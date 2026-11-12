@@ -242,7 +242,9 @@ fn paint_frame(
     for (index, app) in apps.iter_mut().enumerate() {
         let brush = *app.world().resource::<starboard::input::OwnBrush>();
         let op = starboard::bench::scripted_stroke(index, peer_count, tick, brush);
-        tally.pending.insert((op.from, op.to), Instant::now());
+        tally
+            .pending
+            .insert(starboard::bench::op_ends(&op), Instant::now());
         app.world_mut()
             .write_message(starboard::input::PendingLocalDraw(op));
         app.update();
@@ -276,7 +278,7 @@ fn drain_taps(
                         continue;
                     };
                     if let room_sync::ReplicaSyncTopicMessage::ApplyThisOp { op, .. } = message {
-                        let key = (op.from, op.to);
+                        let key = starboard::bench::op_ends(&op);
                         if let Some(sent_at) = tally.pending.get(&key) {
                             tally.samples.push(now.saturating_duration_since(*sent_at));
                             tally.arrived.insert((receiver, key));

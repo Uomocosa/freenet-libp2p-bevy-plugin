@@ -68,7 +68,7 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
                     let action = starboard::canvas::DrawAction::Paint(param.brush.color);
                     let outcome = draw_stroke(
                         action,
-                        crate::script::to_canvas_stroke(*stroke),
+                        crate::script::to_canvas_points(*stroke),
                         scripted_stroke_rank(param.clock.saturating_add(1), index),
                         state,
                         *param.brush,
@@ -84,7 +84,7 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
                 for (index, stroke) in strokes.iter().enumerate() {
                     let outcome = draw_stroke(
                         starboard::canvas::DrawAction::Erase,
-                        crate::script::to_canvas_stroke(*stroke),
+                        crate::script::to_canvas_points(*stroke),
                         scripted_stroke_rank(param.clock.saturating_add(1), index),
                         state,
                         *param.brush,
@@ -172,7 +172,7 @@ fn poll_dial(addrs: &str, param: &mut StarboardStepParam<'_, '_>) -> testing::St
 // needed helper: draws one scripted stroke; drawing outside a room is a script error
 fn draw_stroke(
     action: starboard::canvas::DrawAction,
-    stroke: starboard::canvas::Stroke,
+    points: Vec<starboard::canvas::SubCellPos>,
     stroke_rank: u32,
     state: &DiscoveryState,
     brush: starboard::input::OwnBrush,
@@ -182,7 +182,7 @@ fn draw_stroke(
         return testing::StepOutcome::Failed("cannot draw outside a room".to_string());
     }
     draws.write(starboard::input::PendingLocalDraw(
-        starboard::input::draw_op(brush, action, stroke, stroke_rank),
+        starboard::input::draw_op(brush, action, points, stroke_rank),
     ));
     testing::StepOutcome::Done
 }

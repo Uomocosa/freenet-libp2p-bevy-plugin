@@ -153,8 +153,10 @@ mod tests {
                     action,
                     shape,
                     size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
-                    from: starboard::canvas::cell_centre(pair.first().copied().unwrap_or_default()),
-                    to: starboard::canvas::cell_centre(pair.last().copied().unwrap_or_default()),
+                    points: vec![
+                        starboard::canvas::cell_centre(pair.first().copied().unwrap_or_default()),
+                        starboard::canvas::cell_centre(pair.last().copied().unwrap_or_default()),
+                    ],
                     stroke_rank,
                 };
                 (
@@ -207,12 +209,12 @@ mod tests {
         later
             .iter()
             .zip(earlier.iter())
-            .flat_map(|(q, p)| [*q, *p])
+            .flat_map(|(q, p)| [q.clone(), p.clone()])
             .collect()
     }
 
     fn joined(first: &[(OpMeta, DrawOp)], second: &[(OpMeta, DrawOp)]) -> Vec<(OpMeta, DrawOp)> {
-        first.iter().chain(second.iter()).copied().collect()
+        first.iter().chain(second.iter()).cloned().collect()
     }
 
     #[test]
@@ -342,11 +344,13 @@ mod tests {
                 action,
                 shape,
                 size_index: 5,
-                from: starboard::canvas::cell_centre(starboard::canvas::CellPos {
-                    x: from_x,
-                    y: from_y,
-                }),
-                to: starboard::canvas::cell_centre(starboard::canvas::CellPos { x: to_x, y: to_y }),
+                points: vec![
+                    starboard::canvas::cell_centre(starboard::canvas::CellPos {
+                        x: from_x,
+                        y: from_y,
+                    }),
+                    starboard::canvas::cell_centre(starboard::canvas::CellPos { x: to_x, y: to_y }),
+                ],
                 stroke_rank: lamport,
             },
         )

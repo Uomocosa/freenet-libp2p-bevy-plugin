@@ -8,26 +8,34 @@ pub fn rasterize(
         u16::try_from(u32::from(radius).saturating_mul(starboard::canvas::SUBCELL_STEPS))
             .unwrap_or(u16::MAX);
     let pieces = starboard::canvas::shape_pieces(op.shape, sub_radius);
-    let start = (i64::from(op.from.x), i64::from(op.from.y));
-    let end = (i64::from(op.to.x), i64::from(op.to.y));
-    let step = (end.0.saturating_sub(start.0), end.1.saturating_sub(start.1));
-    let reach = i64::from(sub_radius);
-    let xs = cell_indices(start.0.min(end.0), start.0.max(end.0), reach);
-    let ys = cell_indices(start.1.min(end.1), start.1.max(end.1), reach);
-    let mut cells = Vec::new();
-    for &x in &xs {
-        for &y in &ys {
-            let centre = starboard::canvas::cell_centre(starboard::canvas::CellPos { x, y });
-            let offset = (
-                i64::from(centre.x).saturating_sub(start.0),
-                i64::from(centre.y).saturating_sub(start.1),
-            );
-            if starboard::canvas::segment_meets_shape(op.shape, sub_radius, &pieces, offset, step) {
-                cells.push(starboard::canvas::CellPos { x, y });
+    let mut painted = std::collections::BTreeSet::new();
+    for (from, to) in starboard::canvas::point_pairs(&op.points) {
+        let start = (i64::from(from.x), i64::from(from.y));
+        let end = (i64::from(to.x), i64::from(to.y));
+        let step = (end.0.saturating_sub(start.0), end.1.saturating_sub(start.1));
+        let reach = i64::from(sub_radius);
+        let xs = cell_indices(start.0.min(end.0), start.0.max(end.0), reach);
+        let ys = cell_indices(start.1.min(end.1), start.1.max(end.1), reach);
+        for &x in &xs {
+            for &y in &ys {
+                let pos = starboard::canvas::CellPos { x, y };
+                if painted.contains(&pos) {
+                    continue;
+                }
+                let centre = starboard::canvas::cell_centre(pos);
+                let offset = (
+                    i64::from(centre.x).saturating_sub(start.0),
+                    i64::from(centre.y).saturating_sub(start.1),
+                );
+                if starboard::canvas::segment_meets_shape(
+                    op.shape, sub_radius, &pieces, offset, step,
+                ) {
+                    painted.insert(pos);
+                }
             }
         }
     }
-    cells.into_iter()
+    painted.into_iter()
 }
 
 // needed helper: the cell indices whose centre lies within `reach` of the span [low, high]
@@ -69,8 +77,7 @@ mod tests {
             action: DrawAction::Paint(PaletteColor(0)),
             shape,
             size_index,
-            from,
-            to,
+            points: vec![from, to],
             stroke_rank: 1,
         }
     }
@@ -89,8 +96,8 @@ mod tests {
         const SAMPLE_UNITS: i64 = 2;
         let radius = i64::from(starboard::canvas::brush_radius(op.size_index));
         let unit_radius = u16::try_from(radius.saturating_mul(UNITS_PER_CELL)).unwrap_or(u16::MAX);
-        let from = scaled_point(op.from);
-        let to = scaled_point(op.to);
+        let from = scaled_point(op.points.first().copied().unwrap_or_default());
+        let to = scaled_point(op.points.last().copied().unwrap_or_default());
         let (dx, dy) = (to.0.saturating_sub(from.0), to.1.saturating_sub(from.1));
         let samples = dx
             .abs()
@@ -179,8 +186,7 @@ mod tests {
             action: DrawAction::Paint(color),
             shape,
             size_index: 0,
-            from: centre,
-            to: centre,
+            points: vec![centre, centre],
             stroke_rank: 1,
         };
         let covered: BTreeSet<_> = rasterize(&dab).collect();
@@ -209,8 +215,10 @@ mod tests {
             action: DrawAction::Paint(color),
             shape,
             size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
-            from: cell_centre(CellPos { x: 20, y: 20 }),
-            to: cell_centre(CellPos { x: 120, y: 20 }),
+            points: vec![
+                cell_centre(CellPos { x: 20, y: 20 }),
+                cell_centre(CellPos { x: 120, y: 20 }),
+            ],
             stroke_rank: 1,
         };
         let covered: BTreeSet<_> = rasterize(&stroke).collect();
@@ -226,8 +234,7 @@ mod tests {
             action: DrawAction::Erase,
             shape,
             size_index: 8,
-            from: sub(0, 0),
-            to: sub(max_coord.saturating_mul(SUBCELL_STEPS), 0),
+            points: vec![sub(0, 0), sub(max_coord.saturating_mul(SUBCELL_STEPS), 0)],
             stroke_rank: 1,
         };
         let border_cells: Vec<_> = rasterize(&border).collect();
@@ -251,8 +258,7 @@ mod tests {
             action: DrawAction::Paint(color),
             shape,
             size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
-            from: sub(80, 80),
-            to: sub(482, 303),
+            points: vec![sub(80, 80), sub(482, 303)],
             stroke_rank: 1,
         };
         let painted: BTreeSet<_> = rasterize(&stroke).collect();
@@ -285,8 +291,10 @@ mod tests {
                 action: DrawAction::Paint(color),
                 shape,
                 size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
-                from: pair.first().copied().unwrap_or_default(),
-                to: pair.last().copied().unwrap_or_default(),
+                points: vec![
+                    pair.first().copied().unwrap_or_default(),
+                    pair.last().copied().unwrap_or_default(),
+                ],
                 stroke_rank: 1,
             };
             painted.extend(rasterize(&stroke).map(|pos| (i32::from(pos.x), i32::from(pos.y))));
