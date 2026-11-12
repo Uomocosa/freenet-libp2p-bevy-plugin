@@ -1,4 +1,5 @@
 mod args;
+mod friends_drawer;
 mod journey;
 mod overlay;
 mod ping;
@@ -10,7 +11,7 @@ use bevy::prelude::*;
 use clap::Parser;
 use examples_shared as shared;
 use freenet_libp2p_bevy_plugin::ui as plugin_ui;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, testing};
+use freenet_libp2p_bevy_plugin::{direct_dial, discovery, identity, p2p, plugin, testing};
 
 #[tokio::main]
 async fn main() -> bevy::app::AppExit {
@@ -80,6 +81,9 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
         plugin::Config::<ping::PingPayload>::new(transport, p2p::MdnsMode::Disabled)
             .with_game(game.clone()),
     ));
+    app.add_plugins(direct_dial::FriendsPlugin::new(direct_dial::Config::from(
+        args.peer_book_file.clone(),
+    )));
     let discovery_plugins = discovery::Plugins(discovery::Config {
         display_name: username,
         game,

@@ -36,6 +36,9 @@ pub struct Args {
     /// Folder the embedded Freenet node keeps its config, data and logs in (default: a temp dir).
     #[arg(long)]
     pub freenet_node_dir: Option<PathBuf>,
+    /// File the friends drawer saves its peer book to (default: memory only).
+    #[arg(long)]
+    pub peer_book_file: Option<PathBuf>,
     #[command(flatten)]
     pub network: NetworkArgs,
     #[command(flatten)]
@@ -54,6 +57,7 @@ pub const fn transport_mode(arg: TransportArg) -> TransportMode {
 #[cfg(test)]
 mod tests {
     use super::{TransportArg, transport_mode};
+    use clap::Parser;
     use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
     #[test]
@@ -61,5 +65,24 @@ mod tests {
         assert_eq!(transport_mode(TransportArg::Tcp), TransportMode::Tcp);
         assert_eq!(transport_mode(TransportArg::Quic), TransportMode::Quic);
         assert_eq!(transport_mode(TransportArg::Both), TransportMode::Both);
+    }
+
+    #[test]
+    fn peer_book_file_is_optional_and_parses() {
+        use std::path::PathBuf;
+        let args = super::Args::try_parse_from(["lobby_room", "--username", "p1"]).expect("args");
+        assert_eq!(args.peer_book_file, None);
+        let args = super::Args::try_parse_from([
+            "lobby_room",
+            "--username",
+            "p1",
+            "--peer-book-file",
+            "/tmp/p1.friends.json",
+        ])
+        .expect("args");
+        assert_eq!(
+            args.peer_book_file,
+            Some(PathBuf::from("/tmp/p1.friends.json"))
+        );
     }
 }
