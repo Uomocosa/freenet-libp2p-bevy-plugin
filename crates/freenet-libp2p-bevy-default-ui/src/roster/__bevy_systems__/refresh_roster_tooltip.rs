@@ -173,7 +173,26 @@ mod tests {
             own: freenet_libp2p_bevy_core::discovery::OwnRoomStatus::Connected,
             count: 3,
             max: 8,
-            entries: Vec::new(),
+            entries: vec![
+                freenet_libp2p_bevy_core::discovery::RoomRosterEntry {
+                    id: freenet_libp2p_bevy_core::identity::PeerId::from("12D3KooWcarol0Zm9c"),
+                    name: String::from("carol"),
+                    status: freenet_libp2p_bevy_core::discovery::MemberRoomStatus::Connecting,
+                    is_me: false,
+                },
+                freenet_libp2p_bevy_core::discovery::RoomRosterEntry {
+                    id: freenet_libp2p_bevy_core::identity::PeerId::from("12D3KooWbob000Kd2a"),
+                    name: String::from("bob"),
+                    status: freenet_libp2p_bevy_core::discovery::MemberRoomStatus::Connected,
+                    is_me: false,
+                },
+                freenet_libp2p_bevy_core::discovery::RoomRosterEntry {
+                    id: freenet_libp2p_bevy_core::identity::PeerId::from("me"),
+                    name: String::from("alice"),
+                    status: freenet_libp2p_bevy_core::discovery::MemberRoomStatus::Connected,
+                    is_me: true,
+                },
+            ],
         });
         app.add_systems(
             Startup,
@@ -184,6 +203,7 @@ mod tests {
             (
                 keep_hover,
                 roster::bevy_systems::refresh_roster_status,
+                roster::bevy_systems::refresh_roster_tooltips_text,
                 refresh_roster_tooltip,
             )
                 .chain(),

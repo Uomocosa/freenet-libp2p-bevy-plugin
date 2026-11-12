@@ -80,6 +80,7 @@ mod tests {
             .build()
     }
 
+    /// # needed helper: a peer whose daily brush is not a circle at the pinned date
     fn preview_me(created_at: time::UnixTime, now: time::UnixTime) -> identity::PeerId {
         for index in 0_u32..200 {
             let candidate = identity::PeerId::from(format!("preview-me-{index}").as_str());
@@ -92,8 +93,11 @@ mod tests {
         identity::PeerId::from("preview-me")
     }
 
+    /// # needed fixture: the date the board preview is pinned to, so the PNG never drifts
+    const BOARD_PREVIEW_NOW: time::UnixTime = time::UnixTime::from_secs(96_400);
+
     fn preview_build(app: &mut App) {
-        let now = time::UnixTime::now();
+        let now = BOARD_PREVIEW_NOW;
         let me = preview_me(time::UnixTime::EPOCH, now);
         let status = ready_status(&me);
         let brushes = starboard::room::RoomBrushes(starboard::identity::room_brushes(
