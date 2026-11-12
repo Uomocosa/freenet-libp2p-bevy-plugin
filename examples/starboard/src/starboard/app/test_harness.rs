@@ -25,11 +25,16 @@ pub fn node_with(game: &identity::GameId, history: Option<room_sync::HistoryConf
         )
         .with_game(game.clone()),
     ));
+    app.add_plugins(discovery::Plugin::new(discovery::Config::default()));
     app.add_plugins(
         room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game.clone())
             .with_history_config(history),
     );
-    app.insert_resource(room_status(&identity::RoomName::from("alpha"), Vec::new()));
+    app.insert_resource(room_status(
+        &identity::PeerId::from("me"),
+        &identity::RoomName::from("alpha"),
+        Vec::new(),
+    ));
     app.init_resource::<ButtonInput<MouseButton>>();
     app.init_resource::<AccumulatedMouseScroll>();
     app.add_message::<discovery::Event>();
@@ -38,7 +43,11 @@ pub fn node_with(game: &identity::GameId, history: Option<room_sync::HistoryConf
     app
 }
 
-pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) -> DiscoveryState {
+pub fn room_status(
+    me: &identity::PeerId,
+    room: &identity::RoomName,
+    members: Vec<identity::PeerId>,
+) -> DiscoveryState {
     let connected = members.clone();
     let mut room_members = discovery::Members::new();
     for peer in members {
@@ -55,7 +64,7 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
             },
         );
     }
-    testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+    testing::DiscoveryStateBuilder::new(me.clone())
         .with_connected(connected)
         .in_room(discovery::JoinedRoom {
             name: room.clone(),
@@ -68,7 +77,8 @@ pub fn room_status(room: &identity::RoomName, members: Vec<identity::PeerId>) ->
 }
 
 pub fn join(app: &mut App, room: &identity::RoomName, members: Vec<identity::PeerId>) {
-    app.insert_resource(room_status(room, members));
+    let me = ready(app).map_or_else(|| identity::PeerId::from("me"), |peer| peer.id);
+    app.insert_resource(room_status(&me, room, members));
     app.world_mut()
         .resource_mut::<Messages<discovery::Event>>()
         .write(discovery::Event::Joined(room.clone()));

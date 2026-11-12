@@ -26,7 +26,7 @@ pub fn track_pointer(
         .into_iter()
         .find(|button| is_held(buttons, *button));
     let (Some(button), false) = (held, is_menu_open) else {
-        *latest_painted = starboard::input::LatestPaintedCell::default();
+        latest_painted.cell = None;
         **pending = None;
         return;
     };
@@ -69,7 +69,9 @@ pub fn track_pointer(
             },
         ),
         _ if buttons.just_pressed(button) => {
-            let stroke_rank = clock.saturating_add(1);
+            let stroke_rank = clock
+                .saturating_add(1)
+                .max(latest.stroke_rank.saturating_add(1));
             (
                 vec![starboard::canvas::Stroke {
                     from: current,
@@ -91,7 +93,10 @@ pub fn track_pointer(
         _ => (
             Vec::new(),
             None,
-            starboard::input::LatestPaintedCell::default(),
+            starboard::input::LatestPaintedCell {
+                cell: None,
+                stroke_rank: latest.stroke_rank,
+            },
         ),
     };
     let stroke_rank = next_latest.stroke_rank;
@@ -416,6 +421,27 @@ mod tests {
         app.update();
         tick_once_per_sent_op(&mut app);
 
+        point_at(&mut app, Vec2::new(300.0, 300.0));
+        press(&mut app, MouseButton::Left);
+        app.update();
+
+        let ranks: Vec<u32> = sent(&app).iter().map(|op| op.stroke_rank).collect();
+        assert_eq!(ranks.len(), 2);
+        assert!(
+            ranks
+                .get(1)
+                .is_some_and(|later| ranks.first().is_some_and(|first| later > first))
+        );
+    }
+
+    #[test]
+    fn presses_with_no_clock_tick_between_them_rank_strictly_increasing() {
+        let mut app = app_with_pointer();
+        point_at(&mut app, Vec2::new(100.0, 100.0));
+        press(&mut app, MouseButton::Left);
+        app.update();
+        release_all(&mut app);
+        app.update();
         point_at(&mut app, Vec2::new(300.0, 300.0));
         press(&mut app, MouseButton::Left);
         app.update();

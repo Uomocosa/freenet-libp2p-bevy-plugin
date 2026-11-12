@@ -61,7 +61,7 @@ impl Plugin for StarboardPlugin {
 mod tests {
     use bevy::prelude::*;
     use bevy::window::PrimaryWindow;
-    use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, traits::ReplicatedState};
+    use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, PendingOps, traits::ReplicatedState};
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
 
@@ -528,5 +528,353 @@ mod tests {
             );
             tokio::time::sleep(test_harness::SETTLE).await;
         }
+    }
+
+    fn spawn_window(app: &mut App) {
+        app.world_mut().spawn((
+            PrimaryWindow,
+            Window {
+                resolution: (1024, 1024).into(),
+                ..default()
+            },
+        ));
+    }
+
+    fn cell_point(cell: starboard::canvas::CellPos) -> Vec2 {
+        Vec2::new(f32::from(cell.x), f32::from(cell.y))
+    }
+
+    fn window_size(world: &mut World) -> Vec2 {
+        world
+            .query_filtered::<&Window, With<PrimaryWindow>>()
+            .single(world)
+            .map_or(Vec2::splat(1024.0), Window::size)
+    }
+
+    fn set_cursor(world: &mut World, board_point: Vec2) {
+        let view = starboard::render::CanvasView::fit(window_size(world));
+        let half_cell = Vec2::splat(0.5).mul_add(Vec2::splat(view.scale), view.offset);
+        let screen = board_point.mul_add(Vec2::splat(view.scale), half_cell);
+        let mut windows = world.query_filtered::<&mut Window, With<PrimaryWindow>>();
+        if let Ok(mut window) = windows.single_mut(world) {
+            window.set_cursor_position(Some(screen));
+        }
+    }
+
+    fn start_held_stroke(app: &mut App, start: starboard::canvas::CellPos) {
+        set_cursor(app.world_mut(), cell_point(start));
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.update();
+    }
+
+    fn drag_held(app: &mut App, cells: &[starboard::canvas::CellPos]) {
+        for cell in cells {
+            set_cursor(app.world_mut(), cell_point(*cell));
+            app.update();
+        }
+    }
+
+    fn release_left(app: &mut App) {
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .reset_all();
+    }
+
+    fn held(app: &App) -> bool {
+        app.world()
+            .resource::<ButtonInput<MouseButton>>()
+            .pressed(MouseButton::Left)
+    }
+
+    fn stroke_path() -> Vec<starboard::canvas::CellPos> {
+        [
+            (100_u16, 100_u16),
+            (120, 104),
+            (140, 110),
+            (160, 118),
+            (180, 124),
+            (200, 130),
+            (220, 140),
+        ]
+        .into_iter()
+        .map(|(x, y)| starboard::canvas::CellPos { x, y })
+        .collect()
+    }
+
+    fn cell_painted(
+        app: &App,
+        cell: starboard::canvas::CellPos,
+        color: starboard::identity::PaletteColor,
+    ) -> bool {
+        starboard::canvas::read_cell(app.world().resource::<starboard::canvas::Canvas>(), cell)
+            .color
+            == Some(color)
+    }
+
+    fn board_pixel(app: &mut App, cell: starboard::canvas::CellPos) -> Option<[u8; 4]> {
+        let world = app.world_mut();
+        let handle = world
+            .query_filtered::<&Sprite, With<starboard::render::BoardSprite>>()
+            .single(world)
+            .ok()?
+            .image
+            .clone();
+        let image = world.resource::<Assets<Image>>().get(&handle)?;
+        let data = image.data.as_ref()?;
+        let row = usize::from(cell.y).saturating_mul(starboard::canvas::CANVAS_SIDE);
+        let start = row.saturating_add(usize::from(cell.x)).saturating_mul(4);
+        data.get(start..start.saturating_add(4))?.try_into().ok()
+    }
+
+    fn cell_shown(
+        app: &mut App,
+        cell: starboard::canvas::CellPos,
+        color: starboard::identity::PaletteColor,
+    ) -> bool {
+        cell_painted(app, cell, color)
+            && board_pixel(app, cell) == Some(starboard::render::palette_rgba(color))
+    }
+
+    fn pump_until_shown(
+        apps: &mut [App],
+        viewer: usize,
+        cells: &[starboard::canvas::CellPos],
+        color: starboard::identity::PaletteColor,
+    ) {
+        let started = std::time::Instant::now();
+        loop {
+            for app in apps.iter_mut() {
+                app.update();
+            }
+            let Some(view) = apps.get_mut(viewer) else {
+                panic!("no viewer app");
+            };
+            if cells.iter().all(|cell| cell_shown(view, *cell, color)) {
+                return;
+            }
+            assert!(
+                started.elapsed() <= CONVERGE_BUDGET,
+                "viewer never showed the held stroke"
+            );
+            std::thread::sleep(test_harness::SETTLE);
+        }
+    }
+
+    fn joined_pair(game: &identity::GameId, room: &identity::RoomName) -> Vec<App> {
+        let mut apps = vec![
+            test_harness::node_with(game, None),
+            test_harness::node_with(game, None),
+        ];
+        let peers: Vec<identity::Peer> = apps.iter_mut().map(test_harness::wait_ready).collect();
+
+        test_harness::dial(&mut apps[1], &peers[0]);
+
+        for (index, app) in apps.iter_mut().enumerate() {
+            let others = peers
+                .iter()
+                .enumerate()
+                .filter(|(other, _)| *other != index)
+                .map(|(_, peer)| peer.id.clone())
+                .collect();
+            test_harness::join(app, room, others);
+        }
+        apps
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_held_stroke_is_on_the_drawers_canvas_and_board_before_release() {
+        let game = identity::GameId::from("game");
+        let room = identity::RoomName::from("room-live");
+        let mut apps = joined_pair(&game, &room);
+        for _ in 0..50 {
+            for app in &mut apps {
+                app.update();
+            }
+            tokio::time::sleep(test_harness::SETTLE).await;
+        }
+        spawn_window(&mut apps[0]);
+
+        let color = apps[0]
+            .world()
+            .resource::<starboard::input::OwnBrush>()
+            .color;
+        let path = stroke_path();
+        let (&start, rest) = path.split_first().expect("a path");
+        start_held_stroke(&mut apps[0], start);
+        drag_held(&mut apps[0], rest);
+
+        pump_until_shown(&mut apps, 0, &path, color);
+        assert!(
+            held(&apps[0]),
+            "the stroke is still held when it is checked"
+        );
+        release_left(&mut apps[0]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_held_stroke_shows_on_the_other_peer_before_release_and_its_extension_too() {
+        let game = identity::GameId::from("game");
+        let room = identity::RoomName::from("room-live");
+        let mut apps = joined_pair(&game, &room);
+        for _ in 0..50 {
+            for app in &mut apps {
+                app.update();
+            }
+            tokio::time::sleep(test_harness::SETTLE).await;
+        }
+        spawn_window(&mut apps[0]);
+
+        let color = apps[0]
+            .world()
+            .resource::<starboard::input::OwnBrush>()
+            .color;
+        let path = stroke_path();
+        let (&start, rest) = path.split_first().expect("a path");
+        let (partial, extension) = rest.split_at(3);
+        start_held_stroke(&mut apps[0], start);
+        drag_held(&mut apps[0], partial);
+
+        let (seen_so_far, _) = path.split_at(4);
+        pump_until_shown(&mut apps, 1, seen_so_far, color);
+        assert!(held(&apps[0]), "peer A still holds the button");
+
+        drag_held(&mut apps[0], extension);
+        pump_until_shown(&mut apps, 1, &path, color);
+        assert!(held(&apps[0]), "peer A still holds the button");
+
+        release_left(&mut apps[0]);
+        let started = std::time::Instant::now();
+        loop {
+            for app in &mut apps {
+                app.update();
+            }
+            let hashes: Vec<u64> = apps.iter().map(canvas_hash).collect();
+            if hashes.first() == hashes.last() {
+                return;
+            }
+            assert!(
+                started.elapsed() <= CONVERGE_BUDGET,
+                "canvases did not converge after release: {hashes:?}"
+            );
+            tokio::time::sleep(test_harness::SETTLE).await;
+        }
+    }
+
+    const STROKE_SUBSTEPS: u16 = 6;
+    const STROKE_SEGMENTS: u16 = 8;
+    const STROKE_FRAMES: u32 = 48;
+    const STROKE_FPS: u32 = 30;
+    const STROKE_ORIGIN: starboard::canvas::CellPos = starboard::canvas::CellPos { x: 300, y: 520 };
+
+    fn curve_cell(index: u16) -> starboard::canvas::CellPos {
+        let (dx, dy) = CURVE.get(usize::from(index)).copied().unwrap_or((0, 0));
+        starboard::canvas::CellPos {
+            x: STROKE_ORIGIN.x.saturating_add(dx),
+            y: STROKE_ORIGIN.y.saturating_add_signed(dy),
+        }
+    }
+
+    fn curve_point(step: u16) -> Vec2 {
+        let segment = step
+            .checked_div(STROKE_SUBSTEPS)
+            .unwrap_or(0)
+            .min(STROKE_SEGMENTS.saturating_sub(1));
+        let within = step.saturating_sub(segment.saturating_mul(STROKE_SUBSTEPS));
+        let from = cell_point(curve_cell(segment));
+        let to = cell_point(curve_cell(segment.saturating_add(1)));
+        from.lerp(to, f32::from(within) / f32::from(STROKE_SUBSTEPS))
+    }
+
+    #[derive(Resource, Default)]
+    struct StrokeClock {
+        started_at: Option<std::time::Duration>,
+    }
+
+    fn start_stroke_clock(world: &mut World) {
+        world.init_resource::<StrokeClock>();
+    }
+
+    fn drive_stroke(world: &mut World) {
+        let elapsed = world.resource::<Time>().elapsed();
+        let frame = {
+            let mut clock = world.resource_mut::<StrokeClock>();
+            let started_at = *clock.started_at.get_or_insert(elapsed);
+            let since_ms = elapsed.saturating_sub(started_at).as_millis();
+            let rounded = since_ms
+                .saturating_mul(u128::from(STROKE_FPS))
+                .saturating_add(500)
+                / 1000;
+            u32::try_from(rounded).unwrap_or(u32::MAX)
+        };
+        let step = u16::try_from(frame.min(STROKE_FRAMES)).unwrap_or(u16::MAX);
+        set_cursor(world, curve_point(step));
+        if frame == 0 {
+            world
+                .resource_mut::<ButtonInput<MouseButton>>()
+                .press(MouseButton::Left);
+        }
+    }
+
+    fn apply_pending_strokes(world: &mut World) {
+        let ops = std::mem::take(
+            &mut world
+                .resource_mut::<PendingOps<starboard::canvas::Canvas>>()
+                .ops,
+        );
+        let mut canvas = world.resource_mut::<starboard::canvas::Canvas>();
+        for op in ops {
+            canvas.apply(
+                OpMeta {
+                    lamport: op.stroke_rank,
+                    author: 1,
+                },
+                &op,
+            );
+        }
+    }
+
+    fn build_star_stroke(app: &mut App) {
+        preview_build(app, STAR_YELLOW);
+        app.add_systems(
+            Update,
+            (
+                drive_stroke
+                    .run_if(resource_exists::<StrokeClock>)
+                    .before(starboard::input::bevy_systems::track_cursor),
+                apply_pending_strokes
+                    .run_if(resource_exists::<StrokeClock>)
+                    .after(starboard::input::bevy_systems::send_local_draws),
+            ),
+        );
+    }
+
+    fn star_stroke_scene(
+        timeline: Option<lele_bevy_preview::scene::Timeline>,
+    ) -> lele_bevy_preview::scene::Scene {
+        lele_bevy_preview::scene::Scene {
+            name: String::from("starboard_star_stroke"),
+            kind: lele_bevy_preview::scene::Kind::App,
+            build: build_star_stroke,
+            states: vec![lele_bevy_preview::scene::State {
+                label: String::from("empty board"),
+                apply: preview_noop,
+            }],
+            timeline,
+        }
+    }
+
+    #[test]
+    fn star_stroke_drawing_mp4_preview() {
+        let timeline = lele_bevy_preview::scene::Timeline {
+            label: String::from("star_stroke_drawn"),
+            frames: STROKE_FRAMES.saturating_add(1),
+            fps: STROKE_FPS,
+            apply: start_stroke_clock,
+        };
+        star_stroke_scene(Some(timeline))
+            .run(&config())
+            .expect("preview");
     }
 }
