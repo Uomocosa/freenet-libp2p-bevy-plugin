@@ -1,5 +1,6 @@
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::{discovery, identity};
+use freenet_libp2p_bevy_plugin::identity;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
 #[must_use]
 pub fn member_name(state: &DiscoveryState, peer: &identity::PeerId) -> String {
@@ -14,8 +15,9 @@ pub fn member_name(state: &DiscoveryState, peer: &identity::PeerId) -> String {
 #[cfg(test)]
 mod tests {
 
+    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::member_name;
 

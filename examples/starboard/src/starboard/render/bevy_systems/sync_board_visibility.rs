@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
 use crate::starboard;
 
@@ -26,8 +26,9 @@ mod tests {
 
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
+    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::{discovery, ui};
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, ui};
 
     use super::sync_board_visibility;
     use crate::starboard;
@@ -92,10 +93,12 @@ mod tests {
         freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
             identity::PeerId::from("me"),
         )
-        .with_freenet_peers(vec![freenet_libp2p_bevy_plugin::freenet::FreenetPeer {
-            id: freenet_libp2p_bevy_plugin::freenet::FreenetPeerId::from("gateway"),
-            addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
-        }])
+        .with_freenet_peers(vec![
+            freenet_libp2p_bevy_plugin::lobby_room::freenet::FreenetPeer {
+                id: freenet_libp2p_bevy_plugin::lobby_room::freenet::FreenetPeerId::from("gateway"),
+                addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
+            },
+        ])
         .lobby_fetched()
         .with_lobby(lobby)
         .in_room(discovery::JoinedRoom {

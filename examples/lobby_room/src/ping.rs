@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use derive_more::Deref;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+use freenet_libp2p_bevy_plugin::{identity, p2p};
 use serde::{Deserialize, Serialize};
 
 use examples_shared::status;
@@ -76,8 +77,9 @@ mod tests {
 
     use bevy::prelude::*;
 
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
+    use freenet_libp2p_bevy_plugin::{identity, p2p};
 
     use super::{IsRoomPingEnabled, PingPayload, log_room_messages, publish_room_ping};
     use examples_shared::status::LocalUser;

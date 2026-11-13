@@ -181,7 +181,7 @@ mod tests {
         app.add_plugins(core_direct_dial::FriendsPlugin::new(
             core_direct_dial::Config::from(None),
         ));
-        app.add_plugins(core_discovery::Plugins(core_discovery::Config {
+        app.add_plugins(core_discovery::Plugin::new(core_discovery::Config {
             display_name: identity::Username::from("tester"),
             game,
             ..core_discovery::Config::default()

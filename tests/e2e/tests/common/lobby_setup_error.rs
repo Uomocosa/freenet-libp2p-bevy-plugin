@@ -6,14 +6,14 @@ pub enum LobbySetupError {
     #[error("lobby setup: embedded helper node failed to start: {0}")]
     NodeStart(String),
     #[error("lobby setup: contract deploy failed")]
-    Deploy(#[source] freenet_libp2p_bevy_plugin::freenet::Error),
+    Deploy(#[source] freenet_libp2p_bevy_plugin::lobby_room::freenet::Error),
     #[error("lobby setup: contract not readable after deploy")]
-    NotReadableAfterDeploy(#[source] freenet_libp2p_bevy_plugin::freenet::Error),
+    NotReadableAfterDeploy(#[source] freenet_libp2p_bevy_plugin::lobby_room::freenet::Error),
 }
 
 #[cfg(test)]
 mod tests {
-    use freenet_libp2p_bevy_plugin::freenet;
+    use freenet_libp2p_bevy_plugin::lobby_room::freenet;
 
     use super::LobbySetupError;
 

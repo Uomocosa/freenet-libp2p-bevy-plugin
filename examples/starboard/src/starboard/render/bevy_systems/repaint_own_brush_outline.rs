@@ -34,8 +34,9 @@ pub fn repaint_own_brush_outline(
 mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
+    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::repaint_own_brush_outline;
     use crate::starboard;

@@ -36,7 +36,8 @@ mod tests {
     use bevy::prelude::*;
     use bevy::time::TimeUpdateStrategy;
     use discovery::state_machine::DiscoveryState;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, time};
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+    use freenet_libp2p_bevy_plugin::{identity, time};
 
     use super::StarboardTestPlugin;
     use crate::starboard;

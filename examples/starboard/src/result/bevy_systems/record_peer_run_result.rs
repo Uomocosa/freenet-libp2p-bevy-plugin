@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
 use examples_shared::e2e_report::peer_run_result::PeerRunResult;
-use freenet_libp2p_bevy_plugin::{discovery, p2p};
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+use freenet_libp2p_bevy_plugin::p2p;
 
 use crate::script_runner::StarboardScriptRunner;
 use crate::starboard;
@@ -75,7 +76,8 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+    use freenet_libp2p_bevy_plugin::{identity, p2p};
 
     use super::record_peer_run_result;
     use crate::script_runner::StarboardScriptRunner;

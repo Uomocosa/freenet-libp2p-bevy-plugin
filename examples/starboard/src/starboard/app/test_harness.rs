@@ -4,8 +4,9 @@ use crate::starboard::app::connection_events::ConnectionEvents;
 use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::time;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, room_sync};
+use freenet_libp2p_bevy_plugin::{identity, p2p, plugin, room_sync};
 
 use crate::starboard;
 

@@ -51,6 +51,3 @@ pub use error::Error;
 
 mod plugin;
 pub use plugin::Plugin;
-
-mod plugins;
-pub use plugins::Plugins;

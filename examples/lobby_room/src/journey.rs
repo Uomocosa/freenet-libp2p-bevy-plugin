@@ -12,8 +12,9 @@ mod tests {
     use bevy::ui::Pressed;
     use discovery::state_machine::DiscoveryState;
 
+    use freenet_libp2p_bevy_plugin::lobby_room::{discovery, ui};
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, ui};
+    use freenet_libp2p_bevy_plugin::{identity, p2p};
 
     use crate::overlay;
     use examples_shared::status;
@@ -194,12 +195,14 @@ mod tests {
     fn node_reachable(world: &mut World) {
         let mut state = world.resource_mut::<DiscoveryState>();
         state.freenet_peers = (0..1)
-            .map(|index| freenet_libp2p_bevy_plugin::freenet::FreenetPeer {
-                id: freenet_libp2p_bevy_plugin::freenet::FreenetPeerId::from(
-                    format!("gateway-{index}").as_str(),
-                ),
-                addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
-            })
+            .map(
+                |index| freenet_libp2p_bevy_plugin::lobby_room::freenet::FreenetPeer {
+                    id: freenet_libp2p_bevy_plugin::lobby_room::freenet::FreenetPeerId::from(
+                        format!("gateway-{index}").as_str(),
+                    ),
+                    addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
+                },
+            )
             .collect();
         state.is_lobby_fetched = true;
     }

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::ui;
+use freenet_libp2p_bevy_plugin::lobby_room::ui;
 
 use crate::starboard;
 
@@ -25,8 +25,9 @@ pub fn refresh_member_icons(
 mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
-    use freenet_libp2p_bevy_plugin::discovery;
-    use freenet_libp2p_bevy_plugin::{identity, time, ui};
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+    use freenet_libp2p_bevy_plugin::lobby_room::ui;
+    use freenet_libp2p_bevy_plugin::{identity, time};
 
     use super::refresh_member_icons;
     use crate::starboard;

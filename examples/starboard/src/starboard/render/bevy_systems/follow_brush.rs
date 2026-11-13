@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
 use crate::starboard;
 
@@ -75,8 +75,9 @@ mod tests {
     use bevy::prelude::*;
     use bevy::window::PrimaryWindow;
     use discovery::state_machine::DiscoveryState;
+    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::follow_brush;
     use crate::starboard;

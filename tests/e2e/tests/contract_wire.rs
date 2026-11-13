@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
+use freenet_libp2p_bevy_plugin::identity;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::time;
-use freenet_libp2p_bevy_plugin::{discovery, identity};
 
 // needed helper: one lobby with a named and an unnamed member, as the plugin writes it
 fn plugin_lobby() -> discovery::Lobby {

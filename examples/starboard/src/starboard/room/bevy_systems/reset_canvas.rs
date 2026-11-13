@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
 use crate::starboard;
 
@@ -21,7 +21,8 @@ pub fn reset_canvas(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
+    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
     use super::reset_canvas;
     use crate::starboard;

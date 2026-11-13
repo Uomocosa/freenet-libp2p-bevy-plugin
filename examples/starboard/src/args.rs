@@ -4,11 +4,10 @@ use bevy::prelude::*;
 use clap::{Parser, ValueEnum};
 use examples_shared as shared;
 use examples_shared::e2e_report::peer_run_result::PeerRunResult;
+use freenet_libp2p_bevy_plugin::lobby_room::{LobbyRoomPlugins, discovery, ui};
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 use freenet_libp2p_bevy_plugin::testing::{E2EArgs, NetworkArgs};
-use freenet_libp2p_bevy_plugin::{
-    direct_dial, discovery, identity, p2p, plugin, room_sync, testing, ui,
-};
+use freenet_libp2p_bevy_plugin::{direct_dial, identity, p2p, plugin, room_sync, testing};
 
 use crate::scripted_starboard_step::ScriptedStarboardStep;
 use crate::{friend_intent, result, scaled_timings, script_runner, starboard, status, time_scale};
@@ -91,14 +90,12 @@ impl Args {
         app.add_plugins(direct_dial::FriendsPlugin::new(direct_dial::Config::from(
             self.peer_book_file.clone(),
         )));
-        app.add_plugins(discovery::Plugins(discovery::Config {
+        app.add_plugins(LobbyRoomPlugins(discovery::Config {
             display_name: identity::Username::from(self.username.clone()),
             game: game.clone(),
             lease: scaled_timings::scaled_lease_timings(time_scale),
             ..discovery::Config::default()
         }));
-        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
-        app.add_plugins(ui::direct_dial::FriendsUiPlugin);
         app.add_plugins(
             room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game)
                 .with_history_config(Some(scaled_timings::scaled_history_config(time_scale))),

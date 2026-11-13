@@ -2,7 +2,8 @@ use std::collections::BTreeSet;
 
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+use freenet_libp2p_bevy_plugin::{identity, p2p};
 
 use crate::starboard;
 
@@ -35,8 +36,9 @@ pub fn collect_remote_cursors(
 mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
+    use freenet_libp2p_bevy_plugin::{identity, p2p};
 
     use super::collect_remote_cursors;
     use crate::starboard;

@@ -83,8 +83,9 @@ pub fn draw_remote_cursors(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::draw_remote_cursors;
     use crate::starboard;

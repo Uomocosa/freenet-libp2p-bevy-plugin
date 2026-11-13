@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::{discovery, room_sync};
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+use freenet_libp2p_bevy_plugin::room_sync;
 
-use freenet_libp2p_bevy_plugin::ui;
+use freenet_libp2p_bevy_plugin::lobby_room::ui;
 
 use crate::starboard;
 
@@ -68,9 +69,10 @@ impl StarboardPlugin {
 mod tests {
     use bevy::prelude::*;
     use bevy::window::PrimaryWindow;
+    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
     use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, PendingOps, traits::ReplicatedState};
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use rstest::rstest;
 

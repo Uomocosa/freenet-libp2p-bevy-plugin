@@ -1,7 +1,8 @@
 #![allow(clippy::needless_pass_by_value)]
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::{discovery, identity};
+use freenet_libp2p_bevy_plugin::identity;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
 #[derive(Resource, Deref)]
 pub struct LocalUser(pub identity::Username);

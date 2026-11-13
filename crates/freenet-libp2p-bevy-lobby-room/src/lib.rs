@@ -4,9 +4,11 @@ pub use freenet_libp2p_bevy_core::{
 
 pub mod discovery;
 pub mod freenet;
+mod lobby_room_plugins;
 #[cfg(feature = "testing")]
 pub mod testing;
 pub mod ui;
+pub use lobby_room_plugins::LobbyRoomPlugins;
 
 #[path = "../__methods__/mod.rs"]
 mod methods;

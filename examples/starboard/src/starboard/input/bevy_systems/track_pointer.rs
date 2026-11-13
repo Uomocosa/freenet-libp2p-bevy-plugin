@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use freenet_libp2p_bevy_plugin::{room_sync, ui};
+use freenet_libp2p_bevy_plugin::lobby_room::ui;
+use freenet_libp2p_bevy_plugin::room_sync;
 
 use crate::starboard;
 
@@ -95,8 +96,8 @@ mod tests {
     use bevy::prelude::*;
     use bevy::time::TimeUpdateStrategy;
     use bevy::window::PrimaryWindow;
+    use freenet_libp2p_bevy_plugin::lobby_room::ui;
     use freenet_libp2p_bevy_plugin::room_sync;
-    use freenet_libp2p_bevy_plugin::ui;
 
     use std::ops::{Mul, Sub};
 

@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use freenet_libp2p_bevy_plugin::{discovery, room_sync};
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+use freenet_libp2p_bevy_plugin::room_sync;
 
 use crate::time_scale;
 

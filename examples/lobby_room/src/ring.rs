@@ -5,7 +5,7 @@ use std::sync::{
 use std::time::Duration;
 
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::freenet;
+use freenet_libp2p_bevy_plugin::lobby_room::freenet;
 
 /// How many ring peers the embedded Freenet node currently reports.
 ///

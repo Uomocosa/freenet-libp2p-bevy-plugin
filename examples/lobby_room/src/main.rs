@@ -10,8 +10,9 @@ mod ui;
 use bevy::prelude::*;
 use clap::Parser;
 use examples_shared as shared;
-use freenet_libp2p_bevy_plugin::ui as plugin_ui;
-use freenet_libp2p_bevy_plugin::{direct_dial, discovery, identity, p2p, plugin, testing};
+use freenet_libp2p_bevy_plugin::lobby_room::ui as plugin_ui;
+use freenet_libp2p_bevy_plugin::lobby_room::{LobbyRoomPlugins, discovery};
+use freenet_libp2p_bevy_plugin::{direct_dial, identity, p2p, plugin, testing};
 
 #[tokio::main]
 async fn main() -> bevy::app::AppExit {
@@ -84,7 +85,7 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
     app.add_plugins(direct_dial::FriendsPlugin::new(direct_dial::Config::from(
         args.peer_book_file.clone(),
     )));
-    let discovery_plugins = discovery::Plugins(discovery::Config {
+    let lobby_plugins = LobbyRoomPlugins(discovery::Config {
         display_name: username,
         game,
         ..discovery::Config::default()
@@ -92,11 +93,7 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
     // scripted input runs through Bevy's real typing/clicking paths
     match args.ui {
         args::UiArg::Default => {
-            app.add_plugins((
-                discovery_plugins,
-                plugin_ui::discovery::LobbyRoomUiPlugin,
-                plugin_ui::direct_dial::FriendsUiPlugin,
-            ));
+            app.add_plugins(lobby_plugins);
             app.add_systems(
                 Update,
                 shared::intent::script_input::<
@@ -107,7 +104,12 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
             );
         }
         args::UiArg::Custom => {
-            app.add_plugins(discovery_plugins);
+            app.add_plugins(
+                lobby_plugins
+                    .build()
+                    .disable::<plugin_ui::discovery::LobbyRoomUiPlugin>()
+                    .disable::<plugin_ui::direct_dial::FriendsUiPlugin>(),
+            );
             app.add_plugins(ui::LobbyUi);
             app.add_systems(
                 Update,

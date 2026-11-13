@@ -6,7 +6,8 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::EditableText;
 use bevy::window::{PrimaryWindow, WindowEvent};
-use freenet_libp2p_bevy_plugin::{direct_dial, identity, ui};
+use freenet_libp2p_bevy_plugin::lobby_room::ui;
+use freenet_libp2p_bevy_plugin::{direct_dial, identity};
 
 use ui::direct_dial::{AddFriendButton, FriendAddressInput};
 
@@ -252,7 +253,7 @@ mod tests {
     use bevy::text::EditableText;
     use bevy::window::{PrimaryWindow, WindowEvent};
     use freenet_libp2p_bevy_plugin::direct_dial;
-    use freenet_libp2p_bevy_plugin::ui;
+    use freenet_libp2p_bevy_plugin::lobby_room::ui;
 
     use super::{FriendIntent, FriendStep, drive_friend_intent};
 

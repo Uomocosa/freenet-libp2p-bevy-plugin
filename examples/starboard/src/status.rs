@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
 use crate::starboard;
 

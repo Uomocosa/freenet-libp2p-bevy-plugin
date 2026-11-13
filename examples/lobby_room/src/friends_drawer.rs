@@ -8,7 +8,8 @@ mod tests {
     use bevy::input::keyboard::KeyCode;
     use bevy::prelude::*;
     use bevy::ui::Pressed;
-    use freenet_libp2p_bevy_plugin::{direct_dial, discovery, identity, p2p, ui};
+    use freenet_libp2p_bevy_plugin::lobby_room::{discovery, ui};
+    use freenet_libp2p_bevy_plugin::{direct_dial, identity, p2p};
 
     use examples_shared::status;
 

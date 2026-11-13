@@ -1,5 +1,5 @@
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
 #[must_use]
 pub fn is_in_room(state: &DiscoveryState) -> bool {
@@ -13,8 +13,9 @@ pub fn is_in_room(state: &DiscoveryState) -> bool {
 mod tests {
     use discovery::state_machine::DiscoveryState;
 
+    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::is_in_room;
 

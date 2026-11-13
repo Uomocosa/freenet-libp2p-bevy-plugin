@@ -10,9 +10,9 @@ use bevy::ui::{InteractionDisabled, Pressed};
 use bevy::ui_widgets::{Button, TextInput};
 use derive_more::Deref;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::discovery;
 use freenet_libp2p_bevy_plugin::identity;
-use freenet_libp2p_bevy_plugin::ui::discovery::{
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+use freenet_libp2p_bevy_plugin::lobby_room::ui::discovery::{
     BUTTON_COLOR, BUTTON_LABEL_COLOR, CARET_COLOR, DISABLED_BUTTON_COLOR,
     DISABLED_BUTTON_LABEL_COLOR,
 };
@@ -322,7 +322,7 @@ mod tests {
 
     use super::LobbyUi;
     use discovery::state_machine::DiscoveryState;
-    use freenet_libp2p_bevy_plugin::discovery;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
     use freenet_libp2p_bevy_plugin::time;
 

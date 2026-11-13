@@ -4,7 +4,8 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
 use e2e_steps::starboard_steps::StarboardStep;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, peers, room_sync, testing, ui};
+use freenet_libp2p_bevy_plugin::lobby_room::{discovery, ui};
+use freenet_libp2p_bevy_plugin::{identity, p2p, peers, room_sync, testing};
 
 use crate::friend_intent::FriendIntent;
 use crate::scripted_starboard_step::ScriptedStarboardStep;

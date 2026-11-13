@@ -9,8 +9,8 @@ use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui::UiGlobalTransform;
 use bevy::window::{PrimaryWindow, WindowEvent};
-use freenet_libp2p_bevy_plugin::discovery;
 use freenet_libp2p_bevy_plugin::identity;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::testing::{Action, PendingAction};
 
 /// One scripted interaction, driven through **real** Bevy input.

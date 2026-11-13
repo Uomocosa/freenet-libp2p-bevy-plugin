@@ -32,8 +32,7 @@ freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core", default-featu
 freenet-libp2p-bevy-lobby-room = { path = "../freenet-libp2p-bevy-lobby-room", optional = true }
 
 [features]
-default = ["discovery", "default_ui"]
-discovery = ["freenet-libp2p-bevy-core/discovery", "dep:freenet-libp2p-bevy-lobby-room"]
-default_ui = ["discovery"]
-testing = ["discovery", "freenet-libp2p-bevy-core/testing", "freenet-libp2p-bevy-lobby-room/testing"]
-e2e = ["discovery", "default_ui", "testing", "freenet-libp2p-bevy-core/e2e"]
+default = ["lobby-room"]
+lobby-room = ["dep:freenet-libp2p-bevy-lobby-room"]
+testing = ["lobby-room", "freenet-libp2p-bevy-core/testing", "freenet-libp2p-bevy-lobby-room/testing"]
+e2e = ["testing", "freenet-libp2p-bevy-core/e2e"]

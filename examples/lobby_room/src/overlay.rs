@@ -4,7 +4,7 @@
 #![allow(clippy::needless_pass_by_value)]
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::discovery;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
 use examples_shared::status;
 
@@ -103,7 +103,8 @@ mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
 
-    use freenet_libp2p_bevy_plugin::{discovery, identity, time};
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+    use freenet_libp2p_bevy_plugin::{identity, time};
 
     use super::{Overlay, RoomBar, display_for};
 
