@@ -25,8 +25,8 @@ pub use basic::structs::{
 mod action;
 pub use action::Action;
 
-mod discovery_state_builder;
-pub use discovery_state_builder::DiscoveryStateBuilder;
+mod lobby;
+pub use lobby::DiscoveryStateBuilder;
 
 mod e2e_args;
 pub use e2e_args::E2EArgs;
