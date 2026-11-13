@@ -5,7 +5,6 @@ use crate::identity;
 
 #[derive(Message, Debug, Clone, PartialEq, Eq)]
 pub enum Input {
-    Tick,
     FriendAdded(identity::Peer),
     FriendRemoved(identity::PeerId),
     PeerConnected(identity::PeerId),

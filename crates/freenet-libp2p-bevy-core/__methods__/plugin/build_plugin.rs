@@ -19,7 +19,9 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.add_plugins(
         StateMachinePlugin::<discovery::state_machine::DiscoveryState>::default()
             .periodic()
-            .steps_on_exit(),
+            .also_update_in(Last)
+            .input_from::<discovery::Command>()
+            .output_into::<discovery::Event>(),
     );
     app.add_systems(
         Update,
@@ -27,7 +29,6 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
             discovery::bevy_systems::start_discovery_when_swarm_ready.run_if(not(
                 resource_exists::<discovery::state_machine::DiscoveryState>,
             )),
-            discovery::bevy_systems::commands_to_discovery_inputs,
             discovery::bevy_systems::translate_libp2p_events_to_discovery_inputs,
             discovery::bevy_systems::lobby_updates_to_discovery_inputs,
             discovery::bevy_systems::own_addrs_to_discovery_inputs,
@@ -39,9 +40,12 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.add_systems(
         Update,
         (
-            discovery::bevy_systems::notify_outputs_to_events,
-            discovery::bevy_systems::follow_room
-                .after(discovery::bevy_systems::notify_outputs_to_events),
+            discovery::bevy_systems::follow_room.after(
+                lele_bevy_state_machine::bevy_systems::forward_output::<
+                    discovery::state_machine::DiscoveryState,
+                    discovery::Event,
+                >,
+            ),
             discovery::bevy_systems::discovery_outputs_to_libp2p_commands,
             discovery::bevy_systems::publish_heartbeat_targets,
         )
@@ -72,7 +76,9 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
             discovery::bevy_systems::rebuild_room_roster,
         )
             .run_if(resource_exists::<discovery::state_machine::DiscoveryState>)
-            .after(discovery::bevy_systems::notify_outputs_to_events)
+            .after(StateMachineSystems::perform_outputs::<
+                discovery::state_machine::DiscoveryState,
+            >())
             .after(peers::bevy_systems::track_peer_connections),
     );
     app.add_systems(
@@ -84,7 +90,6 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.add_systems(
         Last,
         (
-            discovery::bevy_systems::notify_outputs_to_events,
             discovery::bevy_systems::discovery_outputs_to_libp2p_commands,
             discovery::bevy_systems::publish_heartbeat_targets,
         )

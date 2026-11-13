@@ -92,7 +92,6 @@ impl lele_bevy_state_machine::traits::StateMachine for DiscoveryState {
                 self.me.addrs = addrs;
                 Vec::new()
             }
-            Input::Tick => self.tick(now),
         }
     }
 }
@@ -100,7 +99,7 @@ impl lele_bevy_state_machine::traits::StateMachine for DiscoveryState {
 #[rustfmt::skip]
 impl lele_bevy_state_machine::traits::PeriodicStateMachine for DiscoveryState {
     const TICK_INTERVAL: Duration = discovery::TICK;
-    fn tick_input() -> Self::Input { Self::Input::Tick }
+    fn tick(&mut self, now: Self::Now) -> Vec<Self::Output> { Self::tick(self, now) }
 }
 
 #[atomic_delegates]

@@ -88,7 +88,9 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
         Update,
         direct_dial::bevy_systems::rebuild_friends_view
             .after(peers::bevy_systems::track_peer_connections)
-            .after(discovery::bevy_systems::notify_outputs_to_events),
+            .after(StateMachineSystems::perform_outputs::<
+                discovery::state_machine::DiscoveryState,
+            >()),
     );
     app.add_systems(
         Update,
@@ -101,6 +103,7 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use bevy::time::TimeUpdateStrategy;
     use lele_bevy_state_machine::testing::FrozenClock;
     use lele_bevy_state_machine::traits::StateMachine;
 
@@ -201,9 +204,10 @@ mod tests {
         let mut book = direct_dial::PeerBook::default();
         assert!(book.add_friend(peer_with("alice", "/ip4/127.0.0.1/tcp/4001")));
         let (mut app, _tx) = app_with_book(&book);
-        app.world_mut()
-            .resource_mut::<Messages<direct_dial::state_machine::Input>>()
-            .write(direct_dial::state_machine::Input::Tick);
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(
+            direct_dial::state_machine::TICK_INTERVAL,
+        ));
+        app.update();
         app.update();
         assert!(
             !app.world()

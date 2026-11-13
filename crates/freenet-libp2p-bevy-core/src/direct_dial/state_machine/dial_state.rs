@@ -27,7 +27,6 @@ impl lele_bevy_state_machine::traits::StateMachine for DialState {
     type Now = time::UnixTime;
     fn update(&mut self, input: Self::Input, now: Self::Now) -> Vec<Self::Output> {
         match input {
-            direct_dial::state_machine::Input::Tick => self.dial_due(now),
             direct_dial::state_machine::Input::FriendAdded(peer) => {
                 self.handle_friend_added(peer, now)
             }
@@ -49,7 +48,7 @@ impl lele_bevy_state_machine::traits::StateMachine for DialState {
 #[rustfmt::skip]
 impl lele_bevy_state_machine::traits::PeriodicStateMachine for DialState {
     const TICK_INTERVAL: Duration = direct_dial::state_machine::TICK_INTERVAL;
-    fn tick_input() -> Self::Input { Self::Input::Tick }
+    fn tick(&mut self, now: Self::Now) -> Vec<Self::Output> { self.dial_due(now) }
 }
 
 #[atomic_delegates]
@@ -124,7 +123,7 @@ impl DialState {
 
 #[cfg(test)]
 mod tests {
-    use lele_bevy_state_machine::traits::StateMachine;
+    use lele_bevy_state_machine::traits::{PeriodicStateMachine, StateMachine};
 
     use super::DialState;
     use crate::direct_dial;
@@ -250,14 +249,14 @@ mod tests {
             direct_dial::state_machine::Input::PeerConnected(peer.id.clone()),
             now,
         );
-        let outputs = state.update(direct_dial::state_machine::Input::Tick, now);
+        let outputs = state.tick(now);
         assert_eq!(outputs, Vec::new());
         let _ = state.update(
             direct_dial::state_machine::Input::PeerDisconnected(peer.id.clone()),
             now,
         );
         state.dial_in_flight.insert(peer.id);
-        let outputs = state.update(direct_dial::state_machine::Input::Tick, now);
+        let outputs = state.tick(now);
         assert_eq!(outputs, Vec::new());
     }
 
@@ -280,10 +279,7 @@ mod tests {
             later,
         );
         assert!(!state.connected.contains(&peer.id));
-        let outputs = state.update(
-            direct_dial::state_machine::Input::Tick,
-            time::UnixTime::from_secs(1000),
-        );
+        let outputs = state.tick(time::UnixTime::from_secs(1000));
         assert!(outputs.iter().any(|output| matches!(
             output,
             direct_dial::state_machine::Output::Dial(dialed) if dialed.id == peer.id
@@ -363,10 +359,7 @@ mod tests {
             direct_dial::state_machine::Input::FriendRemoved(peer.id),
             now,
         );
-        let outputs = state.update(
-            direct_dial::state_machine::Input::Tick,
-            time::UnixTime::from_secs(1000),
-        );
+        let outputs = state.tick(time::UnixTime::from_secs(1000));
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.entries, Vec::new());
     }
@@ -377,7 +370,7 @@ mod tests {
         assert!(book.add_friend(friend_peer("alice")));
         let now = time::UnixTime::from_secs(10);
         let mut state = DialState::from_peer_book(&book, now);
-        let outputs = state.update(direct_dial::state_machine::Input::Tick, now);
+        let outputs = state.tick(now);
         assert_eq!(outputs.len(), 1);
         assert!(matches!(
             outputs.first(),
