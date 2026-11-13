@@ -3,8 +3,6 @@ use atomic_delegate_macros::atomic_delegates;
 use crate::identity;
 use crate::testing;
 
-pub const FREENET_NODE_STARTED: &str = "lobby freenet node started";
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LobbyStep {
     CreateRoom(identity::RoomName),

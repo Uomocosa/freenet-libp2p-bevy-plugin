@@ -80,7 +80,8 @@ pub fn e2e_test(attr: TokenStream, item: TokenStream) -> TokenStream {
             let mut orchestrator = freenet_libp2p_bevy_plugin::testing::Orchestrator::from_game_and_network(
                 #game.to_string(),
                 #network_expr,
-            );
+            )
+            .with_fake_network_kit::<freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyKit>();
             {
                 let #binding = &mut orchestrator;
                 #(#stmts)*

@@ -1,0 +1,54 @@
+[package]
+name = "freenet-libp2p-bevy-lobby-room"
+version.workspace = true
+edition.workspace = true
+description = "Lobby-room kit for freenet-libp2p-bevy-plugin: Freenet lobby discovery, the Freenet client, and lobby fakes — depends on freenet-libp2p-bevy-core"
+license.workspace = true
+
+[lints.rust]
+non_snake_case = "allow"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+unreachable = "deny"
+unimplemented = "deny"
+unchecked_time_subtraction = "deny"
+todo = "deny"
+string_slice = "deny"
+panic_in_result_fn = "deny"
+panic = "deny"
+exit = "deny"
+as_conversions = "deny"
+module_inception = "allow"
+missing_errors_doc = "allow"
+
+[dependencies]
+freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core" }
+atomic-delegate-macros.workspace = true
+bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui", "keyboard", "system_clipboard"] }
+common_types = { workspace = true, features = ["bevy"] }
+lele-bevy-state-machine.workspace = true
+derive_more = { workspace = true, features = ["deref", "deref_mut", "display", "from"] }
+bincode.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util", "net"] }
+libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
+tracing = "=0.1.44"
+futures-util = "=0.3.34"
+freenet-stdlib = { workspace = true, features = ["net"] }
+tokio-tungstenite = { version = "=0.27.0" }
+http = { version = "=1.5.0" }
+
+[features]
+testing = ["freenet-libp2p-bevy-core/testing"]
+
+[dev-dependencies]
+lele-bevy-state-machine = { workspace = true, features = ["testing"] }
+freenet-stdlib = { workspace = true, features = ["contract"] }
+tokio = { version = "=1.54.1", features = ["test-util"] }

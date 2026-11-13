@@ -4,7 +4,6 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
 use crate::p2p;
 use crate::testing;
@@ -36,11 +35,6 @@ pub struct E2EStepPoll {
 pub struct E2EStepView {
     pub room_message_senders: usize,
     pub members: usize,
-}
-
-pub struct LobbyStepView<'a> {
-    pub status: &'a discovery::state_machine::DiscoveryState,
-    pub join_error: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

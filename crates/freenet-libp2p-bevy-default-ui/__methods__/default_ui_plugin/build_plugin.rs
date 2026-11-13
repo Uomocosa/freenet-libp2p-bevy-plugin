@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use crate::roster;
-use freenet_libp2p_bevy_core::discovery as core_discovery;
 use freenet_libp2p_bevy_core::room_sync;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn build_plugin(_plugin: discovery::DefaultUiPlugin, app: &mut App) {
     use discovery::bevy_systems as ui;
@@ -74,7 +74,7 @@ mod tests {
     use bevy::prelude::*;
 
     use super::build_plugin;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     #[test]
     fn test_usage() {

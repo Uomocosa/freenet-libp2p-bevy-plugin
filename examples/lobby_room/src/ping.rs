@@ -76,7 +76,6 @@ mod tests {
 
     use bevy::prelude::*;
 
-    use freenet_libp2p_bevy_plugin::testing;
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
@@ -102,16 +101,18 @@ mod tests {
                 membership: discovery::RoomMembership::Occupant,
             },
         );
-        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .in_room(discovery::JoinedRoom {
-                name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::EPOCH,
-                phase: discovery::JoinPhase::Ready,
-                members,
-                how_entered: discovery::HowRoomWasEntered::Created,
-            })
-            .with_connected(vec![identity::PeerId::from("peer-b")])
-            .build();
+        let state = freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .in_room(discovery::JoinedRoom {
+            name: identity::RoomName::from("alpha"),
+            created_at: time::UnixTime::EPOCH,
+            phase: discovery::JoinPhase::Ready,
+            members,
+            how_entered: discovery::HowRoomWasEntered::Created,
+        })
+        .with_connected(vec![identity::PeerId::from("peer-b")])
+        .build();
         app.insert_resource(state);
         app.insert_resource(p2p::PendingCommands::<PingPayload>::default());
         app.insert_resource(p2p::PendingEvents(vec![p2p::Event::RoomMessage {

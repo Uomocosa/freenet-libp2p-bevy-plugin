@@ -27,21 +27,23 @@ mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, testing, ui};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, ui};
 
     use super::sync_board_visibility;
     use crate::starboard;
 
     fn status_with(phase: discovery::JoinPhase) -> DiscoveryState {
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .in_room(discovery::JoinedRoom {
-                name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::EPOCH,
-                phase,
-                members: discovery::Members::new(),
-                how_entered: discovery::HowRoomWasEntered::Created,
-            })
-            .build()
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .in_room(discovery::JoinedRoom {
+            name: identity::RoomName::from("alpha"),
+            created_at: time::UnixTime::EPOCH,
+            phase,
+            members: discovery::Members::new(),
+            how_entered: discovery::HowRoomWasEntered::Created,
+        })
+        .build()
     }
 
     fn visibility_after(state: DiscoveryState) -> Visibility {
@@ -68,7 +70,10 @@ mod tests {
         );
         assert_eq!(
             visibility_after(
-                testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build()
+                freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+                    identity::PeerId::from("me")
+                )
+                .build()
             ),
             Visibility::Hidden
         );
@@ -84,21 +89,23 @@ mod tests {
                 members: BTreeMap::new(),
             },
         );
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .with_freenet_peers(vec![freenet_libp2p_bevy_plugin::freenet::FreenetPeer {
-                id: freenet_libp2p_bevy_plugin::freenet::FreenetPeerId::from("gateway"),
-                addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
-            }])
-            .lobby_fetched()
-            .with_lobby(lobby)
-            .in_room(discovery::JoinedRoom {
-                name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::EPOCH,
-                phase: discovery::JoinPhase::Ready,
-                members: discovery::Members::new(),
-                how_entered: discovery::HowRoomWasEntered::Created,
-            })
-            .build()
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .with_freenet_peers(vec![freenet_libp2p_bevy_plugin::freenet::FreenetPeer {
+            id: freenet_libp2p_bevy_plugin::freenet::FreenetPeerId::from("gateway"),
+            addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
+        }])
+        .lobby_fetched()
+        .with_lobby(lobby)
+        .in_room(discovery::JoinedRoom {
+            name: identity::RoomName::from("alpha"),
+            created_at: time::UnixTime::EPOCH,
+            phase: discovery::JoinPhase::Ready,
+            members: discovery::Members::new(),
+            how_entered: discovery::HowRoomWasEntered::Created,
+        })
+        .build()
     }
 
     fn leave_room(world: &mut World) {

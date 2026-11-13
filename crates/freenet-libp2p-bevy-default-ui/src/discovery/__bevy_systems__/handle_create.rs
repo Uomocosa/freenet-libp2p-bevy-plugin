@@ -4,8 +4,8 @@ use bevy::ui::Pressed;
 
 use crate::discovery;
 use discovery::{CreateRoomButton, RoomNameInput};
-use freenet_libp2p_bevy_core::discovery as core_discovery;
 use freenet_libp2p_bevy_core::identity;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn handle_create(
     buttons: Query<(), (Added<Pressed>, With<CreateRoomButton>)>,
@@ -35,7 +35,7 @@ mod tests {
     use freenet_libp2p_bevy_core::identity;
 
     use super::handle_create;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     fn sent_after_press(typed: &str) -> Vec<core_discovery::Command> {
         let mut app = App::new();

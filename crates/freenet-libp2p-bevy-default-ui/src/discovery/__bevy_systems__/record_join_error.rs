@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::discovery;
 use discovery::JoinError;
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn record_join_error(
     mut events: MessageReader<core_discovery::Event>,
@@ -33,8 +33,8 @@ mod tests {
     use bevy::prelude::*;
 
     use super::record_join_error;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
     use freenet_libp2p_bevy_core::identity;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     #[test]
     fn test_usage() {

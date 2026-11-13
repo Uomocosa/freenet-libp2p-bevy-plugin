@@ -102,14 +102,17 @@ const fn display_for(is_shown: bool) -> Display {
 mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
-    use freenet_libp2p_bevy_plugin::testing;
+
     use freenet_libp2p_bevy_plugin::{discovery, identity, time};
 
     use super::{Overlay, RoomBar, display_for};
 
     fn preview_build(app: &mut App) {
         app.insert_resource(
-            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build(),
+            freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+                identity::PeerId::from("me"),
+            )
+            .build(),
         );
         app.insert_resource(examples_shared::status::LocalUser(
             identity::Username::from("alice"),
@@ -173,7 +176,10 @@ mod tests {
         assert!(matches!(display_for(false), Display::None));
         let mut app = App::new();
         app.insert_resource(
-            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build(),
+            freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+                identity::PeerId::from("me"),
+            )
+            .build(),
         );
         app.insert_resource(examples_shared::status::LocalUser(
             identity::Username::from("alice"),

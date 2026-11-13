@@ -36,7 +36,7 @@ mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, testing};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
     use super::collect_remote_cursors;
     use crate::starboard;
@@ -57,15 +57,17 @@ mod tests {
                 },
             );
         }
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .in_room(discovery::JoinedRoom {
-                name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::EPOCH,
-                phase: discovery::JoinPhase::Ready,
-                members: room_members,
-                how_entered: discovery::HowRoomWasEntered::Created,
-            })
-            .build()
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .in_room(discovery::JoinedRoom {
+            name: identity::RoomName::from("alpha"),
+            created_at: time::UnixTime::EPOCH,
+            phase: discovery::JoinPhase::Ready,
+            members: room_members,
+            how_entered: discovery::HowRoomWasEntered::Created,
+        })
+        .build()
     }
 
     fn cursor(x: u16) -> starboard::room::CursorUpdate {

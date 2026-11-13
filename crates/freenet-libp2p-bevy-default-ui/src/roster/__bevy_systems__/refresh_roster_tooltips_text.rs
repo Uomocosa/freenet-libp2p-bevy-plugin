@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::roster;
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 use roster::{RosterCountTooltip, RosterDotTooltip};
 
 pub fn refresh_roster_tooltips_text(
@@ -33,7 +33,7 @@ mod tests {
     use crate::basic::constants::ROOM_COLOR;
     use crate::roster;
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     fn roster_with(
         own: core_discovery::OwnRoomStatus,

@@ -5,7 +5,7 @@ use crate::discovery;
 use core_discovery::state_machine::DiscoveryState;
 use discovery::CURRENT_ROOM_COLOR;
 use discovery::{IsCurrentRoom, RoomButton};
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn highlight_current_room(
     mut commands: Commands,
@@ -55,10 +55,10 @@ mod tests {
 
     use super::highlight_current_room;
     use core_discovery::state_machine::DiscoveryState;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
     use freenet_libp2p_bevy_core::identity;
-    use freenet_libp2p_bevy_core::testing;
     use freenet_libp2p_bevy_core::time;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::testing;
 
     #[test]
     fn test_usage() {

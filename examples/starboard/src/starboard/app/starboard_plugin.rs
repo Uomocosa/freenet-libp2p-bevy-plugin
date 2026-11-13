@@ -70,7 +70,7 @@ mod tests {
     use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, PendingOps, traits::ReplicatedState};
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
+    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use rstest::rstest;
 
@@ -79,7 +79,7 @@ mod tests {
     use discovery::state_machine::DiscoveryState;
 
     fn ready_status(me: &identity::PeerId) -> DiscoveryState {
-        testing::DiscoveryStateBuilder::new(me.clone())
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(me.clone())
             .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,

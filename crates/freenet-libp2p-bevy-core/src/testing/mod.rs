@@ -8,8 +8,8 @@ mod basic;
 pub mod traits;
 
 pub use basic::constants::{
-    QUIT_PUBLISH_GRACE, ROOM_PLACEHOLDER, SCRIPT_CHECKPOINT_COMPLETED_PREFIX, SCRIPT_DONE_MARKER,
-    SCRIPT_FAILED_EXIT_CODE, SCRIPT_FAILED_MARKER, STEP_DONE_MARKER,
+    FREENET_NODE_STARTED, QUIT_PUBLISH_GRACE, ROOM_PLACEHOLDER, SCRIPT_CHECKPOINT_COMPLETED_PREFIX,
+    SCRIPT_DONE_MARKER, SCRIPT_FAILED_EXIT_CODE, SCRIPT_FAILED_MARKER, STEP_DONE_MARKER,
 };
 pub use basic::enums::{
     E2EStepEffect, FakeWireClientFrame, FakeWireServerFrame, FanOutTarget, PeerExit, StepOutcome,
@@ -18,15 +18,12 @@ pub use basic::messages::E2EExtensionEffect;
 pub use basic::newtypes::{MemberCount, SenderCount};
 pub use basic::resources::PendingAction;
 pub use basic::structs::{
-    BookKindExpectation, E2EStepPoll, E2EStepView, FakeWireHello, FanOut, LivePeer, LobbyStepView,
-    ReportCheck, RoutedEvent, RunningPeer, StepClock, StepTiming, StoredStep,
+    BookKindExpectation, E2EStepPoll, E2EStepView, FakeWireHello, FanOut, LivePeer, ReportCheck,
+    RoutedEvent, RunningPeer, StepClock, StepTiming, StoredStep,
 };
 
 mod action;
 pub use action::Action;
-
-mod lobby;
-pub use lobby::DiscoveryStateBuilder;
 
 mod e2e_args;
 pub use e2e_args::E2EArgs;
@@ -39,9 +36,6 @@ pub use fake_network_server::FakeNetworkServer;
 
 mod no_fake_network_kit;
 pub use no_fake_network_kit::NoFakeNetworkKit;
-
-mod lobby_kit;
-pub use lobby_kit::LobbyKit;
 
 mod fake_task_handles;
 pub use fake_task_handles::FakeTaskHandles;
@@ -56,9 +50,6 @@ pub(crate) mod orchestrator_shared;
 
 mod e2e_step;
 pub use e2e_step::E2EStep;
-
-mod lobby_step;
-pub use lobby_step::{FREENET_NODE_STARTED, LobbyStep};
 
 mod e2e_step_effect_sink;
 pub use e2e_step_effect_sink::E2EStepEffectSink;

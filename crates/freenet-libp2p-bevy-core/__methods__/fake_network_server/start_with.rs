@@ -4,7 +4,9 @@ use tokio::net::TcpListener;
 
 use crate::testing;
 
-pub async fn start() -> Result<testing::FakeNetworkServer, String> {
+pub async fn start_with(
+    kit: Box<dyn testing::traits::FakeNetworkKit>,
+) -> Result<testing::FakeNetworkServer, String> {
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .map_err(|error| error.to_string())?;
@@ -13,7 +15,6 @@ pub async fn start() -> Result<testing::FakeNetworkServer, String> {
         .map_err(|error| error.to_string())?
         .port();
     let orchestrator = testing::FakeNetworkServer(port);
-    let kit: Box<dyn testing::traits::FakeNetworkKit> = Box::new(testing::LobbyKit::default());
     let shared = Arc::new(tokio::sync::Mutex::new(
         testing::orchestrator_shared::OrchestratorShared::from(kit),
     ));
@@ -39,7 +40,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_usage() {
-        let started = testing::FakeNetworkServer::start().await.expect("start");
-        assert!(*started != 0);
+        let started = testing::FakeNetworkServer::start_with(Box::new(testing::NoFakeNetworkKit))
+            .await
+            .expect("start");
+        assert!(*started > 0);
     }
 }

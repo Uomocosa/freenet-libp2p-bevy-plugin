@@ -21,8 +21,9 @@
 use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::identity::{PeerId, RoomName};
+use freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStep;
 use freenet_libp2p_bevy_plugin::testing::{
-    E2EStep, LobbyStep, MemberCount, ROOM_PLACEHOLDER, ScriptCheckpoint, StepWithDeadline,
+    E2EStep, MemberCount, ROOM_PLACEHOLDER, ScriptCheckpoint, StepWithDeadline,
     traits::{OrchestratedStep, ScriptStep},
 };
 

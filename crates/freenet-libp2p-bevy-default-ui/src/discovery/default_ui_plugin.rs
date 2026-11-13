@@ -41,9 +41,9 @@ mod tests {
     use crate::direct_dial;
     use crate::discovery;
     use core_discovery::state_machine::DiscoveryState;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
-    use freenet_libp2p_bevy_core::testing;
     use freenet_libp2p_bevy_core::time;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::testing;
 
     fn preview_build(app: &mut App) {
         app.add_message::<core_discovery::Command>();
@@ -56,13 +56,15 @@ mod tests {
     }
 
     fn preview_snapshot() -> DiscoveryState {
-        let peers: Vec<freenet_libp2p_bevy_core::freenet::FreenetPeer> = (1..=3_u16)
-            .map(|port| freenet_libp2p_bevy_core::freenet::FreenetPeer {
-                id: freenet_libp2p_bevy_core::freenet::FreenetPeerId::from(
-                    format!("peer-{port}").as_str(),
-                ),
-                addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
-            })
+        let peers: Vec<freenet_libp2p_bevy_lobby_room::freenet::FreenetPeer> = (1..=3_u16)
+            .map(
+                |port| freenet_libp2p_bevy_lobby_room::freenet::FreenetPeer {
+                    id: freenet_libp2p_bevy_lobby_room::freenet::FreenetPeerId::from(
+                        format!("peer-{port}").as_str(),
+                    ),
+                    addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+                },
+            )
             .collect();
         let mut lobby = core_discovery::Lobby::default();
         for (name, room_size) in [("alpha", 8), ("beta", 4)] {

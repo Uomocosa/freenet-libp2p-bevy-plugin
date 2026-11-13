@@ -3,8 +3,8 @@ use bevy::ui::Pressed;
 
 use crate::discovery;
 use discovery::RoomButton;
-use freenet_libp2p_bevy_core::discovery as core_discovery;
 use freenet_libp2p_bevy_core::identity;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn handle_join(
     buttons: Query<&RoomButton, Added<Pressed>>,
@@ -38,7 +38,7 @@ mod tests {
     use freenet_libp2p_bevy_core::identity;
 
     use super::handle_join;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     #[test]
     fn test_usage() {

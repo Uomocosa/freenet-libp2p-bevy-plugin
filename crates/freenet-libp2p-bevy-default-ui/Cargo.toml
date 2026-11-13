@@ -28,7 +28,8 @@ module_inception = "allow"
 missing_errors_doc = "allow"
 
 [dependencies]
-freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core", features = ["discovery"] }
+freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core" }
+freenet-libp2p-bevy-lobby-room = { path = "../freenet-libp2p-bevy-lobby-room" }
 bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui", "keyboard", "system_clipboard"] }
 atomic-delegate-macros.workspace = true
 derive_more = { workspace = true, features = ["deref", "deref_mut"] }
@@ -36,7 +37,8 @@ tracing = "=0.1.44"
 
 [dev-dependencies]
 freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core", features = ["testing"] }
-lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.15" }
+freenet-libp2p-bevy-lobby-room = { path = "../freenet-libp2p-bevy-lobby-room", features = ["testing"] }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.16" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
 libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
 tokio = { version = "=1.54.1", features = ["rt", "macros", "time"] }

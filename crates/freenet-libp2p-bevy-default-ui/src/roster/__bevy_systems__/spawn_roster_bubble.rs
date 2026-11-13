@@ -174,9 +174,9 @@ mod tests {
         ));
     }
 
-    fn preview_roster() -> freenet_libp2p_bevy_core::discovery::RoomRoster {
-        freenet_libp2p_bevy_core::discovery::RoomRoster {
-            own: freenet_libp2p_bevy_core::discovery::OwnRoomStatus::Connected,
+    fn preview_roster() -> freenet_libp2p_bevy_lobby_room::discovery::RoomRoster {
+        freenet_libp2p_bevy_lobby_room::discovery::RoomRoster {
+            own: freenet_libp2p_bevy_lobby_room::discovery::OwnRoomStatus::Connected,
             count: 3,
             max: 8,
             entries: Vec::new(),

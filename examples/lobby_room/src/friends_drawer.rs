@@ -8,7 +8,7 @@ mod tests {
     use bevy::input::keyboard::KeyCode;
     use bevy::prelude::*;
     use bevy::ui::Pressed;
-    use freenet_libp2p_bevy_plugin::{direct_dial, discovery, identity, p2p, testing, ui};
+    use freenet_libp2p_bevy_plugin::{direct_dial, discovery, identity, p2p, ui};
 
     use examples_shared::status;
 
@@ -61,15 +61,17 @@ mod tests {
     /// A joined room behind the drawer: the picker then shows the room screen,
     /// the same backdrop the drawer slides over in a real room.
     fn in_room_state() -> discovery::state_machine::DiscoveryState {
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .in_room(discovery::JoinedRoom {
-                name: identity::RoomName::from("gamma"),
-                created_at: freenet_libp2p_bevy_plugin::time::UnixTime::EPOCH,
-                phase: discovery::JoinPhase::Ready,
-                members: discovery::Members::new(),
-                how_entered: discovery::HowRoomWasEntered::Created,
-            })
-            .build()
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .in_room(discovery::JoinedRoom {
+            name: identity::RoomName::from("gamma"),
+            created_at: freenet_libp2p_bevy_plugin::time::UnixTime::EPOCH,
+            phase: discovery::JoinPhase::Ready,
+            members: discovery::Members::new(),
+            how_entered: discovery::HowRoomWasEntered::Created,
+        })
+        .build()
     }
 
     fn chip_label(app: &mut App) -> String {

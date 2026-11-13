@@ -9,7 +9,7 @@ use discovery::{
     ROOM_BUBBLE_FULL_COLOR, ROOM_BUBBLE_HAS_SPACE_COLOR, ROOM_NAME_WIDTH, ROOM_ROW_WIDTH,
     RoomBubble, RoomButton, RoomNameClip, RoomNameScroller,
 };
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::LobbyRow) {
     let bubble_color = match row.occupancy {
@@ -92,8 +92,8 @@ mod tests {
     use bevy::prelude::*;
 
     use crate::discovery;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
     use freenet_libp2p_bevy_core::identity;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     #[test]
     fn test_usage() {

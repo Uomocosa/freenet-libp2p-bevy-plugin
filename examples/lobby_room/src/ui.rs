@@ -323,7 +323,7 @@ mod tests {
     use super::LobbyUi;
     use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::discovery;
-    use freenet_libp2p_bevy_plugin::testing;
+
     use freenet_libp2p_bevy_plugin::time;
 
     fn preview_build(app: &mut App) {
@@ -342,9 +342,11 @@ mod tests {
                 members: std::collections::BTreeMap::new(),
             },
         );
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .with_lobby(lobby)
-            .build()
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .with_lobby(lobby)
+        .build()
     }
 
     const fn preview_noop(_world: &mut World) {}

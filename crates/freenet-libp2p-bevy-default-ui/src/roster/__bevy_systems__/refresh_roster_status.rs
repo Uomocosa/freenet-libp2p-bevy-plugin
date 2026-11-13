@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::roster;
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 use roster::{
     ROSTER_CONNECTED_COLOR, ROSTER_CONNECTING_COLOR, ROSTER_DISCONNECTED_COLOR, RosterBubble,
     RosterCount, RosterDot,
@@ -48,7 +48,7 @@ mod tests {
     use super::refresh_roster_status;
     use crate::roster;
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     use crate::basic::constants::ROOM_COLOR;
 

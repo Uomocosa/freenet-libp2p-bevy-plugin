@@ -88,8 +88,7 @@ pub fn spawn_fake_lobby_task(
                                 break;
                             }
                         }
-                        testing::FakeWireServerFrame::Libp2pEvent(_)
-                        | testing::FakeWireServerFrame::FreenetPeers(_) => {}
+                        testing::FakeWireServerFrame::Libp2pEvent(_) => {}
                     }
                 }
             }

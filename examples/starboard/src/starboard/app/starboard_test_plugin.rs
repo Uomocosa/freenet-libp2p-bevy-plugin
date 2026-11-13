@@ -36,14 +36,14 @@ mod tests {
     use bevy::prelude::*;
     use bevy::time::TimeUpdateStrategy;
     use discovery::state_machine::DiscoveryState;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, testing, time};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, time};
 
     use super::StarboardTestPlugin;
     use crate::starboard;
     use crate::starboard::app::WallClockSystem;
 
     fn ready_status(me: &identity::PeerId) -> DiscoveryState {
-        testing::DiscoveryStateBuilder::new(me.clone())
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(me.clone())
             .in_room(discovery::JoinedRoom {
                 name: identity::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,

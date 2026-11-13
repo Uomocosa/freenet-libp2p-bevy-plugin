@@ -10,9 +10,15 @@ use crate::testing;
 #[from(forward)]
 pub struct FakeNetworkServer(pub u16);
 
+impl FakeNetworkServer {
+    #[rustfmt::skip]
+    pub async fn start() -> Result<Self, String> { Self::start_with(Box::new(testing::NoFakeNetworkKit)).await }
+}
+
 #[atomic_delegates]
 impl FakeNetworkServer {
-    pub async fn start() -> Result<Self, String> {}
+    pub async fn start_with(kit: Box<dyn testing::traits::FakeNetworkKit>) -> Result<Self, String> {
+    }
 }
 
 #[atomic_delegates]
@@ -39,3 +45,14 @@ impl FakeNetworkServer {
 }
 
 // no test_usage necessary
+
+#[cfg(test)]
+mod tests {
+    use crate::testing;
+
+    #[tokio::test]
+    async fn test_usage() {
+        let started = testing::FakeNetworkServer::start().await.expect("start");
+        assert!(*started > 0);
+    }
+}

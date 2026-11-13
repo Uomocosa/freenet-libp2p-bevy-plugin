@@ -1,0 +1,19 @@
+[honesty]
+declared_honest = []
+declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "rand::thread_rng", "rand::random", "getrandom::getrandom", "std::fs::read", "std::fs::write", "std::env::var"]
+
+[lele.layout]
+roots = ["src"]
+
+[[lele.boundary]]
+name       = "state_machine is pure protocol logic"
+why        = "A state machine receives `now` and inputs as arguments and returns outputs; lele-bevy-state-machine drives it."
+folders    = ["src/discovery/state_machine"]
+cannot_use = ["tokio", "libp2p", "std::net", "std::fs", "std::time::Instant", "std::time::SystemTime"]
+require    = "honest"
+
+[[lele.boundary]]
+name       = "freenet is a generic client"
+why        = "src/freenet knows nothing about lobbies; discovery adapts it (discovery -> freenet, never the reverse)."
+folders    = ["src/freenet"]
+cannot_use = ["crate::discovery"]

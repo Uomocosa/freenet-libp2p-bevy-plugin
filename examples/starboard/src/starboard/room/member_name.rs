@@ -13,7 +13,7 @@ pub fn member_name(state: &DiscoveryState, peer: &identity::PeerId) -> String {
 
 #[cfg(test)]
 mod tests {
-    use freenet_libp2p_bevy_plugin::testing;
+
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{discovery, identity};
 
@@ -35,15 +35,17 @@ mod tests {
                 membership: discovery::RoomMembership::Occupant,
             },
         );
-        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .in_room(discovery::JoinedRoom {
-                name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::EPOCH,
-                phase: discovery::JoinPhase::Ready,
-                members,
-                how_entered: discovery::HowRoomWasEntered::Created,
-            })
-            .build();
+        let state = freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .in_room(discovery::JoinedRoom {
+            name: identity::RoomName::from("alpha"),
+            created_at: time::UnixTime::EPOCH,
+            phase: discovery::JoinPhase::Ready,
+            members,
+            how_entered: discovery::HowRoomWasEntered::Created,
+        })
+        .build();
         assert_eq!(member_name(&state, &peer), "ada");
         let stranger = identity::PeerId::from("peer-z");
         assert_eq!(member_name(&state, &stranger), "peer-z");

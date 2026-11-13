@@ -74,9 +74,9 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
         || freenet_libp2p_bevy_plugin::game_id!(),
         identity::GameId::from,
     );
-    app.add_plugins(testing::FakeNetworkPlugin::<ping::PingPayload>::from(
-        &args.network,
-    ));
+    let fake = testing::FakeNetworkPlugin::<ping::PingPayload>::from(&args.network);
+    let lobby = freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyFakeNetworkPlugin::new(&fake);
+    app.add_plugins((fake, lobby));
     app.add_plugins(plugin::P2PPlugin(
         plugin::Config::<ping::PingPayload>::new(transport, p2p::MdnsMode::Disabled)
             .with_game(game.clone()),

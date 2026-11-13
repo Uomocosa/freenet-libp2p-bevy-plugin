@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::discovery;
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn rebuild_room_list(
     mut commands: Commands,
@@ -33,8 +33,8 @@ mod tests {
     use crate::discovery;
     use bevy::prelude::*;
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
     use freenet_libp2p_bevy_core::identity;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     use super::rebuild_room_list;
 
@@ -183,7 +183,7 @@ mod tests {
         for name in ["alpha", "beta"] {
             lobby.insert(identity::RoomName::from(name), room(&[]));
         }
-        let state = freenet_libp2p_bevy_core::testing::DiscoveryStateBuilder::new(
+        let state = freenet_libp2p_bevy_lobby_room::testing::DiscoveryStateBuilder::new(
             identity::PeerId::from("me"),
         )
         .with_lobby(lobby)
@@ -211,7 +211,7 @@ mod tests {
                 ("departed", core_discovery::RoomMembership::Departed),
             ]),
         );
-        let state = freenet_libp2p_bevy_core::testing::DiscoveryStateBuilder::new(
+        let state = freenet_libp2p_bevy_lobby_room::testing::DiscoveryStateBuilder::new(
             identity::PeerId::from("me"),
         )
         .with_lobby(lobby)
@@ -422,9 +422,11 @@ mod tests {
                     .collect::<BTreeMap<_, _>>(),
             },
         );
-        freenet_libp2p_bevy_core::testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .with_lobby(lobby)
-            .build()
+        freenet_libp2p_bevy_lobby_room::testing::DiscoveryStateBuilder::new(identity::PeerId::from(
+            "me",
+        ))
+        .with_lobby(lobby)
+        .build()
     }
 
     fn preview_build(app: &mut App) {

@@ -5,7 +5,7 @@ use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::time;
-use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, room_sync, testing};
+use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, plugin, room_sync};
 
 use crate::starboard;
 
@@ -65,7 +65,7 @@ pub fn room_status(
             },
         );
     }
-    testing::DiscoveryStateBuilder::new(me.clone())
+    freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(me.clone())
         .with_connected(connected)
         .in_room(discovery::JoinedRoom {
             name: room.clone(),

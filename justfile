@@ -21,6 +21,8 @@ build:
 features:
     cargo check -p freenet-libp2p-bevy-core --no-default-features
     cargo check -p freenet-libp2p-bevy-core
+    cargo check -p freenet-libp2p-bevy-lobby-room
+    cargo check -p freenet-libp2p-bevy-lobby-room --features testing
     cargo check -p freenet-libp2p-bevy-default-ui
     cargo check -p freenet-libp2p-bevy-plugin --no-default-features
     cargo check -p freenet-libp2p-bevy-plugin
@@ -361,17 +363,20 @@ new-game-id:
 
 lint:
     lele-lint crates/freenet-libp2p-bevy-core
+    lele-lint crates/freenet-libp2p-bevy-lobby-room
     lele-lint crates/freenet-libp2p-bevy-default-ui
     lele-lint crates/freenet-libp2p-bevy-plugin
 
 bevy-lint:
     lele-bevy-lint crates/freenet-libp2p-bevy-core
+    lele-bevy-lint crates/freenet-libp2p-bevy-lobby-room
     lele-bevy-lint crates/freenet-libp2p-bevy-default-ui
     lele-bevy-lint crates/freenet-libp2p-bevy-plugin
 
 # Regenerate the __methods__ indexes after adding or removing #[atomic_delegates] shells.
 sync-methods:
     lele-lint --sync-methods crates/freenet-libp2p-bevy-core
+    lele-lint --sync-methods crates/freenet-libp2p-bevy-lobby-room
     lele-lint --sync-methods crates/freenet-libp2p-bevy-default-ui
     lele-lint --sync-methods crates/lobby_contract
 

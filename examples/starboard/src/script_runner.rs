@@ -45,7 +45,10 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
         clock: testing::StepClock,
         param: &mut Self::Param<'_, '_>,
     ) -> testing::StepOutcome {
-        let fallback = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
+        let fallback = freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .build();
         let state: &DiscoveryState = param.state.as_deref().unwrap_or(&fallback);
         match &step.0 {
             StarboardStep::Lobby(lobby) => {
@@ -164,13 +167,13 @@ impl CanvasHashSince {
 }
 
 fn poll_lobby_arm(
-    lobby: &testing::LobbyStep,
+    lobby: &freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStep,
     clock: testing::StepClock,
     state: &DiscoveryState,
     join_error: Option<&str>,
     effects: &mut testing::E2EStepEffectSink<'_>,
 ) -> testing::StepOutcome {
-    let view = testing::LobbyStepView {
+    let view = freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStepView {
         status: state,
         join_error,
     };

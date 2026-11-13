@@ -1,12 +1,6 @@
 pub mod chunked_snapshot;
-#[cfg(feature = "discovery")]
-pub mod client;
-#[cfg(feature = "discovery")]
-pub mod config;
 pub mod connection_kind;
 pub mod dial_state;
-#[cfg(feature = "discovery")]
-pub mod discovery_state;
 #[cfg(feature = "testing")]
 pub mod e2e_args;
 #[cfg(feature = "testing")]
@@ -24,18 +18,6 @@ pub mod game_id;
 pub mod gossipsub_config;
 pub mod libp2p_command;
 pub mod libp2p_events;
-#[cfg(feature = "discovery")]
-pub mod lobby_contract_subscription;
-#[cfg(feature = "testing")]
-pub mod lobby_kit;
-#[cfg(feature = "discovery")]
-pub mod lobby_lease_limits;
-#[cfg(feature = "testing")]
-pub mod lobby_step;
-#[cfg(feature = "discovery")]
-pub mod lobby_task_config;
-#[cfg(all(feature = "discovery", feature = "testing"))]
-pub mod lobby_task_override;
 pub mod member_snapshot_fetch_state;
 #[cfg(feature = "testing")]
 pub mod network;
@@ -49,15 +31,9 @@ pub mod p2p_plugin;
 pub mod peer_book;
 #[cfg(feature = "testing")]
 pub mod peer_message_router;
-#[cfg(feature = "discovery")]
-pub mod plugin;
 pub mod replica_slice_content_hash;
 pub mod replica_slice_index;
 pub mod replica_state;
-#[cfg(feature = "discovery")]
-pub mod request_kind;
-#[cfg(feature = "discovery")]
-pub mod resubscribe_gate;
 pub mod room_history_record_kind;
 pub mod runner_config;
 #[cfg(feature = "testing")]

@@ -24,7 +24,7 @@ mod tests {
 
     use crate::basic::constants::ROOM_COLOR;
     use crate::roster;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     fn app_with_roster(own: core_discovery::OwnRoomStatus, count: usize) -> App {
         let mut app = App::new();

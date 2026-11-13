@@ -12,7 +12,7 @@ pub type LobbyScriptRunner = testing::ScriptRunner<LobbyStep>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LobbyStep {
-    Lobby(testing::LobbyStep),
+    Lobby(freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStep),
     Shared(testing::E2EStep),
 }
 
@@ -23,7 +23,7 @@ impl ScriptStep for LobbyStep {
         wait-ring-joined, wait-lobby-ready, sleep, mark-completed, exit-app, crash-app, stay";
 
     fn parse_verb(verb: &str, arg: &str) -> Option<Result<Self, String>> {
-        testing::LobbyStep::parse_verb(verb, arg)
+        freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStep::parse_verb(verb, arg)
             .map(|step| step.map(Self::Lobby))
             .or_else(|| testing::E2EStep::parse_verb(verb, arg).map(|step| step.map(Self::Shared)))
     }
@@ -53,14 +53,20 @@ impl PollableScriptStep for LobbyStep {
         clock: testing::StepClock,
         param: &mut Self::Param<'_, '_>,
     ) -> testing::StepOutcome {
-        if matches!(step, Self::Lobby(testing::LobbyStep::WaitRingJoined)) {
+        if matches!(
+            step,
+            Self::Lobby(freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStep::WaitRingJoined)
+        ) {
             return ring_step_outcome(param.ring.get() > 0);
         }
-        let fallback = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
+        let fallback = freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .build();
         let view_status = param.state.as_deref().unwrap_or(&fallback);
         let poll = match step {
             Self::Lobby(lobby) => {
-                let view = testing::LobbyStepView {
+                let view = freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStepView {
                     status: view_status,
                     join_error: param
                         .join_error
@@ -161,7 +167,9 @@ mod tests {
     fn ring_joined_fails_past_its_deadline_without_a_ring_peer() {
         use freenet_libp2p_bevy_plugin::testing::ScriptVerdict;
         let timed = testing::TimedScriptStep {
-            step: LobbyStep::Lobby(testing::LobbyStep::WaitRingJoined),
+            step: LobbyStep::Lobby(
+                freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStep::WaitRingJoined,
+            ),
             deadline: Some(Duration::from_secs(5)),
             raw: "wait-ring-joined@5s".to_string(),
         };

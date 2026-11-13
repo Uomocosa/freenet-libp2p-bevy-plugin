@@ -75,7 +75,7 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p, testing};
+    use freenet_libp2p_bevy_plugin::{discovery, identity, p2p};
 
     use super::record_peer_run_result;
     use crate::script_runner::StarboardScriptRunner;
@@ -143,9 +143,11 @@ mod tests {
             .resource_mut::<Time>()
             .advance_by(Duration::from_secs(2));
         app.insert_resource(
-            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-                .lobby_fetched()
-                .build(),
+            freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+                identity::PeerId::from("me"),
+            )
+            .lobby_fetched()
+            .build(),
         );
         app.update();
         let first = app
@@ -185,7 +187,10 @@ mod tests {
             },
         );
         {
-            let state = testing::DiscoveryStateBuilder::new(me.clone())
+            let state =
+                freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+                    me.clone(),
+                )
                 .in_room(discovery::JoinedRoom {
                     name: identity::RoomName::from("room-1"),
                     created_at: time::UnixTime::from_secs(1),

@@ -76,21 +76,23 @@ mod tests {
     use bevy::window::PrimaryWindow;
     use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::time;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, testing};
+    use freenet_libp2p_bevy_plugin::{discovery, identity};
 
     use super::follow_brush;
     use crate::starboard;
 
     fn ready_status() -> DiscoveryState {
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .in_room(discovery::JoinedRoom {
-                name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::EPOCH,
-                phase: discovery::JoinPhase::Ready,
-                members: discovery::Members::new(),
-                how_entered: discovery::HowRoomWasEntered::Created,
-            })
-            .build()
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .in_room(discovery::JoinedRoom {
+            name: identity::RoomName::from("alpha"),
+            created_at: time::UnixTime::EPOCH,
+            phase: discovery::JoinPhase::Ready,
+            members: discovery::Members::new(),
+            how_entered: discovery::HowRoomWasEntered::Created,
+        })
+        .build()
     }
 
     fn preview_build(app: &mut App) {

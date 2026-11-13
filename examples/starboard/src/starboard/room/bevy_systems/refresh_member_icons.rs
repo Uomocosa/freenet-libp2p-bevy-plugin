@@ -26,7 +26,7 @@ mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::discovery;
-    use freenet_libp2p_bevy_plugin::{identity, testing, time, ui};
+    use freenet_libp2p_bevy_plugin::{identity, time, ui};
 
     use super::refresh_member_icons;
     use crate::starboard;
@@ -47,15 +47,17 @@ mod tests {
                 },
             );
         }
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .in_room(discovery::JoinedRoom {
-                name: identity::RoomName::from("alpha"),
-                created_at: time::UnixTime::from_secs(1),
-                phase: discovery::JoinPhase::Ready,
-                members,
-                how_entered: discovery::HowRoomWasEntered::Created,
-            })
-            .build()
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .in_room(discovery::JoinedRoom {
+            name: identity::RoomName::from("alpha"),
+            created_at: time::UnixTime::from_secs(1),
+            phase: discovery::JoinPhase::Ready,
+            members,
+            how_entered: discovery::HowRoomWasEntered::Created,
+        })
+        .build()
     }
 
     fn room_brushes(state: &DiscoveryState) -> starboard::room::RoomBrushes {

@@ -15,3 +15,5 @@ pub const SCRIPT_FAILED_MARKER: &str = "script failed";
 pub const SCRIPT_CHECKPOINT_COMPLETED_PREFIX: &str = "script checkpoint completed name=";
 
 // no test_usage necessary
+
+pub const FREENET_NODE_STARTED: &str = "lobby freenet node started";

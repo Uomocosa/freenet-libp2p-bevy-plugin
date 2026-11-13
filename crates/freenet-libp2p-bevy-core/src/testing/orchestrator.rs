@@ -20,6 +20,7 @@ pub struct Orchestrator {
     pub min_members_override: Option<usize>,
     pub may_crash: std::collections::BTreeSet<String>,
     pub join_must_fail: std::collections::BTreeSet<String>,
+    pub(crate) kit_factory: fn() -> Box<dyn testing::traits::FakeNetworkKit>,
 }
 
 impl Orchestrator {
@@ -41,6 +42,7 @@ impl Orchestrator {
             min_members_override: None,
             may_crash: std::collections::BTreeSet::new(),
             join_must_fail: std::collections::BTreeSet::new(),
+            kit_factory: || Box::new(testing::NoFakeNetworkKit),
         }
     }
 
@@ -116,6 +118,15 @@ impl Orchestrator {
 
     pub fn expect_peer_may_crash(&mut self, name: &str) -> &mut Self {
         self.may_crash.insert(name.to_string());
+        self
+    }
+
+    #[must_use]
+    pub fn with_fake_network_kit<Kit>(mut self) -> Self
+    where
+        Kit: testing::traits::FakeNetworkKit + Default + 'static,
+    {
+        self.kit_factory = || Box::new(Kit::default());
         self
     }
 

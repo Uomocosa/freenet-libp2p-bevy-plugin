@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::roster;
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn prune_member_icons(
     roster_data: Option<Res<core_discovery::RoomRoster>>,
@@ -22,8 +22,8 @@ mod tests {
     use super::prune_member_icons;
     use crate::roster;
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
     use freenet_libp2p_bevy_core::identity;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     use crate::basic::constants::ROOM_COLOR;
 

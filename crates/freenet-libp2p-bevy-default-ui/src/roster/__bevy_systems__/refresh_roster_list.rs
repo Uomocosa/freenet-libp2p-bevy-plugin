@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::basic::constants::DIM_TEXT_COLOR;
 use crate::roster;
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 use roster::{
     ROSTER_CONNECTED_COLOR, ROSTER_CONNECTING_COLOR, ROSTER_DOT_SIZE, ROSTER_NAME_FONT_SIZE,
     ROSTER_ROW_COLOR, ROSTER_ROW_ICON_SIDE, ROSTER_YOU_FONT_SIZE, RosterList, RosterRow,
@@ -101,8 +101,8 @@ mod tests {
     use super::refresh_roster_list;
     use crate::roster;
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
     use freenet_libp2p_bevy_core::identity;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     use crate::basic::constants::ROOM_COLOR;
 

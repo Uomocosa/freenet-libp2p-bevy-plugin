@@ -4285,10 +4285,8 @@ dependencies = [
  "clap",
  "common_types",
  "derive_more",
- "freenet-stdlib",
  "futures",
  "futures-util",
- "http",
  "lele-bevy-state-machine",
  "libp2p",
  "serde",
@@ -4296,7 +4294,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
- "tokio-tungstenite 0.27.0",
  "tracing",
  "tracing-subscriber",
  "zstd 0.14.3",
@@ -4310,10 +4307,33 @@ dependencies = [
  "bevy",
  "derive_more",
  "freenet-libp2p-bevy-core",
+ "freenet-libp2p-bevy-lobby-room",
  "lele-bevy-preview",
  "lele-bevy-state-machine",
  "libp2p",
  "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "freenet-libp2p-bevy-lobby-room"
+version = "0.0.10"
+dependencies = [
+ "atomic-delegate-macros",
+ "bevy",
+ "bincode",
+ "common_types",
+ "derive_more",
+ "freenet-libp2p-bevy-core",
+ "freenet-stdlib",
+ "futures-util",
+ "http",
+ "lele-bevy-state-machine",
+ "libp2p",
+ "serde",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-tungstenite 0.27.0",
  "tracing",
 ]
 
@@ -4323,6 +4343,7 @@ version = "0.0.10"
 dependencies = [
  "freenet-libp2p-bevy-core",
  "freenet-libp2p-bevy-default-ui",
+ "freenet-libp2p-bevy-lobby-room",
 ]
 
 [[package]]

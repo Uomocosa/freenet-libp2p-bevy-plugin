@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::discovery;
 use core_discovery::state_machine::DiscoveryState;
 use discovery::{JoinError, Screen};
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn pick_screen(
     state: Option<Res<DiscoveryState>>,
@@ -43,18 +43,21 @@ mod tests {
 
     use super::pick_screen;
     use core_discovery::state_machine::DiscoveryState;
-    use freenet_libp2p_bevy_core::testing;
+    use freenet_libp2p_bevy_core::identity;
     use freenet_libp2p_bevy_core::time;
-    use freenet_libp2p_bevy_core::{discovery as core_discovery, identity};
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::testing;
 
-    fn ready_peers() -> Vec<freenet_libp2p_bevy_core::freenet::FreenetPeer> {
+    fn ready_peers() -> Vec<freenet_libp2p_bevy_lobby_room::freenet::FreenetPeer> {
         (1..=3_u16)
-            .map(|port| freenet_libp2p_bevy_core::freenet::FreenetPeer {
-                id: freenet_libp2p_bevy_core::freenet::FreenetPeerId::from(
-                    format!("peer-{port}").as_str(),
-                ),
-                addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
-            })
+            .map(
+                |port| freenet_libp2p_bevy_lobby_room::freenet::FreenetPeer {
+                    id: freenet_libp2p_bevy_lobby_room::freenet::FreenetPeerId::from(
+                        format!("peer-{port}").as_str(),
+                    ),
+                    addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
+                },
+            )
             .collect()
     }
 

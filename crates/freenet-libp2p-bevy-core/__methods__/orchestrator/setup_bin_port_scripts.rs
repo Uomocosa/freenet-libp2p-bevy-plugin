@@ -8,7 +8,7 @@ pub async fn setup_bin_port_scripts(
 ) -> Result<(PathBuf, Option<u16>, Vec<String>), String> {
     let bin = orchestrator.build_game_binary()?;
     let orchestrator_port = if matches!(orchestrator.network, testing::Network::Fake) {
-        let server = testing::FakeNetworkServer::start().await?;
+        let server = testing::FakeNetworkServer::start_with((orchestrator.kit_factory)()).await?;
         Some(*server)
     } else {
         None

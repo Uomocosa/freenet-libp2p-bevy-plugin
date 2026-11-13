@@ -67,9 +67,10 @@ impl Args {
         app.insert_resource(testing::PendingAction::default());
         app.insert_resource(friend_intent::FriendIntent::default());
         app.add_systems(Update, friend_intent::drive_friend_intent);
-        app.add_plugins(
-            testing::FakeNetworkPlugin::<starboard::room::CursorUpdate>::from(&self.network),
-        );
+        let fake = testing::FakeNetworkPlugin::<starboard::room::CursorUpdate>::from(&self.network);
+        let lobby =
+            freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyFakeNetworkPlugin::new(&fake);
+        app.add_plugins((fake, lobby));
         let base = plugin::Config::<starboard::room::CursorUpdate>::new(
             transport_mode(self.transport),
             p2p::MdnsMode::Disabled,
@@ -190,8 +191,8 @@ mod tests {
     use clap::Parser;
     use e2e_steps::starboard_steps::StarboardStep;
     use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStep;
     use freenet_libp2p_bevy_plugin::p2p::TransportMode;
-    use freenet_libp2p_bevy_plugin::testing::LobbyStep;
 
     #[test]
     fn test_usage() {

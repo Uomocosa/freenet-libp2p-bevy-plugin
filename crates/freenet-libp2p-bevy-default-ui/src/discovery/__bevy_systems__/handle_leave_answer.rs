@@ -3,7 +3,7 @@ use bevy::ui::Pressed;
 
 use crate::discovery;
 use discovery::{LeaveDialog, LeaveNoButton, LeaveYesButton};
-use freenet_libp2p_bevy_core::discovery as core_discovery;
+use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
 pub fn handle_leave_answer(
     yes: Query<(), (Added<Pressed>, With<LeaveYesButton>)>,
@@ -29,7 +29,7 @@ mod tests {
     use bevy::ui::Pressed;
 
     use super::handle_leave_answer;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
+    use freenet_libp2p_bevy_lobby_room::discovery as core_discovery;
 
     fn sent_after(marker: impl Component) -> (Vec<core_discovery::Command>, bool) {
         let mut app = App::new();
