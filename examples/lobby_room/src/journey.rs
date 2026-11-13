@@ -191,8 +191,10 @@ mod tests {
     fn node_reachable(world: &mut World) {
         let mut state = world.resource_mut::<DiscoveryState>();
         state.freenet_peers = (0..1)
-            .map(|index| identity::FreenetPeer {
-                id: identity::FreenetPeerId::from(format!("gateway-{index}").as_str()),
+            .map(|index| freenet_libp2p_bevy_plugin::freenet::FreenetPeer {
+                id: freenet_libp2p_bevy_plugin::freenet::FreenetPeerId::from(
+                    format!("gateway-{index}").as_str(),
+                ),
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
             })
             .collect();

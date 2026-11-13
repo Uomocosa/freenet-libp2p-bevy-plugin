@@ -39,12 +39,12 @@ mod tests {
 
     use super::lobby_updates_to_discovery_inputs;
     use crate::discovery;
-    use crate::identity;
+    use crate::freenet;
 
     fn app_with_queues() -> (
         App,
         tokio::sync::mpsc::UnboundedSender<discovery::Lobby>,
-        tokio::sync::mpsc::UnboundedSender<Vec<identity::FreenetPeer>>,
+        tokio::sync::mpsc::UnboundedSender<Vec<freenet::FreenetPeer>>,
     ) {
         let (lobby_tx, lobby_rx) = tokio::sync::mpsc::unbounded_channel();
         let (peers_tx, peers_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -78,8 +78,8 @@ mod tests {
     #[test]
     fn freenet_peers_become_an_input() {
         let (mut app, _, peers_tx) = app_with_queues();
-        let list = vec![identity::FreenetPeer {
-            id: identity::FreenetPeerId::from("gateway"),
+        let list = vec![freenet::FreenetPeer {
+            id: freenet::FreenetPeerId::from("gateway"),
             addr: std::net::SocketAddr::from(([127, 0, 0, 1], 1)),
         }];
         peers_tx.send(list.clone()).expect("send");

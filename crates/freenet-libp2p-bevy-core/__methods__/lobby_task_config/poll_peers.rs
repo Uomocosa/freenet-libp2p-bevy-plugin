@@ -4,14 +4,13 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::discovery;
 use crate::freenet;
-use crate::identity;
 
 const NODE_STATUS_EVERY: u32 = 5;
 const NODE_STATUS_HEARTBEAT: Duration = Duration::from_secs(30);
 
 pub async fn poll_peers(
     state: &discovery::LobbyTaskConfig,
-    peers_tx: UnboundedSender<Vec<identity::FreenetPeer>>,
+    peers_tx: UnboundedSender<Vec<freenet::FreenetPeer>>,
 ) {
     let mut client = freenet::Client::from_host_and_port_with_retry(&state.host, state.port).await;
     let mut interval = tokio::time::interval(discovery::TICK);

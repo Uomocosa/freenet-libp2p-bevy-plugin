@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
 use crate::p2p;
 use crate::testing;
@@ -34,7 +35,7 @@ pub enum FakeWireClientFrame {
 pub enum FakeWireServerFrame {
     Libp2pEvent(p2p::Libp2pEvent),
     Lobby(discovery::Lobby),
-    FreenetPeers(Vec<identity::FreenetPeer>),
+    FreenetPeers(Vec<freenet::FreenetPeer>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

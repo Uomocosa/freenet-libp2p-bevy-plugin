@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
 use discovery::state_machine::DiscoveryState;
 
@@ -9,7 +10,7 @@ pub struct DiscoveryStateBuilder {
     room: Option<discovery::JoinedRoom>,
     lobby: discovery::Lobby,
     connected: BTreeSet<identity::PeerId>,
-    freenet_peers: Vec<identity::FreenetPeer>,
+    freenet_peers: Vec<freenet::FreenetPeer>,
     is_lobby_fetched: bool,
 }
 
@@ -44,7 +45,7 @@ impl DiscoveryStateBuilder {
         self
     }
     #[must_use]
-    pub fn with_freenet_peers(mut self, peers: Vec<identity::FreenetPeer>) -> Self {
+    pub fn with_freenet_peers(mut self, peers: Vec<freenet::FreenetPeer>) -> Self {
         self.freenet_peers = peers;
         self
     }

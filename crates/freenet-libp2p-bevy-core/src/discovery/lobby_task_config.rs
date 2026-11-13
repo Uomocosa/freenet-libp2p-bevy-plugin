@@ -6,6 +6,7 @@ use tokio::sync::watch::Receiver;
 use tokio::time::Instant;
 
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
 
 #[derive(Clone)]
@@ -26,7 +27,7 @@ impl LobbyTaskConfig {
         lobbies_tx: UnboundedSender<discovery::Lobby>,
     ) {
     }
-    pub async fn poll_peers(&self, peers_tx: UnboundedSender<Vec<identity::FreenetPeer>>) {}
+    pub async fn poll_peers(&self, peers_tx: UnboundedSender<Vec<freenet::FreenetPeer>>) {}
     pub async fn connect_retry(
         &self,
         target: &Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,

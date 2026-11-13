@@ -3,6 +3,8 @@ mod basic;
 
 pub use basic::constants::*;
 pub use basic::enums::DeployPolicy;
+pub use basic::freenet_peer::FreenetPeer;
+pub use basic::freenet_peer_id::FreenetPeerId;
 
 mod client;
 pub use client::Client;

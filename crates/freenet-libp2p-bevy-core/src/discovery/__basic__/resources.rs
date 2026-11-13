@@ -5,7 +5,7 @@ use derive_more::{Deref, DerefMut};
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::discovery;
-use crate::identity;
+use crate::freenet;
 use crate::p2p;
 
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Deref)]
@@ -18,7 +18,7 @@ pub struct Libp2pEventTap(pub tokio::sync::broadcast::Receiver<p2p::Libp2pEvent>
 pub struct LobbyUpdateReceiver(pub Mutex<Option<UnboundedReceiver<discovery::Lobby>>>);
 
 #[derive(Resource, Debug, Deref)]
-pub struct FreenetPeersReceiver(pub Mutex<Option<UnboundedReceiver<Vec<identity::FreenetPeer>>>>);
+pub struct FreenetPeersReceiver(pub Mutex<Option<UnboundedReceiver<Vec<freenet::FreenetPeer>>>>);
 
 #[derive(Resource, Debug, Deref)]
 pub struct HeartbeatTargetSender(

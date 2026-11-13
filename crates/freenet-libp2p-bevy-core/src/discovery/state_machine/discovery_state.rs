@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
 use crate::p2p;
 use crate::room_sync;
@@ -20,7 +21,7 @@ pub struct DiscoveryState {
     pub candidates: BTreeMap<identity::PeerId, discovery::state_machine::Candidate>,
     pub redial_after: BTreeMap<identity::PeerId, time::Deadline>,
     pub next_handshake: time::Deadline,
-    pub freenet_peers: Vec<identity::FreenetPeer>,
+    pub freenet_peers: Vec<freenet::FreenetPeer>,
     pub is_lobby_fetched: bool,
     pub display_name: identity::Username,
     pub game: identity::GameId,

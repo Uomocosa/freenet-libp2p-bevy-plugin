@@ -37,7 +37,7 @@ impl Config {
         swarm: p2p::SwarmChannels,
         target: tokio::sync::watch::Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
         lobbies: tokio::sync::mpsc::UnboundedSender<discovery::Lobby>,
-        peers: tokio::sync::mpsc::UnboundedSender<Vec<identity::FreenetPeer>>,
+        peers: tokio::sync::mpsc::UnboundedSender<Vec<freenet::FreenetPeer>>,
     ) {
     }
 }

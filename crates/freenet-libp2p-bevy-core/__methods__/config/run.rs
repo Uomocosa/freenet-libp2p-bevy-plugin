@@ -1,5 +1,5 @@
 use crate::discovery;
-use crate::identity;
+use crate::freenet;
 use crate::p2p;
 
 pub async fn run(
@@ -8,7 +8,7 @@ pub async fn run(
     mut swarm: p2p::SwarmChannels,
     target_rx: tokio::sync::watch::Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
     lobby_tx: tokio::sync::mpsc::UnboundedSender<discovery::Lobby>,
-    peers_tx: tokio::sync::mpsc::UnboundedSender<Vec<identity::FreenetPeer>>,
+    peers_tx: tokio::sync::mpsc::UnboundedSender<Vec<freenet::FreenetPeer>>,
 ) {
     let Some(ready) = swarm.wait_ready().await else {
         return;

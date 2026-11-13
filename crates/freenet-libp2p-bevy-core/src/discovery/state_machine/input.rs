@@ -1,6 +1,7 @@
 use bevy::prelude::Message;
 
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
 use crate::p2p;
 
@@ -9,7 +10,7 @@ pub enum Input {
     Command(discovery::Command),
     Libp2pEvent(p2p::Libp2pEvent),
     LobbyUpdated(discovery::Lobby),
-    FreenetPeers(Vec<identity::FreenetPeer>),
+    FreenetPeers(Vec<freenet::FreenetPeer>),
     OwnAddrsChanged(Vec<identity::PeerAddr>),
 }
 

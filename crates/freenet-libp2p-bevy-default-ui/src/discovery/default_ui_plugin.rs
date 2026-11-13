@@ -56,9 +56,11 @@ mod tests {
     }
 
     fn preview_snapshot() -> DiscoveryState {
-        let peers: Vec<identity::FreenetPeer> = (1..=3_u16)
-            .map(|port| identity::FreenetPeer {
-                id: identity::FreenetPeerId::from(format!("peer-{port}").as_str()),
+        let peers: Vec<freenet_libp2p_bevy_core::freenet::FreenetPeer> = (1..=3_u16)
+            .map(|port| freenet_libp2p_bevy_core::freenet::FreenetPeer {
+                id: freenet_libp2p_bevy_core::freenet::FreenetPeerId::from(
+                    format!("peer-{port}").as_str(),
+                ),
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
             })
             .collect();

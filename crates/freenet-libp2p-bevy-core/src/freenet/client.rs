@@ -15,7 +15,6 @@ use freenet_stdlib::prelude::{ContractInstanceId, ContractKey};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::freenet;
-use crate::identity;
 
 pub struct Client {
     pub(crate) write: tokio::sync::mpsc::UnboundedSender<Message>,
@@ -70,7 +69,7 @@ impl Client {
         budget: Duration,
     ) -> Result<(), freenet::Error> {
     }
-    pub async fn connected_peers(&mut self) -> Result<Vec<identity::FreenetPeer>, freenet::Error> {}
+    pub async fn connected_peers(&mut self) -> Result<Vec<freenet::FreenetPeer>, freenet::Error> {}
     pub async fn node_status(&mut self) -> Result<freenet::NodeStatus, freenet::Error> {}
     pub async fn fetch_and_subscribe<S>(
         &mut self,

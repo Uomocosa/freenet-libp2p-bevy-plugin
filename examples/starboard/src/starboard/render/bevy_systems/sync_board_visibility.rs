@@ -85,8 +85,8 @@ mod tests {
             },
         );
         testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .with_freenet_peers(vec![identity::FreenetPeer {
-                id: identity::FreenetPeerId::from("gateway"),
+            .with_freenet_peers(vec![freenet_libp2p_bevy_plugin::freenet::FreenetPeer {
+                id: freenet_libp2p_bevy_plugin::freenet::FreenetPeerId::from("gateway"),
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], 31337)),
             }])
             .lobby_fetched()

@@ -1,4 +1,5 @@
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
 use crate::testing;
 
@@ -21,8 +22,8 @@ pub fn spawn_fake_lobby_task(
             freenet_peers,
         } = channels;
         freenet_peers
-            .send(vec![identity::FreenetPeer {
-                id: identity::FreenetPeerId::from("fake-gateway"),
+            .send(vec![freenet::FreenetPeer {
+                id: freenet::FreenetPeerId::from("fake-gateway"),
                 addr: std::net::SocketAddr::from(([127, 0, 0, 1], 1)),
             }])
             .ok();

@@ -3,6 +3,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::Receiver;
 
 use crate::discovery;
+use crate::freenet;
 use crate::identity;
 use crate::time;
 
@@ -35,5 +36,5 @@ pub struct RoomRosterEntry {
 pub struct LobbyTaskChannels {
     pub heartbeat_targets: Receiver<Vec<discovery::state_machine::HeartbeatTarget>>,
     pub lobbies: UnboundedSender<discovery::Lobby>,
-    pub freenet_peers: UnboundedSender<Vec<identity::FreenetPeer>>,
+    pub freenet_peers: UnboundedSender<Vec<freenet::FreenetPeer>>,
 }
