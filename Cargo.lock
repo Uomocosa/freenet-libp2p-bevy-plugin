@@ -559,8 +559,8 @@ dependencies = [
 
 [[package]]
 name = "atomic-delegate-macros"
-version = "0.0.13"
-source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.13#aa2c8d8028fd7fff5e664d3e0aca61b47a581681"
+version = "0.0.14"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.14#8f850b870fbada6ee5a4b346423382a69d13e1d2"
 dependencies = [
  "lele-snake-case",
  "proc-macro2",
@@ -2717,7 +2717,7 @@ dependencies = [
 
 [[package]]
 name = "common_types"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "atomic-delegate-macros",
  "bevy_ecs",
@@ -3722,7 +3722,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "e2e"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "async-trait",
  "bevy",
@@ -3749,7 +3749,7 @@ dependencies = [
 
 [[package]]
 name = "e2e_check"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "clap",
  "examples_shared",
@@ -3759,7 +3759,7 @@ dependencies = [
 
 [[package]]
 name = "e2e_macros"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3768,7 +3768,7 @@ dependencies = [
 
 [[package]]
 name = "e2e_steps"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "freenet-libp2p-bevy-plugin",
 ]
@@ -3949,7 +3949,7 @@ dependencies = [
 
 [[package]]
 name = "examples_shared"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "bevy",
  "derive_more",
@@ -4264,8 +4264,8 @@ dependencies = [
 
 [[package]]
 name = "freenet-contract-harness"
-version = "0.0.11"
-source = "git+https://github.com/Uomocosa/freenet-contract-harness?tag=v0.0.11#51f80a463348eb0e652e3b5faf593c8e4b4778cf"
+version = "0.0.12"
+source = "git+https://github.com/Uomocosa/freenet-contract-harness?tag=v0.0.12#85fa8b1981e5e193f115fb00ad11a862a2ed7a4d"
 dependencies = [
  "atomic-delegate-macros",
  "bincode",
@@ -4275,7 +4275,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-core"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "async-trait",
  "atomic-delegate-macros",
@@ -4301,7 +4301,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-lobby-room"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "atomic-delegate-macros",
  "bevy",
@@ -4325,7 +4325,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-plugin"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "freenet-libp2p-bevy-core",
  "freenet-libp2p-bevy-lobby-room",
@@ -6016,8 +6016,8 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "lele-bevy-preview"
-version = "0.0.16"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.16#5a406b12d955f1418b4be70d558a278ca506f985"
+version = "0.0.17"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17#b0247a3c3cce3e6d625580ff4636900818ba9bb5"
 dependencies = [
  "atomic-delegate-macros",
  "bevy",
@@ -6031,8 +6031,8 @@ dependencies = [
 
 [[package]]
 name = "lele-bevy-state-machine"
-version = "0.1.1"
-source = "git+https://github.com/Uomocosa/lele-bevy-state-machine?tag=v0.1.1#b6f302e1e962c09b8c9c987ffffee950b9bbbea9"
+version = "0.1.2"
+source = "git+https://github.com/Uomocosa/lele-bevy-state-machine?tag=v0.1.2#50bc6089e6238382f6a8951151fbb576396e625b"
 dependencies = [
  "atomic-delegate-macros",
  "bevy",
@@ -6041,8 +6041,8 @@ dependencies = [
 
 [[package]]
 name = "lele-snake-case"
-version = "0.0.13"
-source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.13#aa2c8d8028fd7fff5e664d3e0aca61b47a581681"
+version = "0.0.14"
+source = "git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.14#8f850b870fbada6ee5a4b346423382a69d13e1d2"
 
 [[package]]
 name = "lexical"
@@ -6696,7 +6696,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "lobby_contract"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "atomic-delegate-macros",
  "bincode",
@@ -6710,7 +6710,7 @@ dependencies = [
 
 [[package]]
 name = "lobby_room"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "bevy",
  "clap",
@@ -9797,7 +9797,7 @@ dependencies = [
 
 [[package]]
 name = "starboard"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "bevy",
  "bincode",
@@ -10101,8 +10101,8 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 
 [[package]]
 name = "telegram-bot-helper"
-version = "0.0.16"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.16#5a406b12d955f1418b4be70d558a278ca506f985"
+version = "0.0.17"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17#b0247a3c3cce3e6d625580ff4636900818ba9bb5"
 dependencies = [
  "atomic-delegate-macros",
  "chrono",
@@ -10116,8 +10116,8 @@ dependencies = [
 
 [[package]]
 name = "telegram-bot-helper-macros"
-version = "0.0.16"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.16#5a406b12d955f1418b4be70d558a278ca506f985"
+version = "0.0.17"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17#b0247a3c3cce3e6d625580ff4636900818ba9bb5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10518,7 +10518,7 @@ checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
 
 [[package]]
 name = "tools"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "telegram-bot-helper",
 ]
