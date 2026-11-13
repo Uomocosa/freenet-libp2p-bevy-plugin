@@ -1,24 +1,81 @@
-use atomic_delegate_macros::atomic_delegates;
+use crate::discovery as core_discovery;
+use crate::ui;
 use bevy::prelude::App;
+use bevy::prelude::*;
+use freenet_libp2p_bevy_core::room_sync;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LobbyRoomUiPlugin;
 
-#[rustfmt::skip]
 impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
     fn build(&self, app: &mut App) {
-        self.build_plugin(app);
+        use ui::discovery::bevy_systems as systems;
+        use ui::discovery::{EscMenuState, JoinError, LeaveDialog, Screen};
+
+        app.add_plugins(ui::roster::UiPlugin);
+        app.init_resource::<JoinError>();
+        app.init_resource::<EscMenuState>();
+        app.init_resource::<ui::discovery::FriendsPressBeat>();
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.add_message::<core_discovery::Event>();
+        app.add_message::<room_sync::JoinFailure>();
+        app.add_systems(OnEnter(Screen::Connecting), systems::spawn_connecting);
+        app.add_systems(OnEnter(Screen::Lobby), systems::spawn_root);
+        app.add_systems(OnEnter(Screen::JoiningRoom), systems::spawn_joining_room);
+        app.add_systems(OnEnter(Screen::JoinFailed), systems::spawn_join_failed);
+        app.add_systems(OnEnter(Screen::InRoom), systems::spawn_leave_door);
+        app.add_systems(OnEnter(LeaveDialog::Open), systems::spawn_leave_prompt);
+        app.add_systems(Startup, systems::spawn_esc_menu);
+        app.add_systems(
+            Update,
+            (
+                (
+                    systems::record_join_error,
+                    systems::record_join_failure,
+                    systems::pick_screen,
+                )
+                    .chain(),
+                (
+                    systems::handle_menu_keys,
+                    systems::close_menu_on_press,
+                    systems::start_friends_beat,
+                    systems::open_leave_prompt_from_menu,
+                    systems::finish_friends_beat,
+                )
+                    .chain(),
+                systems::animate_hover,
+                systems::animate_esc_menu,
+                systems::refresh_menu_leave_button,
+                systems::spin_connecting.run_if(in_state(Screen::Connecting)),
+                systems::dismiss_join_failed.run_if(in_state(Screen::JoinFailed)),
+                (
+                    (
+                        systems::rebuild_room_list,
+                        systems::highlight_current_room,
+                        systems::scroll_room_names,
+                    )
+                        .chain(),
+                    systems::gate_create,
+                    systems::handle_create,
+                    systems::handle_join,
+                )
+                    .run_if(in_state(Screen::Lobby)),
+                (
+                    systems::request_leave,
+                    systems::handle_leave_answer.run_if(in_state(LeaveDialog::Open)),
+                    systems::animate_door,
+                )
+                    .chain()
+                    .run_if(in_state(Screen::InRoom)),
+            ),
+        );
     }
     fn finish(&self, app: &mut App) {
-        self.finish_plugin(app);
+        app.init_state::<ui::discovery::Screen>();
+        app.add_sub_state::<ui::discovery::LeaveDialog>();
     }
 }
 
-#[atomic_delegates]
-impl LobbyRoomUiPlugin {
-    pub fn build_plugin(self, app: &mut App) {}
-    pub fn finish_plugin(self, app: &mut App) {}
-}
 #[cfg(test)]
 mod tests {
     use crate::discovery as core_discovery;
@@ -485,5 +542,45 @@ mod tests {
         esc_closes_the_leave_prompt_before_menu_and_drawer(&mut app);
         esc_closes_the_drawer_before_the_menu(&mut app);
         the_friends_press_beats_then_opens_the_drawer(&mut app);
+    }
+}
+
+#[cfg(test)]
+mod build_plugin_tests {
+    use crate::discovery as core_discovery;
+    use crate::ui;
+    use bevy::prelude::Plugin;
+    use bevy::prelude::*;
+
+    #[test]
+    fn test_usage() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        Plugin::build(&ui::discovery::LobbyRoomUiPlugin, &mut app);
+        Plugin::finish(&ui::discovery::LobbyRoomUiPlugin, &mut app);
+        app.update();
+        let mut spinners = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::SpinnerRing>>();
+        assert_eq!(spinners.iter(app.world()).count(), 1);
+    }
+}
+
+#[cfg(test)]
+mod finish_plugin_tests {
+    use crate::ui;
+    use bevy::prelude::Plugin;
+    use bevy::prelude::*;
+    use bevy::state::app::StatesPlugin;
+
+    #[test]
+    fn test_usage() {
+        let mut app = App::new();
+        app.add_plugins(StatesPlugin);
+        Plugin::finish(&ui::discovery::LobbyRoomUiPlugin, &mut app);
+        app.update();
+        let screen = *app.world().resource::<State<ui::discovery::Screen>>().get();
+        assert_eq!(screen, ui::discovery::Screen::Connecting);
     }
 }

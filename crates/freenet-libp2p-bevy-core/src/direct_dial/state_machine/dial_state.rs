@@ -20,7 +20,6 @@ impl DialState {
     pub fn from_peer_book(book: &direct_dial::PeerBook, now: time::UnixTime) -> Self {}
 }
 
-#[rustfmt::skip]
 impl lele_bevy_state_machine::traits::StateMachine for DialState {
     type Input = direct_dial::state_machine::Input;
     type Output = direct_dial::state_machine::Output;

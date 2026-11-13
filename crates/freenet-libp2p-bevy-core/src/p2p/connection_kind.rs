@@ -8,18 +8,9 @@ pub enum ConnectionKind {
     Relayed,
 }
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl From<&libp2p::Multiaddr> for ConnectionKind {
-    fn from(address: &libp2p::Multiaddr) -> Self {
-        use libp2p::multiaddr::Protocol;
-        if address.iter().any(|protocol| matches!(protocol, Protocol::P2pCircuit)) {
-            return Self::Relayed;
-        }
-        if address.iter().any(|protocol| matches!(protocol, Protocol::QuicV1 | Protocol::Quic)) {
-            return Self::Quic;
-        }
-        Self::Tcp
-    }
+    fn from(address: &libp2p::Multiaddr) -> Self {}
 }
 
 #[atomic_delegates]

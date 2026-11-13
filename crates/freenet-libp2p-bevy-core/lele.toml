@@ -17,3 +17,8 @@ why        = "A state machine receives `now` and inputs as arguments and returns
 folders    = ["src/direct_dial/state_machine", "src/room_sync/state_machine"]
 cannot_use = ["tokio", "libp2p", "std::net", "std::fs", "std::time::Instant", "std::time::SystemTime"]
 require    = "honest"
+
+[[lele.lint.inline_trait_methods]]
+trait   = "bevy::app::Plugin"
+methods = ["build", "ready", "finish", "cleanup"]
+reason  = "plugin lifecycle methods are the plugin's wiring; read them next to the plugin struct"

@@ -1,6 +1,6 @@
 #![allow(unexpected_cfgs)]
 
-use atomic_delegate_macros::atomic_delegates;
+use atomic_delegate_macros::{atomic_delegate, atomic_delegates};
 use freenet_stdlib::prelude::*;
 
 use crate::Lobby;
@@ -11,25 +11,12 @@ pub struct LobbyContract;
 
 #[contract]
 impl ContractInterface for LobbyContract {
+    #[atomic_delegate(LobbyContract, ContractInterface)]
     fn validate_state(
-        _parameters: Parameters<'static>,
+        parameters: Parameters<'static>,
         state: State<'static>,
-        _related: RelatedContracts<'static>,
+        related: RelatedContracts<'static>,
     ) -> Result<ValidateResult, ContractError> {
-        let lobby: Lobby =
-            bincode::deserialize(state.as_ref()).map_err(|_| ContractError::InvalidState)?;
-        if lobby.len() > constants::MAX_ROOMS {
-            return Err(ContractError::InvalidState);
-        }
-        for (room, record) in lobby.iter() {
-            if !Self::valid_room_name(room.as_str()) {
-                return Err(ContractError::InvalidState);
-            }
-            if record.members.len() > constants::MAX_MEMBERS_PER_ROOM {
-                return Err(ContractError::InvalidState);
-            }
-        }
-        Ok(ValidateResult::Valid)
     }
 
     fn update_state(

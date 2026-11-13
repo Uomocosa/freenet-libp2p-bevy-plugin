@@ -1,4 +1,4 @@
-use atomic_delegate_macros::atomic_delegates;
+use atomic_delegate_macros::{atomic_delegate, atomic_delegates};
 
 use crate::identity;
 use crate::testing;
@@ -18,7 +18,6 @@ pub enum LobbyStep {
     ExitApp,
 }
 
-#[rustfmt::skip]
 impl testing::traits::ScriptStep for LobbyStep {
     const STEP_NAMES: &'static str = "create, join, leave, wait-lobby-room, wait-lobby-room-gone, \
         wait-join-succeeded, wait-join-failed, wait-left, wait-ring-joined, wait-lobby-ready, \
@@ -42,21 +41,10 @@ impl testing::traits::ScriptStep for LobbyStep {
         })
     }
 
-    fn is_wait(&self) -> bool {
-        matches!(
-            self,
-            Self::WaitLobbyRoom(_)
-                | Self::WaitLobbyRoomGone(_)
-                | Self::WaitJoinSucceeded(_)
-                | Self::WaitJoinFailed(_)
-                | Self::WaitLeft(_)
-                | Self::WaitRingJoined
-                | Self::WaitLobbyReady
-        )
-    }
+    #[atomic_delegate(LobbyStep, ScriptStep)]
+    fn is_wait(&self) -> bool {}
 }
 
-#[rustfmt::skip]
 impl testing::traits::OrchestratedStep for LobbyStep {
     fn script_text(&self) -> String {
         match self {

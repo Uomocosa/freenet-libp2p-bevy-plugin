@@ -1,3 +1,4 @@
+use atomic_delegate_macros::atomic_delegates;
 use serde::{Deserialize, Serialize};
 
 use crate::PeerAddr;
@@ -11,24 +12,11 @@ pub struct Peer {
     pub addrs: Vec<PeerAddr>,
 }
 
+#[atomic_delegates]
 impl TryFrom<&str> for Peer {
     type Error = PeerError;
 
-    fn try_from(text: &str) -> Result<Self, Self::Error> {
-        let trimmed = text.trim();
-        if trimmed.is_empty() {
-            return Err(PeerError::Empty);
-        }
-        let addr: multiaddr::Multiaddr = trimmed.parse()?;
-        let ending = addr.iter().last();
-        let multiaddr::Protocol::P2p(id) = ending.as_ref().ok_or(PeerError::MissingPeerId)? else {
-            return Err(PeerError::MissingPeerId);
-        };
-        Ok(Self {
-            id: PeerId::from(id.to_string()),
-            addrs: vec![PeerAddr::from(trimmed)],
-        })
-    }
+    fn try_from(text: &str) -> Result<Self, Self::Error> {}
 }
 
 #[cfg(test)]

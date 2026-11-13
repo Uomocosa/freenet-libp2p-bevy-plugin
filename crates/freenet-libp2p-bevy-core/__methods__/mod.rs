@@ -13,7 +13,6 @@ pub mod fake_network_plugin;
 pub mod fake_network_server;
 #[cfg(feature = "testing")]
 pub mod fake_wire_framing;
-pub mod friends_plugin;
 pub mod game_id;
 pub mod gossipsub_config;
 pub mod libp2p_command;
@@ -27,7 +26,6 @@ pub mod network_args;
 pub mod orchestrator;
 #[cfg(feature = "testing")]
 pub mod orchestrator_shared;
-pub mod p2p_plugin;
 pub mod peer_book;
 #[cfg(feature = "testing")]
 pub mod peer_message_router;
@@ -38,14 +36,13 @@ pub mod room_history_record_kind;
 pub mod runner_config;
 #[cfg(feature = "testing")]
 pub mod script_runner;
+pub mod short_peer_id;
 pub mod swarm_channels;
 pub mod swarm_loop_state;
 #[cfg(feature = "testing")]
 pub mod swarm_task_override;
-pub mod sync_plugin;
 pub mod sync_state;
 #[cfg(feature = "testing")]
 pub mod timed_script_step;
 pub mod topic;
-pub mod tracking_plugin;
 pub mod transport_mode;

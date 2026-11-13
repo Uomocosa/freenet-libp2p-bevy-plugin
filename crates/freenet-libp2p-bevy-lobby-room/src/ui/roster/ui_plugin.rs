@@ -1,19 +1,29 @@
-use atomic_delegate_macros::atomic_delegates;
+use crate::ui;
 use bevy::prelude::App;
+use bevy::prelude::*;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct UiPlugin;
 
-#[rustfmt::skip]
 impl bevy::prelude::Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        self.build_plugin(app);
+        use ui::roster::bevy_systems as systems;
+        app.init_resource::<ui::roster::MemberIcons>();
+        app.init_resource::<ui::roster::ListState>();
+        app.add_systems(Startup, systems::spawn_roster_bubble);
+        app.add_systems(
+            Update,
+            (
+                systems::prune_member_icons,
+                systems::refresh_roster_status,
+                systems::refresh_roster_tooltips_text,
+                systems::refresh_roster_tooltip,
+                systems::toggle_roster_list,
+                systems::refresh_roster_list,
+            )
+                .chain(),
+        );
     }
-}
-
-#[atomic_delegates]
-impl UiPlugin {
-    pub fn build_plugin(self, app: &mut App) {}
 }
 
 #[cfg(test)]
@@ -178,5 +188,24 @@ mod tests {
             ..Default::default()
         })
         .expect("preview");
+    }
+}
+
+#[cfg(test)]
+mod build_plugin_tests {
+    use crate::ui;
+    use bevy::prelude::Plugin;
+    use bevy::prelude::*;
+
+    #[test]
+    fn test_usage() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        Plugin::build(&ui::roster::UiPlugin, &mut app);
+        app.update();
+        let mut bubbles = app
+            .world_mut()
+            .query_filtered::<(), With<ui::roster::RosterBubble>>();
+        assert_eq!(bubbles.iter(app.world()).count(), 1);
     }
 }

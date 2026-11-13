@@ -1,4 +1,4 @@
-use atomic_delegate_macros::atomic_delegates;
+use atomic_delegate_macros::{atomic_delegate, atomic_delegates};
 
 use crate::testing;
 
@@ -14,20 +14,19 @@ pub enum E2EStep {
     Stay,
 }
 
-#[rustfmt::skip]
 impl testing::traits::ScriptStep for E2EStep {
     const STEP_NAMES: &'static str = "wait-members, \
         wait-members-are-strictly-less-than, wait-members-are-less-or-equal-to, wait-room-messages, \
         sleep, mark-completed, crash-app, stay";
     fn parse_verb(verb: &str, arg: &str) -> Option<Result<Self, String>> {
         Some(match verb {
-            "wait-members" => Self::count(verb, arg).map(|n| Self::WaitMembers(testing::MemberCount(n))),
-            "wait-members-are-strictly-less-than" => {
-                Self::count(verb, arg).map(|n| Self::WaitMembersAreStrictlyLessThan(testing::MemberCount(n)))
+            "wait-members" => {
+                Self::count(verb, arg).map(|n| Self::WaitMembers(testing::MemberCount(n)))
             }
-            "wait-members-are-less-or-equal-to" => {
-                Self::count(verb, arg).map(|n| Self::WaitMembersAreLessOrEqualTo(testing::MemberCount(n)))
-            }
+            "wait-members-are-strictly-less-than" => Self::count(verb, arg)
+                .map(|n| Self::WaitMembersAreStrictlyLessThan(testing::MemberCount(n))),
+            "wait-members-are-less-or-equal-to" => Self::count(verb, arg)
+                .map(|n| Self::WaitMembersAreLessOrEqualTo(testing::MemberCount(n))),
             "wait-room-messages" => {
                 Self::count(verb, arg).map(|n| Self::WaitRoomMessages(testing::SenderCount(n)))
             }
@@ -39,18 +38,10 @@ impl testing::traits::ScriptStep for E2EStep {
         })
     }
 
-    fn is_wait(&self) -> bool {
-        matches!(
-            self,
-            Self::WaitMembers(_)
-                | Self::WaitMembersAreStrictlyLessThan(_)
-                | Self::WaitMembersAreLessOrEqualTo(_)
-                | Self::WaitRoomMessages(_)
-        )
-    }
+    #[atomic_delegate(E2EStep, ScriptStep)]
+    fn is_wait(&self) -> bool {}
 }
 
-#[rustfmt::skip]
 impl testing::traits::OrchestratedStep for E2EStep {
     fn script_text(&self) -> String {
         match self {

@@ -10,7 +10,7 @@ use bevy::prelude::Resource;
 use discovery::state_machine::{Handshake, HeartbeatTarget, Input, ObservedLobbyHeartbeat, Output};
 use std::collections::{BTreeMap, BTreeSet};
 
-use atomic_delegate_macros::atomic_delegates;
+use atomic_delegate_macros::{atomic_delegate, atomic_delegates};
 
 #[derive(Resource)]
 pub struct DiscoveryState {
@@ -72,29 +72,12 @@ impl DiscoveryState {
     }
 }
 
-#[rustfmt::skip]
 impl lele_bevy_state_machine::traits::StateMachine for DiscoveryState {
     type Input = Input;
     type Output = Output;
     type Now = time::UnixTime;
-    fn update(&mut self, input: Self::Input, now: Self::Now) -> Vec<Self::Output> {
-        match input {
-            Input::Command(command) => self.handle_command(command, now),
-            Input::Libp2pEvent(event) => self.handle_libp2p_event(event, now),
-            Input::LobbyUpdated(lobby) => {
-                self.is_lobby_fetched = true;
-                self.handle_lobby(lobby, now)
-            }
-            Input::FreenetPeers(peers) => {
-                self.freenet_peers = peers;
-                Vec::new()
-            }
-            Input::OwnAddrsChanged(addrs) => {
-                self.me.addrs = addrs;
-                Vec::new()
-            }
-        }
-    }
+    #[atomic_delegate(DiscoveryState, StateMachine)]
+    fn update(&mut self, input: Self::Input, now: Self::Now) -> Vec<Self::Output> {}
 }
 
 #[rustfmt::skip]

@@ -1,2 +1,2 @@
-mod build_plugin;
-pub use build_plugin::build_plugin;
+mod from_network_args;
+pub use from_network_args::from_network_args;
