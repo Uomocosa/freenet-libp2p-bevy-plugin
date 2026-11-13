@@ -30,6 +30,13 @@ impl FakeNetworkServer {
         events: Vec<testing::RoutedEvent>,
     ) {
     }
+    pub(crate) async fn send_fan_out(
+        &self,
+        shared: &Arc<tokio::sync::Mutex<testing::orchestrator_shared::OrchestratorShared>>,
+        game: &identity::GameId,
+        fan_outs: Vec<testing::FanOut>,
+    ) {
+    }
     pub(crate) async fn send_lobby_to_game_peers(
         &self,
         shared: &Arc<tokio::sync::Mutex<testing::orchestrator_shared::OrchestratorShared>>,

@@ -29,6 +29,7 @@ pub enum FakeWireClientFrame {
         room: identity::RoomName,
         data: Vec<u8>,
     },
+    Extension(Vec<u8>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,6 +37,13 @@ pub enum FakeWireServerFrame {
     Libp2pEvent(p2p::Libp2pEvent),
     Lobby(discovery::Lobby),
     FreenetPeers(Vec<freenet::FreenetPeer>),
+    Extension(Vec<u8>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FanOutTarget {
+    Peer(identity::PeerId),
+    Game,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

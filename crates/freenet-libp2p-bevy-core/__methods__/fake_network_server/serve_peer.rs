@@ -35,13 +35,23 @@ pub async fn serve_peer(
         tracing::error!(target: "testing", "orchestrator: hello decode failed");
         return;
     };
-    let current_lobby = {
+    let (current_lobby, hello_frames) = {
         let mut guard = shared.lock().await;
-        guard.hello_lobby(&hello.peer, &hello.game, frame_tx.clone())
+        let current_lobby = guard.hello_lobby(&hello.peer, &hello.game, frame_tx.clone());
+        let hello_frames = guard
+            .kit
+            .on_hello(&hello.peer, &hello.game, time::UnixTime::now());
+        drop(guard);
+        (current_lobby, hello_frames)
     };
     frame_tx
         .send(testing::FakeWireServerFrame::Lobby(current_lobby))
         .ok();
+    for bytes in hello_frames {
+        frame_tx
+            .send(testing::FakeWireServerFrame::Extension(bytes))
+            .ok();
+    }
     let peer_id = hello.peer.id.clone();
     loop {
         let Ok(length) = reader.read_u32().await else {
@@ -58,21 +68,33 @@ pub async fn serve_peer(
             tracing::error!(target: "testing", "orchestrator: frame decode failed");
             break;
         };
-        let (events, lobby) = {
+        let (events, lobby, fan_outs) = {
             let mut guard = shared.lock().await;
-            guard.handle_client_frame(&peer_id, frame, time::UnixTime::now())
+            let now = time::UnixTime::now();
+            let fan_outs = match &frame {
+                testing::FakeWireClientFrame::Extension(bytes) => {
+                    guard.route_extension(&peer_id, bytes.clone(), now)
+                }
+                _ => Vec::new(),
+            };
+            let (events, lobby) = guard.handle_client_frame(&peer_id, frame, now);
+            drop(guard);
+            (events, lobby, fan_outs)
         };
         task.send_routed_events(&shared, events).await;
+        task.send_fan_out(&shared, &hello.game, fan_outs).await;
         if let Some(lobby) = lobby {
             task.send_lobby_to_game_peers(&shared, &peer_id, lobby)
                 .await;
         }
     }
-    let leftovers = {
+    let (leftovers, disconnect_fan_outs) = {
         let mut guard = shared.lock().await;
-        guard.remove_connection(&peer_id)
+        guard.remove_connection(&peer_id, time::UnixTime::now())
     };
     task.send_routed_events(&shared, leftovers).await;
+    task.send_fan_out(&shared, &hello.game, disconnect_fan_outs)
+        .await;
 }
 #[cfg(test)]
 mod tests {

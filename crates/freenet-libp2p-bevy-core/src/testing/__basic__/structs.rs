@@ -15,6 +15,12 @@ pub struct RoutedEvent {
     pub event: p2p::Libp2pEvent,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FanOut {
+    pub to: testing::FanOutTarget,
+    pub bytes: Vec<u8>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StepClock {
     pub elapsed: Duration,

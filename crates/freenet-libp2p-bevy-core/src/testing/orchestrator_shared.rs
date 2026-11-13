@@ -12,15 +12,24 @@ pub struct OrchestratorShared {
     pub routers: HashMap<identity::GameId, testing::PeerMessageRouter>,
     pub senders: HashMap<identity::PeerId, Vec<UnboundedSender<testing::FakeWireServerFrame>>>,
     pub peer_games: HashMap<identity::PeerId, identity::GameId>,
+    pub(crate) kit: Box<dyn testing::traits::FakeNetworkKit>,
 }
 
 impl OrchestratorShared {
     #[must_use]
     pub fn new() -> Self {
+        let kit: Box<dyn testing::traits::FakeNetworkKit> = Box::new(testing::NoFakeNetworkKit);
+        Self::from(kit)
+    }
+}
+
+impl From<Box<dyn testing::traits::FakeNetworkKit>> for OrchestratorShared {
+    fn from(kit: Box<dyn testing::traits::FakeNetworkKit>) -> Self {
         Self {
             routers: HashMap::new(),
             senders: HashMap::new(),
             peer_games: HashMap::new(),
+            kit,
         }
     }
 }
@@ -51,10 +60,18 @@ impl OrchestratorShared {
         now: time::UnixTime,
     ) -> (Vec<testing::RoutedEvent>, Option<discovery::Lobby>) {
     }
+    pub(crate) fn route_extension(
+        &mut self,
+        peer: &identity::PeerId,
+        bytes: Vec<u8>,
+        now: time::UnixTime,
+    ) -> Vec<testing::FanOut> {
+    }
     pub(crate) fn remove_connection(
         &mut self,
         peer: &identity::PeerId,
-    ) -> Vec<testing::RoutedEvent> {
+        now: time::UnixTime,
+    ) -> (Vec<testing::RoutedEvent>, Vec<testing::FanOut>) {
     }
     pub(crate) fn hello_lobby(
         &mut self,

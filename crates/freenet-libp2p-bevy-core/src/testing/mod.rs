@@ -12,12 +12,12 @@ pub use basic::constants::{
     SCRIPT_FAILED_EXIT_CODE, SCRIPT_FAILED_MARKER, STEP_DONE_MARKER,
 };
 pub use basic::enums::{
-    E2EStepEffect, FakeWireClientFrame, FakeWireServerFrame, PeerExit, StepOutcome,
+    E2EStepEffect, FakeWireClientFrame, FakeWireServerFrame, FanOutTarget, PeerExit, StepOutcome,
 };
 pub use basic::newtypes::{MemberCount, SenderCount};
 pub use basic::resources::PendingAction;
 pub use basic::structs::{
-    BookKindExpectation, E2EStepPoll, E2EStepView, FakeWireHello, LivePeer, ReportCheck,
+    BookKindExpectation, E2EStepPoll, E2EStepView, FakeWireHello, FanOut, LivePeer, ReportCheck,
     RoutedEvent, RunningPeer, StepClock, StepTiming, StoredStep,
 };
 
@@ -35,6 +35,9 @@ pub use fake_network_plugin::FakeNetworkPlugin;
 
 mod fake_network_server;
 pub use fake_network_server::FakeNetworkServer;
+
+mod no_fake_network_kit;
+pub use no_fake_network_kit::NoFakeNetworkKit;
 
 mod fake_task_handles;
 pub use fake_task_handles::FakeTaskHandles;

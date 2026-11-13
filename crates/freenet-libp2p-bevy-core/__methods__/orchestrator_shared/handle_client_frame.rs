@@ -30,6 +30,7 @@ pub fn handle_client_frame(
                 .route_specific_room_bytes(peer, &room, data),
             None,
         ),
+        testing::FakeWireClientFrame::Extension(_) => (Vec::new(), None),
     }
 }
 #[cfg(test)]

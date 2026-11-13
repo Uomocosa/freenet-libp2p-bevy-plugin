@@ -1,8 +1,10 @@
 mod checkpoint_board;
+mod fake_network_kit;
 mod orchestrated_step;
 mod pollable_script_step;
 mod script_step;
 pub use checkpoint_board::CheckpointBoard;
+pub use fake_network_kit::FakeNetworkKit;
 pub use orchestrated_step::OrchestratedStep;
 pub use pollable_script_step::PollableScriptStep;
 pub use script_step::ScriptStep;
