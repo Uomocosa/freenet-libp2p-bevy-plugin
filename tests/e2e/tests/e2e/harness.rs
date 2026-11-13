@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use freenet_libp2p_bevy_plugin::testing::{
-    Orchestrator, OrchestratorReport, ReportCheck, traits::CheckpointBoard,
+    FREENET_NODE_STARTED, Orchestrator, OrchestratorReport, ReportCheck, traits::CheckpointBoard,
 };
 
 use crate::check_layer::CheckLayer;
@@ -115,7 +115,7 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
     });
     let mut report = orchestrator.run().await;
     tiler.abort();
-    let skip_lobby_fetch = orchestrator.should_forbid_freenet_node;
+    let skip_lobby_fetch = orchestrator.forbids_log_line(FREENET_NODE_STARTED);
     let clip = if report.logs_dir.as_os_str().is_empty() {
         None
     } else {
@@ -153,7 +153,7 @@ async fn run_merged_results_check(orchestrator: &mut Orchestrator) -> Orchestrat
         orchestrator
             .min_members_override
             .unwrap_or_else(|| orchestrator.peer_names().len()),
-        orchestrator.should_forbid_freenet_node,
+        orchestrator.forbids_log_line(FREENET_NODE_STARTED),
         orchestrator.may_crash.clone(),
         orchestrator.join_must_fail.clone(),
     );

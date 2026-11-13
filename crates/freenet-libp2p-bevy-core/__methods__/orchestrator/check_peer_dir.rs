@@ -34,18 +34,24 @@ pub fn check_peer_dir(
     }
     let mut failed = false;
     let mut done = false;
-    let mut freenet_started = false;
+    let mut forbidden_hit: Option<String> = None;
     for log in &logs {
         let text = std::fs::read_to_string(log).unwrap_or_default();
         failed = failed || text.contains(testing::SCRIPT_FAILED_MARKER);
         done = done || text.contains(testing::SCRIPT_DONE_MARKER);
-        freenet_started = freenet_started || text.contains("lobby freenet node started");
+        if forbidden_hit.is_none() {
+            forbidden_hit = orchestrator
+                .forbidden_log_lines
+                .iter()
+                .find(|line| text.contains(line.as_str()))
+                .cloned();
+        }
     }
     if failed {
         return fail("a log has the script failed marker".to_string());
     }
-    if orchestrator.should_forbid_freenet_node && freenet_started {
-        return fail("the embedded freenet node started".to_string());
+    if let Some(line) = forbidden_hit {
+        return fail(format!("a log has the forbidden line \"{line}\""));
     }
     let stays = orchestrator
         .peers
@@ -74,7 +80,7 @@ mod tests {
             testing::Network::DirectDial,
         );
         orchestrator.peer("alice");
-        orchestrator.expect_no_freenet_node();
+        orchestrator.expect_no_log_line(testing::FREENET_NODE_STARTED);
         orchestrator
     }
 
@@ -98,7 +104,10 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         write_run(dir.path(), "script failed\n");
         assert!(!check_peer_dir(&orchestrator(), dir.path(), "alice").ok);
-        write_run(dir.path(), "script done\nlobby freenet node started\n");
+        write_run(
+            dir.path(),
+            &format!("script done\n{}\n", testing::FREENET_NODE_STARTED),
+        );
         assert!(!check_peer_dir(&orchestrator(), dir.path(), "alice").ok);
     }
 

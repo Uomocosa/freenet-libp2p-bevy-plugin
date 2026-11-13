@@ -24,15 +24,15 @@ pub async fn build_checks(
             continue;
         }
         let text = std::fs::read_to_string(&slot.log).unwrap_or_default();
-        if orchestrator.should_forbid_freenet_node {
-            let started = text.contains("lobby freenet node started");
+        for line in &orchestrator.forbidden_log_lines {
+            let found = text.contains(line.as_str());
             checks.push(testing::ReportCheck {
-                name: format!("{name} no freenet node"),
-                ok: !started,
-                detail: if started {
-                    "the embedded freenet node started".to_string()
+                name: format!("{name} no \"{line}\""),
+                ok: !found,
+                detail: if found {
+                    format!("the log has the forbidden line \"{line}\"")
                 } else {
-                    "no freenet node started".to_string()
+                    "the forbidden line is absent".to_string()
                 },
             });
         }

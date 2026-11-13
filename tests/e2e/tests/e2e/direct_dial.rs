@@ -1,4 +1,5 @@
 use e2e_macros::e2e_test;
+use freenet_libp2p_bevy_plugin::testing::FREENET_NODE_STARTED;
 
 use crate::starboard_steps::{
     dial, exit_app, wait_until_friend_is_connected, wait_until_friend_is_disconnected,
@@ -18,6 +19,6 @@ fn direct_dial(test: &mut Orchestrator) {
         wait_until_friend_is_disconnected("alice"),
         exit_app(),
     ]);
-    test.expect_no_freenet_node();
+    test.expect_no_log_line(FREENET_NODE_STARTED);
     test.expect_min_members(0);
 }

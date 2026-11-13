@@ -58,7 +58,7 @@ mod e2e_step;
 pub use e2e_step::E2EStep;
 
 mod lobby_step;
-pub use lobby_step::LobbyStep;
+pub use lobby_step::{FREENET_NODE_STARTED, LobbyStep};
 
 mod e2e_step_effect_sink;
 pub use e2e_step_effect_sink::E2EStepEffectSink;

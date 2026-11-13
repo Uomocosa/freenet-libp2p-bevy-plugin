@@ -48,7 +48,7 @@ mod tests {
             testing::Network::DirectDial,
         );
         orchestrator.peer("alice");
-        orchestrator.expect_no_freenet_node();
+        orchestrator.expect_no_log_line(testing::FREENET_NODE_STARTED);
         orchestrator
     }
 
@@ -79,7 +79,10 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         write_run(dir.path(), "script failed\n");
         assert!(!run_check_role(&orchestrator(), dir.path()).await.all_ok());
-        write_run(dir.path(), "script done\nlobby freenet node started\n");
+        write_run(
+            dir.path(),
+            &format!("script done\n{}\n", testing::FREENET_NODE_STARTED),
+        );
         assert!(!run_check_role(&orchestrator(), dir.path()).await.all_ok());
     }
 

@@ -108,7 +108,7 @@ may use known addresses: that is what they are for.
 Three tests prove dialing peers that already know each other. Each pins
 `network = "direct-dial"` in its `#[e2e_test]`, which beats `E2E_NETWORK`: the
 game starts with `--network direct-dial` (real libp2p, no Freenet node) and a
-`--peer-book-file`. `expect_no_freenet_node()` fails the test if the log shows
+`--peer-book-file`. `expect_no_log_line(FREENET_NODE_STARTED)` fails the test if the log shows
 `lobby freenet node started`. The Orchestrator reads each peer's live addresses
 from its log, substitutes peer names in `dial:` and `add-friend:` steps, and
 waits to spawn a peer until the address it needs is known. Split runs share

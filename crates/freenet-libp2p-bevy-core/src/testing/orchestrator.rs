@@ -15,7 +15,7 @@ pub struct Orchestrator {
     pub(crate) placement: Vec<(String, String)>,
     pub should_check_canvas_convergence: bool,
     pub should_check_history_written: bool,
-    pub should_forbid_freenet_node: bool,
+    pub forbidden_log_lines: Vec<String>,
     pub book_kind_expectations: Vec<testing::BookKindExpectation>,
     pub min_members_override: Option<usize>,
     pub may_crash: std::collections::BTreeSet<String>,
@@ -36,7 +36,7 @@ impl Orchestrator {
             placement: Vec::new(),
             should_check_canvas_convergence: false,
             should_check_history_written: false,
-            should_forbid_freenet_node: false,
+            forbidden_log_lines: Vec::new(),
             book_kind_expectations: Vec::new(),
             min_members_override: None,
             may_crash: std::collections::BTreeSet::new(),
@@ -79,8 +79,8 @@ impl Orchestrator {
         self
     }
 
-    pub const fn expect_no_freenet_node(&mut self) -> &mut Self {
-        self.should_forbid_freenet_node = true;
+    pub fn expect_no_log_line(&mut self, line: &str) -> &mut Self {
+        self.forbidden_log_lines.push(line.to_string());
         self
     }
 
@@ -129,6 +129,8 @@ impl Orchestrator {
 impl Orchestrator {
     #[must_use]
     pub fn peer_names(&self) -> Vec<String> { self.peers.iter().map(|peer| peer.name.clone()).collect() }
+    #[must_use]
+    pub fn forbids_log_line(&self, line: &str) -> bool { self.forbidden_log_lines.contains(&line.to_string()) }
 
 }
 
@@ -485,13 +487,13 @@ mod tests {
             Orchestrator::from_game_and_network("starboard".to_string(), testing::Network::Fake);
         orchestrator
             .peer("alice")
-            .expect_no_freenet_node()
+            .expect_no_log_line(testing::FREENET_NODE_STARTED)
             .expect_book_kind(
                 "alice",
                 "bob",
                 direct_dial::KnownPeerKind::PreviouslyConnected,
             );
-        assert!(orchestrator.should_forbid_freenet_node);
+        assert!(orchestrator.forbids_log_line(testing::FREENET_NODE_STARTED));
         assert_eq!(orchestrator.book_kind_expectations.len(), 1);
     }
 
