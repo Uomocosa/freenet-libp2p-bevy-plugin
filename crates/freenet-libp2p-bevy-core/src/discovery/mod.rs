@@ -47,8 +47,6 @@ pub use history_size_limits::HistorySizeLimits;
 mod error;
 pub use error::Error;
 
-mod game_id;
-
 mod plugin;
 pub use plugin::Plugin;
 

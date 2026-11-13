@@ -3,6 +3,17 @@ use derive_more::{Deref, Display, From};
 use libp2p::StreamProtocol;
 use serde::{Deserialize, Serialize};
 
+#[macro_export]
+macro_rules! game_id {
+    () => {
+        $crate::identity::GameId(format!(
+            "{}/{}",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_REPOSITORY"),
+        ))
+    };
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Deref, Display, From)]
 #[from(forward)]
 pub struct GameId(pub String);
