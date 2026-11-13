@@ -1,3 +1,4 @@
+use atomic_delegate_macros::atomic_delegates;
 use derive_more::{Deref, Display, From};
 use libp2p::StreamProtocol;
 use serde::{Deserialize, Serialize};
@@ -22,11 +23,11 @@ impl GameId {
 impl GameId {
     #[must_use]
     pub fn contract_params(&self) -> Vec<u8> { self.as_bytes().to_vec() }
+}
 
-    pub fn sync_protocol(&self) -> Result<StreamProtocol, String> {
-        libp2p::StreamProtocol::try_from_owned(format!("/{}/room-sync/2", self.as_str()))
-            .map_err(|error| error.to_string())
-    }
+#[atomic_delegates]
+impl GameId {
+    pub fn sync_protocol(&self) -> Result<StreamProtocol, String> {}
 }
 
 #[cfg(test)]

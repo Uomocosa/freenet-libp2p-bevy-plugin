@@ -133,9 +133,9 @@ impl E2EStep {
         name: &identity::RoomName,
     ) -> Option<String> {
     }
+    pub(crate) fn count(verb: &str, arg: &str) -> Result<u32, String> {}
 }
 
-#[rustfmt::skip]
 impl E2EStep {
     pub(crate) fn unit(verb: &str, arg: &str) -> Result<(), String> {
         if arg.trim().is_empty() {
@@ -151,12 +151,6 @@ impl E2EStep {
             return Err(format!("step '{verb}' needs a room name"));
         }
         Ok(identity::RoomName::from(name))
-    }
-
-    pub(crate) fn count(verb: &str, arg: &str) -> Result<u32, String> {
-        arg.trim()
-            .parse::<u32>()
-            .map_err(|_| format!("step '{verb}' needs a count, got '{arg}'"))
     }
 
     pub(crate) fn checkpoint(verb: &str, arg: &str) -> Result<testing::ScriptCheckpoint, String> {

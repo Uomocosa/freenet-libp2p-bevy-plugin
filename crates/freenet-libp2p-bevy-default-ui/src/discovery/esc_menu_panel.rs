@@ -1,59 +1,12 @@
-use bevy::picking::hover::Hovered;
+use atomic_delegate_macros::atomic_delegates;
 use bevy::prelude::*;
-use bevy::ui_widgets::Button;
-
-use crate::discovery;
-use discovery::{
-    BUTTON_COLOR, BUTTON_LABEL_COLOR, HOVER_OUTLINE_WIDTH, HoverGlow, MENU_BUTTON_RADIUS,
-    MENU_HINT_FONT_SIZE, MENU_LABEL_FONT_SIZE,
-};
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct EscMenuPanel;
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl EscMenuPanel {
-    pub(crate) fn button(marker: impl Component, label: &str, hint: &str) -> impl Bundle {
-        (
-            marker,
-            Button,
-            Hovered::default(),
-            HoverGlow::default(),
-            UiTransform::default(),
-            Outline::new(Val::Px(HOVER_OUTLINE_WIDTH), Val::ZERO, Color::NONE),
-            Node {
-                width: Val::Percent(100.0),
-                padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)),
-                border_radius: BorderRadius::all(Val::Px(MENU_BUTTON_RADIUS)),
-                align_items: AlignItems::Center,
-                column_gap: Val::Px(10.0),
-                ..default()
-            },
-            BackgroundColor(BUTTON_COLOR),
-            children![
-                (
-                    Text::new(label),
-                    TextColor(BUTTON_LABEL_COLOR),
-                    TextFont {
-                        font_size: FontSize::Px(MENU_LABEL_FONT_SIZE),
-                        ..default()
-                    },
-                ),
-                (Node {
-                    flex_grow: 1.0,
-                    ..default()
-                },),
-                (
-                    Text::new(hint),
-                    TextColor(crate::basic::constants::DIM_TEXT_COLOR),
-                    TextFont {
-                        font_size: FontSize::Px(MENU_HINT_FONT_SIZE),
-                        ..default()
-                    },
-                ),
-            ],
-        )
-    }
+    pub(crate) fn button(marker: impl Component, label: &str, hint: &str) -> impl Bundle {}
 }
 
 #[cfg(test)]

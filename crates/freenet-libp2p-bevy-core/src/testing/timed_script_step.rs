@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use atomic_delegate_macros::atomic_delegates;
+
 use crate::testing;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +52,12 @@ impl<Step: testing::traits::ScriptStep> TimedScriptStep<Step> {
 
 #[rustfmt::skip]
 impl<Step: testing::traits::ScriptStep> TimedScriptStep<Step> {
+    pub(crate) fn split_verb(body: &str) -> (&str, &str) {
+        body.split_once(':').unwrap_or((body, ""))
+    }
+}
+
+impl<Step: testing::traits::ScriptStep> TimedScriptStep<Step> {
     pub(crate) fn split_head(text: &str) -> Result<(&str, &str, Option<Duration>), String> {
         let (body, deadline) = Self::split_deadline(text)?;
         let (verb, arg) = Self::split_verb(body);
@@ -62,18 +70,11 @@ impl<Step: testing::traits::ScriptStep> TimedScriptStep<Step> {
             None => Ok((text, None)),
         }
     }
+}
 
-    pub(crate) fn split_verb(body: &str) -> (&str, &str) {
-        body.split_once(':').unwrap_or((body, ""))
-    }
-
-    pub(crate) fn parse_seconds(raw: &str) -> Result<Duration, String> {
-        raw.trim()
-            .strip_suffix('s')
-            .and_then(|secs| secs.parse::<u64>().ok())
-            .map(Duration::from_secs)
-            .ok_or_else(|| format!("expected seconds like '30s', got '{raw}'"))
-    }
+#[atomic_delegates]
+impl<Step: testing::traits::ScriptStep> TimedScriptStep<Step> {
+    pub(crate) fn parse_seconds(raw: &str) -> Result<Duration, String> {}
 }
 
 #[cfg(test)]

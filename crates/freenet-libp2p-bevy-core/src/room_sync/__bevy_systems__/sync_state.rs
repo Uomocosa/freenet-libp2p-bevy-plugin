@@ -46,17 +46,13 @@ impl<Op> SyncState<Op> {
         game: &identity::GameId,
     ) {
     }
+    pub(crate) fn reset_after_leaving(&mut self) {}
     pub(crate) fn snapshot_frame<Replica: room_sync::traits::ReplicatedState>(
         room: &Replica,
         room_name: identity::RoomName,
         part: u32,
     ) -> p2p::SnapshotResponse {
     }
-}
-
-#[rustfmt::skip]
-impl<Op> SyncState<Op> {
-    pub(crate) fn reset_after_leaving(&mut self) { *self = Self(room_sync::state_machine::ReplicaState { slice_anti_entropy: room_sync::state_machine::SliceAntiEntropyState { max_fetches_per_peer: self.slice_anti_entropy.max_fetches_per_peer, ..Default::default() }, kademlia_history: room_sync::state_machine::KademliaHistoryState { is_enabled: self.kademlia_history.is_enabled, max_fetch_retries: self.kademlia_history.max_fetch_retries, per_room_bytes: self.kademlia_history.per_room_bytes, record_ttl: self.kademlia_history.record_ttl, ..Default::default() }, ..Default::default() }); }
     pub(crate) fn libp2p_event_to_input<Replica: room_sync::traits::ReplicatedState>(
         event: &p2p::Libp2pEvent,
         state: &SyncState<Replica::Op>,
@@ -64,101 +60,6 @@ impl<Op> SyncState<Op> {
         game: &identity::GameId,
         replica: &Replica,
     ) -> Option<room_sync::state_machine::Input<Replica::Op>> {
-        match event {
-            p2p::Libp2pEvent::Gossip { topic, from, data } => {
-                let expected = state
-                    .room
-                    .as_ref()
-                    .map(|room| identity::Topic::from_room_sync(game, room));
-                if expected.as_ref() != Some(topic) {
-                    return None;
-                }
-                let message =
-                    bincode::deserialize::<room_sync::ReplicaSyncTopicMessage<Replica::Op>>(data)
-                        .ok()?;
-                match message {
-                    room_sync::ReplicaSyncTopicMessage::ApplyThisOp { room, meta, op } => {
-                        clock.observe(meta.lamport);
-                        Some(room_sync::state_machine::Input::Remote { room, meta, op })
-                    }
-                    room_sync::ReplicaSyncTopicMessage::CompareSliceContentHashes {
-                        hashes, ..
-                    } => {
-                        tracing::debug!(target: "room_sync", "anti-entropy compare from={from} remote_slices={}", hashes.len());
-                        Some(room_sync::state_machine::Input::RemoteSliceContentHashes {
-                            from: from.clone(),
-                            local: replica.slice_content_hashes(),
-                            remote: hashes,
-                        })
-                    }
-                }
-            }
-            p2p::Libp2pEvent::SnapshotPart {
-                room,
-                part,
-                total,
-                data,
-                ..
-            } => Some(
-                room_sync::state_machine::Input::SnapshotPartReceivedFromRoomMember {
-                    room: room.clone(),
-                    part: *part,
-                    total: *total,
-                    data: data.clone(),
-                },
-            ),
-            p2p::Libp2pEvent::SnapshotMissing { .. } => {
-                Some(room_sync::state_machine::Input::SnapshotMissingFromRoomMember)
-            }
-            p2p::Libp2pEvent::RoomSyncRequestFailed { from, request } => {
-                match request {
-                    p2p::SnapshotRequest::Fetch { .. } => {
-                        Some(room_sync::state_machine::Input::RequestToRoomMemberFailed { from: from.clone() })
-                    }
-                    p2p::SnapshotRequest::FetchReplicaSlice { index, .. } => {
-                        Some(room_sync::state_machine::Input::ReplicaSliceRequestFailed { from: from.clone(), index: *index })
-                    }
-                }
-            }
-            p2p::Libp2pEvent::HistoryRecordFound { id, value } => {
-                Some(room_sync::state_machine::Input::HistoryRecordFound {
-                    id: id.clone(),
-                    value: value.clone(),
-                })
-            }
-            p2p::Libp2pEvent::HistoryRecordNotFound { id } => {
-                Some(room_sync::state_machine::Input::HistoryRecordNotFound { id: id.clone() })
-            }
-            p2p::Libp2pEvent::ReplicaSliceRequest {
-                id, room, index, ..
-            } => Some(room_sync::state_machine::Input::ReplicaSliceRequested {
-                id: *id,
-                room: room.clone(),
-                index: *index,
-            }),
-            p2p::Libp2pEvent::ReplicaSlice {
-                from,
-                room,
-                index,
-                data,
-            } => {
-                tracing::debug!(target: "room_sync", "anti-entropy slice from={from} index={} bytes={}", **index, data.len());
-                Some(room_sync::state_machine::Input::ReplicaSliceReceived {
-                    from: from.clone(),
-                    room: room.clone(),
-                    index: *index,
-                    data: data.clone(),
-                })
-            }
-            p2p::Libp2pEvent::SnapshotRequest { id, room, part, .. } => Some(
-                room_sync::state_machine::Input::SnapshotPartRequestedByRoomMember {
-                    id: *id,
-                    room: room.clone(),
-                    part: *part,
-                },
-            ),
-            _ => None,
-        }
     }
 }
 

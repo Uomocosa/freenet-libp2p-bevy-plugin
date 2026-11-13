@@ -2,13 +2,10 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use libp2p::gossipsub;
-use libp2p::identify;
 use libp2p::kad;
-use libp2p::mdns;
-use libp2p::relay;
 use libp2p::request_response;
 use libp2p::swarm::SwarmEvent;
-use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
+use libp2p::swarm::dial_opts::PeerCondition;
 
 use atomic_delegate_macros::atomic_delegates;
 
@@ -94,562 +91,169 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
     }
     pub fn subscribe_room(&mut self, room: identity::RoomName) {}
     pub fn unsubscribe_room(&mut self, room: &identity::RoomName) {}
+    pub fn dial_mdns_peers(&mut self, peers: Vec<(libp2p::PeerId, libp2p::Multiaddr)>) {}
+    pub fn dispatch_libp2p_command(&mut self, command: p2p::Libp2pCommand) {}
+    pub fn handle_gossipsub(&mut self, gossip_event: gossipsub::Event) {}
+    pub fn handle_message(
+        &mut self,
+        peer: &libp2p::PeerId,
+        message: request_response::Message<Payload, Payload>,
+    ) {
+    }
+    pub fn handle_peer_exchange(
+        &mut self,
+        peer: &libp2p::PeerId,
+        message: request_response::Message<Vec<u8>, Vec<u8>>,
+    ) {
+    }
+    pub fn handle_room_sync(
+        &mut self,
+        peer: &libp2p::PeerId,
+        message: request_response::Message<p2p::SnapshotRequest, p2p::SnapshotResponse>,
+    ) {
+    }
+    pub fn handle_swarm_event(
+        &mut self,
+        event: SwarmEvent<p2p::behaviour::BehaviourEvent<Payload>>,
+    ) {
+    }
+    pub fn note_connection(&mut self, event: SwarmEvent<p2p::behaviour::BehaviourEvent<Payload>>) {}
 }
 
-#[rustfmt::skip]
 impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
-pub fn dial_mdns_peers(&mut self, peers: Vec<(libp2p::PeerId, libp2p::Multiaddr)>) {
-    for (peer, addr) in peers {
-        if !self.mode.matches_transport(&addr) {
-            continue;
-        }
-        let opts = DialOpts::peer_id(peer)
-            .condition(PeerCondition::DisconnectedAndNotDialing)
-            .addresses(vec![addr])
-            .build();
-        if let Err(e) = self.swarm.dial(opts) {
-            tracing::debug!(target: "p2p", error = %e, "mdns dial skipped");
-        }
-    }
-}
-pub fn dispatch_libp2p_command(&mut self, command: p2p::Libp2pCommand) {
-    match command {
-        p2p::Libp2pCommand::Dial(peer) => {
-            self.dial_peer(&peer.id, &peer.addrs, PeerCondition::DisconnectedAndNotDialing);
-        }
-        p2p::Libp2pCommand::ReserveRelay { relay_addr } => {
-            if let Ok(addr) = relay_addr.parse::<libp2p::Multiaddr>() {
-                let _ = self.swarm.listen_on(addr);
-            }
-        }
-        p2p::Libp2pCommand::SetMdns { mode } => {
-            let peer_id = *self.swarm.local_peer_id();
-            self.swarm.behaviour_mut().mdns = mode.mdns_behaviour(peer_id);
-        }
-        p2p::Libp2pCommand::AddKadPeer(peer) => {
-            self.seed_kad_peer( &peer.id, &peer.addrs);
-        }
-        p2p::Libp2pCommand::PutHistoryRecord { id, value, ttl } => {
-            self.put_history_record( &id, value, ttl);
-        }
-        p2p::Libp2pCommand::GetHistoryRecord { id } => {
-            let key = id.history_record_key();
-            self.swarm.behaviour_mut().kademlia.get_record(key);
-        }
-        p2p::Libp2pCommand::MeasureHistoryStore => {
-            let bytes_by_prefix = self.measure_history_store();
-            let measured = p2p::Libp2pEvent::HistoryStoreMeasured { bytes_by_prefix };
-            self.event_tx.send(p2p::Event::Libp2p(measured)).ok();
-        }
-        p2p::Libp2pCommand::RemoveHistoryRecords { prefix } => {
-            self.remove_history_records( &prefix);
-        }
-        p2p::Libp2pCommand::Subscribe { topic } => {
-            let topic = gossipsub::IdentTopic::new(topic.as_str());
-            let _ = self.swarm.behaviour_mut().gossipsub.subscribe(&topic);
-        }
-        p2p::Libp2pCommand::Unsubscribe { topic } => {
-            let topic = gossipsub::IdentTopic::new(topic.as_str());
-            let _ = self.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
-        }
-        p2p::Libp2pCommand::SubscribeRoom { room } => {
-            self.subscribe_room( room);
-        }
-        p2p::Libp2pCommand::UnsubscribeRoom { room } => {
-            self.unsubscribe_room( &room);
-        }
-        p2p::Libp2pCommand::FetchSnapshot {
-            peer_id,
-            room,
-            part,
-        } => {
-            self.send_room_sync_request(&peer_id, p2p::SnapshotRequest::Fetch { room, part });
-        }
-        p2p::Libp2pCommand::FetchReplicaSlice {
-            peer_id,
-            room,
-            index,
-        } => {
-            self.send_room_sync_request(
-                &peer_id,
-                p2p::SnapshotRequest::FetchReplicaSlice { room, index },
-            );
-        }
-        p2p::Libp2pCommand::RespondSnapshot { id, frame } => {
-            tracing::debug!(target: "p2p", id = ?id, "snapshot respond requested");
-            if let Some(channel) = self.snapshot_replies.remove(id) {
-                let _ = self.swarm.behaviour_mut().room_sync.send_response(channel, frame);
-            }
-        }
-        p2p::Libp2pCommand::Publish { topic, data } => {
-            let topic = gossipsub::IdentTopic::new(topic.as_str());
-            let subscribed_peers = self
-                .swarm
-                .behaviour()
-                .gossipsub
-                .all_peers()
-                .filter(|(_, topics)| topics.iter().any(|subscribed| **subscribed == topic.hash()))
-                .count();
-            tracing::debug!(target: "p2p", topic = %topic, subscribed_peers, "p2p gossip publish");
-            if let Err(error) = self.swarm.behaviour_mut().gossipsub.publish(topic, data) {
+    pub fn note_dial_failure(
+        &mut self,
+        peer_id: Option<libp2p::PeerId>,
+        error: &libp2p::swarm::DialError,
+    ) {
+        match peer_id {
+            Some(peer_id) => {
                 self.event_tx
-                    .send(p2p::Event::Error(format!("gossip publish: {error}")))
-                    .ok();
-            }
-        }
-        p2p::Libp2pCommand::PeerExchange { peer_id, data } => {
-            if let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() {
-                self.swarm
-                    .behaviour_mut()
-                    .peer_exchange
-                    .send_request(&libp2p_id, data);
-            }
-        }
-    }
-}
-pub fn handle_gossipsub(&mut self, gossip_event: gossipsub::Event) {
-    match gossip_event {
-        gossipsub::Event::Message {
-            propagation_source,
-            message_id,
-            message,
-        } => {
-            self.log_gossip_in(&propagation_source, &message_id, &message);
-            self.forward_gossip(propagation_source, message);
-        }
-        gossipsub::Event::Subscribed { peer_id, topic } => {
-            tracing::debug!(target: "p2p", peer = %peer_id, topic = %topic, "p2p gossip subscribed");
-        }
-        gossipsub::Event::Unsubscribed { peer_id, topic } => {
-            tracing::debug!(target: "p2p", peer = %peer_id, topic = %topic, "p2p gossip unsubscribed");
-        }
-        gossipsub::Event::SlowPeer { peer_id, .. } => {
-            tracing::warn!(target: "p2p", peer = %peer_id, "p2p gossip slow peer");
-        }
-        gossipsub::Event::GossipsubNotSupported { peer_id } => {
-            tracing::warn!(target: "p2p", peer = %peer_id, "p2p gossip not supported");
-        }
-    }
-}
-pub fn handle_message(&mut self, peer: &libp2p::PeerId, message: request_response::Message<Payload, Payload>) {
-    match message {
-        request_response::Message::Request {
-            request, channel, ..
-        } => {
-            let payload_clone = request.clone();
-            self.event_tx
-                .send(p2p::Event::Message {
-                    from: identity::PeerId(peer.to_string()),
-                    payload: request,
-                })
-                .ok();
-            let _ = self.swarm
-                .behaviour_mut()
-                .request_response
-                .send_response(channel, payload_clone);
-        }
-        request_response::Message::Response { response, .. } => {
-            self.event_tx
-                .send(p2p::Event::Message {
-                    from: identity::PeerId(peer.to_string()),
-                    payload: response,
-                })
-                .ok();
-        }
-    }
-}
-pub fn handle_peer_exchange(&mut self, peer: &libp2p::PeerId, message: request_response::Message<Vec<u8>, Vec<u8>>) {
-    if let request_response::Message::Request {
-        request, channel, ..
-    } = message
-    {
-        self.event_tx
-            .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerExchange {
-                from: identity::PeerId(peer.to_string()),
-                data: request,
-            }))
-            .ok();
-        let _ = self.swarm
-            .behaviour_mut()
-            .peer_exchange
-            .send_response(channel, Vec::new());
-    }
-}
-pub fn handle_room_sync(&mut self, peer: &libp2p::PeerId, message: request_response::Message<p2p::SnapshotRequest, p2p::SnapshotResponse>) {
-    match message {
-        request_response::Message::Request {
-            request, channel, ..
-        } => {
-            let id = self.snapshot_replies.insert(channel);
-            let from = identity::PeerId(peer.to_string());
-            match request {
-                p2p::SnapshotRequest::Fetch { room, part } => {
-                    self.event_tx
-                        .send(p2p::Event::Libp2p(p2p::Libp2pEvent::SnapshotRequest {
-                            id,
-                            from,
-                            room,
-                            part,
-                        }))
-                        .ok();
-                }
-                p2p::SnapshotRequest::FetchReplicaSlice { room, index } => {
-                    self.event_tx
-                        .send(p2p::Event::Libp2p(p2p::Libp2pEvent::ReplicaSliceRequest {
-                            id,
-                            from,
-                            room,
-                            index,
-                        }))
-                        .ok();
-                }
-            }
-        }
-        request_response::Message::Response { request_id, response, .. } => {
-            self.room_sync_requests_in_flight.remove(&request_id);
-            tracing::debug!(target: "p2p", peer = %peer, "snapshot response received");
-            let from = identity::PeerId(peer.to_string());
-            let event = match response {
-                p2p::SnapshotResponse::Part {
-                    room,
-                    part,
-                    total,
-                    data,
-                } => p2p::Libp2pEvent::SnapshotPart {
-                    from,
-                    room,
-                    part,
-                    total,
-                    data,
-                },
-                p2p::SnapshotResponse::Missing { room } => {
-                    p2p::Libp2pEvent::SnapshotMissing { from, room }
-                }
-                p2p::SnapshotResponse::ReplicaSlice { room, index, data } => {
-                    p2p::Libp2pEvent::ReplicaSlice {
-                        from,
-                        room,
-                        index,
-                        data,
-                    }
-                }
-            };
-            self.event_tx.send(p2p::Event::Libp2p(event)).ok();
-        }
-    }
-}
-pub fn handle_swarm_event(&mut self, event: SwarmEvent<p2p::behaviour::BehaviourEvent<Payload>>) {
-    match event {
-        SwarmEvent::NewListenAddr { address, .. } => {
-            self.listen_addrs.push(identity::PeerAddr(address.to_string()));
-            if self.ready_deadline.is_none() {
-                let now = tokio::time::Instant::now();
-                self.ready_deadline = now.checked_add(Duration::from_millis(250));
-            }
-        }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RequestResponse(
-            request_response::Event::Message { peer, message, .. },
-        )) => {
-            self.handle_message( &peer, message);
-        }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::PeerExchange(
-            request_response::Event::Message { peer, message, .. },
-        )) => {
-            self.handle_peer_exchange( &peer, message);
-        }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RoomSync(
-            request_response::Event::Message { peer, message, .. },
-        )) => {
-            self.handle_room_sync( &peer, message);
-        }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RoomSync(
-            request_response::Event::OutboundFailure { peer, request_id, .. },
-        )) => {
-            let Some(request) = self.room_sync_requests_in_flight.remove(&request_id) else {
-                tracing::debug!(target: "p2p", peer = %peer, "room sync failure without a tracked request");
-                return;
-            };
-            self.event_tx
-                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::RoomSyncRequestFailed {
-                    from: identity::PeerId(peer.to_string()),
-                    request,
-                }))
-                .ok();
-        }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Kademlia(
-            kad::Event::OutboundQueryProgressed { result, .. },
-        )) => {
-            self.handle_kademlia_query_result( result);
-        }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Gossipsub(gossip_event)) => {
-            self.handle_gossipsub( gossip_event);
-        }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RelayClient(
-            relay::client::Event::ReservationReqAccepted { relay_peer_id, .. },
-        )) => {
-            self.event_tx
-                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::RelayReserved {
-                    relay_peer_id: identity::PeerId(relay_peer_id.to_string()),
-                }))
-                .ok();
-        }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Identify(
-            identify::Event::Received { peer_id, info, .. },
-        )) => {
-            self.event_tx
-                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::ObservedAddr(
-                    identity::PeerAddr(info.observed_addr.to_string()),
-                )))
-                .ok();
-            let reported: Vec<identity::PeerAddr> = info
-                .listen_addrs
-                .iter()
-                .map(|addr| identity::PeerAddr::from(addr.to_string()))
-                .collect();
-            let dialable = identity::PeerAddr::dialable(reported);
-            if !dialable.is_empty() {
-                self.event_tx
-                    .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerListenAddrs {
-                        peer_id: identity::PeerId::from(peer_id.to_string()),
-                        addrs: dialable,
+                    .send(p2p::Event::Libp2p(p2p::Libp2pEvent::DialFailed {
+                        peer_id: identity::PeerId(peer_id.to_string()),
+                        reason: error.to_string(),
                     }))
                     .ok();
             }
+            None => {
+                tracing::debug!(target: "p2p", error = %error, "p2p dial failed without peer");
+            }
         }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::Mdns(mdns::Event::Discovered(
-            peers,
-        ))) => {
-            self.dial_mdns_peers(peers);
-        }
-        event
-        @ (SwarmEvent::ConnectionEstablished { .. } | SwarmEvent::ConnectionClosed { .. }) => {
-            self.note_connection( event);
-        }
-        SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
-            self.note_dial_failure( peer_id, &error);
-        }
-        _ => {}
     }
-}
-pub fn note_connection(&mut self, event: SwarmEvent<p2p::behaviour::BehaviourEvent<Payload>>) {
-    match event {
-        SwarmEvent::ConnectionEstablished {
-            peer_id,
-            connection_id,
-            endpoint,
-            num_established,
-            ..
-        } => {
-            Self::log_established(&peer_id, connection_id, &endpoint);
-            let kind = p2p::ConnectionKind::from(endpoint.get_remote_address());
+    pub(crate) fn publish_joined(&mut self, config: &p2p::GossipsubConfig, payload: &Payload) {
+        let Some(room) = self.subscriptions.joined.clone() else {
             self.event_tx
-                .send(p2p::Event::Libp2p(
-                    p2p::Libp2pEvent::Libp2pConnectionEstablished {
-                        peer_id: identity::PeerId(peer_id.to_string()),
-                        kind,
-                    },
+                .send(p2p::Event::Error(
+                    "room publish: no joined room".to_string(),
                 ))
                 .ok();
-            if num_established.get() == 1 {
-                self.event_tx
-                    .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerConnected(
-                        identity::PeerId(peer_id.to_string()),
-                    )))
-                    .ok();
-            }
-        }
-        SwarmEvent::ConnectionClosed {
-            peer_id,
-            connection_id,
-            endpoint,
-            num_established,
-            cause,
-            ..
-        } => {
-            self.log_closed(
-                &peer_id,
-                connection_id,
-                &endpoint,
-                num_established,
-                cause.as_ref(),
-            );
-            if num_established == 0 {
-                self.event_tx
-                    .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerDisconnected(
-                        identity::PeerId(peer_id.to_string()),
-                    )))
-                    .ok();
-            }
-        }
-        _ => {}
+            return;
+        };
+        self.publish_room(config, &room, payload);
     }
-}
-pub fn note_dial_failure(&mut self, peer_id: Option<libp2p::PeerId>, error: &libp2p::swarm::DialError) {
-    match peer_id {
-        Some(peer_id) => {
+    pub(crate) fn log_gossip_in(
+        &self,
+        propagation_source: &libp2p::PeerId,
+        message_id: &libp2p::gossipsub::MessageId,
+        message: &gossipsub::Message,
+    ) {
+        let mesh = self
+            .swarm
+            .behaviour()
+            .gossipsub
+            .mesh_peers(&message.topic)
+            .count();
+        tracing::debug!(
+            target: "p2p",
+            source = %propagation_source,
+            message = %message_id,
+            topic = %message.topic,
+            mesh,
+            "p2p gossip received"
+        );
+    }
+    pub(crate) fn forward_gossip(
+        &self,
+        propagation_source: libp2p::PeerId,
+        message: gossipsub::Message,
+    ) {
+        let from = identity::PeerId(message.source.unwrap_or(propagation_source).to_string());
+        let Some(room) = self.subscriptions.room(&message.topic) else {
             self.event_tx
-                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::DialFailed {
-                    peer_id: identity::PeerId(peer_id.to_string()),
-                    reason: error.to_string(),
+                .send(p2p::Event::Libp2p(p2p::Libp2pEvent::Gossip {
+                    topic: identity::Topic(message.topic.to_string()),
+                    from,
+                    data: message.data,
                 }))
                 .ok();
+            return;
+        };
+        match bincode::deserialize::<Payload>(&message.data) {
+            Ok(payload) => {
+                self.event_tx
+                    .send(p2p::Event::RoomMessage {
+                        room: room.clone(),
+                        from,
+                        payload,
+                    })
+                    .ok();
+            }
+            Err(error) => {
+                self.event_tx
+                    .send(p2p::Event::Error(format!(
+                        "room payload decode failed: {error}"
+                    )))
+                    .ok();
+            }
         }
-        None => {
-            tracing::debug!(target: "p2p", error = %error, "p2p dial failed without peer");
+    }
+    pub(crate) fn log_closed(
+        &self,
+        peer_id: &libp2p::PeerId,
+        connection_id: libp2p::swarm::ConnectionId,
+        endpoint: &libp2p::core::ConnectedPoint,
+        remaining: u32,
+        cause: Option<&libp2p::swarm::ConnectionError>,
+    ) {
+        if let Some(reason) = cause {
+            tracing::info!(
+                target: "p2p",
+                peer = %peer_id,
+                connection = %connection_id,
+                address = %endpoint.get_remote_address(),
+                dialer = endpoint.is_dialer(),
+                still_connected = self.swarm.is_connected(peer_id),
+                remaining,
+                reason = %reason,
+                "p2p connection closed",
+            );
+        } else {
+            tracing::info!(
+                target: "p2p",
+                peer = %peer_id,
+                connection = %connection_id,
+                address = %endpoint.get_remote_address(),
+                dialer = endpoint.is_dialer(),
+                still_connected = self.swarm.is_connected(peer_id),
+                remaining,
+                "p2p connection closed",
+            );
         }
     }
 }
-pub(crate) fn history_event(result: kad::QueryResult) -> Option<p2p::Libp2pEvent> {
-    match result {
-        kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(peer_record))) => {
-            let record = peer_record.record;
-            Some(p2p::Libp2pEvent::HistoryRecordFound {
-                id: p2p::RoomHistoryRecordKind::parse_history_record_key(&record.key)?,
-                value: record.value,
-            })
-        }
-        kad::QueryResult::GetRecord(Err(
-            kad::GetRecordError::NotFound { key, .. } | kad::GetRecordError::Timeout { key },
-        )) => Some(p2p::Libp2pEvent::HistoryRecordNotFound {
-            id: p2p::RoomHistoryRecordKind::parse_history_record_key(&key)?,
-        }),
-        kad::QueryResult::PutRecord(Ok(kad::PutRecordOk { key })) => {
-            Some(p2p::Libp2pEvent::HistoryRecordStored {
-                id: p2p::RoomHistoryRecordKind::parse_history_record_key(&key)?,
-            })
-        }
-        kad::QueryResult::PutRecord(Err(error)) => Some(p2p::Libp2pEvent::HistoryRecordPutFailed {
-            id: p2p::RoomHistoryRecordKind::parse_history_record_key(error.key())?,
-            reason: error.to_string(),
-        }),
-        _ => None,
+
+#[atomic_delegates]
+impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
+    pub(crate) fn history_event(result: kad::QueryResult) -> Option<p2p::Libp2pEvent> {}
+    pub(crate) fn handle_identify(&self, peer_id: &libp2p::PeerId, info: &libp2p::identify::Info) {}
+    pub(crate) fn publish_gossip(&mut self, topic: &identity::Topic, data: Vec<u8>) {}
+    pub(crate) fn log_established(
+        peer_id: &libp2p::PeerId,
+        connection_id: libp2p::swarm::ConnectionId,
+        endpoint: &libp2p::core::ConnectedPoint,
+    ) {
     }
 }
-pub(crate) fn publish_joined(&mut self, config: &p2p::GossipsubConfig, payload: &Payload) {
-    let Some(room) = self.subscriptions.joined.clone() else {
-        self.event_tx
-            .send(p2p::Event::Error(
-                "room publish: no joined room".to_string(),
-            ))
-            .ok();
-        return;
-    };
-    self.publish_room(config, &room, payload);
-}
-pub(crate) fn log_gossip_in(
-    &self,
-    propagation_source: &libp2p::PeerId,
-    message_id: &libp2p::gossipsub::MessageId,
-    message: &gossipsub::Message,
-) {
-    let mesh = self
-        .swarm
-        .behaviour()
-        .gossipsub
-        .mesh_peers(&message.topic)
-        .count();
-    tracing::debug!(
-        target: "p2p",
-        source = %propagation_source,
-        message = %message_id,
-        topic = %message.topic,
-        mesh,
-        "p2p gossip received"
-    );
-}
-pub(crate) fn forward_gossip(
-    &self,
-    propagation_source: libp2p::PeerId,
-    message: gossipsub::Message,
-) {
-    let from = identity::PeerId(message.source.unwrap_or(propagation_source).to_string());
-    let Some(room) = self.subscriptions.room(&message.topic) else {
-        self.event_tx
-            .send(p2p::Event::Libp2p(p2p::Libp2pEvent::Gossip {
-                topic: identity::Topic(message.topic.to_string()),
-                from,
-                data: message.data,
-            }))
-            .ok();
-        return;
-    };
-    match bincode::deserialize::<Payload>(&message.data) {
-        Ok(payload) => {
-            self.event_tx
-                .send(p2p::Event::RoomMessage {
-                    room: room.clone(),
-                    from,
-                    payload,
-                })
-                .ok();
-        }
-        Err(error) => {
-            self.event_tx
-                .send(p2p::Event::Error(format!(
-                    "room payload decode failed: {error}"
-                )))
-                .ok();
-        }
-    }
-}
-pub(crate) fn log_established(
-    peer_id: &libp2p::PeerId,
-    connection_id: libp2p::swarm::ConnectionId,
-    endpoint: &libp2p::core::ConnectedPoint,
-) {
-    tracing::info!(
-        target: "p2p",
-        peer = %peer_id,
-        connection = %connection_id,
-        address = %endpoint.get_remote_address(),
-        dialer = endpoint.is_dialer(),
-        "p2p connection established"
-    );
-}
-pub(crate) fn log_closed(
-    &self,
-    peer_id: &libp2p::PeerId,
-    connection_id: libp2p::swarm::ConnectionId,
-    endpoint: &libp2p::core::ConnectedPoint,
-    remaining: u32,
-    cause: Option<&libp2p::swarm::ConnectionError>,
-) {
-    if let Some(reason) = cause {
-        tracing::info!(
-            target: "p2p",
-            peer = %peer_id,
-            connection = %connection_id,
-            address = %endpoint.get_remote_address(),
-            dialer = endpoint.is_dialer(),
-            still_connected = self.swarm.is_connected(peer_id),
-            remaining,
-            reason = %reason,
-            "p2p connection closed",
-        );
-    } else {
-        tracing::info!(
-            target: "p2p",
-            peer = %peer_id,
-            connection = %connection_id,
-            address = %endpoint.get_remote_address(),
-            dialer = endpoint.is_dialer(),
-            still_connected = self.swarm.is_connected(peer_id),
-            remaining,
-            "p2p connection closed",
-        );
-    }
-}
-}
-
-// no test_usage necessary
-
-// no test_usage necessary
-
-// no test_usage necessary
-
-// no test_usage necessary
-
-// no test_usage necessary
 
 #[cfg(test)]
 mod tests {

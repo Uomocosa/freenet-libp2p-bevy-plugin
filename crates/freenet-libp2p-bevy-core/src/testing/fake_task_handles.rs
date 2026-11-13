@@ -6,11 +6,14 @@ pub struct FakeTaskHandles {
     pub(crate) lobby: Option<tokio::task::JoinHandle<()>>,
 }
 
-#[rustfmt::skip]
 impl FakeTaskHandles {
     pub fn abort_all(&mut self) {
-        if let Some(handle) = self.swarm.take() { handle.abort(); }
-        if let Some(handle) = self.lobby.take() { handle.abort(); }
+        if let Some(handle) = self.swarm.take() {
+            handle.abort();
+        }
+        if let Some(handle) = self.lobby.take() {
+            handle.abort();
+        }
     }
 }
 

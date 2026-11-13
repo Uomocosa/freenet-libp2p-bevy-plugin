@@ -130,14 +130,6 @@ impl Orchestrator {
     #[must_use]
     pub fn peer_names(&self) -> Vec<String> { self.peers.iter().map(|peer| peer.name.clone()).collect() }
 
-    #[must_use]
-    pub fn local_peer_names(&self) -> Vec<String> {
-        self.peers
-            .iter()
-            .filter(|peer| Self::peer_runs_here(&peer.name, &self.machine, &self.placement))
-            .map(|peer| peer.name.clone())
-            .collect()
-    }
 }
 
 #[atomic_delegates]
@@ -152,6 +144,9 @@ impl Orchestrator {
     }
 
     pub async fn run(&mut self) -> testing::OrchestratorReport {}
+
+    #[must_use]
+    pub fn local_peer_names(&self) -> Vec<String> {}
 }
 
 impl Orchestrator {
@@ -175,32 +170,38 @@ impl Orchestrator {
     pub(crate) fn is_check_role() -> bool { std::env::var("E2E_ROLE").is_ok_and(|raw| raw.trim() == "check") }
 }
 
-#[rustfmt::skip]
 impl Orchestrator {
     pub(crate) const fn default_wait_deadline(&self) -> std::time::Duration {
         match self.network {
             testing::Network::Fake => std::time::Duration::from_secs(90),
-            testing::Network::Mainnet | testing::Network::LocalGateways | testing::Network::DirectDial => {
-                std::time::Duration::from_secs(420)
-            }
+            testing::Network::Mainnet
+            | testing::Network::LocalGateways
+            | testing::Network::DirectDial => std::time::Duration::from_secs(420),
         }
     }
 
     pub(crate) fn time_scale(&self) -> f64 {
-        let from_env = std::env::var("E2E_TIME_SCALE").ok().and_then(|raw| raw.parse::<f64>().ok()).filter(|scale| scale.is_finite() && *scale > 0.0);
-        if let Some(scale) = from_env { return scale; }
+        let from_env = std::env::var("E2E_TIME_SCALE")
+            .ok()
+            .and_then(|raw| raw.parse::<f64>().ok())
+            .filter(|scale| scale.is_finite() && *scale > 0.0);
+        if let Some(scale) = from_env {
+            return scale;
+        }
         match self.network {
             testing::Network::Fake => 0.2,
-            testing::Network::Mainnet | testing::Network::LocalGateways | testing::Network::DirectDial => 1.0,
+            testing::Network::Mainnet
+            | testing::Network::LocalGateways
+            | testing::Network::DirectDial => 1.0,
         }
     }
 
-    pub(crate) fn peer_token(&self, peer_index: usize, default_token: &str) -> String {
-        self.peers.get(peer_index).and_then(|peer| peer.token_override.clone()).map_or_else(|| default_token.to_string(), |override_token| override_token.replace(testing::ROOM_PLACEHOLDER, default_token))
-    }
-
     pub(crate) fn scaled_sleep_text(&self, text: &str) -> Option<String> {
-        let secs = text.strip_prefix("sleep:")?.strip_suffix('s')?.parse::<u64>().ok()?;
+        let secs = text
+            .strip_prefix("sleep:")?
+            .strip_suffix('s')?
+            .parse::<u64>()
+            .ok()?;
         Some(format!("sleep:{}s", self.scaled_sleep_secs(secs)))
     }
 
@@ -240,40 +241,6 @@ impl Orchestrator {
             testing::Network::DirectDial => "direct-dial".to_string(),
             testing::Network::Mainnet => "mainnet".to_string(),
             testing::Network::LocalGateways => "local-gateways".to_string(),
-        }
-    }
-
-    pub(crate) fn early_report(
-        game: &str,
-        dir: std::path::PathBuf,
-        detail: String,
-    ) -> testing::OrchestratorReport {
-        testing::OrchestratorReport {
-            checks: vec![testing::ReportCheck {
-                name: "setup".to_string(),
-                ok: false,
-                detail,
-            }],
-            logs_dir: dir,
-            caption: format!("{game} setup failed"),
-        }
-    }
-
-    pub(crate) fn poll_exits(running: &mut [testing::RunningPeer]) {
-        for slot in running.iter_mut() {
-            let Some(child) = slot.child.as_mut() else {
-                continue;
-            };
-            if slot.exit.is_some() {
-                continue;
-            }
-            if let Ok(Some(status)) = child.try_wait() {
-                slot.exit = Some(
-                    status
-                        .code()
-                        .map_or(testing::PeerExit::Signal, testing::PeerExit::Code),
-                );
-            }
         }
     }
 }
@@ -420,6 +387,14 @@ impl Orchestrator {
     ) -> Result<(std::path::PathBuf, Option<u16>, Vec<String>), String> {
     }
 
+    pub(crate) fn peer_token(&self, peer_index: usize, default_token: &str) -> String {}
+    pub(crate) fn early_report(
+        game: &str,
+        dir: std::path::PathBuf,
+        detail: String,
+    ) -> testing::OrchestratorReport {
+    }
+    pub(crate) fn poll_exits(running: &mut [testing::RunningPeer]) {}
     pub(crate) async fn drive_until_done(
         &mut self,
         running: &mut [testing::RunningPeer],

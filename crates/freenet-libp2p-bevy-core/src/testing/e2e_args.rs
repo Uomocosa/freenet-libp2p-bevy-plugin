@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use atomic_delegate_macros::atomic_delegates;
 use clap::Args;
 
 use crate::testing;
@@ -17,12 +18,12 @@ where
     pub marker: std::marker::PhantomData<Step>,
 }
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl<Step> E2EArgs<Step>
 where
     Step: testing::traits::ScriptStep + Clone + Send + Sync + 'static,
 {
-    pub fn parsed_script(&self) -> Result<Option<Vec<testing::TimedScriptStep<Step>>>, String> { self.script.clone().map(|raw| raw.iter().map(|text| testing::TimedScriptStep::<Step>::try_from(text.as_str())).collect::<Result<Vec<_>, String>>()).transpose() }
+    pub fn parsed_script(&self) -> Result<Option<Vec<testing::TimedScriptStep<Step>>>, String> {}
 }
 
 #[cfg(test)]

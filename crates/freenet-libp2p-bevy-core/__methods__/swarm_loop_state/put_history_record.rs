@@ -1,8 +1,6 @@
-use std::time::Duration;
-
-use libp2p::kad;
-
 use crate::p2p;
+use libp2p::kad;
+use std::time::Duration;
 
 pub fn put_history_record<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,

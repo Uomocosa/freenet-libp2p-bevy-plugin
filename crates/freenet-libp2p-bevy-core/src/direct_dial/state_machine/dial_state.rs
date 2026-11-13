@@ -52,10 +52,13 @@ impl lele_bevy_state_machine::traits::PeriodicStateMachine for DialState {
     fn tick_input() -> Self::Input { Self::Input::Tick }
 }
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl DialState {
     #[must_use]
-    pub fn is_friend(&self, id: &identity::PeerId) -> bool { self.entries.iter().any(|entry| entry.peer.id == *id && entry.kind == direct_dial::KnownPeerKind::Friend) }
+    pub fn is_friend(&self, id: &identity::PeerId) -> bool {}
+}
+
+impl DialState {
     #[must_use]
     pub fn to_peer_book(&self) -> direct_dial::PeerBook {
         let mut book = direct_dial::PeerBook::default();

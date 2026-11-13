@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use atomic_delegate_macros::atomic_delegates;
 use derive_more::Display;
 
 use crate::freenet;
@@ -19,7 +20,6 @@ pub enum RequestKind {
     PollLobby,
 }
 
-#[rustfmt::skip]
 impl RequestKind {
     #[must_use]
     pub const fn timeout(self) -> Duration {
@@ -30,14 +30,14 @@ impl RequestKind {
             Self::PollLobby => DRAIN_TIMEOUT,
         }
     }
+}
 
+#[atomic_delegates]
+impl RequestKind {
     pub async fn run_with_timeout<T>(
         self,
         request: impl Future<Output = Result<T, freenet::Error>>,
     ) -> Result<T, freenet::Error> {
-        tokio::time::timeout(self.timeout(), request)
-            .await
-            .unwrap_or(Err(freenet::Error::Timeout(self)))
     }
 }
 

@@ -1,3 +1,4 @@
+mod add_candidates;
 mod align_room_created_at;
 mod apply_config;
 mod broadcast_handshake;
@@ -25,6 +26,7 @@ mod room_roster;
 mod send_handshake;
 mod tick;
 mod wait_for_contract_self_heal;
+pub use add_candidates::add_candidates;
 pub use align_room_created_at::align_room_created_at;
 pub use apply_config::apply_config;
 pub use broadcast_handshake::broadcast_handshake;

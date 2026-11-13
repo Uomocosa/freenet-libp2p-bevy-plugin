@@ -90,6 +90,11 @@ impl Client {
     {
     }
     pub fn send(&self, request: &ClientRequest<'_>) -> Result<(), freenet::Error> {}
+    pub async fn await_outstanding_fetch<S>(&mut self) -> Result<S, freenet::Error>
+    where
+        S: serde::de::DeserializeOwned,
+    {
+    }
 }
 
 impl Client {
@@ -116,7 +121,6 @@ impl Client {
     }
 }
 
-#[rustfmt::skip]
 impl Client {
     pub async fn recv_reply(
         &mut self,
@@ -124,51 +128,22 @@ impl Client {
     ) -> Result<HostResponse, freenet::Error> {
         let is_query = matches!(
             kind,
-            freenet::RequestKind::QueryPeers
-                | freenet::RequestKind::QueryNodeStatus
+            freenet::RequestKind::QueryPeers | freenet::RequestKind::QueryNodeStatus
         );
         kind.run_with_timeout(async {
             loop {
                 match self.next_reply().await? {
-                    HostResponse::ContractResponse(
-                        ContractResponse::SubscribeResponse { .. },
-                    ) => {}
+                    HostResponse::ContractResponse(ContractResponse::SubscribeResponse {
+                        ..
+                    }) => {}
                     HostResponse::ContractResponse(
                         ContractResponse::GetResponse { .. } | ContractResponse::NotFound { .. },
                     ) if is_query => {}
                     other => return Ok(other),
                 }
             }
-        }).await
-    }
-
-    pub async fn await_outstanding_fetch<S>(&mut self) -> Result<S, freenet::Error>
-    where
-        S: serde::de::DeserializeOwned,
-    {
-        loop {
-            match self.next_reply().await? {
-                HostResponse::ContractResponse(ContractResponse::GetResponse { state, .. }) => {
-                    return Ok(bincode::deserialize(state.as_ref())?);
-                }
-                HostResponse::ContractResponse(ContractResponse::NotFound { .. }) => {
-                    return Err(freenet::Error::ContractNotFound);
-                }
-                HostResponse::ContractResponse(ContractResponse::SubscribeResponse { .. }) => {}
-                other => return Err(freenet::Error::UnexpectedResponse(format!("{other:?}"))),
-            }
-        }
-    }
-
-    pub(crate) async fn next_reply(&mut self) -> Result<HostResponse, freenet::Error> {
-        loop {
-            match self.recv().await? {
-                HostResponse::ContractResponse(ContractResponse::UpdateNotification { .. }) => {
-                    tracing::debug!(target: "freenet", "contract update notification");
-                }
-                other => return Ok(other),
-            }
-        }
+        })
+        .await
     }
 
     pub(crate) async fn deploy_contract<S>(
@@ -252,6 +227,7 @@ impl Client {
 #[atomic_delegates]
 impl Client {
     pub(crate) fn reconnect_delay(failures: u32, random: u64) -> Duration {}
+    pub(crate) async fn next_reply(&mut self) -> Result<HostResponse, freenet::Error> {}
 }
 
 #[cfg(test)]

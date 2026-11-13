@@ -1,6 +1,5 @@
-use libp2p::kad;
-
 use crate::p2p;
+use libp2p::kad;
 
 pub fn handle_kademlia_query_result<Payload: p2p::traits::Message>(
     state: &p2p::SwarmLoopState<Payload>,

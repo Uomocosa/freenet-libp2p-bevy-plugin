@@ -130,69 +130,15 @@ impl<Op> ReplicaState<Op> {
         now: room_sync::ElapsedSinceAppStart,
     ) -> Vec<room_sync::state_machine::Output<Op>> {
     }
-}
-
-#[rustfmt::skip]
-impl<Op> ReplicaState<Op> {
     pub fn handle_history_record_found(
         &mut self,
         id: &p2p::RoomHistoryRecordKind,
         value: Vec<u8>,
     ) -> Vec<room_sync::state_machine::Output<Op>> {
-        match id {
-            p2p::RoomHistoryRecordKind::Manifest(prefix) => {
-                let Some(pending) = self.kademlia_history.pending_fetch.as_mut() else {
-                    return Vec::new();
-                };
-                if &pending.prefix != prefix || pending.manifest.is_some() {
-                    return Vec::new();
-                }
-                let Ok(manifest) = bincode::deserialize::<p2p::HistoryManifest>(&value) else {
-                    return self.handle_history_record_not_found(id);
-                };
-                if manifest.chunk_count == 0 {
-                    return self.handle_history_record_not_found(id);
-                }
-                let outputs: Vec<_> = (0..manifest.chunk_count)
-                    .map(|index| room_sync::state_machine::Output::GetHistoryRecord {
-                        id: p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
-                            prefix: prefix.clone(),
-                            content_hash: manifest.content_hash.clone(),
-                            chunk: p2p::ChunkIndex::from(index),
-                        }),
-                    })
-                    .collect();
-                pending.manifest = Some(manifest);
-                pending.received_chunks.clear();
-                outputs
-            }
-            p2p::RoomHistoryRecordKind::Chunk(chunk_id) => {
-                let Some(pending) = self.kademlia_history.pending_fetch.as_mut() else {
-                    return Vec::new();
-                };
-                let Some(manifest) = pending.manifest.clone() else {
-                    return Vec::new();
-                };
-                if pending.prefix != chunk_id.prefix
-                    || manifest.content_hash != chunk_id.content_hash
-                    || *chunk_id.chunk >= u64::from(manifest.chunk_count)
-                {
-                    return Vec::new();
-                }
-                pending.received_chunks.insert(chunk_id.chunk, value);
-                if u32::try_from(pending.received_chunks.len()).unwrap_or(0) < manifest.chunk_count {
-                    return Vec::new();
-                }
-                let prefix = pending.prefix.clone();
-                let ordered_chunks: Vec<Vec<u8>> = pending.received_chunks.values().cloned().collect();
-                let Ok(bytes) = p2p::ChunkedSnapshot::join(&ordered_chunks, &manifest) else {
-                    return self.handle_history_record_not_found(id);
-                };
-                self.kademlia_history.pending_fetch = None;
-                self.complete_history_fetch(prefix, manifest, bytes)
-            }
-        }
     }
+}
+
+impl<Op> ReplicaState<Op> {
     pub(crate) fn dispatch_input(
         &mut self,
         input: room_sync::state_machine::Input<Op>,
@@ -218,15 +164,15 @@ impl<Op> ReplicaState<Op> {
                 total,
                 data,
             } => self.handle_snapshot(room, part, total, data),
-            room_sync::state_machine::Input::SnapshotPartRequestedByRoomMember { id, room, part } => {
-                self.handle_fetch(id, room, part)
-            }
+            room_sync::state_machine::Input::SnapshotPartRequestedByRoomMember {
+                id,
+                room,
+                part,
+            } => self.handle_fetch(id, room, part),
             room_sync::state_machine::Input::SnapshotMissingFromRoomMember => {
                 self.handle_snapshot_missing()
             }
-            room_sync::state_machine::Input::RequestToRoomMemberFailed { .. } => {
-                self.retry_fetch()
-            }
+            room_sync::state_machine::Input::RequestToRoomMemberFailed { .. } => self.retry_fetch(),
             room_sync::state_machine::Input::HistoryWriteTimerFired => {
                 self.start_history_write_check()
             }
@@ -243,8 +189,7 @@ impl<Op> ReplicaState<Op> {
                 from,
                 local,
                 remote,
-            } => self.handle_remote_slice_content_hashes(&from, &local, &remote,
-            ),
+            } => self.handle_remote_slice_content_hashes(&from, &local, &remote),
             room_sync::state_machine::Input::ReplicaSliceRequested { id, room, index } => {
                 self.handle_replica_slice_requested(id, room, index)
             }
@@ -253,107 +198,10 @@ impl<Op> ReplicaState<Op> {
                 room,
                 index,
                 data,
-            } => self.handle_replica_slice_received(&from, &room, index, data,
-            ),
+            } => self.handle_replica_slice_received(&from, &room, index, data),
             room_sync::state_machine::Input::ReplicaSliceRequestFailed { from, index } => {
                 self.handle_replica_slice_request_failed(&from, index)
             }
-        }
-    }
-    pub(crate) fn complete_history_fetch(
-        &mut self,
-        prefix: p2p::HistoryKeyPrefix,
-        manifest: p2p::HistoryManifest,
-        bytes: Vec<u8>,
-    ) -> Vec<room_sync::state_machine::Output<Op>> {
-        match self.phase {
-            room_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
-                self.phase = room_sync::state_machine::Phase::Ready;
-                let mut outputs = vec![room_sync::state_machine::Output::Merge { bytes }];
-                for (meta, op) in self.buffered_ops.drain(..) {
-                    outputs.push(room_sync::state_machine::Output::Apply { meta, op });
-                }
-                outputs
-            }
-            room_sync::state_machine::Phase::Ready => {
-                vec![room_sync::state_machine::Output::MergeAndWriteHistory {
-                    prefix,
-                    stored_manifest: Some(manifest),
-                    stored_snapshot: Some(bytes),
-                }]
-            }
-            _ => Vec::new(),
-        }
-    }
-    pub(crate) fn record_request_send_times(
-        &mut self,
-        outputs: &[room_sync::state_machine::Output<Op>],
-        now: room_sync::ElapsedSinceAppStart,
-    ) {
-        for output in outputs {
-            match output {
-                room_sync::state_machine::Output::FetchSnapshotPartFromRoomMember { .. } => {
-                    self.member_snapshot.part_requested_at = Some(now);
-                }
-                room_sync::state_machine::Output::GetHistoryRecord { .. } => {
-                    if let Some(pending) = self.kademlia_history.pending_fetch.as_mut() {
-                        pending.records_requested_at = Some(now);
-                    }
-                }
-                room_sync::state_machine::Output::FetchReplicaSlice { peer, index, .. } => {
-                    self.slice_anti_entropy
-                        .fetches_awaiting_reply
-                        .entry(peer.clone())
-                        .or_default()
-                        .insert(*index, now);
-                }
-                _ => {}
-            }
-        }
-    }
-    pub(crate) fn settle_waiting_phase(
-        &mut self,
-        outputs_so_far: &[room_sync::state_machine::Output<Op>],
-    ) -> Vec<room_sync::state_machine::Output<Op>> {
-        match self.phase {
-            room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember => {
-                if self.room.is_none()
-                    || self.member_snapshot.part_requested_at.is_some()
-                    || outputs_so_far.iter().any(|output| {
-                        matches!(
-                            output,
-                            room_sync::state_machine::Output::FetchSnapshotPartFromRoomMember {
-                                ..
-                            }
-                        )
-                    })
-                {
-                    return Vec::new();
-                }
-                let next = self.fetch_next();
-                if !next.is_empty() {
-                    return next;
-                }
-                self.finish_member_fetch()
-            }
-            room_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
-                if self.kademlia_history.pending_fetch.is_some()
-                    || outputs_so_far.iter().any(|output| {
-                        matches!(
-                            output,
-                            room_sync::state_machine::Output::GetHistoryRecord { .. }
-                        )
-                    })
-                {
-                    return Vec::new();
-                }
-                self.phase = room_sync::state_machine::Phase::Ready;
-                self.buffered_ops
-                    .drain(..)
-                    .map(|(meta, op)| room_sync::state_machine::Output::Apply { meta, op })
-                    .collect()
-            }
-            _ => Vec::new(),
         }
     }
     pub(crate) fn expire_overdue_history_record_requests(
@@ -393,6 +241,24 @@ impl<Op> ReplicaState<Op> {
     pub(crate) fn expire_overdue_requests(
         &mut self,
         now: room_sync::ElapsedSinceAppStart,
+    ) -> Vec<room_sync::state_machine::Output<Op>> {
+    }
+    pub(crate) fn complete_history_fetch(
+        &mut self,
+        prefix: p2p::HistoryKeyPrefix,
+        manifest: p2p::HistoryManifest,
+        bytes: Vec<u8>,
+    ) -> Vec<room_sync::state_machine::Output<Op>> {
+    }
+    pub(crate) fn record_request_send_times(
+        &mut self,
+        outputs: &[room_sync::state_machine::Output<Op>],
+        now: room_sync::ElapsedSinceAppStart,
+    ) {
+    }
+    pub(crate) fn settle_waiting_phase(
+        &mut self,
+        outputs_so_far: &[room_sync::state_machine::Output<Op>],
     ) -> Vec<room_sync::state_machine::Output<Op>> {
     }
 }

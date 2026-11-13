@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use atomic_delegate_macros::atomic_delegates;
 use libp2p::gossipsub;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,18 +26,9 @@ impl Default for GossipsubConfig {
     }
 }
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl GossipsubConfig {
-    pub fn config(&self) -> Result<gossipsub::Config, gossipsub::ConfigBuilderError> {
-        gossipsub::ConfigBuilder::default()
-            .heartbeat_interval(self.heartbeat)
-            .mesh_n_low(self.mesh_n_low)
-            .mesh_n(self.mesh_n)
-            .mesh_n_high(self.mesh_n_high)
-            .max_transmit_size(self.max_transmit_size)
-            .flood_publish(self.is_flood_publish_enabled)
-            .build()
-    }
+    pub fn config(&self) -> Result<gossipsub::Config, gossipsub::ConfigBuilderError> {}
 }
 
 #[cfg(test)]

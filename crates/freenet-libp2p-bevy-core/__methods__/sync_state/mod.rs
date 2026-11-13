@@ -1,6 +1,10 @@
+mod libp2p_event_to_input;
 mod perform;
+mod reset_after_leaving;
 mod room_inputs_from_entities;
 mod snapshot_frame;
+pub use libp2p_event_to_input::libp2p_event_to_input;
 pub use perform::perform;
+pub use reset_after_leaving::reset_after_leaving;
 pub use room_inputs_from_entities::room_inputs_from_entities;
 pub use snapshot_frame::snapshot_frame;

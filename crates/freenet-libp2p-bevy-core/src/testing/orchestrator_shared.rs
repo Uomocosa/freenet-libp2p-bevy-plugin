@@ -25,13 +25,12 @@ impl OrchestratorShared {
     }
 }
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl OrchestratorShared {
-    pub fn router_for(&mut self, game: &identity::GameId) -> &mut testing::PeerMessageRouter {
-        self.routers
-            .entry(game.clone())
-            .or_insert_with(|| testing::PeerMessageRouter::new(game.clone()))
-    }
+    pub fn router_for(&mut self, game: &identity::GameId) -> &mut testing::PeerMessageRouter {}
+}
+
+impl OrchestratorShared {
     pub fn add_sender(
         &mut self,
         peer: &identity::PeerId,

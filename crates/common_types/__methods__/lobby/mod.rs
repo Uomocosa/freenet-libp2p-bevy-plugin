@@ -1,2 +1,6 @@
+mod drop_rooms_where_every_member_quit;
+mod evict_oldest_rooms_until_lobby_fits_capacity;
 mod merge;
+pub use drop_rooms_where_every_member_quit::drop_rooms_where_every_member_quit;
+pub use evict_oldest_rooms_until_lobby_fits_capacity::evict_oldest_rooms_until_lobby_fits_capacity;
 pub use merge::merge;

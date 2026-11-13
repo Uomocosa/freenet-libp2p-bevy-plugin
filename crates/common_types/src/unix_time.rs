@@ -48,27 +48,23 @@ impl lele_bevy_state_machine::traits::Clock for UnixTime {
 #[atomic_delegates]
 impl UnixTime {
     #[must_use]
+    pub fn saturating_add(self, by: std::time::Duration) -> Self {}
+    #[must_use]
     pub fn checked_add(self, by: std::time::Duration) -> Option<Self> {}
     #[must_use]
     pub const fn elapsed_since(self, earlier: Self) -> std::time::Duration {}
 }
 
-#[rustfmt::skip]
 impl UnixTime {
     #[must_use]
     pub const fn as_millis(self) -> u64 {
         let Self(millis) = self;
         millis
     }
+}
 
-    #[must_use]
-    pub fn saturating_add(self, by: std::time::Duration) -> Self {
-        Self::from_millis(
-            self.as_millis()
-                .saturating_add(u64::try_from(by.as_millis()).unwrap_or(u64::MAX)),
-        )
-    }
-
+#[rustfmt::skip]
+impl UnixTime {
     #[must_use]
     pub const fn as_secs(self) -> u64 {
         self.as_millis() / 1_000

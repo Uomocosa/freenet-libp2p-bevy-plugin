@@ -20,7 +20,6 @@ impl RoomSubscriptions {
     }
 }
 
-#[rustfmt::skip]
 impl RoomSubscriptions {
     pub fn register(&mut self, topic: &gossipsub::IdentTopic, room: identity::RoomName) {
         self.by_topic.insert(topic.hash(), room.clone());
@@ -28,9 +27,17 @@ impl RoomSubscriptions {
     }
     pub fn unregister(&mut self, topic: &gossipsub::IdentTopic) {
         let removed = self.by_topic.remove(&topic.hash());
-        if removed.as_ref() == self.joined.as_ref() { self.joined = None; }
+        if removed.as_ref() == self.joined.as_ref() {
+            self.joined = None;
+        }
     }
-    pub fn room(&self, topic: &gossipsub::TopicHash) -> Option<&identity::RoomName> { self.by_topic.get(topic) }
+}
+
+#[rustfmt::skip]
+impl RoomSubscriptions {
+    pub fn room(&self, topic: &gossipsub::TopicHash) -> Option<&identity::RoomName> {
+        self.by_topic.get(topic)
+    }
 }
 
 #[cfg(test)]

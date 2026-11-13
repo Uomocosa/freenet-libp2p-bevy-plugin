@@ -24,30 +24,24 @@ impl TryFrom<&std::path::Path> for PeerBook {
 impl PeerBook {
     pub fn save_to_file(&self, path: &std::path::Path) -> Result<(), direct_dial::PeerBookError> {}
     pub fn quarantine_corrupt_file(path: &std::path::Path) -> Option<std::path::PathBuf> {}
+    pub fn update_peer_addrs(&mut self, peer: &identity::Peer) -> bool {}
 }
 
-#[rustfmt::skip]
 impl PeerBook {
     pub fn add_friend(&mut self, peer: identity::Peer) -> bool {
-        if self.iter().any(|entry| entry.peer.id == peer.id) { return false; }
-        self.push(direct_dial::KnownPeer { peer, kind: direct_dial::KnownPeerKind::Friend });
+        if self.iter().any(|entry| entry.peer.id == peer.id) {
+            return false;
+        }
+        self.push(direct_dial::KnownPeer {
+            peer,
+            kind: direct_dial::KnownPeerKind::Friend,
+        });
         true
     }
     pub fn remove_friend(&mut self, id: &identity::PeerId) -> bool {
         let before = self.len();
         self.retain(|entry| entry.peer.id != *id);
         self.len() != before
-    }
-    pub fn update_peer_addrs(&mut self, peer: &identity::Peer) -> bool {
-        if let Some(entry) = self.iter_mut().find(|entry| entry.peer.id == peer.id) {
-            let changed = entry.peer.addrs != peer.addrs;
-            if changed {
-                entry.peer.addrs.clone_from(&peer.addrs);
-            }
-            changed
-        } else {
-            false
-        }
     }
 }
 

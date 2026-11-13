@@ -8,7 +8,11 @@ pub mod dial_state;
 #[cfg(feature = "discovery")]
 pub mod discovery_state;
 #[cfg(feature = "testing")]
+pub mod e2e_args;
+#[cfg(feature = "testing")]
 pub mod e2e_step;
+#[cfg(feature = "testing")]
+pub mod e2e_step_effect_sink;
 #[cfg(feature = "testing")]
 pub mod fake_network_plugin;
 #[cfg(feature = "testing")]
@@ -16,6 +20,8 @@ pub mod fake_network_server;
 #[cfg(feature = "testing")]
 pub mod fake_wire_framing;
 pub mod friends_plugin;
+pub mod game_id;
+pub mod gossipsub_config;
 pub mod libp2p_command;
 pub mod libp2p_events;
 #[cfg(feature = "discovery")]
@@ -45,6 +51,8 @@ pub mod replica_slice_content_hash;
 pub mod replica_slice_index;
 pub mod replica_state;
 #[cfg(feature = "discovery")]
+pub mod request_kind;
+#[cfg(feature = "discovery")]
 pub mod resubscribe_gate;
 pub mod room_history_record_kind;
 pub mod runner_config;
@@ -56,6 +64,8 @@ pub mod swarm_loop_state;
 pub mod swarm_task_override;
 pub mod sync_plugin;
 pub mod sync_state;
+#[cfg(feature = "testing")]
+pub mod timed_script_step;
 pub mod topic;
 pub mod tracking_plugin;
 pub mod transport_mode;

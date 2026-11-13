@@ -1,3 +1,4 @@
+use atomic_delegate_macros::atomic_delegates;
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
@@ -34,17 +35,13 @@ impl Room {
     }
 }
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl Room {
     #[must_use]
-    pub(crate) fn newest_room_member(&self) -> UnixTime {
-        self.members
-            .values()
-            .map(|room_member| room_member.updated_at)
-            .max()
-            .unwrap_or(UnixTime::EPOCH)
-    }
+    pub(crate) fn newest_room_member(&self) -> UnixTime {}
+}
 
+impl Room {
     #[must_use]
     pub(crate) fn merge_room_member(
         current: Option<RoomMember>,

@@ -1,3 +1,4 @@
+use atomic_delegate_macros::atomic_delegates;
 use derive_more::{Deref, Display, From};
 use serde::{Deserialize, Serialize};
 
@@ -19,16 +20,10 @@ impl PeerAddr {
     }
 }
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl PeerAddr {
     #[must_use]
-    pub(crate) fn is_unspecified(&self) -> bool {
-        self.parse::<multiaddr::Multiaddr>().is_ok_and(|multiaddr| {
-            multiaddr.iter().any(|protocol| {
-                    matches!(protocol, multiaddr::Protocol::Ip4(ip) if ip.is_unspecified())
-                })
-        })
-    }
+    pub(crate) fn is_unspecified(&self) -> bool {}
 }
 
 #[cfg(test)]

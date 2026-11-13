@@ -8,7 +8,6 @@ pub enum MdnsMode {
     Disabled,
 }
 
-#[rustfmt::skip]
 impl MdnsMode {
     #[must_use]
     pub fn mdns_behaviour(&self, peer_id: libp2p::PeerId) -> Toggle<mdns::tokio::Behaviour> {

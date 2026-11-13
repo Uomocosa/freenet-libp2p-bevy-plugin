@@ -1,31 +1,20 @@
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use atomic_delegate_macros::atomic_delegates;
+
 use crate::discovery;
 use crate::testing;
 
 #[derive(SystemParam)]
 pub struct E2EStepEffectSink<'w> {
-    pending_action: ResMut<'w, testing::PendingAction>,
-    commands: MessageWriter<'w, discovery::Command>,
+    pub(crate) pending_action: ResMut<'w, testing::PendingAction>,
+    pub(crate) commands: MessageWriter<'w, discovery::Command>,
 }
 
-#[rustfmt::skip]
+#[atomic_delegates]
 impl E2EStepEffectSink<'_> {
-    pub fn apply(&mut self, effect: testing::E2EStepEffect) {
-        match effect {
-            testing::E2EStepEffect::ArmRoomAction(action) => {
-                **self.pending_action = Some(action);
-            }
-            testing::E2EStepEffect::SendDiscoveryCommand(command) => {
-                self.commands.write(command);
-            }
-            testing::E2EStepEffect::AbortProcess => {
-                tracing::warn!(target: "script", "script crash-app: aborting the process");
-                std::process::abort();
-            }
-        }
-    }
+    pub fn apply(&mut self, effect: testing::E2EStepEffect) {}
 }
 
 // no test_usage necessary

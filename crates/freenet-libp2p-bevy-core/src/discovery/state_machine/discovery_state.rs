@@ -105,6 +105,12 @@ impl lele_bevy_state_machine::traits::PeriodicStateMachine for DiscoveryState {
 
 #[atomic_delegates]
 impl DiscoveryState {
+    pub fn add_candidates(
+        &mut self,
+        peers: impl IntoIterator<Item = identity::Peer>,
+        now: time::UnixTime,
+    ) {
+    }
     pub fn align_room_created_at(&mut self) {}
     pub fn broadcast_handshake(&self) -> Vec<Output> {}
     pub fn collect_room_peers_from_lobby(&mut self) -> Vec<Output> {}
@@ -151,13 +157,9 @@ impl DiscoveryState {
     pub fn wait_for_contract_self_heal(&mut self, now: time::UnixTime) -> Vec<Output> {}
 }
 
-#[rustfmt::skip]
 impl DiscoveryState {
     #[must_use]
-    pub fn peer_connection_status(
-        &self,
-        peer: &identity::PeerId,
-    ) -> p2p::PeerConnectionStatus {
+    pub fn peer_connection_status(&self, peer: &identity::PeerId) -> p2p::PeerConnectionStatus {
         if self.connected.contains(peer) {
             p2p::PeerConnectionStatus::Connected
         } else {
@@ -172,24 +174,6 @@ impl DiscoveryState {
             .filter(move |peer| room.is_some_and(|room| room.members.contains_key(*peer)))
     }
 
-    pub fn add_candidates(
-        &mut self,
-        peers: impl IntoIterator<Item = identity::Peer>,
-        now: time::UnixTime,
-    ) {
-        for peer in peers {
-            if peer.id == self.me.id || peer.id.is_empty() || peer.addrs.is_empty() {
-                continue;
-            }
-            self.candidates.insert(
-                peer.id,
-                discovery::state_machine::Candidate {
-                    addrs: peer.addrs,
-                    seen_at: now,
-                },
-            );
-        }
-    }
     pub fn handle_command(
         &mut self,
         command: discovery::Command,
@@ -226,7 +210,9 @@ impl DiscoveryState {
                 self.handle_handshake(&from, &data, now)
             }
             p2p::Libp2pEvent::HistoryRecordStored { .. } => {
-                return vec![Output::Libp2pCommand(p2p::Libp2pCommand::MeasureHistoryStore)];
+                return vec![Output::Libp2pCommand(
+                    p2p::Libp2pCommand::MeasureHistoryStore,
+                )];
             }
             p2p::Libp2pEvent::HistoryStoreMeasured { bytes_by_prefix } => {
                 return self.evict_held_rooms_over_history_limit(&bytes_by_prefix);

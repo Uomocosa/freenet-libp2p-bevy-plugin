@@ -9,7 +9,6 @@ pub enum ScriptVerdict {
     Failed,
 }
 
-#[rustfmt::skip]
 impl ScriptVerdict {
     #[must_use]
     pub const fn app_exit_for_verdict(self) -> Option<AppExit> {

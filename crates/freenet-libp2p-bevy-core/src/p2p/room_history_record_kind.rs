@@ -15,7 +15,6 @@ impl RoomHistoryRecordKind {
     pub fn parse_history_record_key(record_key: &RecordKey) -> Option<RoomHistoryRecordKind> {}
 }
 
-#[rustfmt::skip]
 impl RoomHistoryRecordKind {
     #[must_use]
     pub fn history_record_key(&self) -> RecordKey {
@@ -31,7 +30,8 @@ impl RoomHistoryRecordKind {
             )),
         }
     }
-    #[must_use] pub(crate) const fn record_prefix(&self) -> &p2p::HistoryKeyPrefix {
+    #[must_use]
+    pub(crate) const fn record_prefix(&self) -> &p2p::HistoryKeyPrefix {
         match self {
             Self::Manifest(prefix) => prefix,
             Self::Chunk(chunk_id) => &chunk_id.prefix,

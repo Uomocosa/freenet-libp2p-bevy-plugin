@@ -5,7 +5,6 @@ use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 
 use crate::Room;
-use crate::RoomMembership;
 use crate::RoomName;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Deref, DerefMut, From)]
@@ -16,29 +15,8 @@ pub struct Lobby(pub BTreeMap<RoomName, Room>);
 #[atomic_delegates]
 impl Lobby {
     pub fn merge(&mut self, incoming: Self) {}
-}
-
-#[rustfmt::skip]
-impl Lobby {
-    pub fn drop_rooms_where_every_member_quit(&mut self) {
-        self.retain(|_, room| {
-            room.members
-                .values()
-                .any(|room_member| room_member.membership != RoomMembership::Departed)
-        });
-    }
-    pub fn evict_oldest_rooms_until_lobby_fits_capacity(&mut self, capacity: usize) {
-        while self.len() > capacity {
-            let oldest = self
-                .iter()
-                .min_by_key(|(name, room)| (room.newest_room_member(), name.as_str()))
-                .map(|(name, _)| name.clone());
-            let Some(oldest) = oldest else {
-                break;
-            };
-            self.remove(&oldest);
-        }
-    }
+    pub fn drop_rooms_where_every_member_quit(&mut self) {}
+    pub fn evict_oldest_rooms_until_lobby_fits_capacity(&mut self, capacity: usize) {}
 }
 
 #[cfg(test)]

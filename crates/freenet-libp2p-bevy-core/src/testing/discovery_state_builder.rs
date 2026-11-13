@@ -27,26 +27,51 @@ impl DiscoveryStateBuilder {
     }
 }
 
-#[rustfmt::skip]
 impl DiscoveryStateBuilder {
     #[must_use]
-    pub fn in_room(mut self, room: discovery::JoinedRoom) -> Self { self.room = Some(room); self }
+    pub fn in_room(mut self, room: discovery::JoinedRoom) -> Self {
+        self.room = Some(room);
+        self
+    }
     #[must_use]
-    pub fn with_lobby(mut self, lobby: discovery::Lobby) -> Self { self.lobby = lobby; self }
+    pub fn with_lobby(mut self, lobby: discovery::Lobby) -> Self {
+        self.lobby = lobby;
+        self
+    }
     #[must_use]
-    pub fn with_connected(mut self, connected: Vec<identity::PeerId>) -> Self { self.connected = connected.into_iter().collect(); self }
+    pub fn with_connected(mut self, connected: Vec<identity::PeerId>) -> Self {
+        self.connected = connected.into_iter().collect();
+        self
+    }
     #[must_use]
-    pub fn with_freenet_peers(mut self, peers: Vec<identity::FreenetPeer>) -> Self { self.freenet_peers = peers; self }
+    pub fn with_freenet_peers(mut self, peers: Vec<identity::FreenetPeer>) -> Self {
+        self.freenet_peers = peers;
+        self
+    }
     #[must_use]
-    pub const fn lobby_fetched(mut self) -> Self { self.is_lobby_fetched = true; self }
+    pub const fn lobby_fetched(mut self) -> Self {
+        self.is_lobby_fetched = true;
+        self
+    }
     #[must_use]
     pub fn build(self) -> DiscoveryState {
         let mut state = DiscoveryState::new(identity::Peer {
             id: self.me,
             addrs: Vec::new(),
         });
-        (state.room, state.lobby, state.connected, state.freenet_peers, state.is_lobby_fetched) =
-            (self.room, self.lobby, self.connected, self.freenet_peers, self.is_lobby_fetched);
+        (
+            state.room,
+            state.lobby,
+            state.connected,
+            state.freenet_peers,
+            state.is_lobby_fetched,
+        ) = (
+            self.room,
+            self.lobby,
+            self.connected,
+            self.freenet_peers,
+            self.is_lobby_fetched,
+        );
         state
     }
 }

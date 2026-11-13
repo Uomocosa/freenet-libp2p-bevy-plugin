@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use crate::p2p;
+use std::collections::BTreeMap;
 
 pub fn measure_history_store<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,

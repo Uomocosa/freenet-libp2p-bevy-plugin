@@ -89,193 +89,28 @@ impl PeerMessageRouter {
         command: p2p::Libp2pCommand,
     ) -> Vec<testing::RoutedEvent> {
     }
+    pub(crate) fn is_connected(&self, first: &identity::PeerId, second: &identity::PeerId) -> bool {
+    }
+    pub(crate) fn serve_history_command(
+        &mut self,
+        from: &identity::PeerId,
+        command: p2p::Libp2pCommand,
+    ) -> Vec<testing::RoutedEvent> {
+    }
+    pub(crate) fn serve_room_sync_command(
+        &mut self,
+        from: &identity::PeerId,
+        command: p2p::Libp2pCommand,
+    ) -> Vec<testing::RoutedEvent> {
+    }
+    pub(crate) fn fan_out_peer_message(
+        &self,
+        from: &identity::PeerId,
+        command: p2p::Libp2pCommand,
+    ) -> Vec<testing::RoutedEvent> {
+    }
 }
 
-#[rustfmt::skip]
-impl PeerMessageRouter {
-    pub(crate) fn is_connected(&self, first: &identity::PeerId, second: &identity::PeerId) -> bool {
-        self.connected_peers.get(first).is_some_and(|peers| peers.contains(second))
-    }
-    pub(crate) fn serve_history_command(&mut self, from: &identity::PeerId, command: p2p::Libp2pCommand) -> Vec<testing::RoutedEvent> {
-        match command {
-            p2p::Libp2pCommand::PutHistoryRecord { id, value, .. } => {
-                let key: Vec<u8> = id.history_record_key().as_ref().to_vec();
-                self.history_values.insert(key.clone(), value);
-                self.history_kinds.insert(key, id.clone());
-                vec![testing::RoutedEvent {
-                    to: from.clone(),
-                    event: p2p::Libp2pEvent::HistoryRecordStored { id },
-                }]
-            }
-            p2p::Libp2pCommand::GetHistoryRecord { id } => {
-                let key: Vec<u8> = id.history_record_key().as_ref().to_vec();
-                let event = self.history_values.get(&key).map_or_else(
-                    || p2p::Libp2pEvent::HistoryRecordNotFound { id: id.clone() },
-                    |value| p2p::Libp2pEvent::HistoryRecordFound {
-                        id: id.clone(),
-                        value: value.clone(),
-                    },
-                );
-                vec![testing::RoutedEvent {
-                    to: from.clone(),
-                    event,
-                }]
-            }
-            p2p::Libp2pCommand::MeasureHistoryStore => {
-                let mut bytes_by_prefix: BTreeMap<p2p::HistoryKeyPrefix, p2p::HistoryByteCount> =
-                    BTreeMap::new();
-                for (key, value) in &self.history_values {
-                    let Some(kind) = self.history_kinds.get(key) else {
-                        continue;
-                    };
-                    let bytes = u64::try_from(value.len()).unwrap_or(u64::MAX);
-                    let total: &mut p2p::HistoryByteCount = bytes_by_prefix
-                        .entry(kind.record_prefix().clone())
-                        .or_default();
-                    *total = p2p::HistoryByteCount::from(total.saturating_add(bytes));
-                }
-                vec![testing::RoutedEvent {
-                    to: from.clone(),
-                    event: p2p::Libp2pEvent::HistoryStoreMeasured { bytes_by_prefix },
-                }]
-            }
-            p2p::Libp2pCommand::RemoveHistoryRecords { prefix } => {
-                let stale: Vec<Vec<u8>> = self
-                    .history_kinds
-                    .iter()
-                    .filter(|(_, kind)| *kind.record_prefix() == prefix)
-                    .map(|(key, _)| key.clone())
-                    .collect();
-                for key in stale {
-                    self.history_values.remove(&key);
-                    self.history_kinds.remove(&key);
-                }
-                Vec::new()
-            }
-            _ => Vec::new(),
-        }
-    }
-    pub(crate) fn serve_room_sync_command(&mut self, from: &identity::PeerId, command: p2p::Libp2pCommand) -> Vec<testing::RoutedEvent> {
-        match command {
-            p2p::Libp2pCommand::FetchSnapshot { peer_id, room, part } => {
-                let id = self.claim_reply_id(from);
-                if self.is_connected(from, &peer_id) {
-                    vec![testing::RoutedEvent {
-                        to: peer_id,
-                        event: p2p::Libp2pEvent::SnapshotRequest {
-                            id,
-                            from: from.clone(),
-                            room,
-                            part,
-                        },
-                    }]
-                } else {
-                    vec![testing::RoutedEvent {
-                        to: from.clone(),
-                        event: p2p::Libp2pEvent::RoomSyncRequestFailed {
-                            from: peer_id,
-                            request: p2p::SnapshotRequest::Fetch { room, part },
-                        },
-                    }]
-                }
-            }
-            p2p::Libp2pCommand::FetchReplicaSlice { peer_id, room, index } => {
-                let id = self.claim_reply_id(from);
-                if self.is_connected(from, &peer_id) {
-                    vec![testing::RoutedEvent {
-                        to: peer_id,
-                        event: p2p::Libp2pEvent::ReplicaSliceRequest {
-                            id,
-                            from: from.clone(),
-                            room,
-                            index,
-                        },
-                    }]
-                } else {
-                    vec![testing::RoutedEvent {
-                        to: from.clone(),
-                        event: p2p::Libp2pEvent::RoomSyncRequestFailed {
-                            from: peer_id,
-                            request: p2p::SnapshotRequest::FetchReplicaSlice { room, index },
-                        },
-                    }]
-                }
-            }
-            p2p::Libp2pCommand::RespondSnapshot { id, frame } => {
-                let Some(requester) = self.pending_snapshot_replies.remove(&id) else {
-                    return Vec::new();
-                };
-                let event = match frame {
-                    p2p::SnapshotResponse::Part { room, part, total, data } => {
-                        p2p::Libp2pEvent::SnapshotPart {
-                            from: from.clone(),
-                            room,
-                            part,
-                            total,
-                            data,
-                        }
-                    }
-                    p2p::SnapshotResponse::Missing { room } => p2p::Libp2pEvent::SnapshotMissing {
-                        from: from.clone(),
-                        room,
-                    },
-                    p2p::SnapshotResponse::ReplicaSlice { room, index, data } => {
-                        p2p::Libp2pEvent::ReplicaSlice {
-                            from: from.clone(),
-                            room,
-                            index,
-                            data,
-                        }
-                    }
-                };
-                vec![testing::RoutedEvent {
-                    to: requester,
-                    event,
-                }]
-            }
-            _ => Vec::new(),
-        }
-    }
-    pub(crate) fn fan_out_peer_message(&self, from: &identity::PeerId, command: p2p::Libp2pCommand) -> Vec<testing::RoutedEvent> {
-        match command {
-            p2p::Libp2pCommand::Publish { topic, data } => {
-                let Some(connected) = self.connected_peers.get(from) else {
-                    return Vec::new();
-                };
-                connected
-                    .iter()
-                    .filter(|peer| *peer != from)
-                    .filter(|peer| {
-                        self.subscribed_topics
-                            .get(*peer)
-                            .is_some_and(|topics| topics.contains(&topic))
-                    })
-                    .map(|to| testing::RoutedEvent {
-                        to: to.clone(),
-                        event: p2p::Libp2pEvent::Gossip {
-                            topic: topic.clone(),
-                            from: from.clone(),
-                            data: data.clone(),
-                        },
-                    })
-                    .collect()
-            }
-            p2p::Libp2pCommand::PeerExchange { peer_id, data } => {
-                if !self.is_connected(from, &peer_id) {
-                    return Vec::new();
-                }
-                vec![testing::RoutedEvent {
-                    to: peer_id,
-                    event: p2p::Libp2pEvent::PeerExchange {
-                        from: from.clone(),
-                        data,
-                    },
-                }]
-            }
-            _ => Vec::new(),
-        }
-    }
-}
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;

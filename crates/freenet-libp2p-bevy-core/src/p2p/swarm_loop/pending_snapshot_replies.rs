@@ -10,17 +10,17 @@ pub struct PendingSnapshotReplies {
     next_id: u64,
 }
 
-#[rustfmt::skip]
 impl PendingSnapshotReplies {
     pub fn insert(&mut self, channel: ResponseChannel<p2p::SnapshotResponse>) -> p2p::ReplyId {
         self.next_id = self.next_id.saturating_add(1);
         self.pending.insert(p2p::ReplyId(self.next_id), channel);
         p2p::ReplyId(self.next_id)
     }
+}
 
-    pub fn remove(&mut self, id: p2p::ReplyId) -> Option<ResponseChannel<p2p::SnapshotResponse>> {
-        self.pending.remove(&id)
-    }
+#[rustfmt::skip]
+impl PendingSnapshotReplies {
+    pub fn remove(&mut self, id: p2p::ReplyId) -> Option<ResponseChannel<p2p::SnapshotResponse>> { self.pending.remove(&id) }
 }
 
 // no test_usage necessary

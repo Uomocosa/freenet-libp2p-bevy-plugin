@@ -1,7 +1,6 @@
-use libp2p::gossipsub;
-
 use crate::identity;
 use crate::p2p;
+use libp2p::gossipsub;
 
 pub fn subscribe_room<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,

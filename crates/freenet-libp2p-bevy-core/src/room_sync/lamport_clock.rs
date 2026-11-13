@@ -4,10 +4,18 @@ use derive_more::{Deref, DerefMut};
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Default, Deref, DerefMut)]
 pub struct LamportClock(pub u32);
 
+impl LamportClock {
+    pub fn tick(&mut self) -> u32 {
+        **self = (*self).saturating_add(1);
+        **self
+    }
+}
+
 #[rustfmt::skip]
 impl LamportClock {
-    pub fn tick(&mut self) -> u32 { **self = (*self).saturating_add(1); **self }
-    pub fn observe(&mut self, remote: u32) { **self = (*self).max(remote).saturating_add(1); }
+    pub fn observe(&mut self, remote: u32) {
+        **self = (*self).max(remote).saturating_add(1);
+    }
 }
 
 #[cfg(test)]
