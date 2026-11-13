@@ -2,7 +2,7 @@
 name = "freenet-libp2p-bevy-core"
 version.workspace = true
 edition.workspace = true
-description = "Core of freenet-libp2p-bevy-plugin: generic P2PBevyPlugin (Freenet discovery + libp2p Kademlia history) — Freenet lobby contract"
+description = "Core of freenet-libp2p-bevy-plugin: generic P2PBevyPlugin (libp2p Kademlia history); the Freenet lobby kit is a separate crate"
 license.workspace = true
 
 [[bin]]
@@ -54,9 +54,7 @@ serde_json = "=1.0.154"
 
 [features]
 default = []
-discovery = []
 testing = ["tokio/net"]
-e2e = ["testing"]
 
 [dev-dependencies]
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
