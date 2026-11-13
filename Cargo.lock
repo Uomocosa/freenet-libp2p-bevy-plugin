@@ -4309,6 +4309,7 @@ dependencies = [
  "common_types",
  "derive_more",
  "freenet-libp2p-bevy-core",
+ "freenet-libp2p-bevy-lobby-room",
  "freenet-stdlib",
  "futures-util",
  "http",

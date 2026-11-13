@@ -43,7 +43,7 @@ concurrency:
 
 env:
   E2E_TIME_SCALE: ${{ inputs.time_scale }}
-  RUST_LOG: info,starboard=debug,p2p=debug,discovery=debug,freenet_libp2p_bevy_core=debug,freenet_libp2p_bevy_default_ui=debug
+  RUST_LOG: info,starboard=debug,p2p=debug,discovery=debug,freenet_libp2p_bevy_core=debug,freenet_libp2p_bevy_lobby_room=debug
   BUNDLE_RUN_ID: ${{ inputs.bundle_run_id || github.run_id }}
 
 jobs:

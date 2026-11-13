@@ -23,8 +23,8 @@ freenet-libp2p-bevy-plugin = { git = "https://github.com/Uomocosa/freenet-libp2p
 
 ### Rooms
 
-One room channel: gossipsub, one topic per room. Joining a room (through
-`discovery`) auto-subscribes the plugin to that room's topic.
+One room channel: gossipsub, one topic per room. Joining a room (through the
+lobby-room `discovery`) auto-subscribes the plugin to that room's topic.
 
 - `p2p::Command::PublishInJoinedRoom { payload }` publishes to the room you have joined.
 - `p2p::Command::PublishToSpecificRoom { room, payload }` publishes to a named room.
@@ -53,9 +53,9 @@ Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
 
 - `crates/common_types/` — bincode wire types shared by the contract and the plugin.
 - `crates/lobby_contract/` — the Freenet lobby contract (wasm via `just contract`).
-- `crates/freenet-libp2p-bevy-core/` — discovery, p2p, room sync, testing harness.
-- `crates/freenet-libp2p-bevy-default-ui/` — the built-in lobby/friends Bevy UI.
-- `crates/freenet-libp2p-bevy-plugin/` — thin facade (`discovery`, `default_ui`, `testing`, `e2e` features) over core + default UI.
+- `crates/freenet-libp2p-bevy-core/` — p2p, room sync, testing harness (no discovery).
+- `crates/freenet-libp2p-bevy-lobby-room/` — the lobby-room kit: Freenet lobby discovery, the Freenet client, and the default lobby UI (`LobbyRoomPlugins`, `ui::LobbyRoomUiPlugin`, `discovery::...`). Feature `testing`.
+- `crates/freenet-libp2p-bevy-plugin/` — thin facade (default feature `lobby-room`, re-exported as `lobby_room`) over core and the lobby-room kit.
 - `examples/*/` — runnable apps (`lobby_room`, `starboard`, `shared`, `e2e_check`, `tools`).
 - `tests/e2e/` — the e2e suite (incl. `tests/e2e/tests/contract_wire.rs`); `tests/e2e_steps/` step definitions; `tests/e2e_macros/` test macros.
 

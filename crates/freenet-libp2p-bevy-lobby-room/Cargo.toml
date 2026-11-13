@@ -49,6 +49,7 @@ http = { version = "=1.5.0" }
 testing = ["freenet-libp2p-bevy-core/testing"]
 
 [dev-dependencies]
+freenet-libp2p-bevy-lobby-room = { path = ".", features = ["testing"] }
 lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.16" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
 freenet-stdlib = { workspace = true, features = ["contract"] }
