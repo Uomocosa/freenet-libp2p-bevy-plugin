@@ -36,7 +36,7 @@ pub fn spawn_lobby_task(plugin: &discovery::Plugin, app: &mut App) {
             .world_mut()
             .get_resource_mut::<testing::FakeTaskHandles>()
         {
-            handles.lobby = Some(handle);
+            handles.adopt(handle);
         }
         return;
     }

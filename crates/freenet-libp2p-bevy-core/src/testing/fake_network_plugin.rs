@@ -11,9 +11,9 @@ use crate::testing;
 static PEER_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 pub struct FakeNetworkPlugin<Payload> {
-    pub(crate) network: testing::Network,
-    pub(crate) orchestrator_port: Option<u16>,
-    pub(crate) peer: identity::Peer,
+    pub network: testing::Network,
+    pub orchestrator_port: Option<u16>,
+    pub peer: identity::Peer,
     pub(crate) marker: PhantomData<Payload>,
 }
 

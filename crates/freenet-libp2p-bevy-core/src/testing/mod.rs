@@ -40,7 +40,7 @@ mod fake_task_handles;
 pub use fake_task_handles::FakeTaskHandles;
 
 mod fake_wire_framing;
-pub(crate) use fake_wire_framing::FakeWireFraming;
+pub use fake_wire_framing::FakeWireFraming;
 
 mod orchestrator;
 pub use orchestrator::Orchestrator;
