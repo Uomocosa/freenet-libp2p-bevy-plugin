@@ -88,11 +88,6 @@ pub fn spawn_fake_lobby_task(
                                 break;
                             }
                         }
-                        testing::FakeWireServerFrame::Lobby(lobby) => {
-                            if lobbies.send(lobby).is_err() {
-                                break;
-                            }
-                        }
                         testing::FakeWireServerFrame::Libp2pEvent(_)
                         | testing::FakeWireServerFrame::FreenetPeers(_) => {}
                     }

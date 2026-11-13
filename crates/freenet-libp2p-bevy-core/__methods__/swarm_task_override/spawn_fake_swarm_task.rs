@@ -72,8 +72,7 @@ pub fn spawn_fake_swarm_task<Payload: p2p::traits::Message>(
                         testing::FakeWireServerFrame::Libp2pEvent(event) => {
                             task_override.handle_server_event(&rooms_by_topic, event, &events);
                         }
-                        testing::FakeWireServerFrame::Lobby(_)
-                        | testing::FakeWireServerFrame::FreenetPeers(_)
+                        testing::FakeWireServerFrame::FreenetPeers(_)
                         | testing::FakeWireServerFrame::Extension(_) => {}
                     }
                 }

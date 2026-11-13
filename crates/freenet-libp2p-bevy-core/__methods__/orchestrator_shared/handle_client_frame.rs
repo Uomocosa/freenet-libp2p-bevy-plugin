@@ -13,8 +13,7 @@ pub fn handle_client_frame(
         testing::FakeWireClientFrame::Libp2pCommand(command) => {
             shared.router_for(&game).route(peer, command)
         }
-        testing::FakeWireClientFrame::HeartbeatTargets(_)
-        | testing::FakeWireClientFrame::Extension(_) => Vec::new(),
+        testing::FakeWireClientFrame::Extension(_) => Vec::new(),
         testing::FakeWireClientFrame::JoinedRoomBytes(data) => {
             shared.router_for(&game).route_joined_room_bytes(peer, data)
         }

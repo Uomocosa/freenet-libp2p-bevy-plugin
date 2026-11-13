@@ -23,7 +23,6 @@ pub enum E2EStepEffect {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FakeWireClientFrame {
     Libp2pCommand(p2p::Libp2pCommand),
-    HeartbeatTargets(Vec<discovery::state_machine::HeartbeatTarget>),
     JoinedRoomBytes(Vec<u8>),
     SpecificRoomBytes {
         room: identity::RoomName,
@@ -35,7 +34,6 @@ pub enum FakeWireClientFrame {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FakeWireServerFrame {
     Libp2pEvent(p2p::Libp2pEvent),
-    Lobby(discovery::Lobby),
     FreenetPeers(Vec<freenet::FreenetPeer>),
     Extension(Vec<u8>),
 }

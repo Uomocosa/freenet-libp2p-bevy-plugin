@@ -36,7 +36,6 @@ pub fn spawn_server_frame_reader(
 #[cfg(test)]
 mod tests {
     use super::spawn_server_frame_reader;
-    use crate::discovery;
     use crate::testing;
     use tokio::io::AsyncWriteExt;
 
@@ -50,7 +49,7 @@ mod tests {
         let server = tokio::spawn(async move {
             let (stream, _) = listener.accept().await.expect("accept");
             let (_, mut writer) = stream.into_split();
-            let frame = testing::FakeWireServerFrame::Lobby(discovery::Lobby::default());
+            let frame = testing::FakeWireServerFrame::Extension(vec![1, 2, 3]);
             let bytes = bincode::serialize(&frame).expect("encode");
             let length = u32::try_from(bytes.len()).expect("length");
             writer.write_u32(length).await.expect("length");
