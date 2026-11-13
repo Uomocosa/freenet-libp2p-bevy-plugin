@@ -1,12 +1,19 @@
 pub mod client;
 pub mod config;
 pub mod discovery_state;
+pub mod esc_menu_panel;
+pub mod esc_menu_state;
+pub mod friends_drawer_state;
+pub mod friends_ui_plugin;
+pub mod leave_prompt;
+pub mod list_state;
 pub mod lobby_contract_subscription;
 #[cfg(feature = "testing")]
 pub mod lobby_fake_network_plugin;
 #[cfg(feature = "testing")]
 pub mod lobby_kit;
 pub mod lobby_lease_limits;
+pub mod lobby_room_ui_plugin;
 #[cfg(feature = "testing")]
 pub mod lobby_step;
 pub mod lobby_task_config;
@@ -15,3 +22,4 @@ pub mod lobby_task_override;
 pub mod plugin;
 pub mod request_kind;
 pub mod resubscribe_gate;
+pub mod ui_plugin;

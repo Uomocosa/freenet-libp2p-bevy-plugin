@@ -97,7 +97,7 @@ impl Args {
             lease: scaled_timings::scaled_lease_timings(time_scale),
             ..discovery::Config::default()
         }));
-        app.add_plugins(ui::discovery::DefaultUiPlugin);
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
         app.add_plugins(ui::direct_dial::FriendsUiPlugin);
         app.add_plugins(
             room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game)

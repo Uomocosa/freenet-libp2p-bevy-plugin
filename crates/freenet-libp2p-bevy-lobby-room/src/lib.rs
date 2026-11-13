@@ -6,6 +6,7 @@ pub mod discovery;
 pub mod freenet;
 #[cfg(feature = "testing")]
 pub mod testing;
+pub mod ui;
 
 #[path = "../__methods__/mod.rs"]
 mod methods;

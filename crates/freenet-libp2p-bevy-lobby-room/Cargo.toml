@@ -2,7 +2,7 @@
 name = "freenet-libp2p-bevy-lobby-room"
 version.workspace = true
 edition.workspace = true
-description = "Lobby-room kit for freenet-libp2p-bevy-plugin: Freenet lobby discovery, the Freenet client, and lobby fakes — depends on freenet-libp2p-bevy-core"
+description = "Lobby-room kit for freenet-libp2p-bevy-plugin: Freenet lobby discovery, the Freenet client, lobby fakes, and the default lobby UI — depends on freenet-libp2p-bevy-core"
 license.workspace = true
 
 [lints.rust]
@@ -49,6 +49,7 @@ http = { version = "=1.5.0" }
 testing = ["freenet-libp2p-bevy-core/testing"]
 
 [dev-dependencies]
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.16" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
 freenet-stdlib = { workspace = true, features = ["contract"] }
 tokio = { version = "=1.54.1", features = ["test-util"] }

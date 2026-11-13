@@ -3,7 +3,7 @@
 //! on a room -> peers arrive one by one -> hover the leave door -> click it, answer No
 //! -> press Esc (the menu opens), choose `Leave room`, answer Yes -> back in the lobby.
 //! Only `DiscoveryState` is faked; the click goes through the plugin's real
-//! `ui::discovery::DefaultUiPlugin` button path and the real `discovery::Command`.
+//! `ui::discovery::LobbyRoomUiPlugin` button path and the real `discovery::Command`.
 
 #[cfg(test)]
 mod tests {
@@ -64,7 +64,7 @@ mod tests {
             addrs: Vec::new(),
         }));
         app.insert_resource(ready_channel);
-        app.add_plugins((ui::discovery::DefaultUiPlugin, overlay::Overlay));
+        app.add_plugins((ui::discovery::LobbyRoomUiPlugin, overlay::Overlay));
         app.add_systems(
             Update,
             (

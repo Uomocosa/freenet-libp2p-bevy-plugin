@@ -94,7 +94,7 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
         args::UiArg::Default => {
             app.add_plugins((
                 discovery_plugins,
-                plugin_ui::discovery::DefaultUiPlugin,
+                plugin_ui::discovery::LobbyRoomUiPlugin,
                 plugin_ui::direct_dial::FriendsUiPlugin,
             ));
             app.add_systems(

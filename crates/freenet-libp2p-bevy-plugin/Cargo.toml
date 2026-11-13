@@ -30,11 +30,10 @@ missing_errors_doc = "allow"
 [dependencies]
 freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core", default-features = false }
 freenet-libp2p-bevy-lobby-room = { path = "../freenet-libp2p-bevy-lobby-room", optional = true }
-freenet-libp2p-bevy-default-ui = { path = "../freenet-libp2p-bevy-default-ui", optional = true }
 
 [features]
 default = ["discovery", "default_ui"]
 discovery = ["freenet-libp2p-bevy-core/discovery", "dep:freenet-libp2p-bevy-lobby-room"]
-default_ui = ["discovery", "dep:freenet-libp2p-bevy-default-ui"]
+default_ui = ["discovery"]
 testing = ["discovery", "freenet-libp2p-bevy-core/testing", "freenet-libp2p-bevy-lobby-room/testing"]
 e2e = ["discovery", "default_ui", "testing", "freenet-libp2p-bevy-core/e2e"]

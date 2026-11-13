@@ -4300,22 +4300,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "freenet-libp2p-bevy-default-ui"
-version = "0.0.10"
-dependencies = [
- "atomic-delegate-macros",
- "bevy",
- "derive_more",
- "freenet-libp2p-bevy-core",
- "freenet-libp2p-bevy-lobby-room",
- "lele-bevy-preview",
- "lele-bevy-state-machine",
- "libp2p",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "freenet-libp2p-bevy-lobby-room"
 version = "0.0.10"
 dependencies = [
@@ -4328,6 +4312,7 @@ dependencies = [
  "freenet-stdlib",
  "futures-util",
  "http",
+ "lele-bevy-preview",
  "lele-bevy-state-machine",
  "libp2p",
  "serde",
@@ -4342,7 +4327,6 @@ name = "freenet-libp2p-bevy-plugin"
 version = "0.0.10"
 dependencies = [
  "freenet-libp2p-bevy-core",
- "freenet-libp2p-bevy-default-ui",
  "freenet-libp2p-bevy-lobby-room",
 ]
 
