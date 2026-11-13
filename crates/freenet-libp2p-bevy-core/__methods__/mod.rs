@@ -30,6 +30,8 @@ pub mod lobby_contract_subscription;
 pub mod lobby_kit;
 #[cfg(feature = "discovery")]
 pub mod lobby_lease_limits;
+#[cfg(feature = "testing")]
+pub mod lobby_step;
 #[cfg(feature = "discovery")]
 pub mod lobby_task_config;
 #[cfg(all(feature = "discovery", feature = "testing"))]

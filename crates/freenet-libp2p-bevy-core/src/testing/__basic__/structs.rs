@@ -33,10 +33,14 @@ pub struct E2EStepPoll {
     pub effect: Option<testing::E2EStepEffect>,
 }
 
-pub struct E2EStepView<'a> {
+pub struct E2EStepView {
+    pub room_message_senders: usize,
+    pub members: usize,
+}
+
+pub struct LobbyStepView<'a> {
     pub status: &'a discovery::state_machine::DiscoveryState,
     pub join_error: Option<&'a str>,
-    pub room_message_senders: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

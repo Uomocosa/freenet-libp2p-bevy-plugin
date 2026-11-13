@@ -22,7 +22,7 @@ use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::identity::{PeerId, RoomName};
 use freenet_libp2p_bevy_plugin::testing::{
-    E2EStep, MemberCount, ROOM_PLACEHOLDER, ScriptCheckpoint, StepWithDeadline,
+    E2EStep, LobbyStep, MemberCount, ROOM_PLACEHOLDER, ScriptCheckpoint, StepWithDeadline,
     traits::{OrchestratedStep, ScriptStep},
 };
 
@@ -57,6 +57,7 @@ impl Stroke {
 /// One step of a starboard `--script`: a shared step, or a canvas step.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StarboardStep {
+    Lobby(LobbyStep),
     Shared(E2EStep),
     Paint(Vec<Stroke>),
     Erase(Vec<Stroke>),
@@ -92,12 +93,15 @@ impl ScriptStep for StarboardStep {
             "dial" => Some(Ok(Self::Dial(arg.to_string()))),
             "wait-friend-connected" => Some(Ok(Self::WaitFriendConnected(PeerId::from(arg)))),
             "wait-friend-disconnected" => Some(Ok(Self::WaitFriendDisconnected(PeerId::from(arg)))),
-            _ => E2EStep::parse_verb(verb, arg).map(|step| step.map(Self::Shared)),
+            _ => LobbyStep::parse_verb(verb, arg)
+                .map(|step| step.map(Self::Lobby))
+                .or_else(|| E2EStep::parse_verb(verb, arg).map(|step| step.map(Self::Shared))),
         }
     }
 
     fn is_wait(&self) -> bool {
         match self {
+            Self::Lobby(step) => step.is_wait(),
             Self::Shared(step) => step.is_wait(),
             Self::WaitCanvasNonEmpty
             | Self::WaitCanvasStable
@@ -112,6 +116,7 @@ impl ScriptStep for StarboardStep {
 impl OrchestratedStep for StarboardStep {
     fn script_text(&self) -> String {
         match self {
+            Self::Lobby(step) => step.script_text(),
             Self::Shared(step) => step.script_text(),
             Self::Paint(strokes) => strokes
                 .iter()
@@ -185,10 +190,10 @@ fn parse_stroke(raw: &str) -> Result<Stroke, String> {
 #[must_use]
 pub fn create_room() -> Vec<StepWithDeadline<StarboardStep>> {
     vec![
-        StepWithDeadline::from(StarboardStep::Shared(E2EStep::CreateRoom(RoomName::from(
+        StepWithDeadline::from(StarboardStep::Lobby(LobbyStep::CreateRoom(RoomName::from(
             ROOM_PLACEHOLDER,
         )))),
-        StepWithDeadline::from(StarboardStep::Shared(E2EStep::WaitJoinSucceeded(
+        StepWithDeadline::from(StarboardStep::Lobby(LobbyStep::WaitJoinSucceeded(
             RoomName::from(ROOM_PLACEHOLDER),
         )))
         .within(Duration::from_secs(180)),
@@ -200,14 +205,14 @@ pub fn create_room() -> Vec<StepWithDeadline<StarboardStep>> {
 #[must_use]
 pub fn join_room() -> Vec<StepWithDeadline<StarboardStep>> {
     vec![
-        StepWithDeadline::from(StarboardStep::Shared(E2EStep::WaitLobbyRoom(
+        StepWithDeadline::from(StarboardStep::Lobby(LobbyStep::WaitLobbyRoom(
             RoomName::from(ROOM_PLACEHOLDER),
         )))
         .within(Duration::from_secs(420)),
-        StepWithDeadline::from(StarboardStep::Shared(E2EStep::JoinRoom(RoomName::from(
+        StepWithDeadline::from(StarboardStep::Lobby(LobbyStep::JoinRoom(RoomName::from(
             ROOM_PLACEHOLDER,
         )))),
-        StepWithDeadline::from(StarboardStep::Shared(E2EStep::WaitJoinSucceeded(
+        StepWithDeadline::from(StarboardStep::Lobby(LobbyStep::WaitJoinSucceeded(
             RoomName::from(ROOM_PLACEHOLDER),
         )))
         .within(Duration::from_secs(420)),
@@ -241,8 +246,8 @@ pub fn wait_until_room_has_at_most_members(count: u32) -> Vec<StepWithDeadline<S
 /// Waits until the run's room shows up in the lobby.
 #[must_use]
 pub fn wait_until_lobby_has_room() -> Vec<StepWithDeadline<StarboardStep>> {
-    vec![StepWithDeadline::from(StarboardStep::Shared(
-        E2EStep::WaitLobbyRoom(RoomName::from(ROOM_PLACEHOLDER)),
+    vec![StepWithDeadline::from(StarboardStep::Lobby(
+        LobbyStep::WaitLobbyRoom(RoomName::from(ROOM_PLACEHOLDER)),
     ))]
 }
 
@@ -251,48 +256,48 @@ pub fn wait_until_lobby_has_room() -> Vec<StepWithDeadline<StarboardStep>> {
 /// after the room is really gone.
 #[must_use]
 pub fn wait_until_room_is_gone() -> Vec<StepWithDeadline<StarboardStep>> {
-    vec![StepWithDeadline::from(StarboardStep::Shared(
-        E2EStep::WaitLobbyRoomGone(RoomName::from(ROOM_PLACEHOLDER)),
+    vec![StepWithDeadline::from(StarboardStep::Lobby(
+        LobbyStep::WaitLobbyRoomGone(RoomName::from(ROOM_PLACEHOLDER)),
     ))]
 }
 
 /// Leaves the run's room.
 #[must_use]
 pub fn leave_room() -> Vec<StepWithDeadline<StarboardStep>> {
-    vec![StepWithDeadline::from(StarboardStep::Shared(
-        E2EStep::LeaveRoom(RoomName::from(ROOM_PLACEHOLDER)),
+    vec![StepWithDeadline::from(StarboardStep::Lobby(
+        LobbyStep::LeaveRoom(RoomName::from(ROOM_PLACEHOLDER)),
     ))]
 }
 
 /// Waits until this peer left the run's room.
 #[must_use]
 pub fn wait_until_left_room() -> Vec<StepWithDeadline<StarboardStep>> {
-    vec![StepWithDeadline::from(StarboardStep::Shared(
-        E2EStep::WaitLeft(RoomName::from(ROOM_PLACEHOLDER)),
+    vec![StepWithDeadline::from(StarboardStep::Lobby(
+        LobbyStep::WaitLeft(RoomName::from(ROOM_PLACEHOLDER)),
     ))]
 }
 
 /// Waits until the join of the run's room failed (room gone or bad token).
 #[must_use]
 pub fn wait_until_join_fails() -> Vec<StepWithDeadline<StarboardStep>> {
-    vec![StepWithDeadline::from(StarboardStep::Shared(
-        E2EStep::WaitJoinFailed(RoomName::from(ROOM_PLACEHOLDER)),
+    vec![StepWithDeadline::from(StarboardStep::Lobby(
+        LobbyStep::WaitJoinFailed(RoomName::from(ROOM_PLACEHOLDER)),
     ))]
 }
 
 /// Waits until the join of `room` failed (for a room name that is not the run's room).
 #[must_use]
 pub fn wait_until_join_fails_named(room: &str) -> Vec<StepWithDeadline<StarboardStep>> {
-    vec![StepWithDeadline::from(StarboardStep::Shared(
-        E2EStep::WaitJoinFailed(RoomName::from(room)),
+    vec![StepWithDeadline::from(StarboardStep::Lobby(
+        LobbyStep::WaitJoinFailed(RoomName::from(room)),
     ))]
 }
 
 /// Joins `room` (a pattern that may contain the `{room}` placeholder).
 #[must_use]
 pub fn join_room_named(room: &str) -> Vec<StepWithDeadline<StarboardStep>> {
-    vec![StepWithDeadline::from(StarboardStep::Shared(
-        E2EStep::JoinRoom(RoomName::from(room)),
+    vec![StepWithDeadline::from(StarboardStep::Lobby(
+        LobbyStep::JoinRoom(RoomName::from(room)),
     ))]
 }
 
@@ -364,8 +369,8 @@ pub fn mark_completed(checkpoint: ScriptCheckpoint) -> Vec<StepWithDeadline<Star
 /// Quits the app once the script is done.
 #[must_use]
 pub fn exit_app() -> Vec<StepWithDeadline<StarboardStep>> {
-    vec![StepWithDeadline::from(StarboardStep::Shared(
-        E2EStep::ExitApp,
+    vec![StepWithDeadline::from(StarboardStep::Lobby(
+        LobbyStep::ExitApp,
     ))]
 }
 
@@ -622,5 +627,40 @@ mod tests {
                       leave:room-1, wait-left:room-1@30s, exit-app";
         let steps: Result<Vec<StarboardStep>, String> = script.split(", ").map(step).collect();
         assert_eq!(steps.map(|steps| steps.len()), Ok(8));
+    }
+
+    #[test]
+    fn every_lobby_verb_the_scripts_use_parses_to_the_same_text() {
+        let lines = [
+            ("create", "{room}"),
+            ("create", "room-1"),
+            ("join", "{room}"),
+            ("join", "r"),
+            ("join", "no-such-room-{room}"),
+            ("leave", "{room}"),
+            ("wait-lobby-room", "{room}"),
+            ("wait-lobby-room-gone", "{room}"),
+            ("wait-join-succeeded", "{room}"),
+            ("wait-join-failed", "{room}"),
+            ("wait-left", "{room}"),
+            ("wait-ring-joined", ""),
+            ("wait-lobby-ready", ""),
+            ("exit-app", ""),
+        ];
+        for (verb, arg) in lines {
+            let step = StarboardStep::parse_verb(verb, arg)
+                .expect("known verb")
+                .expect("parses");
+            assert!(
+                matches!(step, StarboardStep::Lobby(_)),
+                "{verb} must stay a lobby step"
+            );
+            let text = if arg.is_empty() {
+                verb.to_string()
+            } else {
+                format!("{verb}:{arg}")
+            };
+            assert_eq!(step.script_text(), text);
+        }
     }
 }

@@ -48,20 +48,16 @@ impl testing::traits::PollableScriptStep for ScriptedStarboardStep {
         let fallback = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let state: &DiscoveryState = param.state.as_deref().unwrap_or(&fallback);
         match &step.0 {
+            StarboardStep::Lobby(lobby) => {
+                let join_error = param
+                    .join_error
+                    .as_deref()
+                    .and_then(|error| error.as_deref());
+                poll_lobby_arm(lobby, clock, state, join_error, &mut param.effects)
+            }
             StarboardStep::Shared(shared) => {
-                let view = testing::E2EStepView {
-                    status: state,
-                    join_error: param
-                        .join_error
-                        .as_deref()
-                        .and_then(|error| error.as_deref()),
-                    room_message_senders: 0,
-                };
-                let poll = shared.poll_shared_script_step(clock, &view);
-                if let Some(effect) = poll.effect {
-                    param.effects.apply(effect);
-                }
-                poll.outcome
+                let members = state.connected_members().count().saturating_add(1);
+                poll_shared_arm(shared, clock, members, &mut param.effects)
             }
             StarboardStep::Paint(strokes) => {
                 for (index, stroke) in strokes.iter().enumerate() {
@@ -165,6 +161,41 @@ impl CanvasHashSince {
             testing::StepOutcome::Pending
         }
     }
+}
+
+fn poll_lobby_arm(
+    lobby: &testing::LobbyStep,
+    clock: testing::StepClock,
+    state: &DiscoveryState,
+    join_error: Option<&str>,
+    effects: &mut testing::E2EStepEffectSink<'_>,
+) -> testing::StepOutcome {
+    let view = testing::LobbyStepView {
+        status: state,
+        join_error,
+    };
+    let poll = lobby.poll_lobby_step(clock, &view);
+    if let Some(effect) = poll.effect {
+        effects.apply(effect);
+    }
+    poll.outcome
+}
+
+fn poll_shared_arm(
+    shared: &testing::E2EStep,
+    clock: testing::StepClock,
+    members: usize,
+    effects: &mut testing::E2EStepEffectSink<'_>,
+) -> testing::StepOutcome {
+    let view = testing::E2EStepView {
+        room_message_senders: 0,
+        members,
+    };
+    let poll = shared.poll_shared_script_step(clock, &view);
+    if let Some(effect) = poll.effect {
+        effects.apply(effect);
+    }
+    poll.outcome
 }
 
 impl StarboardStepParam<'_, '_> {

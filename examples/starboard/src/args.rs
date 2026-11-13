@@ -191,7 +191,7 @@ mod tests {
     use e2e_steps::starboard_steps::StarboardStep;
     use freenet_libp2p_bevy_plugin::identity;
     use freenet_libp2p_bevy_plugin::p2p::TransportMode;
-    use freenet_libp2p_bevy_plugin::testing::E2EStep;
+    use freenet_libp2p_bevy_plugin::testing::LobbyStep;
 
     #[test]
     fn test_usage() {
@@ -214,8 +214,8 @@ mod tests {
         assert_eq!(steps.len(), 4);
         assert_eq!(
             steps.first().map(|timed| &timed.step),
-            Some(&ScriptedStarboardStep::from(StarboardStep::Shared(
-                E2EStep::CreateRoom(identity::RoomName::from("room-1"))
+            Some(&ScriptedStarboardStep::from(StarboardStep::Lobby(
+                LobbyStep::CreateRoom(identity::RoomName::from("room-1"))
             )))
         );
     }

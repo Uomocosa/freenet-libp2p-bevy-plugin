@@ -3,7 +3,7 @@ use crate::testing;
 
 #[must_use]
 pub fn join_failure_reason(
-    view: &testing::E2EStepView<'_>,
+    view: &testing::LobbyStepView<'_>,
     name: &identity::RoomName,
 ) -> Option<String> {
     if let Some(reason) = view.join_error {
@@ -24,11 +24,10 @@ mod tests {
     use crate::identity;
     use crate::testing;
 
-    fn viewed(status: &discovery::state_machine::DiscoveryState) -> testing::E2EStepView<'_> {
-        testing::E2EStepView {
+    fn viewed(status: &discovery::state_machine::DiscoveryState) -> testing::LobbyStepView<'_> {
+        testing::LobbyStepView {
             status,
             join_error: None,
-            room_message_senders: 0,
         }
     }
 
@@ -39,7 +38,7 @@ mod tests {
             join_failure_reason(&viewed(&status), &identity::RoomName::from("room-1")),
             None
         );
-        let failed = testing::E2EStepView {
+        let failed = testing::LobbyStepView {
             join_error: Some("gone"),
             ..viewed(&status)
         };

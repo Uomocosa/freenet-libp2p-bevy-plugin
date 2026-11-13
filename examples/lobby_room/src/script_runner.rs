@@ -11,17 +11,28 @@ use crate::ring::RingPeers;
 pub type LobbyScriptRunner = testing::ScriptRunner<LobbyStep>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LobbyStep(pub testing::E2EStep);
+pub enum LobbyStep {
+    Lobby(testing::LobbyStep),
+    Shared(testing::E2EStep),
+}
 
 impl ScriptStep for LobbyStep {
-    const STEP_NAMES: &'static str = testing::E2EStep::STEP_NAMES;
+    const STEP_NAMES: &'static str = "create, join, leave, wait-lobby-room, wait-lobby-room-gone, \
+        wait-join-succeeded, wait-join-failed, wait-left, wait-members, \
+        wait-members-are-strictly-less-than, wait-members-are-less-or-equal-to, wait-room-messages, \
+        wait-ring-joined, wait-lobby-ready, sleep, mark-completed, exit-app, crash-app, stay";
 
     fn parse_verb(verb: &str, arg: &str) -> Option<Result<Self, String>> {
-        testing::E2EStep::parse_verb(verb, arg).map(|step| step.map(Self))
+        testing::LobbyStep::parse_verb(verb, arg)
+            .map(|step| step.map(Self::Lobby))
+            .or_else(|| testing::E2EStep::parse_verb(verb, arg).map(|step| step.map(Self::Shared)))
     }
 
     fn is_wait(&self) -> bool {
-        self.0.is_wait()
+        match self {
+            Self::Lobby(step) => step.is_wait(),
+            Self::Shared(step) => step.is_wait(),
+        }
     }
 }
 
@@ -42,20 +53,30 @@ impl PollableScriptStep for LobbyStep {
         clock: testing::StepClock,
         param: &mut Self::Param<'_, '_>,
     ) -> testing::StepOutcome {
-        if matches!(step.0, testing::E2EStep::WaitRingJoined) {
+        if matches!(step, Self::Lobby(testing::LobbyStep::WaitRingJoined)) {
             return ring_step_outcome(param.ring.get() > 0);
         }
         let fallback = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let view_status = param.state.as_deref().unwrap_or(&fallback);
-        let view = testing::E2EStepView {
-            status: view_status,
-            join_error: param
-                .join_error
-                .as_deref()
-                .and_then(|error| error.as_deref()),
-            room_message_senders: param.senders.peers.len(),
+        let poll = match step {
+            Self::Lobby(lobby) => {
+                let view = testing::LobbyStepView {
+                    status: view_status,
+                    join_error: param
+                        .join_error
+                        .as_deref()
+                        .and_then(|error| error.as_deref()),
+                };
+                lobby.poll_lobby_step(clock, &view)
+            }
+            Self::Shared(shared) => {
+                let view = testing::E2EStepView {
+                    room_message_senders: param.senders.peers.len(),
+                    members: view_status.connected_members().count().saturating_add(1),
+                };
+                shared.poll_shared_script_step(clock, &view)
+            }
         };
-        let poll = step.0.poll_shared_script_step(clock, &view);
         if let Some(effect) = poll.effect {
             param.effects.apply(effect);
         }
@@ -140,7 +161,7 @@ mod tests {
     fn ring_joined_fails_past_its_deadline_without_a_ring_peer() {
         use freenet_libp2p_bevy_plugin::testing::ScriptVerdict;
         let timed = testing::TimedScriptStep {
-            step: LobbyStep(testing::E2EStep::WaitRingJoined),
+            step: LobbyStep::Lobby(testing::LobbyStep::WaitRingJoined),
             deadline: Some(Duration::from_secs(5)),
             raw: "wait-ring-joined@5s".to_string(),
         };

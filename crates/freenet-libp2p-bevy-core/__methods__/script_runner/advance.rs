@@ -129,7 +129,7 @@ mod tests {
     fn each_step_gets_a_fresh_clock() {
         let mut script = runner(vec![
             timed(testing::E2EStep::Stay, "step-0", None),
-            timed(testing::E2EStep::ExitApp, "step-1", None),
+            timed(testing::E2EStep::CrashApp, "step-1", None),
         ]);
         let mut seen = Vec::new();
         advance(&mut script, Duration::from_secs(9), |step, clock| {
@@ -144,7 +144,7 @@ mod tests {
             seen,
             vec![
                 (testing::E2EStep::Stay, Duration::from_secs(9), true),
-                (testing::E2EStep::ExitApp, Duration::ZERO, true),
+                (testing::E2EStep::CrashApp, Duration::ZERO, true),
             ]
         );
     }
@@ -153,7 +153,7 @@ mod tests {
     fn finished_steps_record_their_timings() {
         let mut script = runner(vec![
             timed(testing::E2EStep::Stay, "step-0", None),
-            timed(testing::E2EStep::ExitApp, "step-1", None),
+            timed(testing::E2EStep::CrashApp, "step-1", None),
         ]);
         advance(&mut script, Duration::from_secs(2), |step, _| {
             if matches!(step, testing::E2EStep::Stay) {

@@ -18,8 +18,8 @@ pub use basic::messages::E2EExtensionEffect;
 pub use basic::newtypes::{MemberCount, SenderCount};
 pub use basic::resources::PendingAction;
 pub use basic::structs::{
-    BookKindExpectation, E2EStepPoll, E2EStepView, FakeWireHello, FanOut, LivePeer, ReportCheck,
-    RoutedEvent, RunningPeer, StepClock, StepTiming, StoredStep,
+    BookKindExpectation, E2EStepPoll, E2EStepView, FakeWireHello, FanOut, LivePeer, LobbyStepView,
+    ReportCheck, RoutedEvent, RunningPeer, StepClock, StepTiming, StoredStep,
 };
 
 mod action;
@@ -56,6 +56,9 @@ pub(crate) mod orchestrator_shared;
 
 mod e2e_step;
 pub use e2e_step::E2EStep;
+
+mod lobby_step;
+pub use lobby_step::LobbyStep;
 
 mod e2e_step_effect_sink;
 pub use e2e_step_effect_sink::E2EStepEffectSink;
