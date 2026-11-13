@@ -9,5 +9,5 @@ pub struct DialKnownPeer {
     pub peer: identity::Peer,
     pub kind: direct_dial::KnownPeerKind,
     pub failed_attempts: u32,
-    pub next_attempt_at: time::UnixTime,
+    pub next_attempt: time::Deadline,
 }

@@ -14,7 +14,7 @@ pub fn leave(state: &mut DiscoveryState, now: time::UnixTime) -> Vec<Output> {
         },
     );
     state.candidates.clear();
-    state.last_dialed_at.clear();
+    state.redial_after.clear();
     let mut outputs = state.broadcast_handshake();
     outputs.push(Output::Notify(discovery::Event::Left(room.name)));
     outputs

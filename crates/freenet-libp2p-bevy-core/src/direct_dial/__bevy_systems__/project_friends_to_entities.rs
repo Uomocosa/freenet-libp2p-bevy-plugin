@@ -134,7 +134,7 @@ mod tests {
                 },
                 kind: direct_dial::KnownPeerKind::PreviouslyConnected,
                 failed_attempts: 0,
-                next_attempt_at: time::UnixTime::from_secs(10),
+                next_attempt: time::Deadline::at(time::UnixTime::from_secs(10)),
             });
         let mut app = app_with_projection(state);
         app.update();

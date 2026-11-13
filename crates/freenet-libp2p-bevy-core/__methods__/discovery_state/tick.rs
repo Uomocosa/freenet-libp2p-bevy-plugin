@@ -6,12 +6,10 @@ use discovery::state_machine::{DiscoveryState, Output};
 #[must_use]
 pub fn tick(state: &mut DiscoveryState, now: time::UnixTime) -> Vec<Output> {
     let mut outputs = state.dial_candidates(now);
-    let handshake_due = state
-        .last_handshake_at
-        .is_none_or(|last| now.elapsed_since(last) >= discovery::state_machine::HANDSHAKE_EVERY);
-    if handshake_due && state.room.is_some() {
+    if state.next_handshake.is_due(now) && state.room.is_some() {
         outputs.extend(state.broadcast_handshake());
-        state.last_handshake_at = Some(now);
+        state.next_handshake =
+            time::Deadline::from_now_plus(now, discovery::state_machine::HANDSHAKE_EVERY);
     }
     state.drop_expired_candidates(now);
     outputs.extend(state.drop_members_past_grace(now));
@@ -48,8 +46,11 @@ mod tests {
         let mut outputs = tick(&mut state, time::UnixTime::from_secs(100));
         outputs.extend(tick(&mut state, time::UnixTime::from_secs(101)));
         assert_eq!(
-            state.last_handshake_at,
-            Some(time::UnixTime::from_secs(100))
+            state.next_handshake,
+            time::Deadline::from_now_plus(
+                time::UnixTime::from_secs(100),
+                discovery::state_machine::HANDSHAKE_EVERY
+            )
         );
         let measures = outputs
             .iter()

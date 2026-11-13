@@ -155,7 +155,7 @@ mod tests {
                 peer,
                 kind: direct_dial::KnownPeerKind::Friend,
                 failed_attempts: 0,
-                next_attempt_at: time::UnixTime::from_secs(10),
+                next_attempt: time::Deadline::at(time::UnixTime::from_secs(10)),
             });
         submit(&mut app, friend_text(&id).as_str());
         app.update();
@@ -178,7 +178,7 @@ mod tests {
                 peer,
                 kind: direct_dial::KnownPeerKind::Friend,
                 failed_attempts: 0,
-                next_attempt_at: time::UnixTime::from_secs(10),
+                next_attempt: time::Deadline::at(time::UnixTime::from_secs(10)),
             });
         let second = format!("/ip4/127.0.0.1/tcp/5001/p2p/{id}");
         submit(&mut app, second.as_str());

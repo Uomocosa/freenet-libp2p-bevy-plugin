@@ -14,7 +14,7 @@ pub fn from_peer_book(
                 peer: entry.peer.clone(),
                 kind: entry.kind,
                 failed_attempts: 0,
-                next_attempt_at: now,
+                next_attempt: time::Deadline::at(now),
             });
     }
     state
@@ -36,8 +36,8 @@ mod tests {
         let state = from_peer_book(&book, time::UnixTime::from_secs(7));
         assert_eq!(state.entries.len(), 1);
         assert_eq!(
-            state.entries[0].next_attempt_at,
-            time::UnixTime::from_secs(7)
+            state.entries[0].next_attempt,
+            time::Deadline::at(time::UnixTime::from_secs(7))
         );
     }
 }

@@ -23,7 +23,7 @@ pub fn handle_peer_connected(
                     },
                     kind: direct_dial::KnownPeerKind::PreviouslyConnected,
                     failed_attempts: 0,
-                    next_attempt_at: now,
+                    next_attempt: time::Deadline::at(now),
                 });
         }
     }

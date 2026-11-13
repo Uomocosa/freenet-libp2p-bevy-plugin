@@ -32,7 +32,7 @@ pub fn handle_peer_listen_addrs(
             peer: peer.clone(),
             kind: direct_dial::KnownPeerKind::PreviouslyConnected,
             failed_attempts: 0,
-            next_attempt_at: now,
+            next_attempt: time::Deadline::at(now),
         });
     vec![direct_dial::state_machine::Output::SavePeerBook(
         state.to_peer_book(),

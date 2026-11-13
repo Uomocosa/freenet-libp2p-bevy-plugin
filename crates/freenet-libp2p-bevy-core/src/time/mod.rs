@@ -1,1 +1,1 @@
-pub use common_types::UnixTime;
+pub use common_types::{Deadline, UnixTime};

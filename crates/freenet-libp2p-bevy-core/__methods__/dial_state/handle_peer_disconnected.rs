@@ -16,10 +16,8 @@ pub fn handle_peer_disconnected(
         .map(|entry| (entry.kind, entry.failed_attempts));
     if let Some((kind, failed_attempts)) = current {
         let wait = state.backoff_for(kind, failed_attempts);
-        if let Some(entry) = state.entries.iter_mut().find(|entry| entry.peer.id == *id)
-            && let Some(next) = now.checked_add(wait)
-        {
-            entry.next_attempt_at = next;
+        if let Some(entry) = state.entries.iter_mut().find(|entry| entry.peer.id == *id) {
+            entry.next_attempt = time::Deadline::from_now_plus(now, wait);
         }
     }
     Vec::new()

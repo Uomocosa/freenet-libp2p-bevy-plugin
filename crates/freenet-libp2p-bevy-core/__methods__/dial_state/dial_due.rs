@@ -11,7 +11,7 @@ pub fn dial_due(
         let is_connected = state.connected.contains(&entry.peer.id);
         let is_in_flight = state.dial_in_flight.contains(&entry.peer.id);
         let has_addrs = !entry.peer.addrs.is_empty();
-        let is_due = entry.next_attempt_at <= now;
+        let is_due = entry.next_attempt.is_due(now);
         if !is_connected && !is_in_flight && has_addrs && is_due {
             due_ids.push(entry.peer.id.clone());
         }

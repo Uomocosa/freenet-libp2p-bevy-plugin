@@ -24,7 +24,7 @@ pub fn handle_friend_added(
             entry.peer.addrs = peer.addrs;
         }
         entry.failed_attempts = 0;
-        entry.next_attempt_at = now;
+        entry.next_attempt = time::Deadline::at(now);
     } else {
         state
             .entries
@@ -32,7 +32,7 @@ pub fn handle_friend_added(
                 peer,
                 kind: direct_dial::KnownPeerKind::Friend,
                 failed_attempts: 0,
-                next_attempt_at: now,
+                next_attempt: time::Deadline::at(now),
             });
         book_changed = true;
     }

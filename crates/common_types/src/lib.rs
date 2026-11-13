@@ -23,6 +23,8 @@ mod room_size_error;
 pub use room_size_error::RoomSizeError;
 mod unix_time;
 pub use unix_time::UnixTime;
+mod deadline;
+pub use deadline::Deadline;
 
 #[path = "../__methods__/mod.rs"]
 mod methods;
