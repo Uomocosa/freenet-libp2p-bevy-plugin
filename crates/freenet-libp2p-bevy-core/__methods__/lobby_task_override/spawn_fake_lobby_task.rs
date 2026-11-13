@@ -52,7 +52,10 @@ pub fn spawn_fake_lobby_task(
                         break;
                     }
                     let targets = heartbeat_targets.borrow_and_update().clone();
-                    let frame = testing::FakeWireClientFrame::HeartbeatTargets(targets);
+                    let frame = testing::FakeWireClientFrame::Extension(
+                        bincode::serialize(&discovery::LobbyWire::HeartbeatTargets(targets))
+                            .unwrap_or_default(),
+                    );
                     if !framing.write_frame(&mut writer, &frame).await {
                         tracing::error!(target: "testing", "fake lobby: heartbeat write failed");
                         break;
@@ -60,7 +63,10 @@ pub fn spawn_fake_lobby_task(
                 }
                 _ = republish.tick() => {
                     let targets = heartbeat_targets.borrow_and_update().clone();
-                    let frame = testing::FakeWireClientFrame::HeartbeatTargets(targets);
+                    let frame = testing::FakeWireClientFrame::Extension(
+                        bincode::serialize(&discovery::LobbyWire::HeartbeatTargets(targets))
+                            .unwrap_or_default(),
+                    );
                     if !framing.write_frame(&mut writer, &frame).await {
                         tracing::error!(target: "testing", "fake lobby: heartbeat write failed");
                         break;
@@ -72,14 +78,23 @@ pub fn spawn_fake_lobby_task(
                         break;
                     };
                     match frame {
+                        testing::FakeWireServerFrame::Extension(bytes) => {
+                            let Ok(discovery::LobbyWire::Snapshot(lobby)) =
+                                bincode::deserialize::<discovery::LobbyWire>(&bytes)
+                            else {
+                                continue;
+                            };
+                            if lobbies.send(lobby).is_err() {
+                                break;
+                            }
+                        }
                         testing::FakeWireServerFrame::Lobby(lobby) => {
                             if lobbies.send(lobby).is_err() {
                                 break;
                             }
                         }
                         testing::FakeWireServerFrame::Libp2pEvent(_)
-                        | testing::FakeWireServerFrame::FreenetPeers(_)
-                        | testing::FakeWireServerFrame::Extension(_) => {}
+                        | testing::FakeWireServerFrame::FreenetPeers(_) => {}
                     }
                 }
             }

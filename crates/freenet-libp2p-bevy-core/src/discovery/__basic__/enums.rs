@@ -1,6 +1,8 @@
 use bevy::prelude::Reflect;
+use common_types::Lobby;
 use serde::{Deserialize, Serialize};
 
+use crate::discovery;
 use crate::time;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect)]
@@ -34,4 +36,10 @@ pub enum OwnRoomStatus {
 pub enum MemberRoomStatus {
     Connecting,
     Connected,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LobbyWire {
+    HeartbeatTargets(Vec<discovery::state_machine::HeartbeatTarget>),
+    Snapshot(Lobby),
 }

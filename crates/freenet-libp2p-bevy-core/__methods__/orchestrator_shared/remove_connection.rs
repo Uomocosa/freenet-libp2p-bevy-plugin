@@ -31,7 +31,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut shared = testing::orchestrator_shared::OrchestratorShared::new();
+        let mut shared = testing::orchestrator_shared::OrchestratorShared::default();
         let peer = identity::Peer {
             id: identity::PeerId::from("a"),
             addrs: Vec::new(),

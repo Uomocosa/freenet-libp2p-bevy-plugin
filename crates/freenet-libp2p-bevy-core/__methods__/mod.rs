@@ -26,6 +26,8 @@ pub mod libp2p_command;
 pub mod libp2p_events;
 #[cfg(feature = "discovery")]
 pub mod lobby_contract_subscription;
+#[cfg(feature = "testing")]
+pub mod lobby_kit;
 #[cfg(feature = "discovery")]
 pub mod lobby_lease_limits;
 #[cfg(feature = "discovery")]

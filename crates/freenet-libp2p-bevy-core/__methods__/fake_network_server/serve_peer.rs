@@ -35,18 +35,15 @@ pub async fn serve_peer(
         tracing::error!(target: "testing", "orchestrator: hello decode failed");
         return;
     };
-    let (current_lobby, hello_frames) = {
+    let hello_frames = {
         let mut guard = shared.lock().await;
-        let current_lobby = guard.hello_lobby(&hello.peer, &hello.game, frame_tx.clone());
+        guard.connect_peer(&hello.peer, &hello.game, frame_tx.clone());
         let hello_frames = guard
             .kit
             .on_hello(&hello.peer, &hello.game, time::UnixTime::now());
         drop(guard);
-        (current_lobby, hello_frames)
+        hello_frames
     };
-    frame_tx
-        .send(testing::FakeWireServerFrame::Lobby(current_lobby))
-        .ok();
     for bytes in hello_frames {
         frame_tx
             .send(testing::FakeWireServerFrame::Extension(bytes))
@@ -68,7 +65,7 @@ pub async fn serve_peer(
             tracing::error!(target: "testing", "orchestrator: frame decode failed");
             break;
         };
-        let (events, lobby, fan_outs) = {
+        let (events, fan_outs) = {
             let mut guard = shared.lock().await;
             let now = time::UnixTime::now();
             let fan_outs = match &frame {
@@ -77,16 +74,12 @@ pub async fn serve_peer(
                 }
                 _ => Vec::new(),
             };
-            let (events, lobby) = guard.handle_client_frame(&peer_id, frame, now);
+            let events = guard.handle_client_frame(&peer_id, frame);
             drop(guard);
-            (events, lobby, fan_outs)
+            (events, fan_outs)
         };
         task.send_routed_events(&shared, events).await;
         task.send_fan_out(&shared, &hello.game, fan_outs).await;
-        if let Some(lobby) = lobby {
-            task.send_lobby_to_game_peers(&shared, &peer_id, lobby)
-                .await;
-        }
     }
     let (leftovers, disconnect_fan_outs) = {
         let mut guard = shared.lock().await;

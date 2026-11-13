@@ -39,6 +39,9 @@ pub use fake_network_server::FakeNetworkServer;
 mod no_fake_network_kit;
 pub use no_fake_network_kit::NoFakeNetworkKit;
 
+mod lobby_kit;
+pub use lobby_kit::LobbyKit;
+
 mod fake_task_handles;
 pub use fake_task_handles::FakeTaskHandles;
 

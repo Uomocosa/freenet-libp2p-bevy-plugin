@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut shared = testing::orchestrator_shared::OrchestratorShared::new();
+        let mut shared = testing::orchestrator_shared::OrchestratorShared::default();
         let game = identity::GameId::from("game");
         router_for(&mut shared, &game);
         assert!(shared.routers.contains_key(&game));

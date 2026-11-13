@@ -2,11 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use atomic_delegate_macros::atomic_delegates;
 
-use crate::discovery;
 use crate::identity;
 use crate::p2p;
 use crate::testing;
-use crate::time;
 
 pub struct PeerMessageRouter {
     pub(crate) game: identity::GameId,
@@ -14,9 +12,6 @@ pub struct PeerMessageRouter {
     pub(crate) connected_peers: BTreeMap<identity::PeerId, BTreeSet<identity::PeerId>>,
     pub(crate) subscribed_topics: BTreeMap<identity::PeerId, BTreeSet<identity::Topic>>,
     pub(crate) joined_rooms: BTreeMap<identity::PeerId, identity::RoomName>,
-    pub(crate) heartbeat_targets:
-        BTreeMap<identity::PeerId, Vec<discovery::state_machine::HeartbeatTarget>>,
-    pub(crate) shared_lobby: discovery::Lobby,
     pub(crate) history_values: BTreeMap<Vec<u8>, Vec<u8>>,
     pub(crate) history_kinds: BTreeMap<Vec<u8>, p2p::RoomHistoryRecordKind>,
     pub(crate) pending_snapshot_replies: BTreeMap<p2p::ReplyId, identity::PeerId>,
@@ -25,15 +20,13 @@ pub struct PeerMessageRouter {
 
 impl PeerMessageRouter {
     #[must_use]
-    pub fn new(game: identity::GameId) -> Self {
+    pub const fn new(game: identity::GameId) -> Self {
         Self {
             game,
             registered_peers: BTreeSet::new(),
             connected_peers: BTreeMap::new(),
             subscribed_topics: BTreeMap::new(),
             joined_rooms: BTreeMap::new(),
-            heartbeat_targets: BTreeMap::new(),
-            shared_lobby: discovery::Lobby::default(),
             history_values: BTreeMap::new(),
             history_kinds: BTreeMap::new(),
             pending_snapshot_replies: BTreeMap::new(),
@@ -51,13 +44,6 @@ impl PeerMessageRouter {
         from: &identity::PeerId,
         command: p2p::Libp2pCommand,
     ) -> Vec<testing::RoutedEvent> {
-    }
-    pub fn refresh_lobby(
-        &mut self,
-        peer: &identity::PeerId,
-        targets: &[discovery::state_machine::HeartbeatTarget],
-        now: time::UnixTime,
-    ) -> discovery::Lobby {
     }
     pub fn route_joined_room_bytes(
         &mut self,

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use atomic_delegate_macros::atomic_delegates;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::discovery;
 use crate::identity;
 use crate::testing;
 use crate::time;
@@ -15,9 +14,10 @@ pub struct OrchestratorShared {
     pub(crate) kit: Box<dyn testing::traits::FakeNetworkKit>,
 }
 
-impl OrchestratorShared {
-    #[must_use]
-    pub fn new() -> Self {
+impl OrchestratorShared {}
+
+impl Default for OrchestratorShared {
+    fn default() -> Self {
         let kit: Box<dyn testing::traits::FakeNetworkKit> = Box::new(testing::NoFakeNetworkKit);
         Self::from(kit)
     }
@@ -57,8 +57,7 @@ impl OrchestratorShared {
         &mut self,
         peer: &identity::PeerId,
         frame: testing::FakeWireClientFrame,
-        now: time::UnixTime,
-    ) -> (Vec<testing::RoutedEvent>, Option<discovery::Lobby>) {
+    ) -> Vec<testing::RoutedEvent> {
     }
     pub(crate) fn route_extension(
         &mut self,
@@ -73,12 +72,12 @@ impl OrchestratorShared {
         now: time::UnixTime,
     ) -> (Vec<testing::RoutedEvent>, Vec<testing::FanOut>) {
     }
-    pub(crate) fn hello_lobby(
+    pub(crate) fn connect_peer(
         &mut self,
         peer: &identity::Peer,
         game: &identity::GameId,
         sender: tokio::sync::mpsc::UnboundedSender<testing::FakeWireServerFrame>,
-    ) -> discovery::Lobby {
+    ) {
     }
 }
 #[cfg(test)]
@@ -88,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut shared = OrchestratorShared::new();
+        let mut shared = OrchestratorShared::default();
         let game = identity::GameId::from("game");
         shared.router_for(&game);
         assert!(shared.routers.contains_key(&game));

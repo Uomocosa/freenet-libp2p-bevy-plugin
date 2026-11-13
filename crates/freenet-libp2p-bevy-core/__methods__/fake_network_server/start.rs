@@ -13,8 +13,9 @@ pub async fn start() -> Result<testing::FakeNetworkServer, String> {
         .map_err(|error| error.to_string())?
         .port();
     let orchestrator = testing::FakeNetworkServer(port);
+    let kit: Box<dyn testing::traits::FakeNetworkKit> = Box::new(testing::LobbyKit::default());
     let shared = Arc::new(tokio::sync::Mutex::new(
-        testing::orchestrator_shared::OrchestratorShared::new(),
+        testing::orchestrator_shared::OrchestratorShared::from(kit),
     ));
     let accept_task = orchestrator.clone();
     tokio::spawn(async move {

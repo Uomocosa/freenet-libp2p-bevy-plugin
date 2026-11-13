@@ -1,10 +1,10 @@
+mod connect_peer;
 mod handle_client_frame;
-mod hello_lobby;
 mod remove_connection;
 mod route_extension;
 mod router_for;
+pub use connect_peer::connect_peer;
 pub use handle_client_frame::handle_client_frame;
-pub use hello_lobby::hello_lobby;
 pub use remove_connection::remove_connection;
 pub use route_extension::route_extension;
 pub use router_for::router_for;

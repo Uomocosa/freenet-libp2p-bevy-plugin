@@ -22,7 +22,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut shared = testing::orchestrator_shared::OrchestratorShared::new();
+        let mut shared = testing::orchestrator_shared::OrchestratorShared::default();
         let peer = identity::PeerId::from("a");
         let fan_outs = route_extension(&mut shared, &peer, vec![1], time::UnixTime::from_secs(1));
         assert_eq!(fan_outs, Vec::new());

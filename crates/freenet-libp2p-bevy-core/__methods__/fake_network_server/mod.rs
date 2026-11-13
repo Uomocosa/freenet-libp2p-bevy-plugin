@@ -1,10 +1,8 @@
 mod send_fan_out;
-mod send_lobby_to_game_peers;
 mod send_routed_events;
 mod serve_peer;
 mod start;
 pub use send_fan_out::send_fan_out;
-pub use send_lobby_to_game_peers::send_lobby_to_game_peers;
 pub use send_routed_events::send_routed_events;
 pub use serve_peer::serve_peer;
 pub use start::start;

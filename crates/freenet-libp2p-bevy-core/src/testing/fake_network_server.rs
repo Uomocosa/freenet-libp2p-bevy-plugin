@@ -3,7 +3,6 @@ use std::sync::Arc;
 use atomic_delegate_macros::atomic_delegates;
 use derive_more::{Deref, From};
 
-use crate::discovery;
 use crate::identity;
 use crate::testing;
 
@@ -35,13 +34,6 @@ impl FakeNetworkServer {
         shared: &Arc<tokio::sync::Mutex<testing::orchestrator_shared::OrchestratorShared>>,
         game: &identity::GameId,
         fan_outs: Vec<testing::FanOut>,
-    ) {
-    }
-    pub(crate) async fn send_lobby_to_game_peers(
-        &self,
-        shared: &Arc<tokio::sync::Mutex<testing::orchestrator_shared::OrchestratorShared>>,
-        peer: &identity::PeerId,
-        lobby: discovery::Lobby,
     ) {
     }
 }

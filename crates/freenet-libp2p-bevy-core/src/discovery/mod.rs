@@ -7,7 +7,7 @@ mod basic;
 
 pub use basic::constants::*;
 pub use basic::enums::{
-    HowRoomWasEntered, JoinPhase, MemberRoomStatus, OwnRoomStatus, RoomOccupancy,
+    HowRoomWasEntered, JoinPhase, LobbyWire, MemberRoomStatus, OwnRoomStatus, RoomOccupancy,
 };
 pub use basic::messages::{Command, Event};
 pub use basic::resources::{
