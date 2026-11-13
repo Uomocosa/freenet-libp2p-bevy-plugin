@@ -80,6 +80,7 @@ pub async fn run<Payload: p2p::traits::Message>(
     }
 }
 #[cfg(test)]
+#[cfg(feature = "discovery")]
 mod tests {
     use std::time::Duration;
 
