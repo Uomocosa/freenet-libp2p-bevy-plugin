@@ -10,3 +10,10 @@ allow = "unreachable_code"
 file = "src/p2p/behaviour.rs"
 reason = "rustc `unreachable_code` is emitted inside the libp2p `#[derive(NetworkBehaviour)]` macro expansion (libp2p-swarm-derive 0.35.1); the generated code cannot be edited and the lint cannot be removed by rewriting behaviour.rs"
 
+
+[[lele.boundary]]
+name       = "state_machine is pure protocol logic"
+why        = "A state machine receives `now` and inputs as arguments and returns outputs; lele-bevy-state-machine drives it."
+folders    = ["src/direct_dial/state_machine", "src/room_sync/state_machine"]
+cannot_use = ["tokio", "libp2p", "std::net", "std::fs", "std::time::Instant", "std::time::SystemTime"]
+require    = "honest"
