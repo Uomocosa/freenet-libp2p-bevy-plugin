@@ -11,6 +11,6 @@ pub enum KnownPeerKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FriendPresence {
     Offline,
-    InLobby,
+    Online,
     InRoom(identity::RoomName),
 }

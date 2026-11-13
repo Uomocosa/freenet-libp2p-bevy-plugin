@@ -11,6 +11,7 @@ mod methods;
 pub mod p2p;
 pub mod peers;
 pub mod plugin;
+pub mod presence;
 pub mod room_sync;
 #[cfg(feature = "testing")]
 pub mod testing;

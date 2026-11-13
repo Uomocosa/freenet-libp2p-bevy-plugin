@@ -7,6 +7,9 @@ pub use own_addrs_to_discovery_inputs::own_addrs_to_discovery_inputs;
 mod publish_heartbeat_targets;
 pub use publish_heartbeat_targets::publish_heartbeat_targets;
 
+mod publish_peer_presence;
+pub use publish_peer_presence::publish_peer_presence;
+
 mod send_quit_on_exit;
 pub use send_quit_on_exit::send_quit_on_exit;
 

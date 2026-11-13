@@ -4,8 +4,8 @@ use bevy::prelude::Resource;
 use derive_more::Deref;
 
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
+use crate::presence;
 
 #[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Deref)]
 pub struct FriendsView(pub Vec<direct_dial::FriendView>);
@@ -14,27 +14,26 @@ impl FriendsView {
     #[must_use]
     pub fn from_friend_ids(
         friend_ids: &[identity::PeerId],
-        lobby: &discovery::Lobby,
+        presence: &presence::PeerPresence,
         connected: &BTreeSet<identity::PeerId>,
     ) -> Self {
         let mut entries: Vec<direct_dial::FriendView> = friend_ids
             .iter()
             .map(|id| {
-                let in_room = lobby.iter().find_map(|(room_name, room)| {
-                    let member = room.members.get(id)?;
-                    (member.membership == discovery::RoomMembership::Occupant)
-                        .then_some((room_name, member))
+                let place = presence.get(id).and_then(|whereabouts| {
+                    whereabouts
+                        .place
+                        .as_ref()
+                        .map(|room| (room, whereabouts.display_name.as_ref()))
                 });
-                let (presence, known_name) = match in_room {
-                    Some((room_name, member)) => {
-                        let name = member
-                            .display_name
-                            .as_ref()
+                let (friend_presence, known_name) = match place {
+                    Some((room, display_name)) => {
+                        let name = display_name
                             .filter(|username| !username.is_empty())
                             .map(ToString::to_string);
-                        (direct_dial::FriendPresence::InRoom(room_name.clone()), name)
+                        (direct_dial::FriendPresence::InRoom(room.clone()), name)
                     }
-                    None if connected.contains(id) => (direct_dial::FriendPresence::InLobby, None),
+                    None if connected.contains(id) => (direct_dial::FriendPresence::Online, None),
                     None => (direct_dial::FriendPresence::Offline, None),
                 };
                 let name =
@@ -42,7 +41,7 @@ impl FriendsView {
                 direct_dial::FriendView {
                     id: id.clone(),
                     name,
-                    presence,
+                    presence: friend_presence,
                 }
             })
             .collect();
@@ -64,50 +63,30 @@ mod tests {
 
     use super::FriendsView;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
-    use crate::time;
+    use crate::presence;
 
     const LONG_ID: &str = "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC";
 
-    fn room_with(members: &[(&str, Option<&str>, discovery::RoomMembership)]) -> discovery::Room {
-        discovery::Room {
-            room_size: discovery::RoomSize::DEFAULT,
-            created_at: time::UnixTime::EPOCH,
-            members: members
-                .iter()
-                .map(|(id, display_name, membership)| {
-                    (
-                        identity::PeerId::from(*id),
-                        discovery::RoomMember {
-                            peer: identity::Peer {
-                                id: identity::PeerId::from(*id),
-                                addrs: Vec::new(),
-                            },
-                            display_name: display_name.map(identity::Username::from),
-                            updated_at: time::UnixTime::EPOCH,
-                            membership: *membership,
-                        },
-                    )
-                })
-                .collect::<BTreeMap<_, _>>(),
-        }
+    fn bob_in_room_7() -> presence::PeerPresence {
+        presence::PeerPresence(BTreeMap::from([(
+            identity::PeerId::from("bob"),
+            presence::Whereabouts {
+                place: Some(identity::RoomName::from("room-7")),
+                display_name: Some(identity::Username::from("Bob")),
+            },
+        )]))
     }
 
     #[test]
     fn test_usage() {
         let view =
-            FriendsView::from_friend_ids(&[], &discovery::Lobby::default(), &BTreeSet::new());
+            FriendsView::from_friend_ids(&[], &presence::PeerPresence::default(), &BTreeSet::new());
         assert!(view.is_empty());
     }
 
     #[test]
     fn offline_connected_and_in_room_presence() {
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            identity::RoomName::from("room-7"),
-            room_with(&[("bob", Some("Bob"), discovery::RoomMembership::Occupant)]),
-        );
         let connected = BTreeSet::from([identity::PeerId::from(LONG_ID)]);
         let view = FriendsView::from_friend_ids(
             &[
@@ -115,7 +94,7 @@ mod tests {
                 identity::PeerId::from(LONG_ID),
                 identity::PeerId::from("bob"),
             ],
-            &lobby,
+            &bob_in_room_7(),
             &connected,
         );
         assert_eq!(view.len(), 3);
@@ -132,7 +111,7 @@ mod tests {
             .iter()
             .find(|friend| friend.id == identity::PeerId::from(LONG_ID))
             .expect("online friend");
-        assert_eq!(online.presence, direct_dial::FriendPresence::InLobby);
+        assert_eq!(online.presence, direct_dial::FriendPresence::Online);
         assert_eq!(online.name, "12D3Koo...99RC");
         let offline = view
             .iter()
@@ -152,7 +131,7 @@ mod tests {
                 identity::PeerId::from("adam"),
                 identity::PeerId::from("mia"),
             ],
-            &discovery::Lobby::default(),
+            &presence::PeerPresence::default(),
             &connected,
         );
         let names: Vec<&str> = view.iter().map(|friend| friend.name.as_str()).collect();
@@ -160,15 +139,18 @@ mod tests {
     }
 
     #[test]
-    fn a_history_holder_friend_is_not_in_the_room() {
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            identity::RoomName::from("room-7"),
-            room_with(&[("bob", None, discovery::RoomMembership::HistoryHolder)]),
-        );
+    fn a_friend_without_a_place_is_not_in_the_room() {
+        let placeless = presence::PeerPresence(BTreeMap::from([(
+            identity::PeerId::from("bob"),
+            presence::Whereabouts {
+                place: None,
+                display_name: Some(identity::Username::from("Bob")),
+            },
+        )]));
         let connected = BTreeSet::from([identity::PeerId::from("bob")]);
         let view =
-            FriendsView::from_friend_ids(&[identity::PeerId::from("bob")], &lobby, &connected);
-        assert_eq!(view[0].presence, direct_dial::FriendPresence::InLobby);
+            FriendsView::from_friend_ids(&[identity::PeerId::from("bob")], &placeless, &connected);
+        assert_eq!(view[0].presence, direct_dial::FriendPresence::Online);
+        assert_eq!(view[0].name, "bob");
     }
 }

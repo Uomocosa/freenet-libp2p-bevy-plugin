@@ -53,7 +53,7 @@ mod tests {
     fn test_usage() {
         let mut app = app_with(core_direct_dial::FriendsView(vec![
             friend_view("alice", core_direct_dial::FriendPresence::Offline),
-            friend_view("bob", core_direct_dial::FriendPresence::InLobby),
+            friend_view("bob", core_direct_dial::FriendPresence::Online),
         ]));
         app.update();
         let mut texts = app
@@ -70,7 +70,7 @@ mod tests {
     fn the_header_counts_online_and_total() {
         let mut app = app_with(core_direct_dial::FriendsView(vec![
             friend_view("alice", core_direct_dial::FriendPresence::Offline),
-            friend_view("bob", core_direct_dial::FriendPresence::InLobby),
+            friend_view("bob", core_direct_dial::FriendPresence::Online),
             friend_view(
                 "carol",
                 core_direct_dial::FriendPresence::InRoom(identity::RoomName::from("room-7")),
@@ -113,7 +113,7 @@ mod tests {
     fn preview_view() -> core_direct_dial::FriendsView {
         core_direct_dial::FriendsView(vec![
             friend_view("alice", core_direct_dial::FriendPresence::Offline),
-            friend_view("bob", core_direct_dial::FriendPresence::InLobby),
+            friend_view("bob", core_direct_dial::FriendPresence::Online),
         ])
     }
 

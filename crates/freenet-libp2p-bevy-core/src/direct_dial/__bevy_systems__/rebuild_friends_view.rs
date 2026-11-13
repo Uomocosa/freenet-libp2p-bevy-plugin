@@ -3,13 +3,13 @@ use std::collections::BTreeSet;
 use bevy::prelude::*;
 
 use crate::direct_dial;
-use crate::discovery;
 use crate::identity;
 use crate::peers;
+use crate::presence;
 
 pub fn rebuild_friends_view(
     dial: Option<Res<direct_dial::state_machine::DialState>>,
-    discovery_state: Option<Res<discovery::state_machine::DiscoveryState>>,
+    presence: Option<Res<presence::PeerPresence>>,
     connected_peers: Query<&peers::Peer, With<peers::Connected>>,
     mut view: ResMut<direct_dial::FriendsView>,
 ) {
@@ -26,10 +26,10 @@ pub fn rebuild_friends_view(
         .iter()
         .map(|peer| (**peer).clone())
         .collect();
-    let lobby = discovery_state
-        .map(|state| state.into_inner().lobby.clone())
+    let presence = presence
+        .map(|presence| presence.into_inner().clone())
         .unwrap_or_default();
-    *view = direct_dial::FriendsView::from_friend_ids(&friend_ids, &lobby, &connected);
+    *view = direct_dial::FriendsView::from_friend_ids(&friend_ids, &presence, &connected);
 }
 #[cfg(test)]
 mod tests {
@@ -37,10 +37,9 @@ mod tests {
 
     use super::rebuild_friends_view;
     use crate::direct_dial;
-    use crate::discovery;
     use crate::identity;
     use crate::peers;
-    use crate::testing;
+    use crate::presence;
     use crate::time;
 
     fn friend_state(names: &[&str]) -> direct_dial::state_machine::DialState {
@@ -69,35 +68,19 @@ mod tests {
     }
 
     #[test]
-    fn presence_follows_the_connected_peers_and_the_lobby() {
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            identity::RoomName::from("room-7"),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: std::collections::BTreeMap::from([(
-                    identity::PeerId::from("bob"),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from("bob"),
-                            addrs: Vec::new(),
-                        },
-                        display_name: Some(identity::Username::from("Bob")),
-                        updated_at: time::UnixTime::EPOCH,
-                        membership: discovery::RoomMembership::Occupant,
-                    },
-                )]),
-            },
-        );
+    fn presence_follows_the_connected_peers_and_the_published_places() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(friend_state(&["alice", "bob"]));
-        app.insert_resource(
-            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-                .with_lobby(lobby)
-                .build(),
-        );
+        app.insert_resource(presence::PeerPresence(std::collections::BTreeMap::from([
+            (
+                identity::PeerId::from("bob"),
+                presence::Whereabouts {
+                    place: Some(identity::RoomName::from("room-7")),
+                    display_name: Some(identity::Username::from("Bob")),
+                },
+            ),
+        ])));
         app.init_resource::<direct_dial::FriendsView>();
         app.world_mut().spawn((
             peers::Peer::from(identity::PeerId::from("bob")),

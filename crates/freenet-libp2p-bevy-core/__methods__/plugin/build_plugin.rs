@@ -69,6 +69,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     );
     app.init_resource::<discovery::LobbyRows>();
     app.init_resource::<discovery::RoomRoster>();
+    discovery::Plugin::publish_presence(app);
     app.add_systems(
         Update,
         (

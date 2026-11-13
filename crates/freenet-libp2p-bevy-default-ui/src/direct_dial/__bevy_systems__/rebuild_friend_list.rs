@@ -30,12 +30,12 @@ pub fn rebuild_friend_list(
             for friend in &*shown {
                 let dot = match friend.presence {
                     core_direct_dial::FriendPresence::Offline => FRIEND_OFFLINE_DOT_COLOR,
-                    core_direct_dial::FriendPresence::InLobby
+                    core_direct_dial::FriendPresence::Online
                     | core_direct_dial::FriendPresence::InRoom(_) => FRIEND_BADGE_COLOR,
                 };
                 let where_label = match &friend.presence {
                     core_direct_dial::FriendPresence::Offline => String::from("offline"),
-                    core_direct_dial::FriendPresence::InLobby => String::from("in lobby"),
+                    core_direct_dial::FriendPresence::Online => String::from("in lobby"),
                     core_direct_dial::FriendPresence::InRoom(room) => {
                         format!("in {}", room.as_str())
                     }
@@ -117,8 +117,8 @@ mod tests {
     use crate::direct_dial;
     use crate::discovery;
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
-    use freenet_libp2p_bevy_core::discovery as core_discovery;
     use freenet_libp2p_bevy_core::identity;
+    use freenet_libp2p_bevy_core::presence as core_presence;
 
     fn friend_view(
         id: &str,
@@ -187,7 +187,7 @@ mod tests {
     fn test_usage() {
         let mut app = app_with(core_direct_dial::FriendsView(vec![
             friend_view("alice", core_direct_dial::FriendPresence::Offline),
-            friend_view("bob", core_direct_dial::FriendPresence::InLobby),
+            friend_view("bob", core_direct_dial::FriendPresence::Online),
         ]));
         app.update();
         assert_eq!(rows(&mut app).len(), 2);
@@ -203,7 +203,7 @@ mod tests {
         assert_eq!(rows(&mut app).len(), 1);
         *app.world_mut()
             .resource_mut::<core_direct_dial::FriendsView>() = core_direct_dial::FriendsView(vec![
-            friend_view("alice", core_direct_dial::FriendPresence::InLobby),
+            friend_view("alice", core_direct_dial::FriendPresence::Online),
             friend_view(
                 "bob",
                 core_direct_dial::FriendPresence::InRoom(identity::RoomName::from("room-7")),
@@ -234,7 +234,7 @@ mod tests {
     fn a_lobby_friend_says_in_lobby() {
         let mut app = app_with(core_direct_dial::FriendsView(vec![friend_view(
             "bob",
-            core_direct_dial::FriendPresence::InLobby,
+            core_direct_dial::FriendPresence::Online,
         )]));
         app.update();
         let row = rows(&mut app)[0];
@@ -264,7 +264,7 @@ mod tests {
             &[identity::PeerId::from(
                 "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
             )],
-            &core_discovery::Lobby::default(),
+            &core_presence::PeerPresence::default(),
             &BTreeSet::new(),
         );
         let mut app = app_with(view);
@@ -286,7 +286,7 @@ mod tests {
     fn preview_view() -> core_direct_dial::FriendsView {
         core_direct_dial::FriendsView(vec![
             friend_view("alice", core_direct_dial::FriendPresence::Offline),
-            friend_view("bob", core_direct_dial::FriendPresence::InLobby),
+            friend_view("bob", core_direct_dial::FriendPresence::Online),
             friend_view(
                 "carol",
                 core_direct_dial::FriendPresence::InRoom(identity::RoomName::from("room-7")),

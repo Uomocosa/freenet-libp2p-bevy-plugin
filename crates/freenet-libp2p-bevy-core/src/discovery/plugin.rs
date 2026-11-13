@@ -30,6 +30,7 @@ impl Plugin {
 
 #[atomic_delegates]
 impl Plugin {
+    pub(crate) fn publish_presence(app: &mut App) {}
     pub(crate) fn spawn_lobby_task(&self, app: &mut App) {}
     pub(crate) fn swarm_channels(app: &App) -> Option<p2p::SwarmChannels> {}
 }

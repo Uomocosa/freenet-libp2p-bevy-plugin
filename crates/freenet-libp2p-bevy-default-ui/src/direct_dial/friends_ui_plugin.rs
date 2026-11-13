@@ -110,7 +110,7 @@ mod tests {
             core_direct_dial::FriendView {
                 id: freenet_libp2p_bevy_core::identity::PeerId::from("mia"),
                 name: String::from("mia"),
-                presence: core_direct_dial::FriendPresence::InLobby,
+                presence: core_direct_dial::FriendPresence::Online,
             },
             core_direct_dial::FriendView {
                 id: freenet_libp2p_bevy_core::identity::PeerId::from("adam"),
