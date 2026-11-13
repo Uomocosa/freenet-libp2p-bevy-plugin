@@ -14,6 +14,7 @@ pub use basic::constants::{
 pub use basic::enums::{
     E2EStepEffect, FakeWireClientFrame, FakeWireServerFrame, FanOutTarget, PeerExit, StepOutcome,
 };
+pub use basic::messages::E2EExtensionEffect;
 pub use basic::newtypes::{MemberCount, SenderCount};
 pub use basic::resources::PendingAction;
 pub use basic::structs::{

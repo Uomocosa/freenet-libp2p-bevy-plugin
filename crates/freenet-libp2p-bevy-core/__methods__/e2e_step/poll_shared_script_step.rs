@@ -38,8 +38,8 @@ pub fn poll_shared_script_step(
         },
         testing::E2EStep::LeaveRoom(_) => testing::E2EStepPoll {
             outcome: testing::StepOutcome::Done,
-            effect: Some(testing::E2EStepEffect::SendDiscoveryCommand(
-                discovery::Command::Leave,
+            effect: Some(testing::E2EStepEffect::Extension(
+                discovery::Command::Leave.to_extension_bytes(),
             )),
         },
         testing::E2EStep::WaitLobbyRoom(name) => done_when(view.status.lobby.contains_key(name)),
@@ -82,18 +82,18 @@ pub fn poll_shared_script_step(
                 effect: None,
             }
         }
-        testing::E2EStep::ExitApp => {
-            testing::E2EStepPoll {
-                outcome: if clock.elapsed >= testing::QUIT_PUBLISH_GRACE {
-                    testing::StepOutcome::Done
-                } else {
-                    testing::StepOutcome::Pending
-                },
-                effect: clock.is_first_poll.then_some(
-                    testing::E2EStepEffect::SendDiscoveryCommand(discovery::Command::Quit),
-                ),
-            }
-        }
+        testing::E2EStep::ExitApp => testing::E2EStepPoll {
+            outcome: if clock.elapsed >= testing::QUIT_PUBLISH_GRACE {
+                testing::StepOutcome::Done
+            } else {
+                testing::StepOutcome::Pending
+            },
+            effect: clock
+                .is_first_poll
+                .then_some(testing::E2EStepEffect::Extension(
+                    discovery::Command::Quit.to_extension_bytes(),
+                )),
+        },
         testing::E2EStep::CrashApp => testing::E2EStepPoll {
             outcome: testing::StepOutcome::Pending,
             effect: Some(testing::E2EStepEffect::AbortProcess),
@@ -179,8 +179,8 @@ mod tests {
         let first = poll_shared_script_step(&testing::E2EStep::ExitApp, FIRST, &view(&status));
         assert_eq!(
             first.effect,
-            Some(testing::E2EStepEffect::SendDiscoveryCommand(
-                discovery::Command::Quit
+            Some(testing::E2EStepEffect::Extension(
+                discovery::Command::Quit.to_extension_bytes()
             ))
         );
         assert_eq!(first.outcome, testing::StepOutcome::Pending);

@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::discovery;
 use crate::freenet;
 use crate::identity;
 use crate::p2p;
@@ -16,7 +15,7 @@ pub enum StepOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum E2EStepEffect {
     ArmRoomAction(testing::Action),
-    SendDiscoveryCommand(discovery::Command),
+    Extension(Vec<u8>),
     AbortProcess,
 }
 

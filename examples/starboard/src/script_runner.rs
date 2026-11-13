@@ -240,7 +240,7 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, identity, room_sync, testing};
+    use freenet_libp2p_bevy_plugin::{identity, room_sync, testing};
 
     use super::StarboardScriptRunner;
     use super::StarboardStepParam;
@@ -263,7 +263,7 @@ mod tests {
         app.insert_resource(crate::friend_intent::FriendIntent::default());
         app.add_message::<freenet_libp2p_bevy_plugin::p2p::Libp2pCommand>();
         app.add_message::<starboard::input::PendingLocalDraw>();
-        app.add_message::<discovery::Command>();
+        app.add_message::<testing::E2EExtensionEffect>();
         app.insert_resource(StarboardScriptRunner::new(steps));
         app.add_systems(
             Update,

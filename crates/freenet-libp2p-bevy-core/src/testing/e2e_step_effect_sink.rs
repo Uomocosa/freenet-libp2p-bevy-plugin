@@ -3,13 +3,12 @@ use bevy::prelude::*;
 
 use atomic_delegate_macros::atomic_delegates;
 
-use crate::discovery;
 use crate::testing;
 
 #[derive(SystemParam)]
 pub struct E2EStepEffectSink<'w> {
     pub(crate) pending_action: ResMut<'w, testing::PendingAction>,
-    pub(crate) commands: MessageWriter<'w, discovery::Command>,
+    pub(crate) extensions: MessageWriter<'w, testing::E2EExtensionEffect>,
 }
 
 #[atomic_delegates]

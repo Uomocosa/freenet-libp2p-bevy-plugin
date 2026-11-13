@@ -1,4 +1,5 @@
-use bevy::prelude::App;
+use bevy::prelude::{App, IntoScheduleConfigs, Update};
+use lele_bevy_state_machine::StateMachineSystems;
 
 use crate::discovery;
 use crate::p2p;
@@ -8,6 +9,13 @@ pub fn build_plugin<Payload: p2p::traits::Message>(
     plugin: &testing::FakeNetworkPlugin<Payload>,
     app: &mut App,
 ) {
+    app.add_message::<testing::E2EExtensionEffect>();
+    app.add_systems(
+        Update,
+        testing::bevy_systems::decode_extension_effects.before(
+            StateMachineSystems::collect_inputs::<discovery::state_machine::DiscoveryState>(),
+        ),
+    );
     let network = plugin.network;
     match network {
         testing::Network::Mainnet => {}

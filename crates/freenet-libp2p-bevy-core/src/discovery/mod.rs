@@ -10,6 +10,8 @@ pub use basic::enums::{
     HowRoomWasEntered, JoinPhase, LobbyWire, MemberRoomStatus, OwnRoomStatus, RoomOccupancy,
 };
 pub use basic::messages::{Command, Event};
+
+mod command_bytes;
 pub use basic::resources::{
     FreenetPeersReceiver, FreenetPort, HeartbeatTargetSender, Libp2pEventTap, LobbyRows,
     LobbyUpdateReceiver, RoomRoster,

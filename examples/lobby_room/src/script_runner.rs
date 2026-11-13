@@ -78,7 +78,7 @@ mod tests {
     use std::time::Duration;
 
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::{discovery, testing};
+    use freenet_libp2p_bevy_plugin::testing;
 
     use super::{LobbyScriptRunner, LobbyStep, ring_step_outcome};
     use crate::ping::RoomMessageSenders;
@@ -96,7 +96,7 @@ mod tests {
         ring.set(ring_peers);
         app.insert_resource(ring);
         app.insert_resource(testing::PendingAction::default());
-        app.add_message::<discovery::Command>();
+        app.add_message::<testing::E2EExtensionEffect>();
         app.insert_resource(LobbyScriptRunner::new(steps));
         app.add_systems(Update, testing::bevy_systems::run_script::<LobbyStep>);
         app
@@ -113,7 +113,7 @@ mod tests {
         app.init_resource::<RoomMessageSenders>();
         app.init_resource::<RingPeers>();
         app.insert_resource(testing::PendingAction::default());
-        app.add_message::<discovery::Command>();
+        app.add_message::<testing::E2EExtensionEffect>();
         app.insert_resource(LobbyScriptRunner::new(steps));
         app.add_systems(Update, testing::bevy_systems::run_script::<LobbyStep>);
         app.update();

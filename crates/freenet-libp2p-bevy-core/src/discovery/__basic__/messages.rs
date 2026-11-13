@@ -1,8 +1,9 @@
 use bevy::prelude::Message;
+use serde::{Deserialize, Serialize};
 
 use crate::identity;
 
-#[derive(Message, Debug, Clone, PartialEq, Eq)]
+#[derive(Message, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Command {
     Create(identity::RoomName),
     Join(identity::RoomName),
