@@ -5,5 +5,7 @@ pub use basic::constants::*;
 pub use basic::messages::{Input, Output};
 pub use basic::structs::DialKnownPeer;
 
+mod output;
+
 mod dial_state;
 pub use dial_state::DialState;

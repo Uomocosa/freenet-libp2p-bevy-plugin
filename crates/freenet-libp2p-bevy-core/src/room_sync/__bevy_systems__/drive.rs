@@ -17,7 +17,7 @@ pub fn drive<Replica: room_sync::traits::ReplicatedState>(
     mut clock: ResMut<room_sync::LamportClock>,
     mut state: ResMut<room_sync::bevy_systems::SyncState<Replica::Op>>,
     mut room: ResMut<Replica>,
-    mut pending: ResMut<p2p::PendingLibp2pCommands>,
+    mut commands: MessageWriter<p2p::Libp2pCommand>,
     me_rooms: Query<&peers::InRoom, With<peers::Me>>,
     room_details: Query<room_sync::RoomDetails<'_>>,
     member_peers: Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>,
@@ -32,7 +32,7 @@ pub fn drive<Replica: room_sync::traits::ReplicatedState>(
             &room_details,
             &member_peers,
         );
-    pending.extend(room_commands);
+    let mut pending = room_commands;
     for event in libp2p_events.drain() {
         let input = room_sync::bevy_systems::SyncState::<Replica::Op>::libp2p_event_to_input(
             &event, &state, &mut clock, game, &*room,
@@ -63,6 +63,7 @@ pub fn drive<Replica: room_sync::traits::ReplicatedState>(
             );
         }
     }
+    commands.write_batch(pending);
 }
 #[cfg(test)]
 mod tests {

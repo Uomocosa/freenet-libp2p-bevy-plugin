@@ -49,7 +49,7 @@ mod tests {
         );
         assert!(
             app.world()
-                .get_resource::<p2p::PendingLibp2pCommands>()
+                .get_resource::<Messages<p2p::Libp2pCommand>>()
                 .is_some()
         );
         assert!(

@@ -5,10 +5,8 @@ use crate::p2p;
 pub fn poll_p2p_events<Payload: p2p::traits::Message>(
     mut events: ResMut<p2p::PendingEvents<Payload>>,
     mut commands: ResMut<p2p::PendingCommands<Payload>>,
-    mut pending: ResMut<p2p::PendingLibp2pCommands>,
     command_channel: Res<p2p::CommandSender<Payload>>,
     event_channel: Res<p2p::EventReceiver<Payload>>,
-    libp2p_commands: Option<Res<p2p::Libp2pCommandSender>>,
     ready: Option<Res<p2p::ReadyChannel>>,
     libp2p_events: Option<Res<p2p::Libp2pEventChannel>>,
 ) {
@@ -16,11 +14,6 @@ pub fn poll_p2p_events<Payload: p2p::traits::Message>(
     let event_channel = event_channel.into_inner();
     for command in commands.take_all() {
         command_channel.send(command).ok();
-    }
-    if let Some(libp2p_commands) = libp2p_commands {
-        for command in pending.take_all() {
-            libp2p_commands.send(command).ok();
-        }
     }
     let drained = event_channel.lock().map_or_else(
         |_| Vec::new(),
@@ -89,7 +82,6 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(p2p::PendingEvents::<Dummy>::default());
         app.insert_resource(p2p::PendingCommands::<Dummy>::default());
-        app.insert_resource(p2p::PendingLibp2pCommands::default());
         event_tx
             .send(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerConnected(
                 identity::PeerId::from("peer"),
@@ -121,7 +113,6 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.insert_resource(p2p::PendingEvents::<Dummy>::default());
         app.insert_resource(p2p::PendingCommands::<Dummy>::default());
-        app.insert_resource(p2p::PendingLibp2pCommands::default());
         app.insert_resource(p2p::CommandSender(cmd_tx));
         app.insert_resource(p2p::EventReceiver(std::sync::Mutex::new(Some(event_rx))));
         app.insert_resource(channel);

@@ -51,12 +51,14 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
     app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
         &book, now,
     ));
-    app.init_resource::<p2p::PendingLibp2pCommands>();
+    app.add_message::<p2p::Libp2pCommand>();
     if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
         app.insert_resource(direct_dial::DialEventTap(channel.subscribe()));
     }
     app.add_plugins(
-        StateMachinePlugin::<direct_dial::state_machine::DialState>::default().periodic(),
+        StateMachinePlugin::<direct_dial::state_machine::DialState>::default()
+            .periodic()
+            .output_into::<p2p::Libp2pCommand>(),
     );
     app.add_systems(
         Update,
@@ -66,13 +68,9 @@ pub fn build_friends_plugin(plugin: &direct_dial::FriendsPlugin, app: &mut App) 
     );
     app.add_systems(
         Update,
-        (
-            direct_dial::bevy_systems::dial_outputs_to_libp2p_commands,
-            direct_dial::bevy_systems::save_peer_book,
-        )
-            .in_set(StateMachineSystems::perform_outputs::<
-                direct_dial::state_machine::DialState,
-            >()),
+        direct_dial::bevy_systems::save_peer_book.in_set(StateMachineSystems::perform_outputs::<
+            direct_dial::state_machine::DialState,
+        >()),
     );
     app.add_systems(
         Update,
@@ -211,7 +209,7 @@ mod tests {
         app.update();
         assert!(
             !app.world()
-                .resource::<p2p::PendingLibp2pCommands>()
+                .resource::<Messages<p2p::Libp2pCommand>>()
                 .is_empty()
         );
     }

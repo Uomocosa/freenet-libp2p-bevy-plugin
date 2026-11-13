@@ -13,7 +13,7 @@ pub fn write_ops<Replica: room_sync::traits::ReplicatedState>(
     room_names: Query<&identity::RoomName>,
     game: Res<room_sync::SyncGame>,
     mut room: ResMut<Replica>,
-    mut pending: ResMut<p2p::PendingLibp2pCommands>,
+    mut commands: MessageWriter<p2p::Libp2pCommand>,
 ) {
     let ready = ready.into_inner();
     let game = game.into_inner();
@@ -46,7 +46,7 @@ pub fn write_ops<Replica: room_sync::traits::ReplicatedState>(
         let Ok(data) = bincode::serialize(&message) else {
             continue;
         };
-        pending.push(p2p::Libp2pCommand::Publish {
+        commands.write(p2p::Libp2pCommand::Publish {
             topic: topic.clone(),
             data,
         });

@@ -1,9 +1,3 @@
-mod discovery_outputs_to_libp2p_commands;
-pub use discovery_outputs_to_libp2p_commands::discovery_outputs_to_libp2p_commands;
-
-mod flush_pending_libp2p_commands;
-pub use flush_pending_libp2p_commands::flush_pending_libp2p_commands;
-
 mod lobby_updates_to_discovery_inputs;
 pub use lobby_updates_to_discovery_inputs::lobby_updates_to_discovery_inputs;
 

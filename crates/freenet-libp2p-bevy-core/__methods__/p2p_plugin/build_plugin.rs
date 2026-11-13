@@ -30,13 +30,14 @@ pub fn build_plugin<Payload: p2p::traits::Message>(
         }
         app.insert_resource(p2p::PendingEvents::<Payload>::default());
         app.insert_resource(p2p::PendingCommands::<Payload>::default());
-        app.insert_resource(p2p::PendingLibp2pCommands::default());
+        app.add_message::<p2p::Libp2pCommand>();
         app.insert_resource(p2p::ReadyChannel::default());
         app.insert_resource(p2p::Libp2pEventChannel::default());
         app.insert_resource(p2p::CommandSender(cmd_tx));
         app.insert_resource(p2p::EventReceiver(Mutex::new(Some(event_rx))));
         app.insert_resource(p2p::Libp2pCommandSender(libp2p_tx));
         app.add_systems(Update, p2p::bevy_systems::poll_p2p_events::<Payload>);
+        app.add_systems(Last, p2p::bevy_systems::send_libp2p_commands);
         app.add_plugins(peers::TrackingPlugin);
         return;
     }
@@ -50,13 +51,14 @@ pub fn build_plugin<Payload: p2p::traits::Message>(
     let _runner = config.spawn_runner::<Payload>(cmd_rx, libp2p_rx, event_tx, keypair);
     app.insert_resource(p2p::PendingEvents::<Payload>::default());
     app.insert_resource(p2p::PendingCommands::<Payload>::default());
-    app.insert_resource(p2p::PendingLibp2pCommands::default());
+    app.add_message::<p2p::Libp2pCommand>();
     app.insert_resource(p2p::ReadyChannel::default());
     app.insert_resource(p2p::Libp2pEventChannel::default());
     app.insert_resource(p2p::CommandSender(cmd_tx));
     app.insert_resource(p2p::EventReceiver(Mutex::new(Some(event_rx))));
     app.insert_resource(p2p::Libp2pCommandSender(libp2p_tx));
     app.add_systems(Update, p2p::bevy_systems::poll_p2p_events::<Payload>);
+    app.add_systems(Last, p2p::bevy_systems::send_libp2p_commands);
     app.add_plugins(peers::TrackingPlugin);
 }
 

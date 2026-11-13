@@ -1,4 +1,14 @@
 use crate::discovery;
+use crate::p2p;
+
+impl From<&discovery::state_machine::Output> for Option<p2p::Libp2pCommand> {
+    fn from(output: &discovery::state_machine::Output) -> Self {
+        match output {
+            discovery::state_machine::Output::Libp2pCommand(command) => Some(command.clone()),
+            discovery::state_machine::Output::Notify(_) => None,
+        }
+    }
+}
 
 impl From<&discovery::state_machine::Output> for Option<discovery::Event> {
     fn from(output: &discovery::state_machine::Output) -> Self {
@@ -24,5 +34,16 @@ mod tests {
         );
         let command = Output::Libp2pCommand(p2p::Libp2pCommand::MeasureHistoryStore);
         assert_eq!(Option::<discovery::Event>::from(&command), None);
+    }
+
+    #[test]
+    fn libp2p_command_outputs_forward_their_command() {
+        let command = Output::Libp2pCommand(p2p::Libp2pCommand::MeasureHistoryStore);
+        assert_eq!(
+            Option::<p2p::Libp2pCommand>::from(&command),
+            Some(p2p::Libp2pCommand::MeasureHistoryStore)
+        );
+        let notify = Output::Notify(discovery::Event::LobbyUpdated);
+        assert_eq!(Option::<p2p::Libp2pCommand>::from(&notify), None);
     }
 }

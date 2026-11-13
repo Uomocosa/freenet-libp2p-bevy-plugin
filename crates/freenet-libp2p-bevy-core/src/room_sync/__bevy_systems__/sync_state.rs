@@ -41,7 +41,7 @@ impl<Op> SyncState<Op> {
         clock: room_sync::LamportClock,
         per_room_bytes: p2p::HistoryByteCount,
         record_ttl: Duration,
-        pending: &mut p2p::PendingLibp2pCommands,
+        pending: &mut Vec<p2p::Libp2pCommand>,
         failures: &mut Option<MessageWriter<room_sync::JoinFailure>>,
         game: &identity::GameId,
     ) {

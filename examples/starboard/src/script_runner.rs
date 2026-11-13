@@ -33,7 +33,7 @@ pub struct StarboardStepParam<'w, 's> {
     effects: testing::E2EStepEffectSink<'w>,
     stable: Local<'s, Option<CanvasHashSince>>,
     friend_intent: ResMut<'w, FriendIntent>,
-    pending_dials: ResMut<'w, p2p::PendingLibp2pCommands>,
+    pending_dials: MessageWriter<'w, p2p::Libp2pCommand>,
     connected_peers: Query<'w, 's, &'static peers::Peer, With<peers::Connected>>,
 }
 
@@ -189,7 +189,7 @@ impl StarboardStepParam<'_, '_> {
     pub(crate) fn poll_dial(&mut self, addrs: &str) -> testing::StepOutcome {
         match Self::dial_peer(addrs) {
             Ok(peer) => {
-                self.pending_dials.push(p2p::Libp2pCommand::Dial(peer));
+                self.pending_dials.write(p2p::Libp2pCommand::Dial(peer));
                 testing::StepOutcome::Done
             }
             Err(reason) => testing::StepOutcome::Failed(reason),
@@ -261,7 +261,7 @@ mod tests {
         app.init_resource::<room_sync::LamportClock>();
         app.insert_resource(testing::PendingAction::default());
         app.insert_resource(crate::friend_intent::FriendIntent::default());
-        app.insert_resource(freenet_libp2p_bevy_plugin::p2p::PendingLibp2pCommands::default());
+        app.add_message::<freenet_libp2p_bevy_plugin::p2p::Libp2pCommand>();
         app.add_message::<starboard::input::PendingLocalDraw>();
         app.add_message::<discovery::Command>();
         app.insert_resource(StarboardScriptRunner::new(steps));
@@ -351,7 +351,7 @@ mod tests {
         assert_eq!(app.world().resource::<StarboardScriptRunner>().index, 1);
         let pending = app
             .world()
-            .resource::<freenet_libp2p_bevy_plugin::p2p::PendingLibp2pCommands>();
+            .resource::<Messages<freenet_libp2p_bevy_plugin::p2p::Libp2pCommand>>();
         assert_eq!(pending.len(), 1);
     }
 

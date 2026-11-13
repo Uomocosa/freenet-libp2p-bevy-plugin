@@ -5,15 +5,15 @@ use crate::p2p;
 
 pub fn follow_room(
     mut events: MessageReader<discovery::Event>,
-    mut pending: ResMut<p2p::PendingLibp2pCommands>,
+    mut commands: MessageWriter<p2p::Libp2pCommand>,
 ) {
     for event in events.read() {
         match event {
             discovery::Event::Joined(room) => {
-                pending.push(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() });
+                commands.write(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() });
             }
             discovery::Event::Left(room) => {
-                pending.push(p2p::Libp2pCommand::UnsubscribeRoom { room: room.clone() });
+                commands.write(p2p::Libp2pCommand::UnsubscribeRoom { room: room.clone() });
             }
             _ => {}
         }
@@ -33,7 +33,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.add_message::<discovery::Event>();
-        app.init_resource::<p2p::PendingLibp2pCommands>();
+        app.add_message::<p2p::Libp2pCommand>();
         app.add_systems(Update, follow_room);
         app
     }
@@ -45,26 +45,26 @@ mod tests {
         app.update();
     }
 
+    fn drain_commands(app: &mut App) -> Vec<p2p::Libp2pCommand> {
+        app.world_mut()
+            .resource_mut::<Messages<p2p::Libp2pCommand>>()
+            .drain()
+            .collect()
+    }
+
     #[test]
     fn test_usage() {
         let mut app = event_app();
         let room = identity::RoomName::from("room-a");
         send(&mut app, discovery::Event::Joined(room.clone()));
         assert_eq!(
-            app.world()
-                .resource::<p2p::PendingLibp2pCommands>()
-                .as_slice(),
+            drain_commands(&mut app),
             [p2p::Libp2pCommand::SubscribeRoom { room: room.clone() }]
         );
         send(&mut app, discovery::Event::Left(room.clone()));
         assert_eq!(
-            app.world()
-                .resource::<p2p::PendingLibp2pCommands>()
-                .as_slice(),
-            [
-                p2p::Libp2pCommand::SubscribeRoom { room: room.clone() },
-                p2p::Libp2pCommand::UnsubscribeRoom { room },
-            ]
+            drain_commands(&mut app),
+            [p2p::Libp2pCommand::UnsubscribeRoom { room }]
         );
     }
 
@@ -75,10 +75,6 @@ mod tests {
             &mut app,
             discovery::Event::RoomReady(identity::RoomName::from("room-a")),
         );
-        assert!(
-            app.world()
-                .resource::<p2p::PendingLibp2pCommands>()
-                .is_empty()
-        );
+        assert_eq!(drain_commands(&mut app), Vec::new());
     }
 }

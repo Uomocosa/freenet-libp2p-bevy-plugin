@@ -1,11 +1,12 @@
 use atomic_delegate_macros::atomic_delegates;
+use bevy::prelude::Message;
 use serde::{Deserialize, Serialize};
 
 use crate::identity;
 use crate::p2p;
 use crate::room_sync;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Message)]
 pub enum Libp2pCommand {
     Dial(identity::Peer),
     ReserveRelay {

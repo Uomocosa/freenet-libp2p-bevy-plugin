@@ -12,7 +12,7 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     app.insert_resource(config);
     app.add_message::<discovery::Command>();
     app.add_message::<discovery::Event>();
-    app.init_resource::<p2p::PendingLibp2pCommands>();
+    app.add_message::<p2p::Libp2pCommand>();
     if let Some(channel) = app.world().get_resource::<p2p::Libp2pEventChannel>() {
         app.insert_resource(discovery::Libp2pEventTap(channel.subscribe()));
     }
@@ -21,7 +21,8 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
             .periodic()
             .also_update_in(Last)
             .input_from::<discovery::Command>()
-            .output_into::<discovery::Event>(),
+            .output_into::<discovery::Event>()
+            .output_into::<p2p::Libp2pCommand>(),
     );
     app.add_systems(
         Update,
@@ -46,7 +47,6 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
                     discovery::Event,
                 >,
             ),
-            discovery::bevy_systems::discovery_outputs_to_libp2p_commands,
             discovery::bevy_systems::publish_heartbeat_targets,
         )
             .in_set(StateMachineSystems::perform_outputs::<
@@ -89,19 +89,14 @@ pub fn build_plugin(plugin: &discovery::Plugin, app: &mut App) {
     );
     app.add_systems(
         Last,
-        (
-            discovery::bevy_systems::discovery_outputs_to_libp2p_commands,
-            discovery::bevy_systems::publish_heartbeat_targets,
-        )
-            .in_set(StateMachineSystems::perform_outputs::<
-                discovery::state_machine::DiscoveryState,
-            >()),
-    );
-    app.add_systems(
-        Last,
-        discovery::bevy_systems::flush_pending_libp2p_commands.after(
+        (discovery::bevy_systems::publish_heartbeat_targets,).in_set(
             StateMachineSystems::perform_outputs::<discovery::state_machine::DiscoveryState>(),
         ),
+    );
+    app.configure_sets(
+        Last,
+        StateMachineSystems::perform_outputs::<discovery::state_machine::DiscoveryState>()
+            .before(p2p::bevy_systems::send_libp2p_commands),
     );
     plugin.spawn_lobby_task(app);
 }
@@ -137,6 +132,7 @@ mod tests {
         let frozen = time::UnixTime::from_secs(2_000_000_000);
         app.insert_resource(Now(frozen));
         app.insert_resource(FrozenClock);
+        app.add_systems(Last, p2p::bevy_systems::send_libp2p_commands);
         let plugin = discovery::Plugin::new(discovery::Config::default());
         build_plugin(&plugin, &mut app);
         app
@@ -212,6 +208,40 @@ mod tests {
     }
 
     #[test]
+    fn a_history_store_measurement_reaches_the_sender_exactly_once() {
+        let mut app = app_with_swarm();
+        let peer = identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: vec![identity::PeerAddr::from("/ip4/1.2.3.4/tcp/4001")],
+        };
+        app.world()
+            .resource::<p2p::ReadyChannel>()
+            .ready_tx
+            .send_replace(Some(peer));
+        app.update();
+        app.update();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        app.insert_resource(p2p::Libp2pCommandSender(tx));
+        app.world_mut()
+            .resource_mut::<Messages<discovery::state_machine::Input>>()
+            .write(discovery::state_machine::Input::Libp2pEvent(
+                p2p::Libp2pEvent::HistoryRecordStored {
+                    id: p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc")),
+                },
+            ));
+        app.update();
+        app.update();
+        app.update();
+        let mut measurements = 0;
+        while let Ok(command) = rx.try_recv() {
+            if command == p2p::Libp2pCommand::MeasureHistoryStore {
+                measurements += 1;
+            }
+        }
+        assert_eq!(measurements, 1, "one output must produce one send");
+    }
+
+    #[test]
     fn quit_on_app_exit_produces_departed_heartbeat_and_leave_handshake() {
         let mut app = app_with_swarm();
         let peer = identity::Peer {
@@ -244,9 +274,6 @@ mod tests {
             .insert(alice.clone());
         let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::unbounded_channel();
         app.insert_resource(p2p::Libp2pCommandSender(cmd_tx));
-        app.world_mut()
-            .resource_mut::<p2p::PendingLibp2pCommands>()
-            .take_all();
         app.world_mut().write_message(AppExit::Success);
         app.update();
         let mut saw_handshake = false;

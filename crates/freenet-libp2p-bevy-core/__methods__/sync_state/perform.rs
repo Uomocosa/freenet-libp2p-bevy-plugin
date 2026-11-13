@@ -12,7 +12,7 @@ pub fn perform<Replica: room_sync::traits::ReplicatedState>(
     clock: room_sync::LamportClock,
     per_room_bytes: p2p::HistoryByteCount,
     record_ttl: Duration,
-    pending: &mut p2p::PendingLibp2pCommands,
+    pending: &mut Vec<p2p::Libp2pCommand>,
     failures: &mut Option<MessageWriter<room_sync::JoinFailure>>,
     game: &identity::GameId,
 ) {
@@ -138,7 +138,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut room = MockReplica;
-        let mut pending = p2p::PendingLibp2pCommands::default();
+        let mut pending = Vec::new();
         let game = identity::GameId::from("game");
         perform(
             room_sync::state_machine::Output::GetHistoryRecord {
@@ -152,6 +152,6 @@ mod tests {
             &mut None,
             &game,
         );
-        assert_eq!(pending.0.len(), 1);
+        assert_eq!(pending.len(), 1);
     }
 }
