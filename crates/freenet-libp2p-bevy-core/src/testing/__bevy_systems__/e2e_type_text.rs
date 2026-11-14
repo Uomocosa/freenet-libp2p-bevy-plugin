@@ -34,7 +34,7 @@ mod tests {
                 .resource::<testing::SyntheticInputQueue>()
                 .pending
                 .len(),
-            2
+            4
         );
     }
 }

@@ -36,6 +36,7 @@ lele-bevy-state-machine.workspace = true
 derive_more = { workspace = true, features = ["deref", "deref_mut", "display", "from"] }
 bincode.workspace = true
 serde.workspace = true
+serde_json = { version = "=1.0.154", optional = true }
 thiserror.workspace = true
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util", "net"] }
 libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
@@ -46,11 +47,11 @@ tokio-tungstenite = { version = "=0.27.0" }
 http = { version = "=1.5.0" }
 
 [features]
-testing = ["freenet-libp2p-bevy-core/testing"]
+testing = ["freenet-libp2p-bevy-core/testing", "dep:serde_json"]
 
 [dev-dependencies]
 freenet-libp2p-bevy-lobby-room = { path = ".", features = ["testing"] }
-lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.16" }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.17" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
 freenet-stdlib = { workspace = true, features = ["contract"] }
 tokio = { version = "=1.54.1", features = ["test-util"] }

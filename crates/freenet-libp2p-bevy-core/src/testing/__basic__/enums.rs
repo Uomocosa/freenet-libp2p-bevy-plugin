@@ -58,5 +58,5 @@ pub enum SyntheticInput {
         speed: testing::PointerSpeed,
     },
     Button(MouseButton, ButtonState),
-    Key(char),
+    Key(char, ButtonState),
 }

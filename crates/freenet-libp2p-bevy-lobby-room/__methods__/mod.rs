@@ -8,6 +8,8 @@ pub mod leave_prompt;
 pub mod list_state;
 pub mod lobby_contract_subscription;
 #[cfg(feature = "testing")]
+pub mod lobby_e2e_methods;
+#[cfg(feature = "testing")]
 pub mod lobby_kit;
 pub mod lobby_lease_limits;
 #[cfg(feature = "testing")]

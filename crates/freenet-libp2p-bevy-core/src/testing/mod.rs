@@ -90,3 +90,6 @@ pub use e2e_driver_plugin::E2EDriverPlugin;
 
 mod synthetic_input_queue;
 pub use synthetic_input_queue::SyntheticInputQueue;
+
+mod node_centre;
+pub use node_centre::NodeCentre;

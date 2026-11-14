@@ -1,6 +1,5 @@
 use std::ops::Sub;
 
-use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyCode, KeyboardInput, NativeKeyCode};
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
@@ -48,13 +47,14 @@ pub fn drain_synthetic_input(
             buttons.write(event);
             window_events.write(WindowEvent::MouseButtonInput(event));
         }
-        testing::SyntheticInput::Key(character) => {
+        testing::SyntheticInput::Key(character, state) => {
             queue.pending.pop_front();
+            let logical = character.to_string();
             let event = KeyboardInput {
                 key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
-                logical_key: Key::Character(character.to_string().into()),
-                state: ButtonState::Pressed,
-                text: Some(character.to_string().into()),
+                logical_key: Key::Character(logical.clone().into()),
+                state,
+                text: state.is_pressed().then(|| logical.into()),
                 repeat: false,
                 window,
             };
@@ -69,11 +69,18 @@ mod tests {
     use std::time::Duration;
 
     use bevy::input::ButtonState;
+    use bevy::input::InputPlugin;
+    use bevy::input::InputSystems;
     use bevy::input::keyboard::KeyboardInput;
     use bevy::input::mouse::MouseButtonInput;
+    use bevy::input_focus::{InputDispatchPlugin, InputFocus};
+    use bevy::picking::events::{PointerRelease, PointerState};
     use bevy::prelude::*;
+    use bevy::text::{EditableText, TextPlugin};
     use bevy::time::TimeUpdateStrategy;
-    use bevy::window::{CursorMoved, PrimaryWindow, WindowEvent};
+    use bevy::ui::UiScale;
+    use bevy::ui_widgets::{TextInput, TextInputPlugin};
+    use bevy::window::{CursorMoved, Ime, PrimaryWindow, WindowEvent};
 
     use super::drain_synthetic_input;
     use crate::testing;
@@ -82,6 +89,8 @@ mod tests {
     struct Seen {
         log: Vec<Step>,
         reads: usize,
+        keys: Vec<KeyStep>,
+        window_keys: Vec<KeyStep>,
     }
 
     #[derive(Debug, Clone, PartialEq)]
@@ -90,9 +99,17 @@ mod tests {
         Button(ButtonState),
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    struct KeyStep {
+        state: ButtonState,
+        text: Option<String>,
+    }
+
     fn record(
         mut cursors: MessageReader<CursorMoved>,
         mut buttons: MessageReader<MouseButtonInput>,
+        mut keys: MessageReader<KeyboardInput>,
+        mut window_events: MessageReader<WindowEvent>,
         mut seen: ResMut<Seen>,
     ) {
         seen.reads = seen.reads.saturating_add(1);
@@ -100,6 +117,18 @@ mod tests {
             .extend(cursors.read().map(|event| Step::Moved(event.position)));
         seen.log
             .extend(buttons.read().map(|event| Step::Button(event.state)));
+        seen.keys.extend(keys.read().map(|event| KeyStep {
+            state: event.state,
+            text: event.text.as_ref().map(ToString::to_string),
+        }));
+        seen.window_keys
+            .extend(window_events.read().filter_map(|event| match event {
+                WindowEvent::KeyboardInput(event) => Some(KeyStep {
+                    state: event.state,
+                    text: event.text.as_ref().map(ToString::to_string),
+                }),
+                _ => None,
+            }));
     }
 
     fn app_with_window() -> App {
@@ -177,5 +206,78 @@ mod tests {
             .position(|step| *step == Step::Button(ButtonState::Released));
         assert!(pressed.is_some_and(|index| index > 0));
         assert!(released.is_some_and(|index| Some(index) == log.len().checked_sub(1)));
+    }
+
+    #[test]
+    fn test_key_release_follows_press_on_the_next_frame() {
+        let mut app = app_with_window();
+        app.world_mut()
+            .resource_mut::<testing::SyntheticInputQueue>()
+            .type_text("a");
+        app.update();
+        let pressed = KeyStep {
+            state: ButtonState::Pressed,
+            text: Some("a".to_string()),
+        };
+        assert_eq!(app.world().resource::<Seen>().keys, vec![pressed.clone()]);
+        assert_eq!(
+            app.world().resource::<Seen>().window_keys,
+            vec![pressed.clone()]
+        );
+        app.update();
+        let released = KeyStep {
+            state: ButtonState::Released,
+            text: None,
+        };
+        assert_eq!(
+            app.world().resource::<Seen>().keys,
+            vec![pressed.clone(), released.clone()]
+        );
+        assert_eq!(
+            app.world().resource::<Seen>().window_keys,
+            vec![pressed, released]
+        );
+    }
+
+    #[test]
+    fn test_typed_text_inserts_into_focused_editable_text() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            InputPlugin,
+            InputDispatchPlugin,
+            TextPlugin,
+            TextInputPlugin,
+        ))
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            100,
+        )))
+        .init_resource::<testing::SyntheticInputQueue>()
+        .add_message::<CursorMoved>()
+        .add_message::<WindowEvent>()
+        .add_message::<Ime>()
+        .add_message::<PointerRelease>()
+        .init_resource::<PointerState>()
+        .init_resource::<UiScale>()
+        .add_systems(PreUpdate, drain_synthetic_input.before(InputSystems));
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+        let editable = app
+            .world_mut()
+            .spawn((EditableText::new(""), TextInput))
+            .id();
+        app.insert_resource(InputFocus::from_entity(editable));
+        app.world_mut()
+            .resource_mut::<testing::SyntheticInputQueue>()
+            .type_text("ab");
+        for _ in 0..10 {
+            app.update();
+        }
+        let typed = app
+            .world()
+            .entity(editable)
+            .get::<EditableText>()
+            .map(|text| text.value().to_string());
+        assert_eq!(typed.as_deref(), Some("ab"));
     }
 }

@@ -4372,6 +4372,7 @@ dependencies = [
  "lele-bevy-state-machine",
  "libp2p",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
  "tokio",
  "tokio-tungstenite 0.27.0",
