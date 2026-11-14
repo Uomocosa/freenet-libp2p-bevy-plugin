@@ -8,7 +8,7 @@ pub struct StarboardE2EMethods;
 
 impl E2EMethods for StarboardE2EMethods {
     #[rustfmt::skip]
-    fn register(&self, remote: RemotePlugin) -> RemotePlugin { remote.with_method_main("starboard/status", bevy_systems::starboard_status).with_method_main("starboard/board_to_window", bevy_systems::starboard_board_to_window) }
+    fn register(&self, remote: RemotePlugin) -> RemotePlugin { remote.with_method_main("starboard/status", bevy_systems::starboard_status).with_method_main("starboard/board_to_window", bevy_systems::starboard_board_to_window).with_method_main("starboard/cell_painted", bevy_systems::starboard_cell_painted) }
 
     fn build(&self, app: &mut App) {
         app.init_resource::<CanvasHashWatch>()
@@ -34,6 +34,7 @@ mod tests {
         let methods = app.world().resource::<RemoteMethods>();
         assert!(methods.get("starboard/status").is_some());
         assert!(methods.get("starboard/board_to_window").is_some());
+        assert!(methods.get("starboard/cell_painted").is_some());
         assert!(app.world().contains_resource::<CanvasHashWatch>());
     }
 }

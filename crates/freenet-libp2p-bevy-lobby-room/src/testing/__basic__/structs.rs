@@ -12,8 +12,11 @@ pub struct LobbyStepView<'a> {
 pub struct LobbyStatus {
     pub rooms: Vec<String>,
     pub joined_room: Option<String>,
+    pub joined_ready: bool,
     pub other_members: usize,
     pub connected: usize,
+    pub lobby_fetched: bool,
+    pub join_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
