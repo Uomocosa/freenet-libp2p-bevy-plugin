@@ -2,6 +2,8 @@ pub mod chunked_snapshot;
 pub mod connection_kind;
 pub mod dial_state;
 #[cfg(feature = "testing")]
+pub mod direct_dial_e2e_methods;
+#[cfg(feature = "testing")]
 pub mod e2e_args;
 #[cfg(feature = "testing")]
 pub mod e2e_step;

@@ -8,6 +8,7 @@ use e2e_apps::transport_arg::TransportArg;
 use e2e_apps::window_origin::WindowOrigin;
 use freenet_libp2p_bevy_plugin::identity;
 use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyE2EMethods, LobbyFakeNetworkPlugin};
+use freenet_libp2p_bevy_plugin::testing::DirectDialE2EMethods;
 use freenet_libp2p_bevy_plugin::testing::{self, NetworkArgs};
 use lobby_room::app::LobbyRoomApp;
 use lobby_room::ping::PingPayload;
@@ -77,6 +78,7 @@ impl Args {
         app.add_plugins(
             testing::E2EDriverPlugin::new(self.e2e_port)
                 .with(LobbyE2EMethods)
+                .with(DirectDialE2EMethods)
                 .with(LobbyRoomE2EMethods),
         );
         app.run()

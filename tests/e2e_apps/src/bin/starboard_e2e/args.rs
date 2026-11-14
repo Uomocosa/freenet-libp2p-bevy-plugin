@@ -84,6 +84,7 @@ impl Args {
             .add_plugins(
                 testing::E2EDriverPlugin::new(self.e2e_port)
                     .with(lobby_room::testing::LobbyE2EMethods)
+                    .with(testing::DirectDialE2EMethods)
                     .with(StarboardE2EMethods),
             );
         app.run()

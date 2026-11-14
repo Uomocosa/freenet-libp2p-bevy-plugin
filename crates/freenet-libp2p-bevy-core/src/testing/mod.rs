@@ -19,8 +19,9 @@ pub use basic::messages::E2EExtensionEffect;
 pub use basic::newtypes::{MemberCount, PointerSpeed, SenderCount, TypedText};
 pub use basic::resources::PendingAction;
 pub use basic::structs::{
-    BookKindExpectation, CursorTarget, E2EStepPoll, E2EStepView, FakeWireHello, FanOut, LivePeer,
-    PointerPath, ReportCheck, RoutedEvent, RunningPeer, StepClock, StepTiming, StoredStep,
+    BookKindExpectation, CursorTarget, DirectDialBookEntry, DirectDialStatus, E2EStepPoll,
+    E2EStepView, FakeWireHello, FanOut, LivePeer, PointerPath, ReportCheck, RoutedEvent,
+    RunningPeer, StepClock, StepTiming, StoredStep,
 };
 
 mod action;
@@ -87,6 +88,9 @@ pub use timed_script_step::TimedScriptStep;
 
 mod e2e_driver_plugin;
 pub use e2e_driver_plugin::E2EDriverPlugin;
+
+mod direct_dial_e2e_methods;
+pub use direct_dial_e2e_methods::DirectDialE2EMethods;
 
 mod named_key;
 pub use named_key::NamedKey;

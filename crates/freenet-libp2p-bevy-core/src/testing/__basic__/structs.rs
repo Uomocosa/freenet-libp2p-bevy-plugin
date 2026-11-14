@@ -99,3 +99,17 @@ pub struct CursorTarget {
     pub y: f32,
     pub speed: testing::PointerSpeed,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DirectDialBookEntry {
+    pub peer_id: String,
+    pub kind: direct_dial::KnownPeerKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DirectDialStatus {
+    pub peer_id: String,
+    pub listen_addrs: Vec<String>,
+    pub connected: Vec<String>,
+    pub book: Vec<DirectDialBookEntry>,
+}

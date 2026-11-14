@@ -16,3 +16,7 @@ pub mod e2e_type_text;
 pub use e2e_type_text::e2e_type_text;
 pub mod e2e_press_key;
 pub use e2e_press_key::e2e_press_key;
+pub mod direct_dial_status;
+pub use direct_dial_status::direct_dial_status;
+pub mod e2e_dial;
+pub use e2e_dial::e2e_dial;
