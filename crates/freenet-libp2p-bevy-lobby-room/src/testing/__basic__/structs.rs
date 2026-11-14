@@ -12,7 +12,7 @@ pub struct LobbyStepView<'a> {
 pub struct LobbyStatus {
     pub rooms: Vec<String>,
     pub joined_room: Option<String>,
-    pub members: usize,
+    pub other_members: usize,
     pub connected: usize,
 }
 

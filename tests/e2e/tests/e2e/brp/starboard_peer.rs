@@ -28,6 +28,7 @@ impl StarboardPeer {
         name: &str,
         token: &str,
         orchestrator_port: u16,
+        window: (i32, i32),
     ) -> Result<Self, String> {
         let args = [
             "--username".to_string(),
@@ -38,6 +39,8 @@ impl StarboardPeer {
             "fake".to_string(),
             "--orchestrator-port".to_string(),
             orchestrator_port.to_string(),
+            "--window-position".to_string(),
+            format!("{},{}", window.0, window.1),
         ];
         let peer = Peer::launch(bin, &args).await?;
         Ok(Self {
@@ -110,7 +113,7 @@ impl StarboardPeer {
             &format!("{}: room lists {others} other members", self.name),
             LOBBY_DEADLINE,
             async || self.lobby_status().await,
-            |status| status.members == others,
+            |status| status.other_members == others,
         )
         .await;
         outcome

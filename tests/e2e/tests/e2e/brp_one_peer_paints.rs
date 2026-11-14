@@ -35,7 +35,7 @@ async fn brp_one_peer_paints() -> Result<(), String> {
     let bin = build_package_bin("e2e_apps", "starboard_e2e", "dev")?;
     let token = format!("brp-{}", unix_nanos());
     let room = format!("brp-{}", unix_secs());
-    let alice = StarboardPeer::launch(&bin, "alice", &token, *orchestrator).await?;
+    let alice = StarboardPeer::launch(&bin, "alice", &token, *orchestrator, (0, 0)).await?;
     alice.create_room(&room).await?;
     alice.paint(LINE).await?;
     alice

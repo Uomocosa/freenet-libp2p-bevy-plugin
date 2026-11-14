@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::window::WindowPosition;
 use bevy::winit::{UpdateMode, WinitSettings};
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
@@ -12,6 +13,7 @@ use starboard::starboard::app::StarboardApp;
 use starboard::starboard::room::CursorUpdate;
 
 use crate::transport_arg::TransportArg;
+use crate::window_origin::WindowOrigin;
 use e2e_apps::starboard::StarboardE2EMethods;
 
 #[derive(Debug, Parser)]
@@ -29,6 +31,8 @@ pub struct Args {
     pub network: NetworkArgs,
     #[arg(long)]
     pub e2e_port: u16,
+    #[arg(long)]
+    pub window_position: Option<WindowOrigin>,
 }
 
 impl Args {
@@ -61,8 +65,12 @@ impl Args {
             },
         };
         let mut app = App::new();
+        let mut window = StarboardApp::primary_window(&self.username);
+        if let Some(origin) = self.window_position {
+            window.position = WindowPosition::At(origin.0);
+        }
         app.add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(StarboardApp::primary_window(&self.username)),
+            primary_window: Some(window),
             ..default()
         }))
         .insert_resource(WinitSettings {

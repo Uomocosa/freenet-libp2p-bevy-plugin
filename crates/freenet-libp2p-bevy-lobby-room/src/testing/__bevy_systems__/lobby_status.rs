@@ -20,7 +20,7 @@ pub fn lobby_status(
                 .room
                 .as_ref()
                 .map(|room| room.name.as_str().to_owned()),
-            members: state.room.as_ref().map_or(0, |room| room.members.len()),
+            other_members: state.room.as_ref().map_or(0, |room| room.members.len()),
             connected: state.connected.len(),
         }
     });
@@ -98,7 +98,7 @@ mod tests {
             Some(testing::LobbyStatus {
                 rooms: vec!["alpha".to_string(), "beta".to_string()],
                 joined_room: Some("alpha".to_string()),
-                members: 2,
+                other_members: 2,
                 connected: 1,
             })
         );
