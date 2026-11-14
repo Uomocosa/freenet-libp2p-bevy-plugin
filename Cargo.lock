@@ -3811,6 +3811,7 @@ dependencies = [
  "clap",
  "examples_shared",
  "freenet-libp2p-bevy-plugin",
+ "lobby_room",
  "serde",
  "serde_json",
  "starboard",

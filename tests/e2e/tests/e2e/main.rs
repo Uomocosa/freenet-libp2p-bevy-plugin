@@ -25,6 +25,7 @@ use e2e_steps::starboard_steps;
 
 mod brp;
 mod brp_concurrent_strokes_converge;
+mod brp_lobby_room_two_peers_meet;
 mod brp_one_peer_paints;
 mod direct_dial;
 mod friends_reconnect;

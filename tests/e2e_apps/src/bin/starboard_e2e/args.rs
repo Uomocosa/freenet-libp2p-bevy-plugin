@@ -12,9 +12,9 @@ use freenet_libp2p_bevy_plugin::{identity, lobby_room};
 use starboard::starboard::app::StarboardApp;
 use starboard::starboard::room::CursorUpdate;
 
-use crate::transport_arg::TransportArg;
-use crate::window_origin::WindowOrigin;
 use e2e_apps::starboard::StarboardE2EMethods;
+use e2e_apps::transport_arg::TransportArg;
+use e2e_apps::window_origin::WindowOrigin;
 
 #[derive(Debug, Parser)]
 #[command(name = "starboard_e2e")]
