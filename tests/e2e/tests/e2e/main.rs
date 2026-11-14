@@ -10,6 +10,7 @@ use e2e_steps::starboard_steps;
 
 mod brp;
 mod brp_concurrent_strokes_converge;
+mod brp_direct_dial;
 mod brp_lobby_room_backspace;
 mod brp_lobby_room_two_peers_meet;
 mod brp_one_peer_paints;

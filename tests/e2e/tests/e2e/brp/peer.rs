@@ -132,6 +132,18 @@ impl Peer {
             .map_err(|e| self.explain(&format!("checking the app process: {e}")))
     }
 
+    /// The app's whole log so far. The file lives in the peer's temp dir, so it stays readable
+    /// after the app exits until this `Peer` is dropped.
+    #[must_use]
+    pub fn log_text(&self) -> String {
+        fs::read_to_string(&self.log).unwrap_or_default()
+    }
+
+    #[must_use]
+    pub fn log_contains(&self, line: &str) -> bool {
+        self.log_text().contains(line)
+    }
+
     #[must_use]
     pub fn explain(&self, message: &str) -> String {
         let log = fs::read_to_string(&self.log).unwrap_or_default();

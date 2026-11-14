@@ -27,6 +27,10 @@ pub struct Args {
     pub transport: TransportArg,
     #[arg(long)]
     pub freenet_node_dir: Option<PathBuf>,
+    #[arg(long)]
+    pub identity_file: Option<PathBuf>,
+    #[arg(long)]
+    pub peer_book_file: Option<PathBuf>,
     #[command(flatten)]
     pub network: NetworkArgs,
     #[arg(long)]
@@ -46,12 +50,24 @@ impl Args {
     }
 
     pub fn run(&self, ws_port: u16, game: &identity::GameId) -> AppExit {
+        let keypair = match self
+            .identity_file
+            .as_deref()
+            .map(identity::SavedKeypair::try_from)
+        {
+            Some(Ok(keypair)) => Some(keypair),
+            Some(Err(error)) => {
+                eprintln!("identity file: {error}");
+                return AppExit::error();
+            }
+            None => None,
+        };
         let game_app = StarboardApp {
             username: identity::Username::from(self.username.clone()),
             game: game.clone(),
             transport: self.transport.mode(),
-            keypair: None,
-            peer_book_file: None,
+            keypair,
+            peer_book_file: self.peer_book_file.clone(),
             freenet_port: ws_port,
             lease: discovery::HolderHeartbeatIntervals {
                 interval_between_heartbeats: Duration::from_secs(30),

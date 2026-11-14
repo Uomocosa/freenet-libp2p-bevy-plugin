@@ -25,10 +25,19 @@ pub struct BrpNetwork {
 
 impl BrpNetwork {
     /// # Errors
-    /// Returns an error if the run directory cannot be made, the fake server cannot start,
-    /// the lobby contract cannot be ensured, or the selected network is direct-dial.
+    /// Returns an error if the run directory cannot be made, the fake server cannot start, or
+    /// the lobby contract cannot be ensured.
     pub async fn prepare() -> Result<Self, String> {
-        let network = Network::from_env();
+        Self::prepare_for(Network::from_env()).await
+    }
+
+    /// The same setup as [`Self::prepare`] for `network`, whatever `E2E_NETWORK` says. Scenarios
+    /// that pin a network (the old `#[e2e_test(network = ...)]`) call this.
+    ///
+    /// # Errors
+    /// Returns an error if the run directory cannot be made, the fake server cannot start, or
+    /// the lobby contract cannot be ensured.
+    pub async fn prepare_for(network: Network) -> Result<Self, String> {
         let stamp = unix_secs();
         let run_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
@@ -67,10 +76,14 @@ impl BrpNetwork {
                 "local-gateways is not implemented: NetworkArgs::validate rejects it, so no peer can start; use fake or mainnet"
                     .to_string(),
             ),
-            Network::DirectDial => Err(
-                "direct-dial is not supported by the BRP scenarios yet; use fake or mainnet"
-                    .to_string(),
-            ),
+            Network::DirectDial => Ok(Self {
+                network,
+                token: format!("brp-{}", unix_nanos()),
+                deadlines,
+                run_dir,
+                orchestrator: None,
+                _helper_nodes: Vec::new(),
+            }),
         }
     }
 
@@ -120,6 +133,22 @@ impl BrpNetwork {
         if let Some(server) = &self.orchestrator {
             args.push("--orchestrator-port".to_string());
             args.push(server.0.to_string());
+        }
+        if matches!(self.network, Network::DirectDial) {
+            args.push("--identity-file".to_string());
+            args.push(
+                self.run_dir
+                    .join(format!("{username}.identity"))
+                    .display()
+                    .to_string(),
+            );
+            args.push("--peer-book-file".to_string());
+            args.push(
+                self.run_dir
+                    .join(format!("{username}.peers.json"))
+                    .display()
+                    .to_string(),
+            );
         }
         args
     }

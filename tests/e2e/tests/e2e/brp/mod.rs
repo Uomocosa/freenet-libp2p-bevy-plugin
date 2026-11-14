@@ -1,6 +1,7 @@
 mod brp_client;
 mod brp_network;
 mod deadlines;
+mod direct_dial_peer;
 mod expect_canvases_converge;
 mod lobby_peer;
 mod lobby_room_peer;
@@ -13,6 +14,7 @@ mod stroke;
 pub use brp_client::BrpClient;
 pub use brp_network::BrpNetwork;
 pub use deadlines::Deadlines;
+pub use direct_dial_peer::DirectDialPeer;
 pub use expect_canvases_converge::expect_canvases_converge;
 pub use lobby_peer::LobbyPeer;
 pub use lobby_room_peer::LobbyRoomPeer;

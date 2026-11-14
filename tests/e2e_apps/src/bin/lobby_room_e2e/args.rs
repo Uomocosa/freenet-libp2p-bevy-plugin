@@ -31,6 +31,8 @@ pub struct Args {
     pub room_ping: bool,
     #[arg(long)]
     pub freenet_node_dir: Option<PathBuf>,
+    #[arg(long)]
+    pub peer_book_file: Option<PathBuf>,
     #[command(flatten)]
     pub network: NetworkArgs,
     #[arg(long)]
@@ -70,7 +72,7 @@ impl Args {
             username: identity::Username::from(self.username.clone()),
             game: game.clone(),
             transport: self.transport.mode(),
-            peer_book_file: None,
+            peer_book_file: self.peer_book_file.clone(),
             freenet_port: ws_port,
             room_ping: self.room_ping,
             ui: self.ui.choice(),
