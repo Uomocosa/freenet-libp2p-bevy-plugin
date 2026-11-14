@@ -1,11 +1,8 @@
 use std::path::Path;
-use std::time::Duration;
 
 use serde_json::json;
 
-use super::{LobbyPeer, Peer, poll_until};
-
-const MESSAGE_DEADLINE: Duration = Duration::from_secs(60);
+use super::{BrpNetwork, LobbyPeer, Peer, poll_until};
 
 /// One `lobby_room_e2e` process: the example app with the default lobby UI and room pings on.
 pub struct LobbyRoomPeer {
@@ -18,26 +15,14 @@ impl LobbyRoomPeer {
     pub async fn launch(
         bin: &Path,
         name: &str,
-        token: &str,
-        orchestrator_port: u16,
+        net: &BrpNetwork,
         window: (i32, i32),
     ) -> Result<Self, String> {
-        let args = [
-            "--username".to_string(),
-            name.to_string(),
-            "--token".to_string(),
-            token.to_string(),
-            "--network".to_string(),
-            "fake".to_string(),
-            "--orchestrator-port".to_string(),
-            orchestrator_port.to_string(),
-            "--window-position".to_string(),
-            format!("{},{}", window.0, window.1),
-            "--room-ping".to_string(),
-        ];
+        let mut args = net.peer_args(name, window);
+        args.push("--room-ping".to_string());
         let peer = Peer::launch(bin, &args).await?;
         Ok(Self {
-            lobby: LobbyPeer::new(name, peer),
+            lobby: LobbyPeer::new(name, peer, net.deadlines()),
         })
     }
 
@@ -66,7 +51,7 @@ impl LobbyRoomPeer {
     pub async fn wait_until_hears_a_peer(&self) -> Result<Vec<String>, String> {
         poll_until(
             "room ping received",
-            MESSAGE_DEADLINE,
+            self.lobby.deadlines().action(),
             async || self.messages().await,
             |senders| !senders.is_empty(),
         )

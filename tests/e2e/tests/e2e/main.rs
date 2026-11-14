@@ -1,20 +1,5 @@
-#[allow(dead_code)]
-#[path = "../common/build_game.rs"]
-mod build_game;
-#[path = "../common/cleanup_stale.rs"]
-mod cleanup_stale;
-#[path = "../common/finish_record.rs"]
-mod finish_record;
-#[path = "../common/require_x11.rs"]
-mod require_x11;
-#[path = "../common/speed_clip.rs"]
-mod speed_clip;
-#[path = "../common/start_record.rs"]
-mod start_record;
-#[path = "../common/tile.rs"]
-mod tile;
-#[path = "../common/wakeup_screen.rs"]
-mod wakeup_screen;
+#[path = "../common/mod.rs"]
+mod common;
 
 use examples_shared::e2e_report::check_layer;
 use examples_shared::e2e_report::expectation_result;

@@ -55,7 +55,7 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
         .trim()
         .is_empty()
     {
-        crate::cleanup_stale::cleanup_stale();
+        crate::common::cleanup_stale();
     }
     let board = match select_board() {
         Ok(board) => board,
@@ -72,8 +72,8 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
         }
     };
     orchestrator.set_checkpoint_board(board);
-    crate::wakeup_screen::wakeup_screen();
-    if let Err(detail) = crate::require_x11::require_x11() {
+    crate::common::wakeup_screen();
+    if let Err(detail) = crate::common::require_x11() {
         return OrchestratorReport {
             checks: vec![ReportCheck {
                 name: "setup".to_string(),
@@ -97,7 +97,7 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
         .join("../..")
         .join(".local-run")
         .join(format!("e2e-{stamp}-raw.mp4"));
-    let recording = crate::start_record::start_record(RECORD_SECS, &raw);
+    let recording = crate::common::start_record(RECORD_SECS, &raw);
     // The window titles come from the example (`starboard-{username}`); this
     // harness only runs starboard scenarios in this slice.
     let titles: Vec<String> = peer_names
@@ -107,7 +107,7 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
     let tiler = tokio::spawn(async move {
         loop {
             let borrowed: Vec<&str> = titles.iter().map(String::as_str).collect();
-            if let Err(error) = crate::tile::tile(&borrowed) {
+            if let Err(error) = crate::common::tile(&borrowed) {
                 eprintln!("tile: {error}");
             }
             tokio::time::sleep(TILE_EVERY).await;
@@ -120,8 +120,8 @@ pub async fn run_with_recording(orchestrator: &mut Orchestrator) -> Orchestrator
         None
     } else {
         recording
-            .and_then(|child| crate::finish_record::finish_record(child, &raw))
-            .and_then(|raw| crate::speed_clip::speed_clip(&raw, &report.logs_dir.join("clip.mp4")))
+            .and_then(|child| crate::common::finish_record(child, &raw))
+            .and_then(|raw| crate::common::speed_clip(&raw, &report.logs_dir.join("clip.mp4")))
     };
     // Only the peers placed on this machine leave files here; the merged
     // check role covers every peer.

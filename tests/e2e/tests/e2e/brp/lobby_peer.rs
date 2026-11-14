@@ -4,25 +4,30 @@ use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyStatus, LobbyTarget, 
 use freenet_libp2p_bevy_plugin::testing::{CursorTarget, PointerSpeed};
 use serde_json::{Value, json};
 
-use super::{Peer, poll_until};
+use super::{Deadlines, Peer, poll_until};
 
 const CLICK_SPEED: f32 = 1200.0;
-const ACTION_DEADLINE: Duration = Duration::from_secs(60);
-const LOBBY_DEADLINE: Duration = Duration::from_secs(120);
 
 /// The lobby actions every app shares: create, join, membership, all through the default UI.
 pub struct LobbyPeer {
     name: String,
     peer: Peer,
+    deadlines: Deadlines,
 }
 
 impl LobbyPeer {
     #[must_use]
-    pub fn new(name: &str, peer: Peer) -> Self {
+    pub fn new(name: &str, peer: Peer, deadlines: Deadlines) -> Self {
         Self {
             name: name.to_string(),
             peer,
+            deadlines,
         }
+    }
+
+    #[must_use]
+    pub const fn deadlines(&self) -> Deadlines {
+        self.deadlines
     }
 
     #[must_use]
@@ -50,13 +55,13 @@ impl LobbyPeer {
             .await?;
         poll_until(
             &format!("{}: create button enabled", self.name),
-            ACTION_DEADLINE,
+            self.deadlines.action(),
             async || self.locate(LobbyTarget::CreateRoomButton).await,
             |found| found.is_some_and(|node| !node.disabled),
         )
         .await?;
         self.click(LobbyTarget::CreateRoomButton).await?;
-        self.wait_until_joined(room, ACTION_DEADLINE).await
+        self.wait_until_joined(room, self.deadlines.action()).await
     }
 
     /// # Errors
@@ -70,13 +75,13 @@ impl LobbyPeer {
     async fn attempt_join_room(&self, room: &str) -> Result<(), String> {
         poll_until(
             &format!("{}: room {room} listed", self.name),
-            LOBBY_DEADLINE,
+            self.deadlines.lobby(),
             async || self.lobby_status().await,
             |status| status.rooms.iter().any(|listed| listed == room),
         )
         .await?;
         self.click(LobbyTarget::Room(room.to_string())).await?;
-        self.wait_until_joined(room, ACTION_DEADLINE).await
+        self.wait_until_joined(room, self.deadlines.action()).await
     }
 
     async fn wait_until_joined(&self, room: &str, deadline: Duration) -> Result<(), String> {
@@ -97,7 +102,7 @@ impl LobbyPeer {
     pub async fn wait_until_room_has_other_members(&self, others: usize) -> Result<(), String> {
         let outcome = poll_until(
             &format!("{}: room lists {others} other members", self.name),
-            LOBBY_DEADLINE,
+            self.deadlines.lobby(),
             async || self.lobby_status().await,
             |status| status.other_members == others,
         )
@@ -133,7 +138,7 @@ impl LobbyPeer {
     async fn click(&self, target: LobbyTarget) -> Result<(), String> {
         let node = poll_until(
             &format!("{}: {target:?} on screen", self.name),
-            ACTION_DEADLINE,
+            self.deadlines.action(),
             async || self.locate(target.clone()).await,
             Option::is_some,
         )

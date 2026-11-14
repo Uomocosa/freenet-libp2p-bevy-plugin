@@ -7,10 +7,9 @@ use e2e_apps::starboard::CanvasStatus;
 use freenet_libp2p_bevy_plugin::testing::{PointerPath, PointerSpeed};
 use serde_json::{Value, json};
 
-use super::{LobbyPeer, Peer, Stroke, poll_until};
+use super::{BrpNetwork, LobbyPeer, Peer, Stroke, poll_until};
 
 const HAND_SPEED: f32 = 600.0;
-const ACTION_DEADLINE: Duration = Duration::from_secs(60);
 
 /// One `starboard_e2e` process: the lobby actions plus painting and the canvas status.
 pub struct StarboardPeer {
@@ -23,25 +22,13 @@ impl StarboardPeer {
     pub async fn launch(
         bin: &Path,
         name: &str,
-        token: &str,
-        orchestrator_port: u16,
+        net: &BrpNetwork,
         window: (i32, i32),
     ) -> Result<Self, String> {
-        let args = [
-            "--username".to_string(),
-            name.to_string(),
-            "--token".to_string(),
-            token.to_string(),
-            "--network".to_string(),
-            "fake".to_string(),
-            "--orchestrator-port".to_string(),
-            orchestrator_port.to_string(),
-            "--window-position".to_string(),
-            format!("{},{}", window.0, window.1),
-        ];
+        let args = net.peer_args(name, window);
         let peer = Peer::launch(bin, &args).await?;
         Ok(Self {
-            lobby: LobbyPeer::new(name, peer),
+            lobby: LobbyPeer::new(name, peer, net.deadlines()),
         })
     }
 
@@ -98,7 +85,7 @@ impl StarboardPeer {
         .await?;
         poll_until(
             &format!("{}: input delivered", self.name()),
-            ACTION_DEADLINE,
+            self.lobby.deadlines().action(),
             async || peer.call::<bool>("e2e/input_idle", Value::Null).await,
             |idle| *idle,
         )
@@ -134,7 +121,7 @@ impl StarboardPeer {
     ) -> Result<CanvasStatus, String> {
         poll_until(
             &format!("{}: canvas stable for {quiet:?}", self.name()),
-            ACTION_DEADLINE,
+            self.lobby.deadlines().action(),
             async || self.canvas_status().await,
             |status| u128::from(status.stable_for_ms) >= quiet.as_millis(),
         )

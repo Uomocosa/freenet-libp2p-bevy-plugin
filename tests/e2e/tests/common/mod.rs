@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 
 mod build_game;
-pub use build_game::build_game;
+pub use build_game::{build_game, build_package_bin};
 
 #[path = "__basic__/mod.rs"]
 mod basic;
