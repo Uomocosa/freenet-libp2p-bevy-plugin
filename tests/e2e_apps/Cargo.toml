@@ -44,4 +44,5 @@ serde_json = "=1.0.154"
 lobby_room = { path = "../../examples/lobby_room" }
 starboard = { path = "../../examples/starboard" }
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
+tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }

@@ -7,7 +7,7 @@ pub struct LobbyRoomE2EMethods;
 
 impl E2EMethods for LobbyRoomE2EMethods {
     #[rustfmt::skip]
-    fn register(&self, remote: RemotePlugin) -> RemotePlugin { remote.with_method_main("lobby_room/locate", bevy_systems::lobby_room_locate).with_method_main("lobby_room/messages", bevy_systems::lobby_room_messages) }
+    fn register(&self, remote: RemotePlugin) -> RemotePlugin { remote.with_method_main("lobby_room/locate", bevy_systems::lobby_room_locate).with_method_main("lobby_room/messages", bevy_systems::lobby_room_messages).with_method_main("lobby_room/ring", bevy_systems::lobby_room_ring) }
 }
 
 #[cfg(test)]
@@ -26,5 +26,6 @@ mod tests {
         let methods = app.world().resource::<RemoteMethods>();
         assert!(methods.get("lobby_room/locate").is_some());
         assert!(methods.get("lobby_room/messages").is_some());
+        assert!(methods.get("lobby_room/ring").is_some());
     }
 }

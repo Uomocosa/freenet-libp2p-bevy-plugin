@@ -3816,6 +3816,7 @@ dependencies = [
  "serde_json",
  "starboard",
  "tokio",
+ "tracing",
  "tracing-subscriber",
 ]
 

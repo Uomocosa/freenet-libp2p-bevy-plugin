@@ -14,7 +14,7 @@ use lobby_room::app::LobbyRoomApp;
 use lobby_room::ping::PingPayload;
 
 use crate::ui_arg::UiArg;
-use e2e_apps::lobby_room::LobbyRoomE2EMethods;
+use e2e_apps::lobby_room::{LobbyRoomE2EMethods, RingPeers, spawn_ring_poller};
 
 #[derive(Debug, Parser)]
 #[command(name = "lobby_room_e2e")]
@@ -65,6 +65,14 @@ impl Args {
             focused_mode: UpdateMode::Continuous,
             unfocused_mode: UpdateMode::Continuous,
         });
+        let ring = RingPeers::new();
+        if matches!(self.network.network, testing::Network::Fake) {
+            ring.set(1);
+        } else {
+            spawn_ring_poller(ws_port, ring.clone());
+        }
+        app.insert_resource(ring);
+        app.add_systems(Update, examples_shared::status::log_mesh);
         let fake = testing::FakeNetworkPlugin::<PingPayload>::from(&self.network);
         let lobby = LobbyFakeNetworkPlugin::new(&fake);
         app.add_plugins((fake, lobby));
