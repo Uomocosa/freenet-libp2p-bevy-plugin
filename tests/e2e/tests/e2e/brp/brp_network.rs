@@ -93,12 +93,23 @@ impl BrpNetwork {
     /// The arguments one peer is launched with on this network.
     #[must_use]
     pub fn peer_args(&self, username: &str, window: (i32, i32)) -> Vec<String> {
+        self.peer_args_with_token(username, window, &self.token)
+    }
+
+    /// The arguments for one peer that presents `token` instead of the run's shared token.
+    #[must_use]
+    pub fn peer_args_with_token(
+        &self,
+        username: &str,
+        window: (i32, i32),
+        token: &str,
+    ) -> Vec<String> {
         let node_dir = self.run_dir.join(format!("{username}-freenet"));
         let mut args = vec![
             "--username".to_string(),
             username.to_string(),
             "--token".to_string(),
-            self.token.clone(),
+            token.to_string(),
             "--network".to_string(),
             self.network_arg().to_string(),
             "--window-position".to_string(),

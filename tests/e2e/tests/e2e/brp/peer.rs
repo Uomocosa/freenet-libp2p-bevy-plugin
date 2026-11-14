@@ -91,6 +91,18 @@ impl Peer {
         }
     }
 
+    /// # Errors
+    /// Returns an error if the process cannot be killed or reaped.
+    pub fn kill(&mut self) -> Result<(), String> {
+        self.child
+            .kill()
+            .map_err(|e| self.explain(&format!("killing the app: {e}")))?;
+        self.child
+            .wait()
+            .map(|_| ())
+            .map_err(|e| self.explain(&format!("reaping the killed app: {e}")))
+    }
+
     async fn await_brp(&mut self) -> Result<(), String> {
         let started = Instant::now();
         loop {

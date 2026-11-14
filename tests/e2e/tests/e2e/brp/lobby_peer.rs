@@ -112,6 +112,48 @@ impl LobbyPeer {
             .map_err(|error| self.peer.explain(&error))
     }
 
+    /// # Errors
+    /// Returns an error if the remote member count never reaches `others` or more.
+    pub async fn wait_until_room_has_at_least_other_members(
+        &self,
+        others: usize,
+    ) -> Result<(), String> {
+        self.wait_until_other_members(&format!("at least {others}"), |count| count >= others)
+            .await
+    }
+
+    /// # Errors
+    /// Returns an error if the remote member count never drops to `others` or fewer.
+    pub async fn wait_until_room_has_at_most_other_members(
+        &self,
+        others: usize,
+    ) -> Result<(), String> {
+        self.wait_until_other_members(&format!("at most {others}"), |count| count <= others)
+            .await
+    }
+
+    async fn wait_until_other_members(
+        &self,
+        bound: &str,
+        done: impl Fn(usize) -> bool,
+    ) -> Result<(), String> {
+        poll_until(
+            &format!("{}: room lists {bound} other members", self.name),
+            self.deadlines.lobby(),
+            async || self.lobby_status().await,
+            |status| done(status.other_members),
+        )
+        .await
+        .map(|_| ())
+        .map_err(|error| self.peer.explain(&error))
+    }
+
+    /// # Errors
+    /// Returns an error if the app cannot be killed.
+    pub fn kill(&mut self) -> Result<(), String> {
+        self.peer.kill()
+    }
+
     /// Names the peer, its last lobby status, and its filtered log tail, for failure messages.
     pub async fn describe(&self) -> String {
         let status = self.lobby_status().await;

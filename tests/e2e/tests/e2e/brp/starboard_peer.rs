@@ -51,6 +51,52 @@ impl StarboardPeer {
     }
 
     /// # Errors
+    /// Returns an error if the remote member count never reaches `others` or more.
+    pub async fn wait_until_room_has_at_least_other_members(
+        &self,
+        others: usize,
+    ) -> Result<(), String> {
+        self.lobby
+            .wait_until_room_has_at_least_other_members(others)
+            .await
+    }
+
+    /// # Errors
+    /// Returns an error if the remote member count never drops to `others` or fewer.
+    pub async fn wait_until_room_has_at_most_other_members(
+        &self,
+        others: usize,
+    ) -> Result<(), String> {
+        self.lobby
+            .wait_until_room_has_at_most_other_members(others)
+            .await
+    }
+
+    /// # Errors
+    /// Returns an error if the app cannot be killed.
+    pub fn kill(&mut self) -> Result<(), String> {
+        self.lobby.kill()
+    }
+
+    /// # Errors
+    /// Returns an error if any stroke cannot be painted.
+    pub async fn paint_all(&self, strokes: &[Stroke]) -> Result<(), String> {
+        for &stroke in strokes {
+            self.paint(stroke).await?;
+        }
+        Ok(())
+    }
+
+    /// # Errors
+    /// Returns an error if any stroke cannot be erased.
+    pub async fn erase_all(&self, strokes: &[Stroke]) -> Result<(), String> {
+        for &stroke in strokes {
+            self.erase(stroke).await?;
+        }
+        Ok(())
+    }
+
+    /// # Errors
     /// Returns an error if the stroke cannot be mapped or the input does not finish.
     pub async fn paint(&self, stroke: Stroke) -> Result<(), String> {
         self.follow(MouseButton::Left, stroke)
