@@ -32,10 +32,40 @@ impl StarboardPeer {
         })
     }
 
+    /// Launches a peer that presents `token` instead of the run's shared token.
+    ///
+    /// # Errors
+    /// Returns an error if the peer does not start or does not answer over BRP.
+    pub async fn launch_with_token(
+        bin: &Path,
+        name: &str,
+        net: &BrpNetwork,
+        window: (i32, i32),
+        token: &str,
+    ) -> Result<Self, String> {
+        let args = net.peer_args_with_token(name, window, token);
+        let peer = Peer::launch(bin, &args).await?;
+        Ok(Self {
+            lobby: LobbyPeer::new(name, peer, net.deadlines()),
+        })
+    }
+
     /// # Errors
     /// Returns an error if the room cannot be created and joined.
     pub async fn create_room(&self, room: &str) -> Result<(), String> {
         self.lobby.create_room(room).await
+    }
+
+    /// # Errors
+    /// Returns an error if the room is never listed.
+    pub async fn wait_until_room_listed(&self, room: &str) -> Result<(), String> {
+        self.lobby.wait_until_room_listed(room).await
+    }
+
+    /// # Errors
+    /// Returns an error if the join succeeds, or no failure is recorded before the deadline.
+    pub async fn join_room_expecting_failure(&self, room: &str) -> Result<String, String> {
+        self.lobby.join_room_expecting_failure(room).await
     }
 
     /// # Errors
@@ -172,6 +202,27 @@ impl StarboardPeer {
             |status| u128::from(status.stable_for_ms) >= quiet.as_millis(),
         )
         .await
+    }
+
+    /// # Errors
+    /// Returns an error if the cell never gains a paint colour.
+    pub async fn wait_until_cell_is_painted(&self, cell: (u16, u16)) -> Result<(), String> {
+        poll_until(
+            &format!("{}: cell {cell:?} painted", self.name()),
+            self.lobby.deadlines().action(),
+            async || self.cell_painted(cell).await,
+            |painted| *painted,
+        )
+        .await
+        .map(|_| ())
+        .map_err(|error| self.lobby.peer().explain(&error))
+    }
+
+    async fn cell_painted(&self, cell: (u16, u16)) -> Result<bool, String> {
+        self.lobby
+            .peer()
+            .call("starboard/cell_painted", json!(cell))
+            .await
     }
 
     /// # Errors

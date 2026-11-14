@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyStatus;
 use serde_json::json;
 
 use super::{BrpNetwork, LobbyPeer, Peer, poll_until};
@@ -30,6 +31,18 @@ impl LobbyRoomPeer {
     /// Returns an error if the room cannot be created and joined.
     pub async fn create_room(&self, room: &str) -> Result<(), String> {
         self.lobby.create_room(room).await
+    }
+
+    /// # Errors
+    /// Returns an error if the room cannot be created under the name `room`.
+    pub async fn create_room_after_backspace(&self, room: &str) -> Result<(), String> {
+        self.lobby.create_room_after_backspace(room).await
+    }
+
+    /// # Errors
+    /// Returns an error if the lobby status cannot be read.
+    pub async fn lobby_status(&self) -> Result<LobbyStatus, String> {
+        self.lobby.lobby_status().await
     }
 
     /// # Errors

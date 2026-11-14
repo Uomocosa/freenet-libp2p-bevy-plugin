@@ -22,10 +22,6 @@ pub fn lobby_status(
                 .room
                 .as_ref()
                 .map(|room| room.name.as_str().to_owned()),
-            joined_ready: state
-                .room
-                .as_ref()
-                .is_some_and(|room| room.phase == discovery::JoinPhase::Ready),
             other_members: state.room.as_ref().map_or(0, |room| room.members.len()),
             connected: state.connected.len(),
             lobby_fetched: state.is_lobby_fetched,
@@ -109,7 +105,6 @@ mod tests {
             Some(testing::LobbyStatus {
                 rooms: vec!["alpha".to_string(), "beta".to_string()],
                 joined_room: Some("alpha".to_string()),
-                joined_ready: true,
                 other_members: 2,
                 connected: 1,
                 lobby_fetched: true,
