@@ -39,6 +39,12 @@ async fn brp_starboard_history_holder_killed() -> Result<(), String> {
     let late_joiner = StarboardPeer::launch(&bin, "late_joiner", &net, PEER_WINDOWS[2]).await?;
     late_joiner.wait_until_room_listed(&room).await?;
     late_joiner.join_room_expecting_failure(&room).await?;
+    let painted_tiles = late_joiner.canvas_status().await?.painted_tiles;
+    if painted_tiles != 0 {
+        return Err(format!(
+            "late_joiner: painted {painted_tiles} tiles without the history it could not fetch"
+        ));
+    }
     late_joiner.exit().await?;
     watcher.exit().await
 }

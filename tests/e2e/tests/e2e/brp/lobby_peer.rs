@@ -244,6 +244,46 @@ impl LobbyPeer {
             .ok_or_else(|| format!("{}: join of {room} ended without a failure", self.name))
     }
 
+    /// Waits until the lobby has been fetched and no longer lists `room`.
+    ///
+    /// # Errors
+    /// Returns an error if the room is still listed at the deadline.
+    pub async fn wait_until_room_gone(&self, room: &str) -> Result<(), String> {
+        poll_until(
+            &format!("{}: room {room} gone", self.name),
+            self.deadlines.lobby(),
+            async || self.lobby_status().await,
+            |status| status.lobby_fetched && !status.rooms.iter().any(|listed| listed == room),
+        )
+        .await
+        .map(|_| ())
+        .map_err(|error| self.peer.explain(&error))
+    }
+
+    /// Leaves the joined room through the Esc menu: Escape, the menu's Leave button, then Yes.
+    ///
+    /// # Errors
+    /// Returns an error if a leave control never appears or the room stays joined.
+    pub async fn leave_room(&self) -> Result<(), String> {
+        self.attempt_leave_room()
+            .await
+            .map_err(|error| self.peer.explain(&error))
+    }
+
+    async fn attempt_leave_room(&self) -> Result<(), String> {
+        self.press_key(NamedKey::Escape).await?;
+        self.click(LobbyTarget::EscMenuLeaveButton).await?;
+        self.click(LobbyTarget::LeaveYesButton).await?;
+        poll_until(
+            &format!("{}: left the joined room", self.name),
+            self.deadlines.action(),
+            async || self.lobby_status().await,
+            |status| status.joined_room.is_none(),
+        )
+        .await
+        .map(|_| ())
+    }
+
     /// # Errors
     /// Returns an error if the app cannot be killed.
     pub fn kill(&mut self) -> Result<(), String> {

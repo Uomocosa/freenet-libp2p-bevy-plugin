@@ -103,6 +103,18 @@ impl StarboardPeer {
     }
 
     /// # Errors
+    /// Returns an error if the room is still listed at the deadline.
+    pub async fn wait_until_room_gone(&self, room: &str) -> Result<(), String> {
+        self.lobby.wait_until_room_gone(room).await
+    }
+
+    /// # Errors
+    /// Returns an error if the leave controls do not appear or the room stays joined.
+    pub async fn leave_room(&self) -> Result<(), String> {
+        self.lobby.leave_room().await
+    }
+
+    /// # Errors
     /// Returns an error if the app cannot be killed.
     pub fn kill(&mut self) -> Result<(), String> {
         self.lobby.kill()
