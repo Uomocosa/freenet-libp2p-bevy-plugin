@@ -1,4 +1,5 @@
 use crate::ui;
+use bevy::input_focus::tab_navigation::TabIndex;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
@@ -23,6 +24,7 @@ pub fn spawn_add_friend_row(row: &mut ChildSpawnerCommands) {
                 FriendAddressInput,
                 EditableText::new(""),
                 TextInput,
+                TabIndex(0),
                 TextCursorStyle {
                     color: CARET_COLOR,
                     selection_color: CARET_SELECTION_COLOR,

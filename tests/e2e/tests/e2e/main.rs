@@ -1,3 +1,5 @@
+#[path = "../common/build_package_bin.rs"]
+mod build_package_bin;
 #[path = "../common/cleanup_stale.rs"]
 mod cleanup_stale;
 #[path = "../common/finish_record.rs"]
@@ -20,6 +22,8 @@ use examples_shared::e2e_report::scenario_expectation;
 
 use e2e_steps::starboard_steps;
 
+mod brp;
+mod brp_one_peer_paints;
 mod direct_dial;
 mod friends_reconnect;
 mod github_checkpoint_board;

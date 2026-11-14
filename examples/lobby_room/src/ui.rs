@@ -3,6 +3,7 @@
 //! It shows that the plugin's default UI can be swapped out entirely: this
 //! plugin only reads `DiscoveryState` and writes `discovery::Command`.
 #![allow(clippy::needless_pass_by_value)]
+use bevy::input_focus::tab_navigation::TabIndex;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::text::{EditableText, TextCursorStyle};
@@ -85,6 +86,7 @@ fn spawn(mut commands: Commands) {
                         NameField,
                         EditableText::new(""),
                         TextInput,
+                        TabIndex(0),
                         TextCursorStyle {
                             color: CARET_COLOR,
                             ..default()

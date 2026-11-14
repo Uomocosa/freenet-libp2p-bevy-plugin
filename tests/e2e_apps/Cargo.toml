@@ -1,0 +1,42 @@
+[package]
+name = "e2e_apps"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[[bin]]
+name = "starboard_e2e"
+path = "src/bin/starboard_e2e/main.rs"
+
+[lints.rust]
+non_snake_case = "allow"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+unreachable = "deny"
+unimplemented = "deny"
+unchecked_time_subtraction = "deny"
+todo = "deny"
+string_slice = "deny"
+panic_in_result_fn = "deny"
+panic = "deny"
+exit = "deny"
+as_conversions = "deny"
+module_inception = "allow"
+missing_errors_doc = "allow"
+
+[dependencies]
+bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
+clap = { version = "=4.6.7", features = ["derive"] }
+examples_shared = { path = "../../examples/shared" }
+freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin", features = ["e2e"] }
+serde.workspace = true
+serde_json = "=1.0.154"
+starboard = { path = "../../examples/starboard" }
+tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
+tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }

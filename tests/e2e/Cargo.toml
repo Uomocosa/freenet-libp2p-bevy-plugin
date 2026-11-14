@@ -68,17 +68,18 @@ missing_errors_doc = "allow"
 
 [dependencies]
 freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin", features = ["e2e"] }
+e2e_apps = { path = "../e2e_apps" }
 e2e_macros = { path = "../e2e_macros" }
 e2e_steps = { path = "../e2e_steps" }
 examples_shared = { path = "../../examples/shared" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
 reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
-telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.15" }
+telegram-bot-helper = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.17" }
 rstest.workspace = true
 freenet = "=0.2.155"
 tempfile = "=3.27.0"
 freenet-stdlib = { workspace = true, features = ["contract"] }
-freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.10" }
+freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.12" }
 lobby_contract = { path = "../../crates/lobby_contract" }
 bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
