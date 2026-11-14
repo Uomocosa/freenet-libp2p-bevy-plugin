@@ -115,6 +115,16 @@ impl StarboardPeer {
     }
 
     /// # Errors
+    /// Returns an error if the room is still listed at `deadline`.
+    pub async fn wait_until_room_gone_within(
+        &self,
+        room: &str,
+        deadline: Duration,
+    ) -> Result<(), String> {
+        self.lobby.wait_until_room_gone_within(room, deadline).await
+    }
+
+    /// # Errors
     /// Returns an error if the leave controls do not appear or the room stays joined.
     pub async fn leave_room(&self) -> Result<(), String> {
         self.lobby.leave_room().await
