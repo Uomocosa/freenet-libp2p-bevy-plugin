@@ -1,5 +1,3 @@
-mod starboard;
-
 mod args;
 mod friend_intent;
 mod result;
@@ -13,6 +11,7 @@ mod time_scale;
 use clap::Parser;
 use examples_shared as shared;
 use freenet_libp2p_bevy_plugin::identity;
+use starboard::starboard;
 
 #[tokio::main]
 async fn main() -> bevy::app::AppExit {
@@ -33,5 +32,5 @@ async fn main() -> bevy::app::AppExit {
         || freenet_libp2p_bevy_plugin::game_id!(),
         identity::GameId::from,
     );
-    args.run_starboard(ws_port, game, time_scale::Scale::from_env())
+    args.run_starboard(ws_port, &game, time_scale::Scale::from_env())
 }

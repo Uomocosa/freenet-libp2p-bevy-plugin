@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::window::{CursorLeft, CursorMoved};
 use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::room_sync;
@@ -12,6 +13,8 @@ pub struct StarboardPlugin;
 impl Plugin for StarboardPlugin {
     fn build(&self, app: &mut App) {
         use starboard::{input, render, room};
+        app.add_message::<CursorMoved>();
+        app.add_message::<CursorLeft>();
         let in_room =
             |state: Option<Res<DiscoveryState>>| state.as_deref().is_some_and(room::is_in_room);
         app.init_resource::<starboard::canvas::Canvas>()
@@ -67,6 +70,8 @@ impl StarboardPlugin {
 
 #[cfg(test)]
 mod tests {
+    use bevy::camera::{ManualTextureViewHandle, NormalizedRenderTarget};
+    use bevy::picking::pointer::{Location, PointerId, PointerLocation};
     use bevy::prelude::*;
     use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::identity;
@@ -405,11 +410,25 @@ mod tests {
     }
 
     fn show_cursor(world: &mut World) {
-        let mut windows = world.query_filtered::<&mut Window, With<PrimaryWindow>>();
-        let Ok(mut window) = windows.single_mut(world) else {
-            return;
-        };
-        window.set_cursor_position(Some(Vec2::new(560.0, 300.0)));
+        set_mouse_location(world, Vec2::new(560.0, 300.0));
+    }
+
+    fn set_mouse_location(world: &mut World, screen: Vec2) {
+        let location = PointerLocation::new(Location {
+            target: NormalizedRenderTarget::TextureView(ManualTextureViewHandle(0)),
+            position: screen,
+        });
+        let mut pointers = world.query::<(&PointerId, &mut PointerLocation)>();
+        let mut found = false;
+        for (id, mut current) in pointers.iter_mut(world) {
+            if id.is_mouse() {
+                *current = location.clone();
+                found = true;
+            }
+        }
+        if !found {
+            world.spawn((PointerId::Mouse, location));
+        }
     }
 
     fn config() -> lele_bevy_preview::preview::Config {
@@ -725,10 +744,7 @@ mod tests {
         let view = starboard::render::CanvasView::fit(window_size(world));
         let half_cell = Vec2::splat(0.5).mul_add(Vec2::splat(view.scale), view.offset);
         let screen = board_point.mul_add(Vec2::splat(view.scale), half_cell);
-        let mut windows = world.query_filtered::<&mut Window, With<PrimaryWindow>>();
-        if let Ok(mut window) = windows.single_mut(world) {
-            window.set_cursor_position(Some(screen));
-        }
+        set_mouse_location(world, screen);
     }
 
     fn start_held_stroke(app: &mut App, start: starboard::canvas::CellPos) {

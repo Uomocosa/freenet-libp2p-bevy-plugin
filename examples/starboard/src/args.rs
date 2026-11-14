@@ -4,10 +4,10 @@ use bevy::prelude::*;
 use clap::{Parser, ValueEnum};
 use examples_shared as shared;
 use examples_shared::e2e_report::peer_run_result::PeerRunResult;
-use freenet_libp2p_bevy_plugin::lobby_room::{LobbyRoomPlugins, discovery, ui};
+use freenet_libp2p_bevy_plugin::lobby_room::ui;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 use freenet_libp2p_bevy_plugin::testing::{E2EArgs, NetworkArgs};
-use freenet_libp2p_bevy_plugin::{direct_dial, identity, p2p, plugin, room_sync, testing};
+use freenet_libp2p_bevy_plugin::{identity, testing};
 
 use crate::scripted_starboard_step::ScriptedStarboardStep;
 use crate::{friend_intent, result, scaled_timings, script_runner, starboard, status, time_scale};
@@ -45,20 +45,32 @@ impl Args {
     pub(crate) fn run_starboard(
         &self,
         ws_port: u16,
-        game: identity::GameId,
+        game: &identity::GameId,
         time_scale: time_scale::Scale,
     ) -> bevy::app::AppExit {
+        let keypair = match self.identity_file.as_deref().map(Self::load_keypair) {
+            Some(Ok(saved)) => Some(saved),
+            Some(Err(error)) => {
+                eprintln!("{error}");
+                return bevy::app::AppExit::error();
+            }
+            None => None,
+        };
+        let game_app = starboard::app::StarboardApp {
+            username: identity::Username::from(self.username.clone()),
+            game: game.clone(),
+            transport: transport_mode(self.transport),
+            keypair,
+            peer_book_file: self.peer_book_file.clone(),
+            freenet_port: ws_port,
+            lease: scaled_timings::scaled_lease_timings(time_scale),
+            history: scaled_timings::scaled_history_config(time_scale),
+        };
         let mut app = App::new();
         app.add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: format!("starboard-{}", self.username),
-                resolution: (960, 540).into(),
-                ..default()
-            }),
+            primary_window: Some(starboard::app::StarboardApp::primary_window(&self.username)),
             ..default()
         }));
-        app.add_systems(Startup, starboard::app::StarboardPlugin::spawn_camera);
-        app.insert_resource(discovery::FreenetPort(ws_port));
         app.insert_resource(shared::status::LocalUser(identity::Username::from(
             self.username.clone(),
         )));
@@ -70,37 +82,7 @@ impl Args {
         let lobby =
             freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyFakeNetworkPlugin::new(&fake);
         app.add_plugins((fake, lobby));
-        let base = plugin::Config::<starboard::room::CursorUpdate>::new(
-            transport_mode(self.transport),
-            p2p::MdnsMode::Disabled,
-        )
-        .with_game(game.clone());
-        let keyed = if let Some(path) = &self.identity_file {
-            match Self::load_keypair(path) {
-                Ok(saved) => base.with_keypair(saved),
-                Err(error) => {
-                    eprintln!("{error}");
-                    return bevy::app::AppExit::error();
-                }
-            }
-        } else {
-            base
-        };
-        app.add_plugins(plugin::P2PPlugin(keyed));
-        app.add_plugins(direct_dial::FriendsPlugin::new(direct_dial::Config::from(
-            self.peer_book_file.clone(),
-        )));
-        app.add_plugins(LobbyRoomPlugins(discovery::Config {
-            display_name: identity::Username::from(self.username.clone()),
-            game: game.clone(),
-            lease: scaled_timings::scaled_lease_timings(time_scale),
-            ..discovery::Config::default()
-        }));
-        app.add_plugins(
-            room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game)
-                .with_history_config(Some(scaled_timings::scaled_history_config(time_scale))),
-        );
-        app.add_plugins(starboard::app::StarboardPlugin);
+        app.add_plugins(game_app);
         app.add_systems(
             Update,
             shared::intent::script_input::<

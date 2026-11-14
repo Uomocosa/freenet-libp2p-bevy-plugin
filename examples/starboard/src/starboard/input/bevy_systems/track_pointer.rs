@@ -1,5 +1,5 @@
+use bevy::picking::pointer::{PointerId, PointerLocation};
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use freenet_libp2p_bevy_plugin::lobby_room::ui;
 use freenet_libp2p_bevy_plugin::room_sync;
 
@@ -9,7 +9,7 @@ pub fn track_pointer(
     buttons: Res<ButtonInput<MouseButton>>,
     menu: Option<Res<ui::discovery::EscMenuState>>,
     cursor: Res<starboard::input::CursorPoint>,
-    windows: Query<&Window, With<PrimaryWindow>>,
+    pointers: Query<(&PointerId, &PointerLocation)>,
     time: Res<Time>,
     brush: Res<starboard::input::OwnBrush>,
     clock: Res<room_sync::LamportClock>,
@@ -35,7 +35,12 @@ pub fn track_pointer(
     let Some(current) = **cursor else {
         return;
     };
-    let Some(screen) = windows.single().ok().and_then(Window::cursor_position) else {
+    let Some(screen) = pointers
+        .iter()
+        .find(|(id, _)| id.is_mouse())
+        .and_then(|(_, location)| location.location())
+        .map(|location| location.position)
+    else {
         return;
     };
     let now = time.elapsed_secs();
@@ -95,7 +100,6 @@ mod tests {
 
     use bevy::prelude::*;
     use bevy::time::TimeUpdateStrategy;
-    use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::lobby_room::ui;
     use freenet_libp2p_bevy_plugin::room_sync;
 
@@ -103,6 +107,9 @@ mod tests {
 
     use super::track_pointer;
     use crate::starboard;
+    use bevy::camera::{ManualTextureViewHandle, NormalizedRenderTarget};
+    use bevy::picking::pointer::{Location, PointerId, PointerLocation, PointerMap};
+    use bevy::window::{CursorLeft, CursorMoved};
     use starboard::canvas::{DrawAction, DrawOp, SubCellPos};
 
     fn app_with_pointer() -> App {
@@ -119,13 +126,11 @@ mod tests {
         app.init_resource::<starboard::input::CursorPoint>();
         app.init_resource::<ButtonInput<MouseButton>>();
         app.add_message::<starboard::input::PendingLocalDraw>();
-        app.world_mut().spawn((
-            PrimaryWindow,
-            Window {
-                resolution: (1024, 1024).into(),
-                ..default()
-            },
-        ));
+        app.init_resource::<PointerMap>();
+        app.add_message::<CursorMoved>();
+        app.add_message::<CursorLeft>();
+        app.world_mut()
+            .spawn((PointerId::Mouse, PointerLocation::default()));
         app.add_systems(
             Update,
             (
@@ -139,13 +144,14 @@ mod tests {
     }
 
     fn point_at(app: &mut App, screen: Vec2) {
-        let mut windows = app
+        let mut pointers = app
             .world_mut()
-            .query_filtered::<&mut Window, With<PrimaryWindow>>();
-        let mut window = windows
-            .single_mut(app.world_mut())
-            .expect("one primary window");
-        window.set_cursor_position(Some(screen));
+            .query_filtered::<&mut PointerLocation, With<PointerId>>();
+        let mut location = pointers.single_mut(app.world_mut()).expect("one mouse");
+        location.location = Some(Location {
+            target: NormalizedRenderTarget::TextureView(ManualTextureViewHandle(0)),
+            position: screen,
+        });
     }
 
     fn set_frame_step(app: &mut App, millis: u64) {

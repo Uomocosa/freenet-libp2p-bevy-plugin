@@ -1,5 +1,6 @@
 use crate::starboard;
 
+#[must_use]
 pub fn brush_radius(size_index: u8) -> u16 {
     let clamped =
         usize::from(size_index).min(starboard::canvas::BRUSH_RADII.len().saturating_sub(1));

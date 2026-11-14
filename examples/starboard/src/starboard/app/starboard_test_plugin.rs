@@ -1,3 +1,4 @@
+use bevy::picking::pointer::PointerMap;
 use bevy::prelude::*;
 
 use crate::starboard::app::{StarboardPlugin, WallClockSystem};
@@ -20,6 +21,7 @@ impl StarboardTestPlugin {
 impl Plugin for StarboardTestPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(StarboardPlugin);
+        app.init_resource::<PointerMap>();
         for system in WallClockSystem::ALL {
             if !self.enabled.contains(&system) {
                 app.configure_sets(Update, system.run_if(|| false));
