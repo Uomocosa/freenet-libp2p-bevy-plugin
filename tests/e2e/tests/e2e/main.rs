@@ -13,6 +13,7 @@ mod brp_concurrent_strokes_converge;
 mod brp_direct_dial;
 mod brp_freenet_relaunch;
 mod brp_freenet_ring;
+mod brp_known_peers;
 mod brp_lobby_room_backspace;
 mod brp_lobby_room_discovery;
 mod brp_lobby_room_join;

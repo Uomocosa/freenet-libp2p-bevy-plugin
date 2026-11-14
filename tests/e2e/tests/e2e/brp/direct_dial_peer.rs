@@ -1,6 +1,7 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use freenet_libp2p_bevy_plugin::direct_dial::KnownPeerKind;
 use freenet_libp2p_bevy_plugin::testing::DirectDialStatus;
 use serde_json::Value;
 
@@ -12,8 +13,11 @@ const LINK_BUDGET: Duration = Duration::from_secs(120);
 /// readable so the no-node check covers every launch of the peer.
 pub struct DirectDialPeer {
     name: String,
+    bin: PathBuf,
+    args: Vec<String>,
     deadlines: Deadlines,
     peer: Peer,
+    earlier_logs: Vec<String>,
 }
 
 impl DirectDialPeer {
@@ -29,8 +33,11 @@ impl DirectDialPeer {
         let peer = Peer::launch(bin, &args).await?;
         Ok(Self {
             name: name.to_string(),
+            bin: bin.to_path_buf(),
+            args,
             deadlines: net.deadlines(),
             peer,
+            earlier_logs: Vec::new(),
         })
     }
 
@@ -93,14 +100,78 @@ impl DirectDialPeer {
         .map(|_| ())
     }
 
+    /// The kind the peer book records for `peer_id`, if it has an entry.
+    ///
+    /// # Errors
+    /// Returns an error if the status request fails.
+    pub async fn book_kind(&self, peer_id: &str) -> Result<Option<KnownPeerKind>, String> {
+        let status = self.status().await?;
+        Ok(status
+            .book
+            .iter()
+            .find(|entry| entry.peer_id == peer_id)
+            .map(|entry| entry.kind))
+    }
+
+    /// Waits until the peer book file on disk holds `peer_id` with at least one address. The
+    /// book entry appears when the connection is made, but its addresses only arrive with the
+    /// identify exchange; a peer that exits before that relaunches knowing nobody it can dial.
+    ///
+    /// # Errors
+    /// Returns an error if the book file never holds an address for `peer_id` in time.
+    pub async fn wait_until_book_has_addrs_of(&self, peer_id: &str) -> Result<(), String> {
+        let path = self
+            .args
+            .iter()
+            .position(|arg| arg == "--peer-book-file")
+            .and_then(|at| at.checked_add(1))
+            .and_then(|next| self.args.get(next))
+            .ok_or_else(|| format!("{}: no --peer-book-file argument", self.name))?
+            .clone();
+        poll_until(
+            &format!("{}: persisted addresses of {peer_id}", self.name),
+            self.deadlines.scaled(LINK_BUDGET),
+            async || {
+                let text = std::fs::read_to_string(&path).unwrap_or_default();
+                Ok(serde_json::from_str::<Value>(&text).unwrap_or(Value::Null))
+            },
+            |book| {
+                book.as_array().is_some_and(|entries| {
+                    entries.iter().any(|entry| {
+                        let peer = entry.get("peer");
+                        peer.and_then(|peer| peer.get("id"))
+                            .is_some_and(|id| *id == peer_id)
+                            && peer
+                                .and_then(|peer| peer.get("addrs"))
+                                .and_then(Value::as_array)
+                                .is_some_and(|addrs| !addrs.is_empty())
+                    })
+                })
+            },
+        )
+        .await
+        .map(|_| ())
+    }
+
     /// # Errors
     /// Returns an error if the app does not exit in time or exits unsuccessfully.
     pub async fn exit(&mut self) -> Result<(), String> {
         self.peer.exit().await
     }
 
+    /// Launches the same peer again with the same arguments, so it keeps its identity and book.
+    /// The caller exits the earlier run first; its log stays readable through this wrapper.
+    ///
+    /// # Errors
+    /// Returns an error if the app does not start or does not answer over BRP.
+    pub async fn relaunch(&mut self) -> Result<(), String> {
+        self.earlier_logs.push(self.peer.log_text());
+        self.peer = Peer::launch(&self.bin, &self.args).await?;
+        Ok(())
+    }
+
     #[must_use]
     pub fn log_contains(&self, line: &str) -> bool {
-        self.peer.log_contains(line)
+        self.earlier_logs.iter().any(|log| log.contains(line)) || self.peer.log_contains(line)
     }
 }
