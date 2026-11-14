@@ -1,2 +1,16 @@
 pub mod run_script;
 pub use run_script::run_script;
+pub mod drain_synthetic_input;
+pub use drain_synthetic_input::drain_synthetic_input;
+pub mod e2e_click_at;
+pub use e2e_click_at::e2e_click_at;
+pub mod e2e_exit;
+pub use e2e_exit::e2e_exit;
+pub mod e2e_follow;
+pub use e2e_follow::e2e_follow;
+pub mod e2e_input_idle;
+pub use e2e_input_idle::e2e_input_idle;
+pub mod e2e_move_cursor;
+pub use e2e_move_cursor::e2e_move_cursor;
+pub mod e2e_type_text;
+pub use e2e_type_text::e2e_type_text;

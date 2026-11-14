@@ -1,3 +1,6 @@
+use bevy::input::ButtonState;
+use bevy::input::mouse::MouseButton;
+use bevy::math::Vec2;
 use serde::{Deserialize, Serialize};
 
 use crate::identity;
@@ -45,4 +48,15 @@ pub enum FanOutTarget {
 pub enum PeerExit {
     Code(i32),
     Signal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SyntheticInput {
+    Glide {
+        from: Vec2,
+        to: Vec2,
+        speed: testing::PointerSpeed,
+    },
+    Button(MouseButton, ButtonState),
+    Key(char),
 }

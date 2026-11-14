@@ -1,9 +1,11 @@
 mod checkpoint_board;
+mod e2e_methods;
 mod fake_network_kit;
 mod orchestrated_step;
 mod pollable_script_step;
 mod script_step;
 pub use checkpoint_board::CheckpointBoard;
+pub use e2e_methods::E2EMethods;
 pub use fake_network_kit::FakeNetworkKit;
 pub use orchestrated_step::OrchestratedStep;
 pub use pollable_script_step::PollableScriptStep;

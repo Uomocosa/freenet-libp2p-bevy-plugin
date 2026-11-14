@@ -43,6 +43,8 @@ pub mod swarm_loop_state;
 pub mod swarm_task_override;
 pub mod sync_state;
 #[cfg(feature = "testing")]
+pub mod synthetic_input_queue;
+#[cfg(feature = "testing")]
 pub mod timed_script_step;
 pub mod topic;
 pub mod transport_mode;

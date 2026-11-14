@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use bevy::input::mouse::MouseButton;
+use bevy::math::Vec2;
 use serde::{Deserialize, Serialize};
 
 use crate::direct_dial;
@@ -82,4 +84,18 @@ pub struct BookKindExpectation {
 pub struct LivePeer {
     pub name: String,
     pub peer: identity::Peer,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PointerPath {
+    pub button: MouseButton,
+    pub points: Vec<Vec2>,
+    pub speed: testing::PointerSpeed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CursorTarget {
+    pub x: f32,
+    pub y: f32,
+    pub speed: testing::PointerSpeed,
 }

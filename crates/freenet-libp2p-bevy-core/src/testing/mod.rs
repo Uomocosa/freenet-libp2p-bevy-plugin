@@ -13,13 +13,14 @@ pub use basic::constants::{
 };
 pub use basic::enums::{
     E2EStepEffect, FakeWireClientFrame, FakeWireServerFrame, FanOutTarget, PeerExit, StepOutcome,
+    SyntheticInput,
 };
 pub use basic::messages::E2EExtensionEffect;
-pub use basic::newtypes::{MemberCount, SenderCount};
+pub use basic::newtypes::{MemberCount, PointerSpeed, SenderCount, TypedText};
 pub use basic::resources::PendingAction;
 pub use basic::structs::{
-    BookKindExpectation, E2EStepPoll, E2EStepView, FakeWireHello, FanOut, LivePeer, ReportCheck,
-    RoutedEvent, RunningPeer, StepClock, StepTiming, StoredStep,
+    BookKindExpectation, CursorTarget, E2EStepPoll, E2EStepView, FakeWireHello, FanOut, LivePeer,
+    PointerPath, ReportCheck, RoutedEvent, RunningPeer, StepClock, StepTiming, StoredStep,
 };
 
 mod action;
@@ -83,3 +84,9 @@ pub use script_verdict::ScriptVerdict;
 
 mod timed_script_step;
 pub use timed_script_step::TimedScriptStep;
+
+mod e2e_driver_plugin;
+pub use e2e_driver_plugin::E2EDriverPlugin;
+
+mod synthetic_input_queue;
+pub use synthetic_input_queue::SyntheticInputQueue;
