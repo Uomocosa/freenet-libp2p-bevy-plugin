@@ -268,7 +268,19 @@ A LAN-only SSH tunnel stays possible for debugging, never in the plan.
   **"the driver never calls `Window::set_cursor_position` / `set_physical_cursor_position`"**
   lives here, not in the source. The old script path (`examples/shared/src/intent.rs:147`,
   `friend_intent.rs:210`) does call it, which is why it warps the real cursor; it goes away with §5.
-- Keys: `SyntheticInput::Key` currently emits Pressed only; a Released follows in step D.
+- Keys: each typed character is Pressed then Released on the next frame (C1, `45aa31e`).
+- UI targets (C1): no `E2EId` on production UI. Each crate locates its own widgets through its
+  existing marker components (`lobby/locate` → `LobbyTarget::{RoomNameInput, CreateRoomButton,
+  Room(name)}` → `LocatedNode { centre, disabled }`); the harness then calls `e2e/click_at`.
+- Layout (C2, `8afdab2`): the test-owned apps live in their own package `tests/e2e_apps`
+  (lib `starboard` = `StarboardE2EMethods`; bin `starboard_e2e`), not under `tests/e2e/starboard/`.
+  The harness driver is `tests/e2e/tests/e2e/brp/`; the first scenario `brp_one_peer_paints`
+  passes on Xvfb in ~8 s.
+- Bug found by the driver (fixed in `8afdab2`): `bevy_input_focus` only focuses a clicked entity
+  that has a `TabIndex`, so the room-name, add-friend and custom name inputs never took focus on
+  click. They now carry `TabIndex(0)`.
+- Hidden display without root: `apt-get download xvfb` + `dpkg -x` into a scratch dir, then
+  `Xvfb :99 -screen 0 1280x800x24 -nolisten tcp`; run with `DISPLAY=:99` and the lavapipe ICD.
 
 - Right button erases in `track_pointer`.
 - `bevy_remote` 0.20.1 names checked on docs.rs: `RemotePlugin::default().with_method(name, handler)`
