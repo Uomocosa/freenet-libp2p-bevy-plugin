@@ -135,6 +135,11 @@ impl Peer {
     /// The app's whole log so far. The file lives in the peer's temp dir, so it stays readable
     /// after the app exits until this `Peer` is dropped.
     #[must_use]
+    pub fn log_path(&self) -> &Path {
+        &self.log
+    }
+
+    #[must_use]
     pub fn log_text(&self) -> String {
         fs::read_to_string(&self.log).unwrap_or_default()
     }

@@ -4,7 +4,7 @@ use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyStatus, LobbyTarget, 
 use freenet_libp2p_bevy_plugin::testing::{CursorTarget, NamedKey, PointerSpeed};
 use serde_json::{Value, json};
 
-use super::{Deadlines, Peer, poll_until};
+use super::{Deadlines, Peer, day_millis_now, poll_until};
 
 const CLICK_SPEED: f32 = 1200.0;
 const JOIN_FAILURE_BUDGET: Duration = Duration::from_secs(180);
@@ -44,6 +44,14 @@ impl LobbyPeer {
     /// # Errors
     /// Returns an error if the room cannot be created and joined.
     pub async fn create_room(&self, room: &str) -> Result<(), String> {
+        self.create_room_timed(room).await.map(|_| ())
+    }
+
+    /// Creates `room` and returns the time (day millis, UTC) the create button was pressed.
+    ///
+    /// # Errors
+    /// Returns an error if the room cannot be created and joined.
+    pub async fn create_room_timed(&self, room: &str) -> Result<u64, String> {
         self.attempt_create_room(room)
             .await
             .map_err(|error| self.peer.explain(&error))
@@ -60,7 +68,7 @@ impl LobbyPeer {
             .map_err(|error| self.peer.explain(&error))
     }
 
-    async fn attempt_create_room(&self, room: &str) -> Result<(), String> {
+    async fn attempt_create_room(&self, room: &str) -> Result<u64, String> {
         self.click(LobbyTarget::RoomNameInput).await?;
         self.type_text(room).await?;
         self.submit_room(room).await
@@ -70,10 +78,10 @@ impl LobbyPeer {
         self.click(LobbyTarget::RoomNameInput).await?;
         self.type_text(&format!("{room}x")).await?;
         self.press_key(NamedKey::Backspace).await?;
-        self.submit_room(room).await
+        self.submit_room(room).await.map(|_| ())
     }
 
-    async fn submit_room(&self, room: &str) -> Result<(), String> {
+    async fn submit_room(&self, room: &str) -> Result<u64, String> {
         poll_until(
             &format!("{}: create button enabled", self.name),
             self.deadlines.action(),
@@ -81,8 +89,10 @@ impl LobbyPeer {
             |found| found.is_some_and(|node| !node.disabled),
         )
         .await?;
-        self.click(LobbyTarget::CreateRoomButton).await?;
-        self.wait_until_joined(room, self.deadlines.action()).await
+        let pressed = self.click(LobbyTarget::CreateRoomButton).await?;
+        self.wait_until_joined(room, self.deadlines.action())
+            .await?;
+        Ok(pressed)
     }
 
     async fn type_text(&self, text: &str) -> Result<(), String> {
@@ -111,15 +121,25 @@ impl LobbyPeer {
     /// # Errors
     /// Returns an error if the room is never listed or the join does not complete.
     pub async fn join_room(&self, room: &str) -> Result<(), String> {
+        self.join_room_timed(room).await.map(|_| ())
+    }
+
+    /// Joins `room` and returns the time (day millis, UTC) the room button was pressed.
+    ///
+    /// # Errors
+    /// Returns an error if the room is never listed or the join does not complete.
+    pub async fn join_room_timed(&self, room: &str) -> Result<u64, String> {
         self.attempt_join_room(room)
             .await
             .map_err(|error| self.peer.explain(&error))
     }
 
-    async fn attempt_join_room(&self, room: &str) -> Result<(), String> {
+    async fn attempt_join_room(&self, room: &str) -> Result<u64, String> {
         self.await_room_listed(room).await?;
-        self.click(LobbyTarget::Room(room.to_string())).await?;
-        self.wait_until_joined(room, self.deadlines.action()).await
+        let pressed = self.click(LobbyTarget::Room(room.to_string())).await?;
+        self.wait_until_joined(room, self.deadlines.action())
+            .await?;
+        Ok(pressed)
     }
 
     /// Waits until the lobby lists `room`.
@@ -313,7 +333,7 @@ impl LobbyPeer {
         self.peer.call("lobby/locate", json!(target)).await
     }
 
-    async fn click(&self, target: LobbyTarget) -> Result<(), String> {
+    async fn click(&self, target: LobbyTarget) -> Result<u64, String> {
         let node = poll_until(
             &format!("{}: {target:?} on screen", self.name),
             self.deadlines.action(),
@@ -327,13 +347,14 @@ impl LobbyPeer {
             y: node.centre.y,
             speed: PointerSpeed(CLICK_SPEED),
         };
+        let pressed = day_millis_now();
         self.peer
             .call::<Value>(
                 "e2e/click_at",
                 serde_json::to_value(cursor).map_err(|e| e.to_string())?,
             )
             .await?;
-        Ok(())
+        Ok(pressed)
     }
 }
 
