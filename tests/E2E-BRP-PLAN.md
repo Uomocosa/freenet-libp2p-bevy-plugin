@@ -251,7 +251,8 @@ A LAN-only SSH tunnel stays possible for debugging, never in the plan.
 
 1. Core `E2EDriverPlugin` + `SyntheticInputQueue` (glide, buttons, keys) + `E2EMethods`, with
    an in-process `App` test that a glide reaches the target in the expected time.
-2. `examples/starboard/src/lib.rs` + `StarboardApp`; `main.rs` reduced; `track_cursor` /
+2. `examples/starboard/src/lib.rs` + `StarboardApp`, `examples/lobby_room/src/lib.rs` +
+   `LobbyRoomApp`; both `main.rs` reduced; `track_cursor` /
    `track_pointer` read `PointerLocation` (B4b), checked by hand with a real mouse.
 3. `tests/e2e/driver/` + `starboard_e2e` binary; first scenario: one peer creates a room
    and paints, no network.
@@ -260,14 +261,15 @@ A LAN-only SSH tunnel stays possible for debugging, never in the plan.
 6. Delete the script machinery (§5).
 7. Cross-machine `t.on(..)` on Linux with `all-local`; Windows later.
 
-## 7. Open
+## 7. Settled (2026-11-14)
 
-- Which mouse button erases in `track_pointer` (assumed Right).
-- Exact `bevy_remote` 0.20.1 names (`with_method`, `RemoteHttpPlugin::with_address`, handler
-  signature): check docs.rs at step 1.
-- Whether `lobby_room` gets the same lib + wrapper split now or later.
-- Windows (later): the bundle ships `starboard_e2e.exe`, but X13's firewall allow rule
-  matches `C:\e2e\bundle\starboard.exe`. Either install the wrapper under that name and
-  path, or add one more allow rule once.
-- `bevy_picking` must be in the build. The `ui` feature should pull it in, since the
-  `ui_widgets` buttons need it: confirm at step 2.
+- Right button erases in `track_pointer`.
+- `bevy_remote` 0.20.1 names checked on docs.rs: `RemotePlugin::default().with_method(name, handler)`
+  (methods can also be added at runtime through the `RemoteMethods` resource), handler
+  `fn(In(params): In<Option<Value>>, world: &mut World) -> BrpResult`,
+  `RemoteHttpPlugin::with_address(impl Into<IpAddr>)` / `with_port(u16)`; defaults `127.0.0.1:15702`.
+  Built-ins include `world.query`, `world.get_resources`, `world.trigger_event`, `rpc.discover`.
+  Each peer gets its own port, chosen by the harness.
+- `lobby_room` gets the same lib + wrapper split now (`lobby_room_e2e` binary).
+- Windows: deferred to another agent (firewall exe path, gdigrab, runner).
+- `bevy_picking` presence: confirm at step 2.
