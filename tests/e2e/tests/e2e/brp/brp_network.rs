@@ -38,6 +38,16 @@ impl BrpNetwork {
     /// Returns an error if the run directory cannot be made, the fake server cannot start, or
     /// the lobby contract cannot be ensured.
     pub async fn prepare_for(network: Network) -> Result<Self, String> {
+        Self::prepare_with(network, LobbySetup::Ensured).await
+    }
+
+    /// The same setup as [`Self::prepare_for`], with the lobby `setup` the run pins. `Absent`
+    /// gets a fresh token and no deploy, so the peers race the empty-seed boot deploy.
+    ///
+    /// # Errors
+    /// Returns an error if the run directory cannot be made, the fake server cannot start, or
+    /// the lobby contract cannot be ensured.
+    pub async fn prepare_with(network: Network, setup: LobbySetup) -> Result<Self, String> {
         let stamp = unix_secs();
         let run_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
@@ -59,10 +69,15 @@ impl BrpNetwork {
                 })
             }
             Network::Mainnet => {
-                let token = LobbySetup::Ensured.lobby_token(stamp).to_string();
-                let helpers = check_or_deploy(&LobbyToken::from(token.as_str()))
-                    .await
-                    .map_err(|error| format!("lobby contract not ensured: {error:?}"))?;
+                let token = setup.lobby_token(stamp).to_string();
+                let helpers = match setup {
+                    LobbySetup::Ensured => {
+                        check_or_deploy(&LobbyToken::from(token.as_str()))
+                            .await
+                            .map_err(|error| format!("lobby contract not ensured: {error:?}"))?
+                    }
+                    LobbySetup::Absent => Vec::new(),
+                };
                 Ok(Self {
                     network,
                     token,

@@ -269,9 +269,22 @@ impl LobbyPeer {
     /// # Errors
     /// Returns an error if the room is still listed at the deadline.
     pub async fn wait_until_room_gone(&self, room: &str) -> Result<(), String> {
+        self.wait_until_room_gone_within(room, self.deadlines.lobby())
+            .await
+    }
+
+    /// Waits until the lobby has been fetched and no longer lists `room`, for `deadline`.
+    ///
+    /// # Errors
+    /// Returns an error if the room is still listed at `deadline`.
+    pub async fn wait_until_room_gone_within(
+        &self,
+        room: &str,
+        deadline: Duration,
+    ) -> Result<(), String> {
         poll_until(
             &format!("{}: room {room} gone", self.name),
-            self.deadlines.lobby(),
+            deadline,
             async || self.lobby_status().await,
             |status| status.lobby_fetched && !status.rooms.iter().any(|listed| listed == room),
         )

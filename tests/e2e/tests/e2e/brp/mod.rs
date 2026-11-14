@@ -14,6 +14,7 @@ mod poll_until;
 mod require_real_network;
 mod starboard_peer;
 mod stroke;
+mod wait_until_any_history_written;
 
 pub use brp_client::BrpClient;
 pub use brp_network::BrpNetwork;
@@ -31,3 +32,4 @@ pub use poll_until::poll_until;
 pub use require_real_network::require_real_network;
 pub use starboard_peer::StarboardPeer;
 pub use stroke::Stroke;
+pub use wait_until_any_history_written::wait_until_any_history_written;

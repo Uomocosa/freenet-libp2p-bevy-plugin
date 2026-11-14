@@ -108,6 +108,12 @@ impl StarboardPeer {
         self.lobby.wait_until_room_gone(room).await
     }
 
+    /// Whether this peer's log so far contains `line`.
+    #[must_use]
+    pub fn log_contains(&self, line: &str) -> bool {
+        self.lobby.peer().log_contains(line)
+    }
+
     /// # Errors
     /// Returns an error if the leave controls do not appear or the room stays joined.
     pub async fn leave_room(&self) -> Result<(), String> {

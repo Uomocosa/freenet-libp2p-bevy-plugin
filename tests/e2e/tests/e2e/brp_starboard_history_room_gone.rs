@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::brp::{BrpNetwork, PEER_WINDOWS, StarboardPeer, Stroke};
+use crate::brp::{BrpNetwork, PEER_WINDOWS, StarboardPeer, Stroke, wait_until_any_history_written};
 use crate::common::build_package_bin;
 
 const STROKES: &[Stroke] = &[
@@ -18,7 +18,6 @@ const ERASE_STROKES: &[Stroke] = &[
 ];
 const OTHERS_IN_TWO: usize = 1;
 const QUIET: Duration = Duration::from_secs(3);
-const HOLDERS_SETTLE: Duration = Duration::from_secs(45);
 
 fn unix_secs() -> u64 {
     SystemTime::now()
@@ -51,7 +50,11 @@ async fn brp_starboard_history_room_gone() -> Result<(), String> {
     helper.erase_all(ERASE_STROKES).await?;
     painter.wait_until_canvas_stops_changing(QUIET).await?;
     helper.wait_until_canvas_stops_changing(QUIET).await?;
-    tokio::time::sleep(HOLDERS_SETTLE).await;
+    wait_until_any_history_written(
+        &[&painter, &helper],
+        net.deadlines().scaled(Duration::from_secs(120)),
+    )
+    .await?;
     painter.exit().await?;
     helper.exit().await?;
     watcher.wait_until_room_gone(&room).await?;
