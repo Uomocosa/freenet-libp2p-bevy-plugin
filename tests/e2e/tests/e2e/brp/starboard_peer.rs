@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 use super::{BrpNetwork, LobbyPeer, Peer, Stroke, poll_until};
 
 const HAND_SPEED: f32 = 600.0;
+const IN_ROOM_LINE: &str = "ui screen JoiningRoom -> InRoom";
 
 /// One `starboard_e2e` process: the lobby actions plus painting and the canvas status.
 pub struct StarboardPeer {
@@ -112,6 +113,23 @@ impl StarboardPeer {
     #[must_use]
     pub fn log_contains(&self, line: &str) -> bool {
         self.lobby.peer().log_contains(line)
+    }
+
+    /// Polls until the app logs its move from the joining screen into the room screen, the point
+    /// where the canvas accepts input; strokes sent while still joining are dropped.
+    ///
+    /// # Errors
+    /// Returns an error if the app does not log the move before `deadline`.
+    pub async fn wait_until_in_room(&self, deadline: Duration) -> Result<(), String> {
+        poll_until(
+            &format!("{}: in the room screen", self.name()),
+            deadline,
+            async || Ok::<bool, String>(self.log_contains(IN_ROOM_LINE)),
+            |in_room| *in_room,
+        )
+        .await
+        .map(|_| ())
+        .map_err(|error| self.lobby.peer().explain(&error))
     }
 
     /// # Errors

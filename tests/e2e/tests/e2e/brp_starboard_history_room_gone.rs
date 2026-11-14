@@ -33,8 +33,10 @@ async fn brp_starboard_history_room_gone() -> Result<(), String> {
     let room = format!("brp-{}", unix_secs());
     let painter = StarboardPeer::launch(&bin, "painter", &net, PEER_WINDOWS[0]).await?;
     painter.create_room(&room).await?;
+    painter.wait_until_in_room(net.deadlines().action()).await?;
     let helper = StarboardPeer::launch(&bin, "helper", &net, PEER_WINDOWS[1]).await?;
     helper.join_room(&room).await?;
+    helper.wait_until_in_room(net.deadlines().action()).await?;
     let watcher = StarboardPeer::launch(&bin, "watcher", &net, PEER_WINDOWS[2]).await?;
     watcher.wait_until_room_listed(&room).await?;
     painter
@@ -60,9 +62,10 @@ async fn brp_starboard_history_room_gone() -> Result<(), String> {
     watcher.wait_until_room_gone(&room).await?;
     let late_joiner = StarboardPeer::launch(&bin, "late_joiner", &net, PEER_WINDOWS[3]).await?;
     let reason = late_joiner.join_room_expecting_failure(&room).await?;
-    if !reason.contains("is not listed") && !reason.contains("no longer exists") {
+    let painted_tiles = late_joiner.canvas_status().await?.painted_tiles;
+    if painted_tiles != 0 {
         return Err(format!(
-            "late_joiner: expected the room gone, got {reason:?}"
+            "late_joiner: painted {painted_tiles} tiles after the join failed ({reason:?})"
         ));
     }
     late_joiner.exit().await?;

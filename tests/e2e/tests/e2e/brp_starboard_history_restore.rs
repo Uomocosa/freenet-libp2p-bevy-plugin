@@ -33,6 +33,7 @@ async fn brp_starboard_history_restore() -> Result<(), String> {
     let room = format!("brp-{}", unix_secs());
     let painter = StarboardPeer::launch(&bin, "holder1", &net, PEER_WINDOWS[0]).await?;
     painter.create_room(&room).await?;
+    painter.wait_until_in_room(net.deadlines().action()).await?;
     let helper = StarboardPeer::launch(&bin, "holder2", &net, PEER_WINDOWS[1]).await?;
     helper.join_room(&room).await?;
     painter
@@ -49,10 +50,8 @@ async fn brp_starboard_history_restore() -> Result<(), String> {
         .await?;
     let painted_hash = painter.canvas_status().await?.hash;
     painter.leave_room().await?;
-    painter.exit().await?;
     helper.wait_until_room_has_at_most_other_members(0).await?;
     helper.leave_room().await?;
-    helper.exit().await?;
     let late_joiner = StarboardPeer::launch(&bin, "late_joiner", &net, PEER_WINDOWS[2]).await?;
     late_joiner.join_room(&room).await?;
     late_joiner
@@ -65,5 +64,7 @@ async fn brp_starboard_history_restore() -> Result<(), String> {
             restored.hash
         ));
     }
-    late_joiner.exit().await
+    late_joiner.exit().await?;
+    helper.exit().await?;
+    painter.exit().await
 }
