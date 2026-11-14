@@ -13,6 +13,7 @@ use super::{Peer, Stroke, poll_until};
 const HAND_SPEED: f32 = 600.0;
 const CLICK_SPEED: f32 = 1200.0;
 const ACTION_DEADLINE: Duration = Duration::from_secs(60);
+const LOBBY_DEADLINE: Duration = Duration::from_secs(120);
 
 pub struct StarboardPeer {
     name: String,
@@ -66,9 +67,33 @@ impl StarboardPeer {
         )
         .await?;
         self.click(LobbyTarget::CreateRoomButton).await?;
+        self.wait_until_joined(room, ACTION_DEADLINE).await
+    }
+
+    /// # Errors
+    /// Returns an error if the room is never listed or the join does not complete.
+    pub async fn join_room(&self, room: &str) -> Result<(), String> {
+        self.attempt_join_room(room)
+            .await
+            .map_err(|error| self.peer.explain(&error))
+    }
+
+    async fn attempt_join_room(&self, room: &str) -> Result<(), String> {
+        poll_until(
+            &format!("{}: room {room} listed", self.name),
+            LOBBY_DEADLINE,
+            async || self.lobby_status().await,
+            |status| status.rooms.iter().any(|listed| listed == room),
+        )
+        .await?;
+        self.click(LobbyTarget::Room(room.to_string())).await?;
+        self.wait_until_joined(room, ACTION_DEADLINE).await
+    }
+
+    async fn wait_until_joined(&self, room: &str, deadline: Duration) -> Result<(), String> {
         poll_until(
             &format!("{}: joined room {room}", self.name),
-            ACTION_DEADLINE,
+            deadline,
             async || self.lobby_status().await,
             |status| status.joined_room.as_deref() == Some(room),
         )
@@ -76,21 +101,48 @@ impl StarboardPeer {
         Ok(())
     }
 
+    /// Waits until the joined room lists `others` remote members (the peer itself is not counted).
+    ///
+    /// # Errors
+    /// Returns an error if the remote member count never reaches `others`.
+    pub async fn wait_until_room_has_other_members(&self, others: usize) -> Result<(), String> {
+        let outcome = poll_until(
+            &format!("{}: room lists {others} other members", self.name),
+            LOBBY_DEADLINE,
+            async || self.lobby_status().await,
+            |status| status.members == others,
+        )
+        .await;
+        outcome
+            .map(|_| ())
+            .map_err(|error| self.peer.explain(&error))
+    }
+
     /// # Errors
     /// Returns an error if the stroke cannot be mapped or the input does not finish.
     pub async fn paint(&self, stroke: Stroke) -> Result<(), String> {
-        self.attempt_paint(stroke)
+        self.follow(MouseButton::Left, stroke)
             .await
             .map_err(|error| self.peer.explain(&error))
     }
 
-    async fn attempt_paint(&self, stroke: Stroke) -> Result<(), String> {
+    /// Erases with the right button, which `track_pointer` maps to erase.
+    ///
+    /// # Errors
+    /// Returns an error if the stroke cannot be mapped or the input does not finish.
+    pub async fn erase(&self, stroke: Stroke) -> Result<(), String> {
+        self.follow(MouseButton::Right, stroke)
+            .await
+            .map_err(|error| self.peer.explain(&error))
+    }
+
+    async fn follow(&self, button: MouseButton, stroke: Stroke) -> Result<(), String> {
         let points: Vec<Vec2> = self
             .peer
             .call("starboard/board_to_window", json!(stroke.0))
             .await?;
         let path = PointerPath {
-            button: MouseButton::Left,
+            button,
             points,
             speed: PointerSpeed(HAND_SPEED),
         };
@@ -101,7 +153,7 @@ impl StarboardPeer {
             )
             .await?;
         poll_until(
-            &format!("{}: stroke delivered", self.name),
+            &format!("{}: input delivered", self.name),
             ACTION_DEADLINE,
             async || self.peer.call::<bool>("e2e/input_idle", Value::Null).await,
             |idle| *idle,
@@ -142,13 +194,22 @@ impl StarboardPeer {
     }
 
     /// # Errors
+    /// Returns an error if the request fails.
+    pub async fn canvas_status(&self) -> Result<CanvasStatus, String> {
+        self.peer.call("starboard/status", Value::Null).await
+    }
+
+    /// # Errors
     /// Returns an error if the app does not answer or does not exit cleanly.
     pub async fn exit(mut self) -> Result<(), String> {
         self.peer.exit().await
     }
 
-    async fn canvas_status(&self) -> Result<CanvasStatus, String> {
-        self.peer.call("starboard/status", Value::Null).await
+    /// Names the peer, its last lobby status, and its filtered log tail, for failure messages.
+    pub async fn describe(&self) -> String {
+        let status = self.lobby_status().await;
+        self.peer
+            .explain(&format!("{}: lobby status {status:?}", self.name))
     }
 
     async fn lobby_status(&self) -> Result<LobbyStatus, String> {
@@ -160,15 +221,14 @@ impl StarboardPeer {
     }
 
     async fn click(&self, target: LobbyTarget) -> Result<(), String> {
-        let name = self.name.clone();
         let node = poll_until(
-            &format!("{name}: {target:?} on screen"),
+            &format!("{}: {target:?} on screen", self.name),
             ACTION_DEADLINE,
             async || self.locate(target.clone()).await,
             Option::is_some,
         )
         .await?
-        .ok_or_else(|| format!("{name}: {target:?} not on screen"))?;
+        .ok_or_else(|| format!("{}: {target:?} not on screen", self.name))?;
         let cursor = CursorTarget {
             x: node.centre.x,
             y: node.centre.y,

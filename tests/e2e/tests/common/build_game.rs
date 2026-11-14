@@ -1,13 +1,23 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Builds one example app (bin named after its package) and returns its path.
+///
 /// # Errors
 /// Returns an error if the cargo build fails or the binary is missing.
 pub fn build_game(example: &str) -> Result<PathBuf, String> {
+    let profile = std::env::var("LOBBY_BUILD_PROFILE").unwrap_or_else(|_| "dev".to_string());
+    build_package_bin(example, example, &profile)
+}
+
+/// Builds one binary of a workspace package and returns its path.
+///
+/// # Errors
+/// Returns an error if cargo fails, cannot report its target dir, or the binary is missing.
+pub fn build_package_bin(package: &str, bin: &str, profile: &str) -> Result<PathBuf, String> {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let workspace = manifest.join("../..");
     let target = target_root(&workspace)?;
-    let profile = std::env::var("LOBBY_BUILD_PROFILE").unwrap_or_else(|_| "dev".to_string());
     let mut build = Command::new("cargo");
     build.current_dir(&workspace);
     build.env("CARGO_TARGET_DIR", &target);
@@ -24,7 +34,7 @@ pub fn build_game(example: &str) -> Result<PathBuf, String> {
         }
     }
     let output = build
-        .args(["build", "-p", example, "--profile", &profile])
+        .args(["build", "-p", package, "--bin", bin, "--profile", profile])
         .output()
         .map_err(|e| format!("spawning cargo build: {e}"))?;
     if !output.status.success() {
@@ -33,18 +43,17 @@ pub fn build_game(example: &str) -> Result<PathBuf, String> {
             String::from_utf8_lossy(&output.stderr)
         ));
     }
-    let folder = if profile == "dev" {
-        "debug"
-    } else {
-        profile.as_str()
-    };
-    let bin = target
+    let folder = if profile == "dev" { "debug" } else { profile };
+    let path = target
         .join(folder)
-        .join(format!("{example}{}", std::env::consts::EXE_SUFFIX));
-    if !bin.exists() {
-        return Err(format!("expected build output {} not found", bin.display()));
+        .join(format!("{bin}{}", std::env::consts::EXE_SUFFIX));
+    if !path.exists() {
+        return Err(format!(
+            "expected build output {} not found",
+            path.display()
+        ));
     }
-    Ok(bin)
+    Ok(path)
 }
 
 // needed helper: cargo's real target dir (honours .cargo/config.toml target-dir), else ./target

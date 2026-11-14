@@ -14,7 +14,8 @@ use super::poll_until::POLL_INTERVAL;
 const DISCOVER_DEADLINE: Duration = Duration::from_secs(180);
 const EXIT_DEADLINE: Duration = Duration::from_secs(30);
 const DEFAULT_RUST_LOG: &str = "info,starboard=debug,lobby_room=debug,discovery=debug";
-const LOG_TAIL_LINES: usize = 40;
+const LOG_TAIL_LINES: usize = 60;
+const NOISE_MARKER: &str = "history size against the per-process limit";
 
 pub struct Peer {
     child: Child,
@@ -122,7 +123,10 @@ impl Peer {
     #[must_use]
     pub fn explain(&self, message: &str) -> String {
         let log = fs::read_to_string(&self.log).unwrap_or_default();
-        let lines: Vec<&str> = log.lines().collect();
+        let lines: Vec<&str> = log
+            .lines()
+            .filter(|line| !line.contains(NOISE_MARKER))
+            .collect();
         let tail = lines
             .iter()
             .skip(lines.len().saturating_sub(LOG_TAIL_LINES))
