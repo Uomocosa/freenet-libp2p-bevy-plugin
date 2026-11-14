@@ -5,4 +5,13 @@ pub enum LobbyTarget {
     RoomNameInput,
     CreateRoomButton,
     Room(String),
+    EscMenuLeaveButton,
+    LeaveYesButton,
+    LeaveNoButton,
+    EscMenuResumeButton,
+    EscMenuFriendsButton,
+    LeaveDoor,
+    FriendAddressInput,
+    AddFriendButton,
+    FriendsDrawerCloseButton,
 }

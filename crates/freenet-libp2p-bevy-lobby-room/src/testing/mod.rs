@@ -12,8 +12,7 @@ pub use lobby_step::LobbyStep;
 #[path = "__basic__/mod.rs"]
 mod basic;
 pub use basic::enums::LobbyTarget;
-pub use basic::structs::{LobbyStatus, LobbyStepView, LocatedNode};
-pub use basic::type_aliases::LocatableNode;
+pub use basic::structs::{LobbyStatus, LobbyStepView, LocatableNode, LocatedNode};
 
 mod lobby_e2e_methods;
 pub use lobby_e2e_methods::LobbyE2EMethods;
