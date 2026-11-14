@@ -2,12 +2,14 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::direct_dial::KnownPeerKind;
-use freenet_libp2p_bevy_plugin::testing::DirectDialStatus;
-use serde_json::Value;
+use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyTarget, LocatedNode};
+use freenet_libp2p_bevy_plugin::testing::{CursorTarget, DirectDialStatus, NamedKey, PointerSpeed};
+use serde_json::{Value, json};
 
 use super::{BrpNetwork, Deadlines, Peer, poll_until};
 
 const LINK_BUDGET: Duration = Duration::from_secs(120);
+const CLICK_SPEED: f32 = 1200.0;
 
 /// One `starboard_e2e` process on the direct-dial network, with its earlier runs' logs kept
 /// readable so the no-node check covers every launch of the peer.
@@ -151,6 +153,99 @@ impl DirectDialPeer {
         )
         .await
         .map(|_| ())
+    }
+
+    /// Waits until the peer book holds `peer_id` with the given kind.
+    ///
+    /// # Errors
+    /// Returns an error if the book never records `peer_id` as `kind` in time.
+    pub async fn wait_until_book_kind(
+        &self,
+        peer_id: &str,
+        kind: KnownPeerKind,
+    ) -> Result<(), String> {
+        poll_until(
+            &format!("{}: {peer_id} booked as {kind:?}", self.name),
+            self.deadlines.scaled(LINK_BUDGET),
+            async || self.book_kind(peer_id).await,
+            |found| *found == Some(kind),
+        )
+        .await
+        .map(|_| ())
+    }
+
+    /// Adds `addr` as a friend the way a player does: Tab opens the friends drawer, the address
+    /// field is clicked and typed into, and the add button is clicked once it is enabled.
+    ///
+    /// # Errors
+    /// Returns an error if a drawer control never appears or the input is never delivered.
+    pub async fn add_friend_through_ui(&self, addr: &str) -> Result<(), String> {
+        self.press_key(NamedKey::Tab).await?;
+        self.click(LobbyTarget::FriendAddressInput).await?;
+        self.type_text(addr).await?;
+        poll_until(
+            &format!("{}: add-friend button enabled", self.name),
+            self.deadlines.action(),
+            async || self.locate(LobbyTarget::AddFriendButton).await,
+            |found| found.is_some_and(|node| !node.disabled),
+        )
+        .await?;
+        self.click(LobbyTarget::AddFriendButton).await
+    }
+
+    async fn press_key(&self, key: NamedKey) -> Result<(), String> {
+        self.peer
+            .call::<Value>("e2e/press_key", json!(key))
+            .await
+            .map_err(|error| self.peer.explain(&error))?;
+        self.wait_until_input_idle().await
+    }
+
+    async fn type_text(&self, text: &str) -> Result<(), String> {
+        self.peer
+            .call::<Value>("e2e/type_text", json!(text))
+            .await
+            .map_err(|error| self.peer.explain(&error))?;
+        self.wait_until_input_idle().await
+    }
+
+    async fn wait_until_input_idle(&self) -> Result<(), String> {
+        poll_until(
+            &format!("{}: input delivered", self.name),
+            self.deadlines.action(),
+            async || self.peer.call::<bool>("e2e/input_idle", Value::Null).await,
+            |idle| *idle,
+        )
+        .await
+        .map(|_| ())
+    }
+
+    async fn locate(&self, target: LobbyTarget) -> Result<Option<LocatedNode>, String> {
+        self.peer.call("lobby/locate", json!(target)).await
+    }
+
+    async fn click(&self, target: LobbyTarget) -> Result<(), String> {
+        let node = poll_until(
+            &format!("{}: {target:?} on screen", self.name),
+            self.deadlines.action(),
+            async || self.locate(target.clone()).await,
+            Option::is_some,
+        )
+        .await?
+        .ok_or_else(|| format!("{}: {target:?} not on screen", self.name))?;
+        let cursor = CursorTarget {
+            x: node.centre.x,
+            y: node.centre.y,
+            speed: PointerSpeed(CLICK_SPEED),
+        };
+        self.peer
+            .call::<Value>(
+                "e2e/click_at",
+                serde_json::to_value(cursor).map_err(|e| e.to_string())?,
+            )
+            .await
+            .map(|_| ())
+            .map_err(|error| self.peer.explain(&error))
     }
 
     /// # Errors
