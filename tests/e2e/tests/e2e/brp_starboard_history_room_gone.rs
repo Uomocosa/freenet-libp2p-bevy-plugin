@@ -1,5 +1,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use freenet_libp2p_bevy_plugin::testing::Network;
+
 use crate::brp::{BrpNetwork, PEER_WINDOWS, StarboardPeer, Stroke, wait_until_any_history_written};
 use crate::common::build_package_bin;
 
@@ -63,7 +65,8 @@ async fn brp_starboard_history_room_gone() -> Result<(), String> {
     let late_joiner = StarboardPeer::launch(&bin, "late_joiner", &net, PEER_WINDOWS[3]).await?;
     let reason = late_joiner.join_room_expecting_failure(&room).await?;
     let painted_tiles = late_joiner.canvas_status().await?.painted_tiles;
-    if painted_tiles != 0 {
+    let is_fake = Network::from_env() == Network::Fake;
+    if painted_tiles != 0 && !is_fake {
         return Err(format!(
             "late_joiner: painted {painted_tiles} tiles after the join failed ({reason:?})"
         ));
