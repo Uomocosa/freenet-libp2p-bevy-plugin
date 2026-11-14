@@ -59,4 +59,5 @@ pub enum SyntheticInput {
     },
     Button(MouseButton, ButtonState),
     Key(char, ButtonState),
+    Named(testing::NamedKey, ButtonState),
 }

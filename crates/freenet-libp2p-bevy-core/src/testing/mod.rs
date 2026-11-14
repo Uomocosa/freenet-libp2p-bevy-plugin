@@ -88,6 +88,9 @@ pub use timed_script_step::TimedScriptStep;
 mod e2e_driver_plugin;
 pub use e2e_driver_plugin::E2EDriverPlugin;
 
+mod named_key;
+pub use named_key::NamedKey;
+
 mod synthetic_input_queue;
 pub use synthetic_input_queue::SyntheticInputQueue;
 

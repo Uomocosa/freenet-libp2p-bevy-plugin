@@ -24,6 +24,13 @@ impl SyntheticInputQueue {
         });
     }
 
+    pub fn press_named_key(&mut self, key: testing::NamedKey) {
+        self.pending
+            .push_back(testing::SyntheticInput::Named(key, ButtonState::Pressed));
+        self.pending
+            .push_back(testing::SyntheticInput::Named(key, ButtonState::Released));
+    }
+
     pub fn click_at(&mut self, target: Vec2, speed: testing::PointerSpeed) {
         self.move_cursor(target, speed);
         self.pending.push_back(testing::SyntheticInput::Button(

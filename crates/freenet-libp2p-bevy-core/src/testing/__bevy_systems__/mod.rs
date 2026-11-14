@@ -14,3 +14,5 @@ pub mod e2e_move_cursor;
 pub use e2e_move_cursor::e2e_move_cursor;
 pub mod e2e_type_text;
 pub use e2e_type_text::e2e_type_text;
+pub mod e2e_press_key;
+pub use e2e_press_key::e2e_press_key;

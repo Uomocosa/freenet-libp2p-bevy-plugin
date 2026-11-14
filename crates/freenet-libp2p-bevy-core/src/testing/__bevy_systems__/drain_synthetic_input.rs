@@ -47,6 +47,19 @@ pub fn drain_synthetic_input(
             buttons.write(event);
             window_events.write(WindowEvent::MouseButtonInput(event));
         }
+        testing::SyntheticInput::Named(named, state) => {
+            queue.pending.pop_front();
+            let event = KeyboardInput {
+                key_code: named.key_code(),
+                logical_key: named.logical_key(),
+                state,
+                text: None,
+                repeat: false,
+                window,
+            };
+            keys.write(event.clone());
+            window_events.write(WindowEvent::KeyboardInput(event));
+        }
         testing::SyntheticInput::Key(character, state) => {
             queue.pending.pop_front();
             let logical = character.to_string();
@@ -72,6 +85,7 @@ mod tests {
     use bevy::input::InputPlugin;
     use bevy::input::InputSystems;
     use bevy::input::keyboard::KeyboardInput;
+    use bevy::input::keyboard::{Key, KeyCode};
     use bevy::input::mouse::MouseButtonInput;
     use bevy::input_focus::{InputDispatchPlugin, InputFocus};
     use bevy::picking::events::{PointerRelease, PointerState};
@@ -81,6 +95,7 @@ mod tests {
     use bevy::ui::UiScale;
     use bevy::ui_widgets::{TextInput, TextInputPlugin};
     use bevy::window::{CursorMoved, Ime, PrimaryWindow, WindowEvent};
+    use derive_more::{Deref, DerefMut};
 
     use super::drain_synthetic_input;
     use crate::testing;
@@ -279,5 +294,111 @@ mod tests {
             .get::<EditableText>()
             .map(|text| text.value().to_string());
         assert_eq!(typed.as_deref(), Some("ab"));
+    }
+
+    #[derive(Resource, Default, Deref, DerefMut)]
+    struct EscapePresses(u32);
+
+    fn count_escape_presses(keys: Res<ButtonInput<KeyCode>>, presses: ResMut<EscapePresses>) {
+        let keys = keys.into_inner();
+        let presses = presses.into_inner();
+        if keys.just_pressed(KeyCode::Escape) {
+            let total = **presses;
+            **presses = total.saturating_add(1);
+        }
+    }
+
+    #[test]
+    fn test_named_escape_is_seen_once_by_button_input() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, InputPlugin))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+                100,
+            )))
+            .init_resource::<testing::SyntheticInputQueue>()
+            .init_resource::<EscapePresses>()
+            .add_message::<CursorMoved>()
+            .add_message::<WindowEvent>()
+            .add_systems(PreUpdate, drain_synthetic_input.before(InputSystems))
+            .add_systems(Update, count_escape_presses);
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+        app.world_mut()
+            .resource_mut::<testing::SyntheticInputQueue>()
+            .press_named_key(testing::NamedKey::Escape);
+        for _ in 0..4 {
+            app.update();
+        }
+        assert_eq!(**app.world().resource::<EscapePresses>(), 1);
+    }
+
+    #[derive(Resource, Default)]
+    struct KeyLog {
+        keys: Vec<KeyboardInput>,
+        window_keys: Vec<KeyboardInput>,
+    }
+
+    fn record_key_log(
+        mut keys: MessageReader<KeyboardInput>,
+        mut window_events: MessageReader<WindowEvent>,
+        mut log: ResMut<KeyLog>,
+    ) {
+        log.keys.extend(keys.read().cloned());
+        log.window_keys
+            .extend(window_events.read().filter_map(|event| match event {
+                WindowEvent::KeyboardInput(event) => Some(event.clone()),
+                _ => None,
+            }));
+    }
+
+    #[test]
+    fn test_named_keys_drain_as_real_key_events() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+                100,
+            )))
+            .init_resource::<testing::SyntheticInputQueue>()
+            .init_resource::<KeyLog>()
+            .add_message::<CursorMoved>()
+            .add_message::<WindowEvent>()
+            .add_message::<MouseButtonInput>()
+            .add_message::<KeyboardInput>()
+            .add_systems(PreUpdate, drain_synthetic_input)
+            .add_systems(Update, record_key_log);
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+        for key in [
+            testing::NamedKey::Backspace,
+            testing::NamedKey::Enter,
+            testing::NamedKey::Tab,
+        ] {
+            app.world_mut()
+                .resource_mut::<testing::SyntheticInputQueue>()
+                .press_named_key(key);
+        }
+        for _ in 0..8 {
+            app.update();
+        }
+        let expected = [
+            (KeyCode::Backspace, Key::Backspace, ButtonState::Pressed),
+            (KeyCode::Backspace, Key::Backspace, ButtonState::Released),
+            (KeyCode::Enter, Key::Enter, ButtonState::Pressed),
+            (KeyCode::Enter, Key::Enter, ButtonState::Released),
+            (KeyCode::Tab, Key::Tab, ButtonState::Pressed),
+            (KeyCode::Tab, Key::Tab, ButtonState::Released),
+        ];
+        let log = app.world().resource::<KeyLog>();
+        let seen: Vec<(KeyCode, Key, ButtonState)> = log
+            .keys
+            .iter()
+            .map(|event| (event.key_code, event.logical_key.clone(), event.state))
+            .collect();
+        assert_eq!(seen, expected);
+        assert!(log.keys.iter().all(|event| event.text.is_none()));
+        let seen_window: Vec<(KeyCode, Key, ButtonState)> = log
+            .window_keys
+            .iter()
+            .map(|event| (event.key_code, event.logical_key.clone(), event.state))
+            .collect();
+        assert_eq!(seen_window, expected);
     }
 }
