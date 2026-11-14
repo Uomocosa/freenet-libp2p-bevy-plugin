@@ -18,7 +18,7 @@ Windows comes later. The design must not block it, but nothing here is tested on
 | B3 | Clean examples | `examples/starboard` gains a `lib.rs` that exports its game plugin and types; `main.rs` stays tiny and has no `e2e` code. `tests/e2e/starboard/` owns a `starboard_e2e` binary = the same app + driver + fake network. Supersedes L8 (`FakeNetworkPlugin::from_args` leaves the example's `main`). |
 | B4 | Cursor | The cursor **moves, never teleports**. `move_cursor(target, speed)` glides from the current position; `click` moves first, then presses. The driver **never touches `Window::cursor_position`**: `bevy_winit` 0.20.1 (`system.rs:426`) syncs a changed value to the OS, which would warp the real mouse. Instead it writes what winit writes: each `CursorMoved` / `MouseButtonInput` / `KeyboardInput` plus its `WindowEvent` twin (`bevy_picking` reads `WindowEvent`). |
 | B4b | Game reads picking | `track_cursor` and `track_pointer` read the mouse `PointerLocation` (`bevy_picking`) instead of `Window::cursor_position()`. A game change, not a test hook: same behaviour with a real mouse, and synthetic input reaches it without moving the OS cursor. |
-| B5 | Curves | Core owns `Curve` (window-space polyline) and `PointerSpeed` (logical px/s, time-based, frame-rate independent). `PointerPath { button, curve, speed }`. Starboard's `Stroke` (board cells) lives in tests and becomes a `Curve` through `starboard/board_to_window`. |
+| B5 | Curves | Core owns `PointerSpeed` (logical px/s, time-based, frame-rate independent) and `PointerPath { button, points: Vec<Vec2>, speed }` (window-space polyline). No `Curve` newtype: a polyline has no invariant (LELE026). Starboard's `Stroke` (board cells) lives in tests and becomes `points` through `starboard/board_to_window`. |
 | B6 | Waits | Waits are harness-side polling of typed status (`lobby/status`, `starboard/status`). The app side only tracks what a poll cannot see, e.g. `CanvasHashWatch` (stable since). |
 | B7 | Orchestrator | **Stays, slimmer.** It owns the local peers (launch, BRP handle, kill), the fake-network router (`PeerMessageRouter`) for no-network runs, and the `CheckpointBoard`. Script parsing and running are deleted. |
 | B8 | Cross-machine | Every machine runs the same test program, launches **only its own peers** (`E2E_MACHINE`, `E2E_PLACEMENT`, as L12), and drives them over its own localhost BRP. Machines share checkpoints and final canvas hashes through the `CheckpointBoard` (L13). Peers talk to each other over the real network only. |
@@ -262,6 +262,13 @@ A LAN-only SSH tunnel stays possible for debugging, never in the plan.
 7. Cross-machine `t.on(..)` on Linux with `all-local`; Windows later.
 
 ## 7. Settled (2026-11-14)
+
+- Step A landed (`34553bb`). `RemotePlugin::with_method` is private in 0.20.1: use
+  `with_method_main` (lib.rs:591). Code comments are banned (LELE031), so the rule
+  **"the driver never calls `Window::set_cursor_position` / `set_physical_cursor_position`"**
+  lives here, not in the source. The old script path (`examples/shared/src/intent.rs:147`,
+  `friend_intent.rs:210`) does call it, which is why it warps the real cursor; it goes away with §5.
+- Keys: `SyntheticInput::Key` currently emits Pressed only; a Released follows in step D.
 
 - Right button erases in `track_pointer`.
 - `bevy_remote` 0.20.1 names checked on docs.rs: `RemotePlugin::default().with_method(name, handler)`
