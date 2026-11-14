@@ -16,8 +16,8 @@ mod tests {
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{identity, p2p};
 
-    use crate::overlay;
     use examples_shared::status;
+    use lobby_room::overlay;
 
     const JOIN_ROOM: &str = "gamma";
     const JOURNEY_FPS: u32 = 30;

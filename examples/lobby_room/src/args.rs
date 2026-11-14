@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::{Parser, ValueEnum};
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 use freenet_libp2p_bevy_plugin::testing::{E2EArgs, NetworkArgs};
+use lobby_room::app::UiChoice;
 
 use crate::script_runner::LobbyStep;
 
@@ -54,17 +55,28 @@ pub const fn transport_mode(arg: TransportArg) -> TransportMode {
     }
 }
 
+#[must_use]
+pub const fn ui_choice(arg: UiArg) -> UiChoice {
+    match arg {
+        UiArg::Default => UiChoice::Default,
+        UiArg::Custom => UiChoice::Custom,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{TransportArg, transport_mode};
+    use super::{TransportArg, transport_mode, ui_choice};
     use clap::Parser;
     use freenet_libp2p_bevy_plugin::p2p::TransportMode;
+    use lobby_room::app::UiChoice;
 
     #[test]
     fn test_usage() {
         assert_eq!(transport_mode(TransportArg::Tcp), TransportMode::Tcp);
         assert_eq!(transport_mode(TransportArg::Quic), TransportMode::Quic);
         assert_eq!(transport_mode(TransportArg::Both), TransportMode::Both);
+        assert_eq!(ui_choice(super::UiArg::Default), UiChoice::Default);
+        assert_eq!(ui_choice(super::UiArg::Custom), UiChoice::Custom);
     }
 
     #[test]

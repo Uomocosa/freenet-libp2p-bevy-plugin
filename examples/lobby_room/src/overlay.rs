@@ -1,4 +1,5 @@
 //! Status overlay: a top bar with the current room once joined.
+//!
 //! Reads `DiscoveryState` only; the connecting spinner is the plugin's own screen.
 //! The peer list lives in the lobby-room kit ui module roster bubble.
 #![allow(clippy::needless_pass_by_value)]

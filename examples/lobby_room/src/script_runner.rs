@@ -6,8 +6,8 @@ use freenet_libp2p_bevy_plugin::lobby_room::{discovery, ui};
 use freenet_libp2p_bevy_plugin::testing;
 use freenet_libp2p_bevy_plugin::testing::traits::{PollableScriptStep, ScriptStep};
 
-use crate::ping;
 use crate::ring::RingPeers;
+use lobby_room::ping;
 
 pub type LobbyScriptRunner = testing::ScriptRunner<LobbyStep>;
 
@@ -109,8 +109,8 @@ mod tests {
     use freenet_libp2p_bevy_plugin::testing;
 
     use super::{LobbyScriptRunner, LobbyStep, ring_step_outcome};
-    use crate::ping::RoomMessageSenders;
     use crate::ring::RingPeers;
+    use lobby_room::ping::RoomMessageSenders;
 
     fn app_with_script(script: &[&str], ring_peers: usize) -> App {
         let steps = script

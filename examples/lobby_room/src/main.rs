@@ -1,18 +1,17 @@
 mod args;
 mod friends_drawer;
 mod journey;
-mod overlay;
-mod ping;
 mod ring;
 mod script_runner;
-mod ui;
 
 use bevy::prelude::*;
 use clap::Parser;
 use examples_shared as shared;
+use freenet_libp2p_bevy_plugin::identity;
 use freenet_libp2p_bevy_plugin::lobby_room::ui as plugin_ui;
-use freenet_libp2p_bevy_plugin::lobby_room::{LobbyRoomPlugins, discovery};
-use freenet_libp2p_bevy_plugin::{direct_dial, identity, p2p, plugin, testing};
+use freenet_libp2p_bevy_plugin::testing;
+use lobby_room::app::LobbyRoomApp;
+use lobby_room::{ping, ui as example_ui};
 
 #[tokio::main]
 async fn main() -> bevy::app::AppExit {
@@ -33,17 +32,11 @@ async fn main() -> bevy::app::AppExit {
 }
 
 fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
-    let transport = args::transport_mode(args.transport);
     let mut app = App::new();
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            title: format!("lobby-{}", args.username),
-            resolution: (960, 540).into(),
-            ..default()
-        }),
+        primary_window: Some(LobbyRoomApp::primary_window(&args.username)),
         ..default()
     }));
-    app.insert_resource(discovery::FreenetPort(ws_port));
     let ring = ring::RingPeers::new();
     if matches!(args.network.network, testing::Network::Fake) {
         ring.set(1);
@@ -51,12 +44,8 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
         ring::spawn_ring_poller(ws_port, ring.clone());
     }
     app.insert_resource(ring);
-    let username = identity::Username::from(args.username.clone());
-    app.insert_resource(shared::status::LocalUser(username.clone()));
-    app.insert_resource(ping::IsRoomPingEnabled(args.is_room_ping_enabled));
     app.insert_resource(shared::intent::Intent::new(None));
     app.insert_resource(testing::PendingAction::default());
-    app.init_resource::<ping::RoomMessageSenders>();
     if let Some(steps) = match args.e2e.parsed_script() {
         Ok(steps) => steps,
         Err(error) => {
@@ -78,22 +67,18 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
     let fake = testing::FakeNetworkPlugin::<ping::PingPayload>::from(&args.network);
     let lobby = freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyFakeNetworkPlugin::new(&fake);
     app.add_plugins((fake, lobby));
-    app.add_plugins(plugin::P2PPlugin(
-        plugin::Config::<ping::PingPayload>::new(transport, p2p::MdnsMode::Disabled)
-            .with_game(game.clone()),
-    ));
-    app.add_plugins(direct_dial::FriendsPlugin::new(direct_dial::Config::from(
-        args.peer_book_file.clone(),
-    )));
-    let lobby_plugins = LobbyRoomPlugins(discovery::Config {
-        display_name: username,
+    app.add_plugins(LobbyRoomApp {
+        username: identity::Username::from(args.username.clone()),
         game,
-        ..discovery::Config::default()
+        transport: args::transport_mode(args.transport),
+        peer_book_file: args.peer_book_file.clone(),
+        freenet_port: ws_port,
+        room_ping: args.is_room_ping_enabled,
+        ui: args::ui_choice(args.ui),
     });
     // scripted input runs through Bevy's real typing/clicking paths
     match args.ui {
         args::UiArg::Default => {
-            app.add_plugins(lobby_plugins);
             app.add_systems(
                 Update,
                 shared::intent::script_input::<
@@ -104,28 +89,22 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
             );
         }
         args::UiArg::Custom => {
-            app.add_plugins(
-                lobby_plugins
-                    .build()
-                    .disable::<plugin_ui::discovery::LobbyRoomUiPlugin>()
-                    .disable::<plugin_ui::direct_dial::FriendsUiPlugin>(),
-            );
-            app.add_plugins(ui::LobbyUi);
             app.add_systems(
                 Update,
-                shared::intent::script_input::<ui::NameField, ui::NewRoomButton, ui::JoinButton>,
+                shared::intent::script_input::<
+                    example_ui::NameField,
+                    example_ui::NewRoomButton,
+                    example_ui::JoinButton,
+                >,
             );
         }
     }
-    app.add_plugins(overlay::Overlay);
     app.add_systems(
         Update,
         (
             shared::intent::log_joined,
             shared::status::log_tick,
             shared::status::log_mesh,
-            ping::publish_room_ping,
-            ping::log_room_messages,
         ),
     );
     app.run()
