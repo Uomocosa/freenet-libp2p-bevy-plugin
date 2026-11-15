@@ -12,9 +12,9 @@ pub fn measure_history_store<Payload: p2p::traits::Message>(
         .store_mut()
         .records()
         .filter_map(|record| {
-            let prefix = match p2p::RoomHistoryRecordKind::parse_history_record_key(&record.key)? {
-                p2p::RoomHistoryRecordKind::Manifest(prefix) => prefix,
-                p2p::RoomHistoryRecordKind::Chunk(chunk) => chunk.prefix,
+            let prefix = match p2p::ZoneHistoryRecordKind::parse_history_record_key(&record.key)? {
+                p2p::ZoneHistoryRecordKind::Manifest(prefix) => prefix,
+                p2p::ZoneHistoryRecordKind::Chunk(chunk) => chunk.prefix,
             };
             Some((
                 prefix,
@@ -38,13 +38,13 @@ mod tests {
     async fn test_usage() {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
         let prefix = p2p::HistoryKeyPrefix::from("abc");
-        let chunk = p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+        let chunk = p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
             prefix: prefix.clone(),
             content_hash: p2p::ContentHash::from("h"),
             chunk: p2p::ChunkIndex(0),
         });
         state.put_history_record(
-            &p2p::RoomHistoryRecordKind::Manifest(prefix.clone()),
+            &p2p::ZoneHistoryRecordKind::Manifest(prefix.clone()),
             vec![1, 2, 3],
             std::time::Duration::from_secs(90),
         );

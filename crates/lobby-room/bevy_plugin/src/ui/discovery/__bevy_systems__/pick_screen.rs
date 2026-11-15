@@ -88,7 +88,7 @@ mod tests {
             .with_freenet_peers(ready_peers())
             .lobby_fetched()
             .in_room(core_discovery::JoinedRoom {
-                name: identity::RoomName::from(room),
+                name: identity::ZoneName::from(room),
                 created_at: time::UnixTime::EPOCH,
                 phase,
                 members: core_discovery::Members::new(),

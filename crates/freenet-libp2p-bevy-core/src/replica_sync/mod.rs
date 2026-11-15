@@ -2,7 +2,7 @@
 mod basic;
 
 pub use basic::aliases::ReplicaSliceContentHashes;
-pub use basic::aliases::RoomDetails;
+pub use basic::aliases::ZoneDetails;
 pub use basic::constants::HISTORY_RECORD_REPLY_TIMEOUT;
 pub use basic::constants::PART_BYTES;
 pub use basic::constants::REPLICA_SLICE_REPLY_TIMEOUT;

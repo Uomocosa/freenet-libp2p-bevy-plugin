@@ -63,7 +63,7 @@ mod tests {
         let seen_at = time::UnixTime::from_secs(100);
         let raw_lobby = || {
             discovery::Lobby::from([(
-                identity::RoomName::from("r"),
+                identity::ZoneName::from("r"),
                 discovery::Room {
                     room_size: discovery::RoomSize::DEFAULT,
                     created_at: time::UnixTime::EPOCH,
@@ -105,7 +105,7 @@ mod tests {
             lease_ttl: Duration::from_secs(90),
             remote_clock_skew_margin: Duration::from_secs(600),
         };
-        let room = identity::RoomName::from("r");
+        let room = identity::ZoneName::from("r");
         let holder = identity::PeerId::from("holder");
         let remote_updated_at = time::UnixTime::from_secs(100);
         state.lobby = discovery::Lobby::from([(

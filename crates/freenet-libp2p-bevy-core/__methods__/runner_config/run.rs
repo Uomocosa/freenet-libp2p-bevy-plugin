@@ -19,7 +19,7 @@ pub async fn run<Payload: p2p::traits::Message>(
         Ok(swarm) => p2p::SwarmLoopState::new(
             swarm,
             event_tx,
-            p2p::swarm_loop::RoomSubscriptions::new(config.game.clone()),
+            p2p::swarm_loop::ZoneSubscriptions::new(config.game.clone()),
             p2p::swarm_loop::PendingSnapshotReplies::default(),
             mode,
         ),

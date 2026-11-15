@@ -76,7 +76,7 @@ mod tests {
             (
                 identity::PeerId::from("bob"),
                 presence::Whereabouts {
-                    place: Some(identity::RoomName::from("room-7")),
+                    place: Some(identity::ZoneName::from("zone-7")),
                     display_name: Some(identity::Username::from("Bob")),
                 },
             ),
@@ -95,7 +95,7 @@ mod tests {
             .expect("bob");
         assert_eq!(
             bob.presence,
-            direct_dial::FriendPresence::InRoom(identity::RoomName::from("room-7"))
+            direct_dial::FriendPresence::InZone(identity::ZoneName::from("zone-7"))
         );
         let alice = view
             .iter()

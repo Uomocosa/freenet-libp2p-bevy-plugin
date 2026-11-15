@@ -97,7 +97,7 @@ mod tests {
         let mut app = App::new();
         app.world_mut().spawn((
             placed_node(10.0, 30.0),
-            ui::discovery::RoomButton(identity::RoomName::from("alpha")),
+            ui::discovery::RoomButton(identity::ZoneName::from("alpha")),
         ));
         assert_eq!(
             locate(&mut app, json!({ "Room": "alpha" })),

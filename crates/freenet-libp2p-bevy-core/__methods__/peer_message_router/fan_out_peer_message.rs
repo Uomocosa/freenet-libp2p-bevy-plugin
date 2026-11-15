@@ -65,7 +65,7 @@ mod tests {
         assert_eq!(fan_out_peer_message(&router, &from, command), Vec::new());
 
         let subscriber = identity::PeerId::from("b");
-        let topic = identity::Topic::from("lobby/topic");
+        let topic = identity::Topic::from("global/topic");
         router
             .connected_peers
             .entry(from.clone())

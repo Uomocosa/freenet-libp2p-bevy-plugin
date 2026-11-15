@@ -38,7 +38,7 @@ mod tests {
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         let key = contract_key();
         let fresh = discovery::Lobby::from([(
-            identity::RoomName::from("room-a"),
+            identity::ZoneName::from("room-a"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,

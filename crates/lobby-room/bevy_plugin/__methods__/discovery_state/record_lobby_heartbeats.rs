@@ -45,7 +45,7 @@ mod tests {
 
     fn lobby_with(peer: &str, updated_at: time::UnixTime) -> discovery::Lobby {
         discovery::Lobby::from([(
-            identity::RoomName::from("r"),
+            identity::ZoneName::from("r"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,

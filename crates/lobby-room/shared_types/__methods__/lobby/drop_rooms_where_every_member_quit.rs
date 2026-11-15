@@ -21,8 +21,8 @@ mod tests {
     use crate::RoomSize;
     use common_types::Peer;
     use common_types::PeerId;
-    use common_types::RoomName;
     use common_types::UnixTime;
+    use common_types::ZoneName;
 
     fn room_with(membership: RoomMembership) -> Room {
         let room_member = RoomMember {
@@ -44,11 +44,11 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut lobby = Lobby::from([
-            (RoomName::from("gone"), room_with(RoomMembership::Departed)),
-            (RoomName::from("live"), room_with(RoomMembership::Occupant)),
+            (ZoneName::from("gone"), room_with(RoomMembership::Departed)),
+            (ZoneName::from("live"), room_with(RoomMembership::Occupant)),
         ]);
         drop_rooms_where_every_member_quit(&mut lobby);
         assert_eq!(lobby.len(), 1);
-        assert!(lobby.contains_key(&RoomName::from("live")));
+        assert!(lobby.contains_key(&ZoneName::from("live")));
     }
 }

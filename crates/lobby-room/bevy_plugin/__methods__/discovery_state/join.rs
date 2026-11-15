@@ -5,7 +5,7 @@ use discovery::state_machine::{DiscoveryState, Output};
 
 pub fn join(
     state: &mut DiscoveryState,
-    room: identity::RoomName,
+    room: identity::ZoneName,
     how_entered: discovery::HowRoomWasEntered,
     now: time::UnixTime,
 ) -> Vec<Output> {
@@ -46,7 +46,7 @@ mod tests {
         });
         let outputs = join(
             &mut state,
-            identity::RoomName::from("r"),
+            identity::ZoneName::from("r"),
             discovery::HowRoomWasEntered::Joined,
             time::UnixTime::from_secs(1),
         );

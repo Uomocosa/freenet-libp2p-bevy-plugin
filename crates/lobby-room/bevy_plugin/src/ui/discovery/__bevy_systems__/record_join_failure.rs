@@ -10,7 +10,7 @@ pub fn record_join_failure(
 ) {
     for failure in failures.read() {
         match failure {
-            replica_sync::JoinFailure::RoomGone(room) => {
+            replica_sync::JoinFailure::ZoneGone(room) => {
                 **join_error = Some(format!(
                     "Room {} no longer exists (all players left)",
                     room.as_str()
@@ -40,8 +40,8 @@ mod tests {
         app.add_systems(Update, record_join_failure);
         app.world_mut()
             .resource_mut::<Messages<replica_sync::JoinFailure>>()
-            .write(replica_sync::JoinFailure::RoomGone(
-                identity::RoomName::from("alpha"),
+            .write(replica_sync::JoinFailure::ZoneGone(
+                identity::ZoneName::from("alpha"),
             ));
         app.update();
         assert_eq!(
@@ -61,7 +61,7 @@ mod tests {
         app.world_mut()
             .resource_mut::<Messages<replica_sync::JoinFailure>>()
             .write(replica_sync::JoinFailure::HistoryUnavailable(
-                identity::RoomName::from("beta"),
+                identity::ZoneName::from("beta"),
             ));
         app.update();
         assert_eq!(

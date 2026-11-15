@@ -10,9 +10,9 @@ use crate::testing;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FakeWireClientFrame {
     Libp2pCommand(p2p::Libp2pCommand),
-    JoinedRoomBytes(Vec<u8>),
-    SpecificRoomBytes {
-        room: identity::RoomName,
+    JoinedZoneBytes(Vec<u8>),
+    SpecificZoneBytes {
+        zone: identity::ZoneName,
         data: Vec<u8>,
     },
     Extension(Vec<u8>),

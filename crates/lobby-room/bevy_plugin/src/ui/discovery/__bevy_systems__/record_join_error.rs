@@ -44,7 +44,7 @@ mod tests {
         app.add_systems(Update, record_join_error);
         app.world_mut()
             .resource_mut::<Messages<core_discovery::Event>>()
-            .write(core_discovery::Event::RoomGone(identity::RoomName::from(
+            .write(core_discovery::Event::RoomGone(identity::ZoneName::from(
                 "alpha",
             )));
         app.update();

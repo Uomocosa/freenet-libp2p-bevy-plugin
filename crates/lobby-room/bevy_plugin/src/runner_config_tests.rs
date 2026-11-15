@@ -96,11 +96,11 @@ mod tests {
 
     async fn wait_room_message(
         node: &mut Node,
-        room: &identity::RoomName,
+        room: &identity::ZoneName,
     ) -> p2p::Event<TestPayload> {
         let message = tokio::time::timeout(Duration::from_secs(5), async {
             while let Some(event) = node.events.recv().await {
-                if matches!(&event, p2p::Event::RoomMessage { room: seen, .. } if seen == room) {
+                if matches!(&event, p2p::Event::ZoneMessage { zone: seen, .. } if seen == room) {
                     return Some(event);
                 }
             }
@@ -115,7 +115,7 @@ mod tests {
 
     async fn count_room_messages(
         node: &mut Node,
-        room: &identity::RoomName,
+        room: &identity::ZoneName,
         wait: Duration,
     ) -> usize {
         let mut count = 0usize;
@@ -128,7 +128,7 @@ mod tests {
                     let Some(event) = event else {
                         return count;
                     };
-                    if matches!(&event, p2p::Event::RoomMessage { room: seen, .. } if seen == room) {
+                    if matches!(&event, p2p::Event::ZoneMessage { zone: seen, .. } if seen == room) {
                         count = count.saturating_add(1);
                     }
                 }
@@ -167,14 +167,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn transport_only_three_swarms_receive_a_room_payload_exactly_once() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         let mut hub = node(&game);
         let mut left = node(&game);
         let mut right = node(&game);
 
         for node in [&mut hub, &mut left, &mut right] {
             node.libp2p_commands
-                .send(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() })
+                .send(p2p::Libp2pCommand::SubscribeZone { zone: room.clone() })
                 .unwrap();
         }
 
@@ -197,15 +197,15 @@ mod tests {
         tokio::time::sleep(SUBSCRIPTION_SETTLE).await;
 
         hub.commands
-            .send(p2p::Command::PublishInJoinedRoom {
+            .send(p2p::Command::PublishInJoinedZone {
                 payload: TestPayload(42),
             })
             .unwrap();
 
         for node in [&mut left, &mut right] {
             let event = wait_room_message(node, &room).await;
-            let p2p::Event::RoomMessage {
-                room: seen,
+            let p2p::Event::ZoneMessage {
+                zone: seen,
                 from,
                 payload,
             } = event
@@ -251,8 +251,8 @@ mod tests {
         .await;
 
         let prefix = p2p::HistoryKeyPrefix::from("room-generation");
-        let manifest = p2p::RoomHistoryRecordKind::Manifest(prefix.clone());
-        let chunk = p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+        let manifest = p2p::ZoneHistoryRecordKind::Manifest(prefix.clone());
+        let chunk = p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
             prefix,
             content_hash: p2p::ContentHash::from("hash"),
             chunk: p2p::ChunkIndex(0),
@@ -288,7 +288,7 @@ mod tests {
             );
         }
 
-        let unknown = p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("nope"));
+        let unknown = p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("nope"));
         reader
             .libp2p_commands
             .send(p2p::Libp2pCommand::GetHistoryRecord {
@@ -315,7 +315,7 @@ mod tests {
         });
         state.game = game.clone();
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(1);
-        let room = identity::RoomName::from("old-room");
+        let room = identity::ZoneName::from("old-room");
         let created_at = time::UnixTime::from_secs(7);
         state.held_rooms.insert(
             room.clone(),
@@ -325,7 +325,7 @@ mod tests {
             },
         );
         let prefix = p2p::HistoryKeyPrefix::new(&game, &room, created_at);
-        let manifest = p2p::RoomHistoryRecordKind::Manifest(prefix.clone());
+        let manifest = p2p::ZoneHistoryRecordKind::Manifest(prefix.clone());
         holder
             .libp2p_commands
             .send(p2p::Libp2pCommand::PutHistoryRecord {

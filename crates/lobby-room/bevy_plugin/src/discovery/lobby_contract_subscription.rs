@@ -18,7 +18,7 @@ impl LobbyContractSubscription {
     pub fn resubscribe_to_heal_replica_split(&self) -> Result<(), discovery::Error> {}
     pub fn publish_heartbeat(
         &self,
-        room: &identity::RoomName,
+        room: &identity::ZoneName,
         me: &identity::PeerId,
         room_member: discovery::RoomMember,
         room_size: discovery::RoomSize,

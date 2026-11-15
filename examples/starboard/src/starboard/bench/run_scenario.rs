@@ -34,12 +34,12 @@ impl TapTally {
         convergence: Duration,
         apps: &[App],
         peer_ids: &[identity::PeerId],
-        room: &identity::RoomName,
+        room: &identity::ZoneName,
     ) -> starboard::bench::BenchReport {
         let announcement_bytes = apps.first().map_or(0, |app| {
             let canvas = app.world().resource::<starboard::canvas::Canvas>();
             let message = replica_sync::ReplicaSyncTopicMessage::<starboard::canvas::DrawOp>::CompareSliceContentHashes {
-                room: room.clone(),
+                zone: room.clone(),
                 hashes: replica_sync::traits::ReplicatedState::slice_content_hashes(canvas),
             };
             bincode::serialized_size(&message)
@@ -214,7 +214,7 @@ pub async fn run_scenario(
     config: starboard::bench::ScenarioConfig,
 ) -> starboard::bench::BenchReport {
     let game = identity::GameId::from(starboard::bench::BENCH_GAME);
-    let room = identity::RoomName::from(starboard::bench::BENCH_ROOM);
+    let room = identity::ZoneName::from(starboard::bench::BENCH_ROOM);
     let topic = identity::Topic::from_replica_sync(&game, &room);
     let mut apps: Vec<App> = (0..config.peers)
         .map(|_| starboard::app::test_harness::node_with(&game, None))

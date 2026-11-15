@@ -28,7 +28,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync;
-    use crate::replica_sync::state_machine::{Input, ReplicaState, RoomLiveness};
+    use crate::replica_sync::state_machine::{Input, ReplicaState, ZoneLiveness};
 
     #[test]
     fn test_usage() {
@@ -46,18 +46,18 @@ mod tests {
 
     #[test]
     fn an_overdue_replica_slice_request_is_cleared() {
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let mut joiner = ReplicaState::<u8>::default();
         joiner.update(
             Input::Joined {
-                room,
+                zone,
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: Vec::new(),
-                liveness: RoomLiveness::default(),
+                liveness: ZoneLiveness::default(),
             },
             at_secs(0),
         );
-        joiner.update(Input::SnapshotMissingFromRoomMember, at_secs(0));
+        joiner.update(Input::SnapshotMissingFromZoneMember, at_secs(0));
         let peer = identity::PeerId::from("a");
         let index = replica_sync::ReplicaSliceIndex(2);
         joiner
@@ -67,7 +67,7 @@ mod tests {
             .or_default()
             .insert(index, at_secs(0));
         let remote = Input::Remote {
-            room: identity::RoomName::from("other"),
+            zone: identity::ZoneName::from("other"),
             meta: replica_sync::OpMeta {
                 lamport: 1,
                 author: 1,

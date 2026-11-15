@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use atomic_delegate_macros::atomic_delegates;
 
 pub struct ReplicaState<Op> {
-    pub room: Option<identity::RoomName>,
+    pub zone: Option<identity::ZoneName>,
     pub phase: replica_sync::state_machine::Phase,
     pub buffered_ops: Vec<(replica_sync::OpMeta, Op)>,
     pub member_snapshot: replica_sync::state_machine::MemberSnapshotFetchState,
@@ -18,7 +18,7 @@ impl<Op> Default for ReplicaState<Op> {
     fn default() -> Self {
         let history_defaults = replica_sync::HistoryConfig::default();
         Self {
-            room: None,
+            zone: None,
             phase: replica_sync::state_machine::Phase::Idle,
             buffered_ops: Vec::new(),
             member_snapshot: replica_sync::state_machine::MemberSnapshotFetchState::default(),
@@ -30,10 +30,10 @@ impl<Op> Default for ReplicaState<Op> {
             kademlia_history: replica_sync::state_machine::KademliaHistoryState {
                 is_enabled: false,
                 prefix: None,
-                liveness: replica_sync::state_machine::RoomLiveness::default(),
+                liveness: replica_sync::state_machine::ZoneLiveness::default(),
                 fetch_retries: 0,
                 max_fetch_retries: history_defaults.max_fetch_retries,
-                per_room_bytes: history_defaults.per_room_bytes,
+                per_zone_bytes: history_defaults.per_zone_bytes,
                 record_ttl: history_defaults.record_ttl,
                 pending_fetch: None,
             },
@@ -48,33 +48,33 @@ impl<Op> ReplicaState<Op> {
     pub fn handle_fetch(
         &self,
         id: p2p::ReplyId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
     ) -> Vec<replica_sync::state_machine::Output<Op>> {
     }
     pub fn handle_history_record_not_found(
         &mut self,
-        id: &p2p::RoomHistoryRecordKind,
+        id: &p2p::ZoneHistoryRecordKind,
     ) -> Vec<replica_sync::state_machine::Output<Op>> {
     }
     pub fn handle_joined(
         &mut self,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         prefix: p2p::HistoryKeyPrefix,
         members: Vec<identity::PeerId>,
-        liveness: replica_sync::state_machine::RoomLiveness,
+        liveness: replica_sync::state_machine::ZoneLiveness,
     ) -> Vec<replica_sync::state_machine::Output<Op>> {
     }
     pub fn handle_members(
         &mut self,
         members: Vec<identity::PeerId>,
         prefix: p2p::HistoryKeyPrefix,
-        liveness: replica_sync::state_machine::RoomLiveness,
+        liveness: replica_sync::state_machine::ZoneLiveness,
     ) -> Vec<replica_sync::state_machine::Output<Op>> {
     }
     pub fn handle_remote(
         &mut self,
-        room: &identity::RoomName,
+        zone: &identity::ZoneName,
         meta: replica_sync::OpMeta,
         op: Op,
     ) -> Vec<replica_sync::state_machine::Output<Op>> {
@@ -89,7 +89,7 @@ impl<Op> ReplicaState<Op> {
     pub fn handle_replica_slice_received(
         &mut self,
         from: &identity::PeerId,
-        room: &identity::RoomName,
+        zone: &identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
         data: Vec<u8>,
     ) -> Vec<replica_sync::state_machine::Output<Op>> {
@@ -103,13 +103,13 @@ impl<Op> ReplicaState<Op> {
     pub fn handle_replica_slice_requested(
         &self,
         id: p2p::ReplyId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
     ) -> Vec<replica_sync::state_machine::Output<Op>> {
     }
     pub fn handle_snapshot(
         &mut self,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
         total: u32,
         data: Vec<u8>,
@@ -133,7 +133,7 @@ impl<Op> ReplicaState<Op> {
     }
     pub fn handle_history_record_found(
         &mut self,
-        id: &p2p::RoomHistoryRecordKind,
+        id: &p2p::ZoneHistoryRecordKind,
         value: Vec<u8>,
     ) -> Vec<replica_sync::state_machine::Output<Op>> {
     }
@@ -146,34 +146,34 @@ impl<Op> ReplicaState<Op> {
     ) -> Vec<replica_sync::state_machine::Output<Op>> {
         match input {
             replica_sync::state_machine::Input::Joined {
-                room,
+                zone,
                 prefix,
                 members,
                 liveness,
-            } => self.handle_joined(room, prefix, members, liveness),
+            } => self.handle_joined(zone, prefix, members, liveness),
             replica_sync::state_machine::Input::Members {
                 members,
                 prefix,
                 liveness,
             } => self.handle_members(members, prefix, liveness),
-            replica_sync::state_machine::Input::Remote { room, meta, op } => {
-                self.handle_remote(&room, meta, op)
+            replica_sync::state_machine::Input::Remote { zone, meta, op } => {
+                self.handle_remote(&zone, meta, op)
             }
-            replica_sync::state_machine::Input::SnapshotPartReceivedFromRoomMember {
-                room,
+            replica_sync::state_machine::Input::SnapshotPartReceivedFromZoneMember {
+                zone,
                 part,
                 total,
                 data,
-            } => self.handle_snapshot(room, part, total, data),
-            replica_sync::state_machine::Input::SnapshotPartRequestedByRoomMember {
+            } => self.handle_snapshot(zone, part, total, data),
+            replica_sync::state_machine::Input::SnapshotPartRequestedByZoneMember {
                 id,
-                room,
+                zone,
                 part,
-            } => self.handle_fetch(id, room, part),
-            replica_sync::state_machine::Input::SnapshotMissingFromRoomMember => {
+            } => self.handle_fetch(id, zone, part),
+            replica_sync::state_machine::Input::SnapshotMissingFromZoneMember => {
                 self.handle_snapshot_missing()
             }
-            replica_sync::state_machine::Input::RequestToRoomMemberFailed { .. } => {
+            replica_sync::state_machine::Input::RequestToZoneMemberFailed { .. } => {
                 self.retry_fetch()
             }
             replica_sync::state_machine::Input::HistoryWriteTimerFired => {
@@ -193,15 +193,15 @@ impl<Op> ReplicaState<Op> {
                 local,
                 remote,
             } => self.handle_remote_slice_content_hashes(&from, &local, &remote),
-            replica_sync::state_machine::Input::ReplicaSliceRequested { id, room, index } => {
-                self.handle_replica_slice_requested(id, room, index)
+            replica_sync::state_machine::Input::ReplicaSliceRequested { id, zone, index } => {
+                self.handle_replica_slice_requested(id, zone, index)
             }
             replica_sync::state_machine::Input::ReplicaSliceReceived {
                 from,
-                room,
+                zone,
                 index,
                 data,
-            } => self.handle_replica_slice_received(&from, &room, index, data),
+            } => self.handle_replica_slice_received(&from, &zone, index, data),
             replica_sync::state_machine::Input::ReplicaSliceRequestFailed { from, index } => {
                 self.handle_replica_slice_request_failed(&from, index)
             }
@@ -225,7 +225,7 @@ impl<Op> ReplicaState<Op> {
             return Vec::new();
         };
         tracing::debug!(target: "replica_sync", "history record request expired");
-        self.handle_history_record_not_found(&p2p::RoomHistoryRecordKind::Manifest(prefix))
+        self.handle_history_record_not_found(&p2p::ZoneHistoryRecordKind::Manifest(prefix))
     }
 }
 
@@ -273,7 +273,7 @@ mod tests {
     use crate::p2p;
     use crate::replica_sync;
     use crate::replica_sync::state_machine::{
-        Input, Output, PendingHistoryFetch, Phase, ReplicaState, RoomLiveness,
+        Input, Output, PendingHistoryFetch, Phase, ReplicaState, ZoneLiveness,
     };
     use std::collections::BTreeMap;
 
@@ -281,7 +281,7 @@ mod tests {
     fn test_usage() {
         let mut state = ReplicaState::<u8>::default();
         let prefix = p2p::HistoryKeyPrefix::from("abc");
-        state.room = Some(identity::RoomName::from("r"));
+        state.zone = Some(identity::ZoneName::from("r"));
         state.phase = Phase::FetchingHistoryFromKademlia;
         state.kademlia_history.is_enabled = true;
         state.kademlia_history.prefix = Some(prefix.clone());
@@ -294,10 +294,10 @@ mod tests {
         let split = p2p::ChunkedSnapshot::try_from_payload(&[1, 2, 3], 4).expect("split");
         let manifest_bytes = bincode::serialize(&split.manifest).expect("manifest");
         let manifest_out = state.handle_history_record_found(
-            &p2p::RoomHistoryRecordKind::Manifest(prefix.clone()),
+            &p2p::ZoneHistoryRecordKind::Manifest(prefix.clone()),
             manifest_bytes,
         );
-        let chunk_kind = p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+        let chunk_kind = p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
             prefix,
             content_hash: split.manifest.content_hash,
             chunk: p2p::ChunkIndex(0),
@@ -330,9 +330,9 @@ mod tests {
         replica_sync::ElapsedSinceAppStart::default()
     }
 
-    fn alive_status() -> RoomLiveness {
-        RoomLiveness {
-            is_room_still_listed: true,
+    fn alive_status() -> ZoneLiveness {
+        ZoneLiveness {
+            is_zone_still_listed: true,
             has_other_history_holders: true,
         }
     }
@@ -340,28 +340,28 @@ mod tests {
     #[test]
     fn test_usage_1() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let outputs = state.update(
             Input::Joined {
-                room: room.clone(),
+                zone: zone.clone(),
                 prefix: prefix(),
                 members: vec![identity::PeerId::from("a")],
                 liveness: alive_status(),
             },
             now(),
         );
-        assert_eq!(state.phase, Phase::FetchingSnapshotFromRoomMember);
+        assert_eq!(state.phase, Phase::FetchingSnapshotFromZoneMember);
         assert_eq!(
             outputs,
-            vec![Output::FetchSnapshotPartFromRoomMember {
+            vec![Output::FetchSnapshotPartFromZoneMember {
                 peer: identity::PeerId::from("a"),
-                room: room.clone(),
+                zone: zone.clone(),
                 part: 0,
             }]
         );
         state.update(
-            Input::SnapshotPartReceivedFromRoomMember {
-                room: room.clone(),
+            Input::SnapshotPartReceivedFromZoneMember {
+                zone: zone.clone(),
                 part: 0,
                 total: 1,
                 data: vec![1, 2],
@@ -371,7 +371,7 @@ mod tests {
         assert_eq!(state.phase, Phase::Ready);
         let outputs = state.update(
             Input::Remote {
-                room,
+                zone,
                 meta: meta(1),
                 op: 9u8,
             },
@@ -389,11 +389,11 @@ mod tests {
     #[test]
     fn retries_the_same_source_for_the_missing_part() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
         state.update(
             Input::Joined {
-                room: room.clone(),
+                zone: zone.clone(),
                 prefix: prefix(),
                 members: vec![peer.clone()],
                 liveness: alive_status(),
@@ -401,8 +401,8 @@ mod tests {
             now(),
         );
         state.update(
-            Input::SnapshotPartReceivedFromRoomMember {
-                room: room.clone(),
+            Input::SnapshotPartReceivedFromZoneMember {
+                zone: zone.clone(),
                 part: 0,
                 total: 2,
                 data: vec![1],
@@ -410,16 +410,16 @@ mod tests {
             now(),
         );
         let outputs = state.update(
-            Input::RequestToRoomMemberFailed {
+            Input::RequestToZoneMemberFailed {
                 from: identity::PeerId::from("a"),
             },
             now(),
         );
         assert_eq!(
             outputs,
-            vec![Output::FetchSnapshotPartFromRoomMember {
+            vec![Output::FetchSnapshotPartFromZoneMember {
                 peer,
-                room,
+                zone,
                 part: 1,
             }]
         );
@@ -428,11 +428,11 @@ mod tests {
     #[test]
     fn late_joiner_fetches_then_applies_buffered_ops() {
         let mut joiner = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
         let outputs = joiner.update(
             Input::Joined {
-                room: room.clone(),
+                zone: zone.clone(),
                 prefix: prefix(),
                 members: vec![peer.clone()],
                 liveness: alive_status(),
@@ -441,15 +441,15 @@ mod tests {
         );
         assert_eq!(
             outputs,
-            vec![Output::FetchSnapshotPartFromRoomMember {
+            vec![Output::FetchSnapshotPartFromZoneMember {
                 peer,
-                room: room.clone(),
+                zone: zone.clone(),
                 part: 0,
             }]
         );
         joiner.update(
             Input::Remote {
-                room: room.clone(),
+                zone: zone.clone(),
                 meta: meta(4),
                 op: 3u8,
             },
@@ -458,8 +458,8 @@ mod tests {
         assert_eq!(joiner.buffered_ops.len(), 1);
         let snapshot = vec![1u8, 2, 3];
         let outputs = joiner.update(
-            Input::SnapshotPartReceivedFromRoomMember {
-                room,
+            Input::SnapshotPartReceivedFromZoneMember {
+                zone,
                 part: 0,
                 total: 1,
                 data: snapshot.clone(),
@@ -482,10 +482,10 @@ mod tests {
     #[test]
     fn buffers_ops_until_the_snapshot_arrives() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         state.update(
             Input::Joined {
-                room: room.clone(),
+                zone: zone.clone(),
                 prefix: prefix(),
                 members: vec![identity::PeerId::from("a")],
                 liveness: alive_status(),
@@ -494,7 +494,7 @@ mod tests {
         );
         let outputs = state.update(
             Input::Remote {
-                room: room.clone(),
+                zone: zone.clone(),
                 meta: meta(1),
                 op: 5u8,
             },
@@ -503,8 +503,8 @@ mod tests {
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.buffered_ops.len(), 1);
         let outputs = state.update(
-            Input::SnapshotPartReceivedFromRoomMember {
-                room,
+            Input::SnapshotPartReceivedFromZoneMember {
+                zone,
                 part: 0,
                 total: 1,
                 data: vec![0],
@@ -518,18 +518,18 @@ mod tests {
         assert_eq!(state.buffered_ops, Vec::new());
     }
 
-    fn ready_state(room: &identity::RoomName) -> ReplicaState<u8> {
+    fn ready_state(zone: &identity::ZoneName) -> ReplicaState<u8> {
         let mut state = ReplicaState::<u8>::default();
         state.update(
             Input::Joined {
-                room: room.clone(),
+                zone: zone.clone(),
                 prefix: prefix(),
                 members: Vec::new(),
                 liveness: alive_status(),
             },
             now(),
         );
-        state.update(Input::SnapshotMissingFromRoomMember, now());
+        state.update(Input::SnapshotMissingFromZoneMember, now());
         assert_eq!(state.phase, Phase::Ready);
         state
     }
@@ -558,7 +558,7 @@ mod tests {
 
     #[test]
     fn timer_publishes_slice_hashes_only_when_ready() {
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let mut idle = ReplicaState::<u8>::default();
         let local = hashes(&[(0, 1)]);
         let outputs = idle.update(
@@ -568,7 +568,7 @@ mod tests {
             now(),
         );
         assert_eq!(outputs, Vec::new());
-        let mut ready = ready_state(&room);
+        let mut ready = ready_state(&zone);
         let outputs = ready.update(
             Input::AntiEntropyTimerFired {
                 local: local.clone(),
@@ -578,7 +578,7 @@ mod tests {
         assert_eq!(
             outputs,
             vec![Output::PublishSliceContentHashes {
-                room,
+                zone,
                 hashes: local,
             }]
         );
@@ -586,9 +586,9 @@ mod tests {
 
     #[test]
     fn mismatching_slices_are_fetched_once_and_capped_per_peer() {
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
-        let mut state = ready_state(&room);
+        let mut state = ready_state(&zone);
         state.slice_anti_entropy.max_fetches_per_peer = 2;
         let remote = hashes(&[(0, 1), (1, 1), (2, 1)]);
         let first = state.update(
@@ -613,9 +613,9 @@ mod tests {
 
     #[test]
     fn received_slice_is_merged_and_frees_its_fetch() {
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
-        let mut state = ready_state(&room);
+        let mut state = ready_state(&zone);
         let remote = hashes(&[(3, 1)]);
         state.update(
             Input::RemoteSliceContentHashes {
@@ -628,7 +628,7 @@ mod tests {
         let outputs = state.update(
             Input::ReplicaSliceReceived {
                 from: peer.clone(),
-                room,
+                zone,
                 index: replica_sync::ReplicaSliceIndex(3),
                 data: vec![7],
             },
@@ -648,9 +648,9 @@ mod tests {
 
     #[test]
     fn a_replica_slice_failure_frees_only_that_slice() {
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
-        let mut state = ready_state(&room);
+        let mut state = ready_state(&zone);
         state.slice_anti_entropy.max_fetches_per_peer = 2;
         let remote = hashes(&[(0, 1), (1, 1)]);
         state.update(
@@ -681,9 +681,9 @@ mod tests {
 
     #[test]
     fn a_snapshot_failure_keeps_replica_slice_fetches() {
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
-        let mut state = ready_state(&room);
+        let mut state = ready_state(&zone);
         let remote = hashes(&[(0, 1)]);
         state.update(
             Input::RemoteSliceContentHashes {
@@ -694,7 +694,7 @@ mod tests {
             now(),
         );
         state.update(
-            Input::RequestToRoomMemberFailed { from: peer.clone() },
+            Input::RequestToZoneMemberFailed { from: peer.clone() },
             now(),
         );
         let refetch = state.update(
@@ -710,12 +710,12 @@ mod tests {
 
     #[test]
     fn slice_hashes_are_ignored_while_fetching_the_join_snapshot() {
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
         let mut state = ReplicaState::<u8>::default();
         state.update(
             Input::Joined {
-                room,
+                zone,
                 prefix: prefix(),
                 members: vec![peer.clone()],
                 liveness: alive_status(),
@@ -734,21 +734,21 @@ mod tests {
     }
 
     #[test]
-    fn history_fallback_retries_then_reports_unavailable_when_room_is_alive() {
-        let room = identity::RoomName::from("r");
+    fn history_fallback_retries_then_reports_unavailable_when_zone_is_alive() {
+        let zone = identity::ZoneName::from("r");
         let mut state = ReplicaState::<u8>::default();
         state.kademlia_history.is_enabled = true;
         state.kademlia_history.max_fetch_retries = 2;
         let first = state.update(
             Input::Joined {
-                room: room.clone(),
+                zone: zone.clone(),
                 prefix: prefix(),
                 members: Vec::new(),
                 liveness: alive_status(),
             },
             now(),
         );
-        let manifest = p2p::RoomHistoryRecordKind::Manifest(prefix());
+        let manifest = p2p::ZoneHistoryRecordKind::Manifest(prefix());
         assert_eq!(
             first,
             vec![Output::GetHistoryRecord {
@@ -770,18 +770,18 @@ mod tests {
             );
         }
         let exhausted = state.update(Input::HistoryRecordNotFound { id: manifest }, now());
-        assert_eq!(exhausted, vec![Output::HistoryUnavailable { room }]);
+        assert_eq!(exhausted, vec![Output::HistoryUnavailable { zone }]);
         assert_eq!(state.phase, Phase::Failed);
     }
 
     #[test]
     fn request_send_times_are_stamped() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
         let prefix = p2p::HistoryKeyPrefix::from("abc");
-        state.room = Some(room.clone());
-        state.phase = Phase::FetchingSnapshotFromRoomMember;
+        state.zone = Some(zone.clone());
+        state.phase = Phase::FetchingSnapshotFromZoneMember;
         state.kademlia_history.pending_fetch = Some(PendingHistoryFetch {
             prefix: prefix.clone(),
             manifest: None,
@@ -790,17 +790,17 @@ mod tests {
         });
         let send_now = replica_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(7));
         let outputs = vec![
-            Output::FetchSnapshotPartFromRoomMember {
+            Output::FetchSnapshotPartFromZoneMember {
                 peer: peer.clone(),
-                room: room.clone(),
+                zone: zone.clone(),
                 part: 0,
             },
             Output::GetHistoryRecord {
-                id: p2p::RoomHistoryRecordKind::Manifest(prefix),
+                id: p2p::ZoneHistoryRecordKind::Manifest(prefix),
             },
             Output::FetchReplicaSlice {
                 peer: peer.clone(),
-                room,
+                zone,
                 index: replica_sync::ReplicaSliceIndex(3),
             },
         ];
@@ -832,16 +832,16 @@ mod tests {
 
     fn joined_input(members: Vec<identity::PeerId>) -> Input<u8> {
         Input::Joined {
-            room: identity::RoomName::from("r"),
+            zone: identity::ZoneName::from("r"),
             prefix: p2p::HistoryKeyPrefix::from("prefix"),
             members,
-            liveness: RoomLiveness::default(),
+            liveness: ZoneLiveness::default(),
         }
     }
 
     fn snapshot_input(part: u32, total: u32) -> Input<u8> {
-        Input::SnapshotPartReceivedFromRoomMember {
-            room: identity::RoomName::from("r"),
+        Input::SnapshotPartReceivedFromZoneMember {
+            zone: identity::ZoneName::from("r"),
             part,
             total,
             data: vec![7],
@@ -850,7 +850,7 @@ mod tests {
 
     fn history_not_found_input() -> Input<u8> {
         Input::HistoryRecordNotFound {
-            id: p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("prefix")),
+            id: p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("prefix")),
         }
     }
 
@@ -858,8 +858,8 @@ mod tests {
     fn no_input_sequence_leaves_a_waiting_phase_without_a_request() {
         let peer = identity::PeerId::from("a");
         let other = identity::PeerId::from("b");
-        let failed = Input::RequestToRoomMemberFailed { from: peer.clone() };
-        let missing = Input::SnapshotMissingFromRoomMember;
+        let failed = Input::RequestToZoneMemberFailed { from: peer.clone() };
+        let missing = Input::SnapshotMissingFromZoneMember;
         let sequences: Vec<(bool, Vec<Input<u8>>)> = vec![
             (false, vec![joined_input(Vec::new())]),
             (false, vec![joined_input(vec![peer.clone()])]),
@@ -895,7 +895,7 @@ mod tests {
                     Input::Members {
                         members: Vec::new(),
                         prefix: p2p::HistoryKeyPrefix::from("prefix"),
-                        liveness: RoomLiveness::default(),
+                        liveness: ZoneLiveness::default(),
                     },
                 ],
             ),
@@ -905,7 +905,7 @@ mod tests {
             state.kademlia_history.is_enabled = history_enabled;
             for input in sequence {
                 state.update(input, replica_sync::ElapsedSinceAppStart::default());
-                if state.phase == Phase::FetchingSnapshotFromRoomMember {
+                if state.phase == Phase::FetchingSnapshotFromZoneMember {
                     assert!(
                         state.member_snapshot.part_requested_at.is_some(),
                         "snapshot wait without a request time"
@@ -925,9 +925,9 @@ mod tests {
         replica_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
     }
 
-    fn other_room_remote() -> Input<u8> {
+    fn other_zone_remote() -> Input<u8> {
         Input::Remote {
-            room: identity::RoomName::from("other"),
+            zone: identity::ZoneName::from("other"),
             meta: meta(1),
             op: 1u8,
         }
@@ -936,9 +936,9 @@ mod tests {
     #[test]
     fn an_overdue_history_record_request_retries_or_fails() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let prefix_value = prefix();
-        state.room = Some(room);
+        state.zone = Some(zone);
         state.phase = Phase::FetchingHistoryFromKademlia;
         state.kademlia_history.is_enabled = true;
         state.kademlia_history.prefix = Some(prefix_value.clone());
@@ -950,11 +950,11 @@ mod tests {
             received_chunks: BTreeMap::new(),
             records_requested_at: Some(at_secs(0)),
         });
-        let outputs = state.update(other_room_remote(), at_secs(71));
+        let outputs = state.update(other_zone_remote(), at_secs(71));
         assert_eq!(
             outputs,
             vec![Output::GetHistoryRecord {
-                id: p2p::RoomHistoryRecordKind::Manifest(prefix_value),
+                id: p2p::ZoneHistoryRecordKind::Manifest(prefix_value),
             }]
         );
     }

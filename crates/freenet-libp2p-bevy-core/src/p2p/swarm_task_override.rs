@@ -25,16 +25,16 @@ impl<Payload: p2p::traits::Message> SwarmTaskOverride<Payload> {
         game: identity::GameId,
     ) -> tokio::task::JoinHandle<()> {
     }
-    pub(crate) fn track_room_command(
+    pub(crate) fn track_zone_command(
         &self,
         command: &p2p::Libp2pCommand,
         game: &identity::GameId,
-        rooms_by_topic: &mut std::collections::BTreeMap<identity::Topic, identity::RoomName>,
+        zones_by_topic: &mut std::collections::BTreeMap<identity::Topic, identity::ZoneName>,
     ) {
     }
     pub(crate) fn handle_server_event(
         &self,
-        rooms_by_topic: &std::collections::BTreeMap<identity::Topic, identity::RoomName>,
+        zones_by_topic: &std::collections::BTreeMap<identity::Topic, identity::ZoneName>,
         event: p2p::Libp2pEvent,
         events: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     ) {
@@ -42,7 +42,7 @@ impl<Payload: p2p::traits::Message> SwarmTaskOverride<Payload> {
     pub(crate) fn command_frame(
         &self,
         game: &identity::GameId,
-        rooms_by_topic: &mut std::collections::BTreeMap<identity::Topic, identity::RoomName>,
+        zones_by_topic: &mut std::collections::BTreeMap<identity::Topic, identity::ZoneName>,
         events: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
         cmd: p2p::Command<Payload>,
     ) -> Option<testing::FakeWireClientFrame> {

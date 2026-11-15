@@ -9,10 +9,10 @@ use discovery::state_machine::DiscoveryState;
 pub fn room_prefix_and_lobby_status(
     state: Option<&DiscoveryState>,
     game: &identity::GameId,
-    room_name: &identity::RoomName,
+    room_name: &identity::ZoneName,
 ) -> (
     p2p::HistoryKeyPrefix,
-    replica_sync::state_machine::RoomLiveness,
+    replica_sync::state_machine::ZoneLiveness,
 ) {
     let created_at = state
         .and_then(|state| {
@@ -31,8 +31,8 @@ pub fn room_prefix_and_lobby_status(
         .unwrap_or(time::UnixTime::EPOCH);
     let prefix = p2p::HistoryKeyPrefix::new(game, room_name, created_at);
     let lobby_status = state.map_or(
-        replica_sync::state_machine::RoomLiveness {
-            is_room_still_listed: true,
+        replica_sync::state_machine::ZoneLiveness {
+            is_zone_still_listed: true,
             has_other_history_holders: false,
         },
         |state| {
@@ -43,25 +43,25 @@ pub fn room_prefix_and_lobby_status(
                     .as_ref()
                     .filter(|joined| &joined.name == room_name);
                 let Some(joined) = joined else {
-                    return replica_sync::state_machine::RoomLiveness {
-                        is_room_still_listed: false,
+                    return replica_sync::state_machine::ZoneLiveness {
+                        is_zone_still_listed: false,
                         has_other_history_holders: false,
                     };
                 };
                 if joined.how_entered == discovery::HowRoomWasEntered::Created {
-                    return replica_sync::state_machine::RoomLiveness {
-                        is_room_still_listed: true,
+                    return replica_sync::state_machine::ZoneLiveness {
+                        is_zone_still_listed: true,
                         has_other_history_holders: false,
                     };
                 }
                 if !state.is_lobby_fetched {
-                    return replica_sync::state_machine::RoomLiveness {
-                        is_room_still_listed: true,
+                    return replica_sync::state_machine::ZoneLiveness {
+                        is_zone_still_listed: true,
                         has_other_history_holders: true,
                     };
                 }
-                return replica_sync::state_machine::RoomLiveness {
-                    is_room_still_listed: false,
+                return replica_sync::state_machine::ZoneLiveness {
+                    is_zone_still_listed: false,
                     has_other_history_holders: false,
                 };
             };
@@ -76,7 +76,7 @@ pub fn room_prefix_and_lobby_status(
                 joined.name == *room_name
                     && joined.how_entered == discovery::HowRoomWasEntered::Joined
             });
-            let is_room_still_listed = if is_joined_entry {
+            let is_zone_still_listed = if is_joined_entry {
                 live_members.iter().any(|(peer, _)| *peer != self_peer_id)
             } else {
                 !live_members.is_empty()
@@ -89,8 +89,8 @@ pub fn room_prefix_and_lobby_status(
                 let is_other = *peer != self_peer_id;
                 is_other && room_member.membership == discovery::RoomMembership::HistoryHolder
             });
-            replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed,
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed,
                 has_other_history_holders: other_live_count > 0 || has_other_history_holder,
             }
         },
@@ -124,18 +124,18 @@ mod tests {
     #[test]
     fn test_usage() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room");
+        let room = identity::ZoneName::from("room");
         let (prefix, lobby_status) = room_prefix_and_lobby_status(None, &game, &room);
         assert_eq!(
             prefix,
             p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::EPOCH)
         );
-        assert!(lobby_status.is_room_still_listed);
+        assert!(lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);
         let empty = state_with(discovery::Lobby::default(), None, false);
         let (same_prefix, empty_status) = room_prefix_and_lobby_status(Some(&empty), &game, &room);
         assert_eq!(same_prefix, prefix);
-        assert!(!empty_status.is_room_still_listed);
+        assert!(!empty_status.is_zone_still_listed);
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
         use std::collections::BTreeMap;
 
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room");
+        let room = identity::ZoneName::from("room");
         let holder = identity::PeerId::from("holder");
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
@@ -167,7 +167,7 @@ mod tests {
         );
         let state = state_with(lobby, None, false);
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
-        assert!(!lobby_status.is_room_still_listed);
+        assert!(!lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);
     }
 
@@ -176,7 +176,7 @@ mod tests {
         use std::collections::BTreeMap;
 
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room");
+        let room = identity::ZoneName::from("room");
         let holder = identity::PeerId::from("holder");
         let seen_at = time::UnixTime::from_secs(10);
         let mut lobby = discovery::Lobby::default();
@@ -201,7 +201,7 @@ mod tests {
         );
         let state = state_with(lobby, None, false);
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
-        assert!(lobby_status.is_room_still_listed);
+        assert!(lobby_status.is_zone_still_listed);
         assert!(lobby_status.has_other_history_holders);
     }
 
@@ -210,7 +210,7 @@ mod tests {
         use std::collections::BTreeMap;
 
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room");
+        let room = identity::ZoneName::from("room");
         let me = identity::PeerId::from("me");
         let gone = identity::PeerId::from("gone");
         let seen_at = time::UnixTime::from_secs(10);
@@ -260,7 +260,7 @@ mod tests {
             false,
         );
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
-        assert!(!lobby_status.is_room_still_listed);
+        assert!(!lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);
     }
 
@@ -269,7 +269,7 @@ mod tests {
         use std::collections::BTreeMap;
 
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room");
+        let room = identity::ZoneName::from("room");
         let me = identity::PeerId::from("me");
         let seen_at = time::UnixTime::from_secs(10);
         let mut lobby = discovery::Lobby::default();
@@ -304,14 +304,14 @@ mod tests {
             false,
         );
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
-        assert!(lobby_status.is_room_still_listed);
+        assert!(lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);
     }
 
     #[test]
     fn late_joiner_with_fetched_empty_lobby_sees_the_room_as_gone() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room");
+        let room = identity::ZoneName::from("room");
         let state = state_with(
             discovery::Lobby::default(),
             Some(discovery::JoinedRoom {
@@ -326,7 +326,7 @@ mod tests {
             true,
         );
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
-        assert!(!lobby_status.is_room_still_listed);
+        assert!(!lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);
     }
 }

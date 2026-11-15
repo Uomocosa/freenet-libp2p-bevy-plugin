@@ -5,8 +5,8 @@ use crate::peers;
 type OrphanPeerRow = (
     Entity,
     Has<peers::Connected>,
-    Has<peers::InRoom>,
-    Has<peers::HeldRooms>,
+    Has<peers::InZone>,
+    Has<peers::HeldZones>,
     Has<peers::KeepAlive>,
     Has<peers::Me>,
 );
@@ -18,8 +18,8 @@ pub fn despawn_orphan_peers(
     let orphans: Vec<Entity> = found_peers
         .iter()
         .filter(
-            |(_, is_connected, is_in_room, holds_history, is_keep_alive, is_me)| {
-                !is_connected && !is_in_room && !holds_history && !is_keep_alive && !is_me
+            |(_, is_connected, is_in_zone, holds_history, is_keep_alive, is_me)| {
+                !is_connected && !is_in_zone && !holds_history && !is_keep_alive && !is_me
             },
         )
         .map(|(entity, _, _, _, _, _)| entity)
@@ -105,24 +105,24 @@ mod tests {
     }
 
     #[test]
-    fn peer_in_room_is_kept() {
+    fn peer_in_zone_is_kept() {
         let mut app = app_with_system();
-        let room = app
+        let zone = app
             .world_mut()
-            .spawn(identity::RoomName::from("lobby"))
+            .spawn(identity::ZoneName::from("global"))
             .id();
         let member = app
             .world_mut()
             .spawn((
                 peers::Peer::from(identity::PeerId::from("member")),
-                peers::InRoom(room),
+                peers::InZone(zone),
             ))
             .id();
         app.update();
         assert!(app.world().get_entity(member).is_ok());
         assert!(
             app.world()
-                .get::<peers::RoomMembers>(room)
+                .get::<peers::ZoneMembers>(zone)
                 .is_some_and(|members| members.contains(&member))
         );
     }

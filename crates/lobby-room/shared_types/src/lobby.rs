@@ -5,12 +5,12 @@ use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 
 use crate::Room;
-use common_types::RoomName;
+use common_types::ZoneName;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Deref, DerefMut, From)]
 #[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
 #[from(forward)]
-pub struct Lobby(pub BTreeMap<RoomName, Room>);
+pub struct Lobby(pub BTreeMap<ZoneName, Room>);
 
 #[atomic_delegates]
 impl Lobby {
@@ -30,8 +30,8 @@ mod tests {
     use crate::RoomSize;
     use common_types::Peer;
     use common_types::PeerId;
-    use common_types::RoomName;
     use common_types::UnixTime;
+    use common_types::ZoneName;
 
     #[test]
     fn test_usage() {
@@ -45,7 +45,7 @@ mod tests {
             membership: RoomMembership::Occupant,
         };
         let incoming = Lobby::from([(
-            RoomName::from("room-a"),
+            ZoneName::from("room-a"),
             Room {
                 room_size: RoomSize::DEFAULT,
                 created_at: UnixTime::EPOCH,

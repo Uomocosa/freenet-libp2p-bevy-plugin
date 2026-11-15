@@ -21,7 +21,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync;
-    use crate::replica_sync::state_machine::{Input, Output, ReplicaState, RoomLiveness};
+    use crate::replica_sync::state_machine::{Input, Output, ReplicaState, ZoneLiveness};
 
     #[test]
     fn test_usage() {
@@ -37,16 +37,16 @@ mod tests {
         replica_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
     }
 
-    fn alive_status() -> RoomLiveness {
-        RoomLiveness {
-            is_room_still_listed: true,
+    fn alive_status() -> ZoneLiveness {
+        ZoneLiveness {
+            is_zone_still_listed: true,
             has_other_history_holders: true,
         }
     }
 
-    fn other_room_remote() -> Input<u8> {
+    fn other_zone_remote() -> Input<u8> {
         Input::Remote {
-            room: identity::RoomName::from("other"),
+            zone: identity::ZoneName::from("other"),
             meta: replica_sync::OpMeta {
                 lamport: 1,
                 author: 1,
@@ -58,12 +58,12 @@ mod tests {
     #[test]
     fn an_overdue_snapshot_part_request_is_retried() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let first = identity::PeerId::from("a");
         let second = identity::PeerId::from("b");
         let joined = state.update(
             Input::Joined {
-                room: room.clone(),
+                zone: zone.clone(),
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![first.clone(), second.clone()],
                 liveness: alive_status(),
@@ -72,18 +72,18 @@ mod tests {
         );
         assert_eq!(
             joined,
-            vec![Output::FetchSnapshotPartFromRoomMember {
+            vec![Output::FetchSnapshotPartFromZoneMember {
                 peer: first,
-                room: room.clone(),
+                zone: zone.clone(),
                 part: 0,
             }]
         );
-        let outputs = state.update(other_room_remote(), at_secs(13));
+        let outputs = state.update(other_zone_remote(), at_secs(13));
         assert_eq!(
             outputs,
-            vec![Output::FetchSnapshotPartFromRoomMember {
+            vec![Output::FetchSnapshotPartFromZoneMember {
                 peer: second,
-                room,
+                zone,
                 part: 0,
             }]
         );
@@ -93,17 +93,17 @@ mod tests {
     #[test]
     fn a_fresh_snapshot_part_request_is_left_alone() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         state.update(
             Input::Joined {
-                room,
+                zone,
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![identity::PeerId::from("a"), identity::PeerId::from("b")],
                 liveness: alive_status(),
             },
             at_secs(0),
         );
-        let outputs = state.update(other_room_remote(), at_secs(5));
+        let outputs = state.update(other_zone_remote(), at_secs(5));
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.member_snapshot.part_requested_at, Some(at_secs(0)));
     }

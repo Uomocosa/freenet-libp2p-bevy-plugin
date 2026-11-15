@@ -8,10 +8,10 @@ use discovery::state_machine::DiscoveryState;
 #[must_use]
 pub fn oldest_held_rooms_to_evict_until_history_fits(
     state: &DiscoveryState,
-    history_bytes_by_held_room: &BTreeMap<identity::RoomName, p2p::HistoryByteCount>,
+    history_bytes_by_held_room: &BTreeMap<identity::ZoneName, p2p::HistoryByteCount>,
     current_room_history_bytes: p2p::HistoryByteCount,
-) -> Vec<identity::RoomName> {
-    let history_bytes_of_room = |room: &identity::RoomName| {
+) -> Vec<identity::ZoneName> {
+    let history_bytes_of_room = |room: &identity::ZoneName| {
         history_bytes_by_held_room
             .get(room)
             .map_or(0, |bytes| **bytes)
@@ -70,7 +70,7 @@ mod tests {
         });
         for (name, left_at) in rooms {
             state.held_rooms.insert(
-                identity::RoomName::from(*name),
+                identity::ZoneName::from(*name),
                 discovery::state_machine::HeldRoomHistory {
                     created_at: time::UnixTime::EPOCH,
                     left_at: time::UnixTime::from_secs(*left_at),
@@ -80,12 +80,12 @@ mod tests {
         state
     }
 
-    fn bytes(rooms: &[(&str, u64)]) -> BTreeMap<identity::RoomName, p2p::HistoryByteCount> {
+    fn bytes(rooms: &[(&str, u64)]) -> BTreeMap<identity::ZoneName, p2p::HistoryByteCount> {
         rooms
             .iter()
             .map(|(name, bytes)| {
                 (
-                    identity::RoomName::from(*name),
+                    identity::ZoneName::from(*name),
                     p2p::HistoryByteCount(*bytes),
                 )
             })
@@ -101,7 +101,7 @@ mod tests {
             &bytes(&[("a", 10)]),
             p2p::HistoryByteCount(0),
         );
-        assert_eq!(evicted, vec![identity::RoomName::from("a")]);
+        assert_eq!(evicted, vec![identity::ZoneName::from("a")]);
     }
 
     #[test]
@@ -116,8 +116,8 @@ mod tests {
         assert_eq!(
             evicted,
             vec![
-                identity::RoomName::from("old"),
-                identity::RoomName::from("mid")
+                identity::ZoneName::from("old"),
+                identity::ZoneName::from("mid")
             ]
         );
     }
@@ -131,7 +131,7 @@ mod tests {
             &bytes(&[("a", 10)]),
             p2p::HistoryByteCount(5),
         );
-        assert_eq!(evicted, Vec::<identity::RoomName>::new());
+        assert_eq!(evicted, Vec::<identity::ZoneName>::new());
     }
 
     #[test]
@@ -145,7 +145,7 @@ mod tests {
         );
         assert_eq!(
             evicted,
-            vec![identity::RoomName::from("a"), identity::RoomName::from("b")]
+            vec![identity::ZoneName::from("a"), identity::ZoneName::from("b")]
         );
     }
 }

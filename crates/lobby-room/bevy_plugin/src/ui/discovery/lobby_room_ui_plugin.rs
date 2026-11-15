@@ -121,7 +121,7 @@ mod tests {
         let mut lobby = core_discovery::Lobby::default();
         for (name, room_size) in [("alpha", 8), ("beta", 4)] {
             lobby.insert(
-                identity::RoomName::from(name),
+                identity::ZoneName::from(name),
                 core_discovery::Room {
                     room_size: core_discovery::RoomSize::try_from(room_size)
                         .expect("fixture room size is non-zero"),
@@ -211,7 +211,7 @@ mod tests {
     fn in_room_fixture() -> DiscoveryState {
         testing::DiscoveryStateBuilder::new(identity::PeerId::from("ui-flow"))
             .in_room(core_discovery::JoinedRoom {
-                name: identity::RoomName::from("ui-room"),
+                name: identity::ZoneName::from("ui-room"),
                 created_at: time::UnixTime::EPOCH,
                 phase: core_discovery::JoinPhase::Ready,
                 members: core_discovery::Members::new(),

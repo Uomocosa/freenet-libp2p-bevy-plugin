@@ -54,7 +54,7 @@ struct RoomColumn;
 struct MemberList;
 
 #[derive(Component, Deref)]
-pub struct JoinButton(pub identity::RoomName);
+pub struct JoinButton(pub identity::ZoneName);
 
 type NewRoomButtonParts<'a> = (
     Entity,
@@ -254,7 +254,7 @@ fn on_create(
             continue;
         }
         tracing::info!("lobby ui click create room={name}");
-        commands.write(discovery::Command::Create(identity::RoomName::from(name)));
+        commands.write(discovery::Command::Create(identity::ZoneName::from(name)));
     }
 }
 
@@ -337,7 +337,7 @@ mod tests {
     fn preview_snapshot() -> DiscoveryState {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("alpha"),
+            identity::ZoneName::from("alpha"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
@@ -356,7 +356,7 @@ mod tests {
     fn add_room(world: &mut World) {
         let mut state = world.resource_mut::<DiscoveryState>();
         state.lobby.insert(
-            identity::RoomName::from("gamma"),
+            identity::ZoneName::from("gamma"),
             discovery::Room {
                 room_size: discovery::RoomSize::try_from(4).expect("fixture room size is non-zero"),
                 created_at: time::UnixTime::EPOCH,

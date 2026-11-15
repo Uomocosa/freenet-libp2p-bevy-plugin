@@ -14,12 +14,12 @@ pub fn handle_client_frame(
             shared.router_for(&game).route(peer, command)
         }
         testing::FakeWireClientFrame::Extension(_) => Vec::new(),
-        testing::FakeWireClientFrame::JoinedRoomBytes(data) => {
-            shared.router_for(&game).route_joined_room_bytes(peer, data)
+        testing::FakeWireClientFrame::JoinedZoneBytes(data) => {
+            shared.router_for(&game).route_joined_zone_bytes(peer, data)
         }
-        testing::FakeWireClientFrame::SpecificRoomBytes { room, data } => shared
+        testing::FakeWireClientFrame::SpecificZoneBytes { zone, data } => shared
             .router_for(&game)
-            .route_specific_room_bytes(peer, &room, data),
+            .route_specific_zone_bytes(peer, &zone, data),
     }
 }
 #[cfg(test)]
@@ -41,7 +41,7 @@ mod tests {
         let events = handle_client_frame(
             &mut shared,
             &peer.id,
-            testing::FakeWireClientFrame::JoinedRoomBytes(Vec::new()),
+            testing::FakeWireClientFrame::JoinedZoneBytes(Vec::new()),
         );
         assert_eq!(events, Vec::new());
     }

@@ -2,8 +2,8 @@
 mod basic;
 
 pub use basic::components::{
-    Connected, HeldBy, HeldRooms, HistoryHold, HistoryHolders, HoldOf, InRoom, KeepAlive, Me,
-    RoomMembers,
+    Connected, HeldBy, HeldZones, HistoryHold, HistoryHolders, HoldOf, InZone, KeepAlive, Me,
+    ZoneMembers,
 };
 pub use basic::resources::PeerEventTap;
 

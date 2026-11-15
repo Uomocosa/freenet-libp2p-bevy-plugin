@@ -7,8 +7,8 @@ pub use message_codec::MessageCodec;
 pub mod behaviour;
 pub use behaviour::Behaviour;
 
-pub mod room_history_record_kind;
-pub use room_history_record_kind::RoomHistoryRecordKind;
+pub mod zone_history_record_kind;
+pub use zone_history_record_kind::ZoneHistoryRecordKind;
 
 pub mod history_key_prefix;
 pub use history_key_prefix::HistoryKeyPrefix;

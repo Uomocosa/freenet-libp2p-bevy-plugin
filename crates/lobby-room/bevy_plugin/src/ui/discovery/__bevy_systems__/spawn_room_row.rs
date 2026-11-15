@@ -113,7 +113,7 @@ mod tests {
 
     fn sample_row() -> core_discovery::LobbyRow {
         core_discovery::LobbyRow {
-            name: identity::RoomName::from("alpha"),
+            name: identity::ZoneName::from("alpha"),
             occupants: 3,
             room_size: core_discovery::RoomSize::try_from(8).expect("8"),
             occupancy: core_discovery::RoomOccupancy::HasSpace,

@@ -54,7 +54,7 @@ mod tests {
             .await
             .expect("connect");
         let (_, mut writer) = stream.into_split();
-        let frame = testing::FakeWireClientFrame::JoinedRoomBytes(vec![1, 2, 3]);
+        let frame = testing::FakeWireClientFrame::JoinedZoneBytes(vec![1, 2, 3]);
         assert!(write_frame(&framing, &mut writer, &frame).await);
         accept.abort();
     }

@@ -11,23 +11,23 @@ pub struct Connected;
 pub struct KeepAlive;
 
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
-#[relationship(relationship_target = RoomMembers)]
-pub struct InRoom(pub Entity);
+#[relationship(relationship_target = ZoneMembers)]
+pub struct InZone(pub Entity);
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq, Deref)]
-#[relationship_target(relationship = InRoom)]
-pub struct RoomMembers(Vec<Entity>);
+#[relationship_target(relationship = InZone)]
+pub struct ZoneMembers(Vec<Entity>);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct HistoryHold;
 
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
-#[relationship(relationship_target = HeldRooms)]
+#[relationship(relationship_target = HeldZones)]
 pub struct HeldBy(pub Entity);
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq, Deref)]
 #[relationship_target(relationship = HeldBy, linked_spawn)]
-pub struct HeldRooms(Vec<Entity>);
+pub struct HeldZones(Vec<Entity>);
 
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
 #[relationship(relationship_target = HistoryHolders)]

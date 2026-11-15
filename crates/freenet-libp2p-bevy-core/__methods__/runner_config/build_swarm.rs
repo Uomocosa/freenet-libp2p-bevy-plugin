@@ -47,7 +47,7 @@ pub fn build_swarm<Payload: p2p::traits::Message>(
                 let rr = request_response::Behaviour::with_codec(
                     p2p::MessageCodec::<Payload>::default(),
                     [(
-                        StreamProtocol::new("/lobby/1.0.0"),
+                        StreamProtocol::new("/global/1.0.0"),
                         request_response::ProtocolSupport::Full,
                     )],
                     request_response::Config::default(),
@@ -55,7 +55,7 @@ pub fn build_swarm<Payload: p2p::traits::Message>(
                 let peer_exchange = request_response::Behaviour::with_codec(
                     p2p::MessageCodec::<Vec<u8>>::default(),
                     [(
-                        StreamProtocol::new("/lobby/pex/1.0.0"),
+                        StreamProtocol::new("/global/pex/1.0.0"),
                         request_response::ProtocolSupport::Full,
                     )],
                     request_response::Config::default(),
@@ -63,7 +63,7 @@ pub fn build_swarm<Payload: p2p::traits::Message>(
                 let replica_sync = request_response::Behaviour::with_codec(
                     p2p::MessageCodec::<p2p::SnapshotRequest, p2p::SnapshotResponse>::default(),
                     [(
-                        config.game.sync_protocol().map_err(|error| format!("room sync: {error}"))?,
+                        config.game.sync_protocol().map_err(|error| format!("zone sync: {error}"))?,
                         request_response::ProtocolSupport::Full,
                     )],
                     request_response::Config::default(),
@@ -81,7 +81,7 @@ pub fn build_swarm<Payload: p2p::traits::Message>(
                     replica_sync,
                     kademlia,
                     identify: identify::Behaviour::new(identify::Config::new(
-                        "/lobby/id/1.0.0".to_string(),
+                        "/global/id/1.0.0".to_string(),
                         kp.public(),
                     )),
                     ping: ping::Behaviour::default(),

@@ -125,7 +125,7 @@ mod tests {
 
     fn join_first_room(world: &mut World) {
         world.resource_mut::<DiscoveryState>().room = Some(discovery::JoinedRoom {
-            name: identity::RoomName::from("alpha"),
+            name: identity::ZoneName::from("alpha"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
@@ -137,7 +137,7 @@ mod tests {
 
     fn rename_room(world: &mut World) {
         world.resource_mut::<DiscoveryState>().room = Some(discovery::JoinedRoom {
-            name: identity::RoomName::from("gamma"),
+            name: identity::ZoneName::from("gamma"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),

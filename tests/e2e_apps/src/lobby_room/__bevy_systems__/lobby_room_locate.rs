@@ -75,7 +75,7 @@ mod tests {
         app.world_mut().spawn((placed(200.0, 100.0), NameField));
         app.world_mut().spawn((
             placed(300.0, 50.0),
-            JoinButton(identity::RoomName::from("alpha")),
+            JoinButton(identity::ZoneName::from("alpha")),
         ));
         assert_eq!(
             locate(&mut app, json!("NameField")).map(|node| node.centre),

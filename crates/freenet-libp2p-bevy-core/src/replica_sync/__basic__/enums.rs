@@ -13,12 +13,12 @@ pub enum ReplicaSyncSet {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReplicaSyncTopicMessage<Op> {
     ApplyThisOp {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         meta: replica_sync::OpMeta,
         op: Op,
     },
     CompareSliceContentHashes {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         hashes: replica_sync::ReplicaSliceContentHashes,
     },
 }

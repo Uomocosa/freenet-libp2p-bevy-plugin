@@ -17,12 +17,12 @@ pub enum Libp2pCommand {
     },
     AddKadPeer(identity::Peer),
     PutHistoryRecord {
-        id: p2p::RoomHistoryRecordKind,
+        id: p2p::ZoneHistoryRecordKind,
         value: Vec<u8>,
         ttl: std::time::Duration,
     },
     GetHistoryRecord {
-        id: p2p::RoomHistoryRecordKind,
+        id: p2p::ZoneHistoryRecordKind,
     },
     MeasureHistoryStore,
     RemoveHistoryRecords {
@@ -34,20 +34,20 @@ pub enum Libp2pCommand {
     Unsubscribe {
         topic: identity::Topic,
     },
-    SubscribeRoom {
-        room: identity::RoomName,
+    SubscribeZone {
+        zone: identity::ZoneName,
     },
-    UnsubscribeRoom {
-        room: identity::RoomName,
+    UnsubscribeZone {
+        zone: identity::ZoneName,
     },
     FetchSnapshot {
         peer_id: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
     },
     FetchReplicaSlice {
         peer_id: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
     },
     RespondSnapshot {
@@ -72,7 +72,7 @@ impl Libp2pCommand {
         stored_manifest: Option<&p2p::HistoryManifest>,
         stored_snapshot: Option<&[u8]>,
         lamport_max: u64,
-        per_room_bytes: p2p::HistoryByteCount,
+        per_zone_bytes: p2p::HistoryByteCount,
         ttl: std::time::Duration,
     ) -> Vec<p2p::Libp2pCommand> {
     }

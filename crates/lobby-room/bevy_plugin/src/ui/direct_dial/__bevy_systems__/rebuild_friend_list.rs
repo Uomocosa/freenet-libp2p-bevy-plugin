@@ -29,12 +29,12 @@ pub fn rebuild_friend_list(
                 let dot = match friend.presence {
                     core_direct_dial::FriendPresence::Offline => FRIEND_OFFLINE_DOT_COLOR,
                     core_direct_dial::FriendPresence::Online
-                    | core_direct_dial::FriendPresence::InRoom(_) => FRIEND_BADGE_COLOR,
+                    | core_direct_dial::FriendPresence::InZone(_) => FRIEND_BADGE_COLOR,
                 };
                 let where_label = match &friend.presence {
                     core_direct_dial::FriendPresence::Offline => String::from("offline"),
                     core_direct_dial::FriendPresence::Online => String::from("in lobby"),
-                    core_direct_dial::FriendPresence::InRoom(room) => {
+                    core_direct_dial::FriendPresence::InZone(room) => {
                         format!("in {}", room.as_str())
                     }
                 };
@@ -203,7 +203,7 @@ mod tests {
             friend_view("alice", core_direct_dial::FriendPresence::Online),
             friend_view(
                 "bob",
-                core_direct_dial::FriendPresence::InRoom(identity::RoomName::from("room-7")),
+                core_direct_dial::FriendPresence::InZone(identity::ZoneName::from("room-7")),
             ),
         ]);
         app.update();
@@ -214,7 +214,7 @@ mod tests {
     fn an_online_friend_has_a_green_dot_and_where_it_is() {
         let mut app = app_with(core_direct_dial::FriendsView(vec![friend_view(
             "bob",
-            core_direct_dial::FriendPresence::InRoom(identity::RoomName::from("room-7")),
+            core_direct_dial::FriendPresence::InZone(identity::ZoneName::from("room-7")),
         )]));
         app.update();
         let row = rows(&mut app)[0];
@@ -286,7 +286,7 @@ mod tests {
             friend_view("bob", core_direct_dial::FriendPresence::Online),
             friend_view(
                 "carol",
-                core_direct_dial::FriendPresence::InRoom(identity::RoomName::from("room-7")),
+                core_direct_dial::FriendPresence::InZone(identity::ZoneName::from("room-7")),
             ),
         ])
     }

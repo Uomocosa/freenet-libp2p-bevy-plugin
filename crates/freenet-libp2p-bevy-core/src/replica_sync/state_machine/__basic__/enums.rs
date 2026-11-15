@@ -6,7 +6,7 @@ use crate::replica_sync;
 pub enum Phase {
     #[default]
     Idle,
-    FetchingSnapshotFromRoomMember,
+    FetchingSnapshotFromZoneMember,
     FetchingHistoryFromKademlia,
     Ready,
     Failed,
@@ -15,43 +15,43 @@ pub enum Phase {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input<Op> {
     Joined {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         prefix: p2p::HistoryKeyPrefix,
         members: Vec<identity::PeerId>,
-        liveness: replica_sync::state_machine::RoomLiveness,
+        liveness: replica_sync::state_machine::ZoneLiveness,
     },
     Members {
         members: Vec<identity::PeerId>,
         prefix: p2p::HistoryKeyPrefix,
-        liveness: replica_sync::state_machine::RoomLiveness,
+        liveness: replica_sync::state_machine::ZoneLiveness,
     },
     Remote {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         meta: replica_sync::OpMeta,
         op: Op,
     },
-    SnapshotPartReceivedFromRoomMember {
-        room: identity::RoomName,
+    SnapshotPartReceivedFromZoneMember {
+        zone: identity::ZoneName,
         part: u32,
         total: u32,
         data: Vec<u8>,
     },
-    SnapshotPartRequestedByRoomMember {
+    SnapshotPartRequestedByZoneMember {
         id: p2p::ReplyId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
     },
-    SnapshotMissingFromRoomMember,
-    RequestToRoomMemberFailed {
+    SnapshotMissingFromZoneMember,
+    RequestToZoneMemberFailed {
         from: identity::PeerId,
     },
     HistoryWriteTimerFired,
     HistoryRecordFound {
-        id: p2p::RoomHistoryRecordKind,
+        id: p2p::ZoneHistoryRecordKind,
         value: Vec<u8>,
     },
     HistoryRecordNotFound {
-        id: p2p::RoomHistoryRecordKind,
+        id: p2p::ZoneHistoryRecordKind,
     },
     AntiEntropyTimerFired {
         local: replica_sync::ReplicaSliceContentHashes,
@@ -63,12 +63,12 @@ pub enum Input<Op> {
     },
     ReplicaSliceRequested {
         id: p2p::ReplyId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
     },
     ReplicaSliceReceived {
         from: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
         data: Vec<u8>,
     },
@@ -80,14 +80,14 @@ pub enum Input<Op> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Output<Op> {
-    FetchSnapshotPartFromRoomMember {
+    FetchSnapshotPartFromZoneMember {
         peer: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
     },
-    SendSnapshotPartToRoomMember {
+    SendSnapshotPartToZoneMember {
         id: p2p::ReplyId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
     },
     Merge {
@@ -98,31 +98,31 @@ pub enum Output<Op> {
         op: Op,
     },
     GetHistoryRecord {
-        id: p2p::RoomHistoryRecordKind,
+        id: p2p::ZoneHistoryRecordKind,
     },
     MergeAndWriteHistory {
         prefix: p2p::HistoryKeyPrefix,
         stored_manifest: Option<p2p::HistoryManifest>,
         stored_snapshot: Option<Vec<u8>>,
     },
-    RoomGone {
-        room: identity::RoomName,
+    ZoneGone {
+        zone: identity::ZoneName,
     },
     HistoryUnavailable {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
     },
     PublishSliceContentHashes {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         hashes: replica_sync::ReplicaSliceContentHashes,
     },
     FetchReplicaSlice {
         peer: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
     },
     SendReplicaSlice {
         id: p2p::ReplyId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
     },
 }

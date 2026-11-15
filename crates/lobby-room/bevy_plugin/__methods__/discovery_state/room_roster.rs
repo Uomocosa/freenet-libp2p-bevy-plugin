@@ -111,7 +111,7 @@ mod tests {
         members: Vec<(&str, discovery::RoomMember)>,
     ) -> discovery::JoinedRoom {
         discovery::JoinedRoom {
-            name: identity::RoomName::from("alpha"),
+            name: identity::ZoneName::from("alpha"),
             created_at: time::UnixTime::EPOCH,
             phase,
             members: members
@@ -258,7 +258,7 @@ mod tests {
     fn lobby_record_occupants_not_yet_connected_show_connecting() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("alpha"),
+            identity::ZoneName::from("alpha"),
             discovery::Room {
                 room_size: discovery::RoomSize::try_from(8).expect("8"),
                 created_at: time::UnixTime::EPOCH,
@@ -324,7 +324,7 @@ mod tests {
     fn lobby_record_occupants_do_not_duplicate_connected_members() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("alpha"),
+            identity::ZoneName::from("alpha"),
             discovery::Room {
                 room_size: discovery::RoomSize::try_from(8).expect("8"),
                 created_at: time::UnixTime::EPOCH,
@@ -359,7 +359,7 @@ mod tests {
         let mut state = state_with("me", None, ready(), &["other"]);
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("alpha"),
+            identity::ZoneName::from("alpha"),
             discovery::Room {
                 room_size: discovery::RoomSize::try_from(8).expect("8"),
                 created_at: time::UnixTime::EPOCH,

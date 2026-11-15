@@ -40,7 +40,7 @@ mod tests {
             addrs: Vec::new(),
         });
         state.room = Some(discovery::JoinedRoom {
-            name: identity::RoomName::from("r"),
+            name: identity::ZoneName::from("r"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
@@ -63,7 +63,7 @@ mod tests {
         }
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("r"),
+            identity::ZoneName::from("r"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,

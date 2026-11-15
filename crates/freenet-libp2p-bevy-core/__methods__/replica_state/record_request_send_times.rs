@@ -7,7 +7,7 @@ pub fn record_request_send_times<Op>(
 ) {
     for output in outputs {
         match output {
-            replica_sync::state_machine::Output::FetchSnapshotPartFromRoomMember { .. } => {
+            replica_sync::state_machine::Output::FetchSnapshotPartFromZoneMember { .. } => {
                 state.member_snapshot.part_requested_at = Some(now);
             }
             replica_sync::state_machine::Output::GetHistoryRecord { .. } => {

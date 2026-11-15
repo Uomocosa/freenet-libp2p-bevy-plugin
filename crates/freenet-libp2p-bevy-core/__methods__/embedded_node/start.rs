@@ -59,7 +59,7 @@ pub async fn start(
             tracing::error!(error = %error, "embedded freenet node exited");
         }
     });
-    tracing::info!("lobby freenet node started ws_port={websocket_port}");
+    tracing::info!("freenet node started ws_port={websocket_port}");
     Ok(freenet_node::EmbeddedNode {
         node_dir,
         websocket_port,

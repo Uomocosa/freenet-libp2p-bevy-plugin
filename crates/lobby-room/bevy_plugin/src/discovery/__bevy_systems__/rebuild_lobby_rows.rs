@@ -51,7 +51,7 @@ mod tests {
     fn rows_follow_the_lobby_and_the_friends() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("alpha"),
+            identity::ZoneName::from("alpha"),
             discovery::Room {
                 room_size: discovery::RoomSize::try_from(8).expect("8"),
                 created_at: time::UnixTime::EPOCH,

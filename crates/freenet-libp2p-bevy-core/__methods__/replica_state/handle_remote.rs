@@ -3,11 +3,11 @@ use crate::replica_sync;
 
 pub fn handle_remote<Op>(
     state: &mut replica_sync::state_machine::ReplicaState<Op>,
-    room: &identity::RoomName,
+    zone: &identity::ZoneName,
     meta: replica_sync::OpMeta,
     op: Op,
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
-    if state.room.as_ref() != Some(room) {
+    if state.zone.as_ref() != Some(zone) {
         return Vec::new();
     }
     if state.phase == replica_sync::state_machine::Phase::Ready {
@@ -30,7 +30,7 @@ mod tests {
         let mut state = ReplicaState::<u8>::default();
         let outputs = handle_remote(
             &mut state,
-            &identity::RoomName::from("room"),
+            &identity::ZoneName::from("zone"),
             replica_sync::OpMeta {
                 lamport: 1,
                 author: 2,

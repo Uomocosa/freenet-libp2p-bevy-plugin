@@ -4,7 +4,7 @@ use std::time::Duration;
 
 pub fn put_history_record<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
-    id: &p2p::RoomHistoryRecordKind,
+    id: &p2p::ZoneHistoryRecordKind,
     value: Vec<u8>,
     ttl: Duration,
 ) {
@@ -40,8 +40,8 @@ mod tests {
 
     use crate::p2p;
 
-    fn manifest() -> p2p::RoomHistoryRecordKind {
-        p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc"))
+    fn manifest() -> p2p::ZoneHistoryRecordKind {
+        p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc"))
     }
 
     #[tokio::test]

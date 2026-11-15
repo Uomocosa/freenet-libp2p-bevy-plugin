@@ -43,7 +43,7 @@ pub fn handle_swarm_event<Payload: p2p::traits::Message>(
             },
         )) => {
             let Some(request) = state.replica_sync_requests_in_flight.remove(&request_id) else {
-                tracing::debug!(target: "p2p", peer = %peer, "room sync failure without a tracked request");
+                tracing::debug!(target: "p2p", peer = %peer, "zone sync failure without a tracked request");
                 return;
             };
             state

@@ -5,13 +5,13 @@ pub fn settle_waiting_phase<Op>(
     outputs_so_far: &[replica_sync::state_machine::Output<Op>],
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
     match state.phase {
-        replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember => {
-            if state.room.is_none()
+        replica_sync::state_machine::Phase::FetchingSnapshotFromZoneMember => {
+            if state.zone.is_none()
                 || state.member_snapshot.part_requested_at.is_some()
                 || outputs_so_far.iter().any(|output| {
                     matches!(
                         output,
-                        replica_sync::state_machine::Output::FetchSnapshotPartFromRoomMember { .. }
+                        replica_sync::state_machine::Output::FetchSnapshotPartFromZoneMember { .. }
                     )
                 })
             {

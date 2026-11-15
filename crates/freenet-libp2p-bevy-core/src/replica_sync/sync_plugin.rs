@@ -71,12 +71,12 @@ impl<Replica: replica_sync::traits::ReplicatedState> bevy::prelude::Plugin for S
                     .resource_mut::<replica_sync::bevy_systems::SyncState<Replica::Op>>();
                 sync_state.kademlia_history.is_enabled = true;
                 sync_state.kademlia_history.max_fetch_retries = history.max_fetch_retries;
-                sync_state.kademlia_history.per_room_bytes = history.per_room_bytes;
+                sync_state.kademlia_history.per_zone_bytes = history.per_zone_bytes;
                 sync_state.kademlia_history.record_ttl = history.record_ttl;
             }
             app.add_systems(
                 Update,
-                replica_sync::bevy_systems::refresh_room_history::<Replica>
+                replica_sync::bevy_systems::refresh_zone_history::<Replica>
                     .before(replica_sync::bevy_systems::drive::<Replica>),
             );
         }

@@ -77,16 +77,16 @@ mod tests {
         assert_eq!(empty, Some(testing::LobbyStatus::default()));
 
         let mut lobby = discovery::Lobby::default();
-        lobby.insert(identity::RoomName::from("beta"), room_with(&["peer-b"]));
+        lobby.insert(identity::ZoneName::from("beta"), room_with(&["peer-b"]));
         lobby.insert(
-            identity::RoomName::from("alpha"),
+            identity::ZoneName::from("alpha"),
             room_with(&["peer-a", "me"]),
         );
         let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .lobby_fetched()
             .with_lobby(lobby)
             .in_room(discovery::JoinedRoom {
-                name: identity::RoomName::from("alpha"),
+                name: identity::ZoneName::from("alpha"),
                 created_at: time::UnixTime::from_secs(1),
                 phase: discovery::JoinPhase::Ready,
                 members: room_with(&["peer-a", "me"]).members,

@@ -17,7 +17,7 @@ pub fn collect_remote_cursors(
     let own = ready.and_then(|ready| ready.ready_rx.borrow().clone().map(|peer| peer.id));
     if let Some(mut events) = events {
         for event in events.take_all() {
-            if let p2p::Event::RoomMessage { from, payload, .. } = event {
+            if let p2p::Event::ZoneMessage { from, payload, .. } = event {
                 if Some(&from) == own.as_ref() {
                     continue;
                 }
@@ -63,7 +63,7 @@ mod tests {
             identity::PeerId::from("me"),
         )
         .in_room(discovery::JoinedRoom {
-            name: identity::RoomName::from("alpha"),
+            name: identity::ZoneName::from("alpha"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: room_members,
@@ -99,15 +99,15 @@ mod tests {
 
         app.world_mut()
             .resource_mut::<p2p::PendingEvents<starboard::room::CursorUpdate>>()
-            .push(p2p::Event::RoomMessage {
-                room: identity::RoomName::from("alpha"),
+            .push(p2p::Event::ZoneMessage {
+                zone: identity::ZoneName::from("alpha"),
                 from: identity::PeerId::from("peer-a"),
                 payload: cursor(1),
             });
         app.world_mut()
             .resource_mut::<p2p::PendingEvents<starboard::room::CursorUpdate>>()
-            .push(p2p::Event::RoomMessage {
-                room: identity::RoomName::from("alpha"),
+            .push(p2p::Event::ZoneMessage {
+                zone: identity::ZoneName::from("alpha"),
                 from: identity::PeerId::from("peer-b"),
                 payload: cursor(2),
             });

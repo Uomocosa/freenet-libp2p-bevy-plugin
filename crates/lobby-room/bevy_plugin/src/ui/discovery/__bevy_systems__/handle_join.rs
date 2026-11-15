@@ -19,7 +19,7 @@ pub fn handle_join(
             .map(|room| room.name.clone())
     });
     for button in &buttons {
-        let room: &identity::RoomName = button;
+        let room: &identity::ZoneName = button;
         if current.as_ref() == Some(room) {
             tracing::info!(target: "discovery", "ui leave room={}", room.as_str());
             commands.write(core_discovery::Command::Leave);
@@ -44,7 +44,7 @@ mod tests {
     fn test_usage() {
         let mut app = App::new();
         app.add_message::<core_discovery::Command>();
-        let room = identity::RoomName::from("alpha");
+        let room = identity::ZoneName::from("alpha");
         app.world_mut()
             .spawn((ui::discovery::RoomButton(room.clone()), Pressed));
         app.add_systems(Update, handle_join);

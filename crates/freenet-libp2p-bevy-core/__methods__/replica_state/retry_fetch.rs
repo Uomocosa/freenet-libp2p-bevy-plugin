@@ -3,16 +3,16 @@ use crate::replica_sync;
 pub fn retry_fetch<Op>(
     state: &mut replica_sync::state_machine::ReplicaState<Op>,
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
-    if state.phase != replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember {
+    if state.phase != replica_sync::state_machine::Phase::FetchingSnapshotFromZoneMember {
         return Vec::new();
     }
     let next = state.fetch_next();
     if !next.is_empty() {
         return next;
     }
-    let (Some(peer), Some(room)) = (
+    let (Some(peer), Some(zone)) = (
         state.member_snapshot.current_source.clone(),
-        state.room.clone(),
+        state.zone.clone(),
     ) else {
         return state.finish_member_fetch();
     };
@@ -22,7 +22,7 @@ pub fn retry_fetch<Op>(
     let part = (0..state.member_snapshot.total_parts)
         .find(|index| !state.member_snapshot.received_parts.contains_key(index))
         .unwrap_or(state.member_snapshot.total_parts);
-    vec![replica_sync::state_machine::Output::FetchSnapshotPartFromRoomMember { peer, room, part }]
+    vec![replica_sync::state_machine::Output::FetchSnapshotPartFromZoneMember { peer, zone, part }]
 }
 
 #[cfg(test)]

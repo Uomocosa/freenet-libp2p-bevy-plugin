@@ -12,5 +12,5 @@ pub enum KnownPeerKind {
 pub enum FriendPresence {
     Offline,
     Online,
-    InRoom(identity::RoomName),
+    InZone(identity::ZoneName),
 }

@@ -4,13 +4,13 @@ use crate::replica_sync;
 
 pub fn handle_joined<Op>(
     state: &mut replica_sync::state_machine::ReplicaState<Op>,
-    room: identity::RoomName,
+    zone: identity::ZoneName,
     prefix: p2p::HistoryKeyPrefix,
     members: Vec<identity::PeerId>,
-    liveness: replica_sync::state_machine::RoomLiveness,
+    liveness: replica_sync::state_machine::ZoneLiveness,
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
-    state.room = Some(room);
-    state.phase = replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember;
+    state.zone = Some(zone);
+    state.phase = replica_sync::state_machine::Phase::FetchingSnapshotFromZoneMember;
     state.buffered_ops.clear();
     let mut members = members;
     members.sort();
@@ -29,7 +29,7 @@ pub fn handle_joined<Op>(
     state.kademlia_history.pending_fetch = None;
     let next = state.fetch_next();
     let is_fetching_snapshot = !next.is_empty();
-    tracing::debug!(target: "replica_sync", "snapshot joined room={:?} members={:?} is_fetching_snapshot={} history_enabled={}", state.room, state.member_snapshot.members, is_fetching_snapshot, state.kademlia_history.is_enabled);
+    tracing::debug!(target: "replica_sync", "snapshot joined zone={:?} members={:?} is_fetching_snapshot={} history_enabled={}", state.zone, state.member_snapshot.members, is_fetching_snapshot, state.kademlia_history.is_enabled);
     if is_fetching_snapshot {
         return next;
     }
@@ -42,35 +42,35 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync;
-    use crate::replica_sync::state_machine::{ReplicaState, RoomLiveness};
+    use crate::replica_sync::state_machine::{ReplicaState, ZoneLiveness};
 
     #[test]
     fn test_usage() {
         let mut state = ReplicaState::<u8>::default();
         let outputs = handle_joined(
             &mut state,
-            identity::RoomName::from("room"),
+            identity::ZoneName::from("zone"),
             p2p::HistoryKeyPrefix::from("prefix"),
             vec![identity::PeerId::from("peer")],
-            RoomLiveness::default(),
+            ZoneLiveness::default(),
         );
         assert_eq!(outputs.len(), 1);
         assert_eq!(
             state.phase,
-            replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember
+            replica_sync::state_machine::Phase::FetchingSnapshotFromZoneMember
         );
     }
 
     #[test]
-    fn a_lone_room_creator_without_history_becomes_ready() {
+    fn a_lone_zone_creator_without_history_becomes_ready() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("room");
+        let zone = identity::ZoneName::from("zone");
         let outputs = handle_joined(
             &mut state,
-            room.clone(),
+            zone.clone(),
             p2p::HistoryKeyPrefix::from("prefix"),
             Vec::new(),
-            RoomLiveness::default(),
+            ZoneLiveness::default(),
         );
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.phase, replica_sync::state_machine::Phase::Ready);
@@ -78,7 +78,7 @@ mod tests {
             lamport: 1,
             author: 2,
         };
-        let outputs = state.handle_remote(&room, meta, 7_u8);
+        let outputs = state.handle_remote(&zone, meta, 7_u8);
         assert_eq!(
             outputs,
             vec![replica_sync::state_machine::Output::Apply { meta, op: 7_u8 }]

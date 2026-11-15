@@ -11,12 +11,12 @@ use discovery::state_machine::DiscoveryState;
 
 type RoomRow<'a> = (
     Entity,
-    &'a identity::RoomName,
+    &'a identity::ZoneName,
     Option<&'a p2p::HistoryKeyPrefix>,
-    Option<&'a replica_sync::state_machine::RoomLiveness>,
+    Option<&'a replica_sync::state_machine::ZoneLiveness>,
 );
 
-type PeerRow<'a> = (Entity, &'a peers::Peer, Option<&'a peers::InRoom>);
+type PeerRow<'a> = (Entity, &'a peers::Peer, Option<&'a peers::InZone>);
 
 type HoldLinkRow<'a> = (Entity, &'a peers::HeldBy, &'a peers::HoldOf);
 
@@ -32,7 +32,7 @@ pub fn project_status_to_entities(
     let Some(game) = game.map(Res::into_inner) else {
         return;
     };
-    let mut room_entity_by_name: BTreeMap<identity::RoomName, Entity> = BTreeMap::new();
+    let mut room_entity_by_name: BTreeMap<identity::ZoneName, Entity> = BTreeMap::new();
     for (entity, room, _, _) in &room_entities {
         room_entity_by_name.insert(room.clone(), entity);
     }
@@ -100,9 +100,9 @@ pub fn project_status_to_entities(
             },
         );
         if !is_in_room_in_sync {
-            commands.entity(entity).remove::<peers::InRoom>();
+            commands.entity(entity).remove::<peers::InZone>();
             if let Some(room) = wants_room {
-                commands.entity(entity).insert(peers::InRoom(room));
+                commands.entity(entity).insert(peers::InZone(room));
             }
         }
         let wants_holds = desired_holds.get(peer).cloned().unwrap_or_default();
@@ -166,7 +166,7 @@ mod tests {
     }
 
     fn lobby_with_room(
-        room: &identity::RoomName,
+        room: &identity::ZoneName,
         members: Vec<(identity::PeerId, discovery::RoomMember)>,
     ) -> discovery::Lobby {
         let mut lobby = discovery::Lobby::default();
@@ -196,7 +196,7 @@ mod tests {
         app
     }
 
-    fn room_entity(app: &mut App, room: &identity::RoomName) -> Entity {
+    fn room_entity(app: &mut App, room: &identity::ZoneName) -> Entity {
         let found = room_by_name(app, room);
         assert_eq!(found.len(), 1);
         found[0]
@@ -215,8 +215,8 @@ mod tests {
             .count()
     }
 
-    fn room_by_name(app: &mut App, name: &identity::RoomName) -> Vec<Entity> {
-        let mut found = app.world_mut().query::<(Entity, &identity::RoomName)>();
+    fn room_by_name(app: &mut App, name: &identity::ZoneName) -> Vec<Entity> {
+        let mut found = app.world_mut().query::<(Entity, &identity::ZoneName)>();
         found
             .iter(app.world())
             .filter(|(_, room)| **room == *name)
@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn stale_room_entity_is_not_reused() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         let state = state_with_lobby(lobby_with_room(&room, vec![occupant("alice")]));
         let mut app = app_with_projection(state, game);
         app.update();
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn stale_peer_entity_is_not_reused() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         let state = state_with_lobby(lobby_with_room(&room, vec![occupant("alice")]));
         let mut app = app_with_projection(state, game);
         app.update();
@@ -270,8 +270,8 @@ mod tests {
     #[test]
     fn holder_of_two_rooms_links_both_without_churn() {
         let game = identity::GameId::from("game");
-        let room_a = identity::RoomName::from("room-a");
-        let room_b = identity::RoomName::from("room-b");
+        let room_a = identity::ZoneName::from("room-a");
+        let room_b = identity::ZoneName::from("room-b");
         let mut lobby = lobby_with_room(&room_a, vec![holder("alice")]);
         lobby.insert(
             room_b.clone(),
@@ -290,7 +290,7 @@ mod tests {
         let alice = peer_entity(&mut app, "alice");
         let held_rooms = app
             .world()
-            .get::<peers::HeldRooms>(alice)
+            .get::<peers::HeldZones>(alice)
             .expect("held rooms");
         assert_eq!(held_rooms.len(), 2);
         for room in [joined, other] {
@@ -309,7 +309,7 @@ mod tests {
     #[test]
     fn departed_holder_frees_its_links_and_the_room_is_swept() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         let state = state_with_lobby(lobby_with_room(&room, vec![holder("alice")]));
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
@@ -319,7 +319,7 @@ mod tests {
             Update,
             (
                 project_status_to_entities,
-                peers::bevy_systems::despawn_orphan_rooms,
+                peers::bevy_systems::despawn_orphan_zones,
             )
                 .chain(),
         );
@@ -348,7 +348,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         let state = state_with_lobby(lobby_with_room(
             &room,
             vec![occupant("alice"), occupant("bob")],
@@ -364,21 +364,21 @@ mod tests {
         );
         assert_eq!(
             app.world()
-                .get::<replica_sync::state_machine::RoomLiveness>(room_entity),
+                .get::<replica_sync::state_machine::ZoneLiveness>(room_entity),
             Some(&expected_liveness)
         );
         for name in ["alice", "bob"] {
             let peer = peer_entity(&mut app, name);
             assert_eq!(
                 app.world()
-                    .get::<peers::InRoom>(peer)
+                    .get::<peers::InZone>(peer)
                     .map(|in_room| **in_room),
                 Some(room_entity)
             );
         }
         let members = app
             .world()
-            .get::<peers::RoomMembers>(room_entity)
+            .get::<peers::ZoneMembers>(room_entity)
             .expect("members filled");
         assert_eq!(members.len(), 2);
     }
@@ -386,7 +386,7 @@ mod tests {
     #[test]
     fn member_who_departed_loses_in_room() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         let state = state_with_lobby(lobby_with_room(
             &room,
             vec![occupant("alice"), occupant("bob")],
@@ -405,17 +405,17 @@ mod tests {
             .membership = discovery::RoomMembership::Departed;
         app.update();
         let alice_entity = peer_entity(&mut app, "alice");
-        assert!(app.world().get::<peers::InRoom>(alice_entity).is_none());
+        assert!(app.world().get::<peers::InZone>(alice_entity).is_none());
         let room_entity = room_entity(&mut app, &room);
         let members = app
             .world()
-            .get::<peers::RoomMembers>(room_entity)
+            .get::<peers::ZoneMembers>(room_entity)
             .expect("members filled");
         assert!(!members.contains(&alice_entity));
         let bob_entity = peer_entity(&mut app, "bob");
         assert_eq!(
             app.world()
-                .get::<peers::InRoom>(bob_entity)
+                .get::<peers::InZone>(bob_entity)
                 .map(|in_room| **in_room),
             Some(room_entity)
         );
@@ -424,7 +424,7 @@ mod tests {
     #[test]
     fn me_gains_and_loses_in_room_with_join_and_leave() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .in_room(discovery::JoinedRoom {
                 name: room.clone(),
@@ -440,20 +440,20 @@ mod tests {
         let me_entity = peer_entity(&mut app, "me");
         assert_eq!(
             app.world()
-                .get::<peers::InRoom>(me_entity)
+                .get::<peers::InZone>(me_entity)
                 .map(|in_room| **in_room),
             Some(room_entity)
         );
         app.world_mut().resource_mut::<DiscoveryState>().room = None;
         app.update();
-        assert!(app.world().get::<peers::InRoom>(me_entity).is_none());
+        assert!(app.world().get::<peers::InZone>(me_entity).is_none());
     }
 
     #[test]
     fn peer_listed_in_two_rooms_keeps_the_joined_room() {
         let game = identity::GameId::from("game");
-        let room_a = identity::RoomName::from("room-a");
-        let room_b = identity::RoomName::from("room-b");
+        let room_a = identity::ZoneName::from("room-a");
+        let room_b = identity::ZoneName::from("room-b");
         let mut lobby = lobby_with_room(&room_a, vec![occupant("alice")]);
         lobby.insert(
             room_b.clone(),
@@ -480,14 +480,14 @@ mod tests {
         let alice_entity = peer_entity(&mut app, "alice");
         assert_eq!(
             app.world()
-                .get::<peers::InRoom>(alice_entity)
+                .get::<peers::InZone>(alice_entity)
                 .map(|in_room| **in_room),
             Some(joined)
         );
         let bob_entity = peer_entity(&mut app, "bob");
         assert_eq!(
             app.world()
-                .get::<peers::InRoom>(bob_entity)
+                .get::<peers::InZone>(bob_entity)
                 .map(|in_room| **in_room),
             Some(other)
         );
@@ -501,7 +501,7 @@ mod tests {
         app.add_plugins(discovery::Plugin::new(discovery::Config::default()));
         let game = identity::GameId::from("test");
         app.insert_resource(replica_sync::SyncGame(game.clone()));
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         app.insert_resource(state_with_lobby(lobby_with_room(
             &room,
             vec![occupant("alice")],
@@ -519,7 +519,7 @@ mod tests {
         );
         assert_eq!(
             app.world()
-                .get::<replica_sync::state_machine::RoomLiveness>(room_entity),
+                .get::<replica_sync::state_machine::ZoneLiveness>(room_entity),
             Some(&expected_liveness)
         );
     }

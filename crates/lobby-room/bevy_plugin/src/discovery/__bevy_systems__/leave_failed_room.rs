@@ -40,8 +40,8 @@ mod tests {
         let mut app = app_with_system();
         app.world_mut()
             .resource_mut::<Messages<replica_sync::JoinFailure>>()
-            .write(replica_sync::JoinFailure::RoomGone(
-                identity::RoomName::from("room-a"),
+            .write(replica_sync::JoinFailure::ZoneGone(
+                identity::ZoneName::from("room-a"),
             ));
         app.update();
         let inputs: Vec<discovery::state_machine::Input> = app
@@ -69,13 +69,13 @@ mod tests {
         let mut app = app_with_system();
         app.world_mut()
             .resource_mut::<Messages<replica_sync::JoinFailure>>()
-            .write(replica_sync::JoinFailure::RoomGone(
-                identity::RoomName::from("room-a"),
+            .write(replica_sync::JoinFailure::ZoneGone(
+                identity::ZoneName::from("room-a"),
             ));
         app.world_mut()
             .resource_mut::<Messages<replica_sync::JoinFailure>>()
             .write(replica_sync::JoinFailure::HistoryUnavailable(
-                identity::RoomName::from("room-b"),
+                identity::ZoneName::from("room-b"),
             ));
         app.update();
         let inputs: Vec<discovery::state_machine::Input> = app

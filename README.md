@@ -26,9 +26,9 @@ freenet-libp2p-bevy-plugin = { git = "https://github.com/Uomocosa/freenet-libp2p
 One room channel: gossipsub, one topic per room. Joining a room (through the
 lobby-room `discovery`) auto-subscribes the plugin to that room's topic.
 
-- `p2p::Command::PublishInJoinedRoom { payload }` publishes to the room you have joined.
-- `p2p::Command::PublishToSpecificRoom { room, payload }` publishes to a named room.
-- Inbound payloads arrive as `p2p::Event::RoomMessage { room, from, payload }`.
+- `p2p::Command::PublishInJoinedZone { payload }` publishes to the room you have joined.
+- `p2p::Command::PublishToSpecificZone { room, payload }` publishes to a named room.
+- Inbound payloads arrive as `p2p::Event::ZoneMessage { zone, from, payload }`.
 - A payload larger than `p2p::GossipsubConfig::max_transmit_size` (64 KiB)
   is rejected with `p2p::Event::Error`, not silently dropped.
 - `replica_sync::SyncPlugin<Replica>` replicates a `ReplicatedState` per room. Its

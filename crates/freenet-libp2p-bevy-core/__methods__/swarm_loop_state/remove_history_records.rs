@@ -10,11 +10,11 @@ pub fn remove_history_records<Payload: p2p::traits::Message>(
         .records()
         .filter(|record| {
             matches!(
-                p2p::RoomHistoryRecordKind::parse_history_record_key(&record.key),
-                Some(p2p::RoomHistoryRecordKind::Manifest(ref found)) if found == prefix
+                p2p::ZoneHistoryRecordKind::parse_history_record_key(&record.key),
+                Some(p2p::ZoneHistoryRecordKind::Manifest(ref found)) if found == prefix
             ) || matches!(
-                p2p::RoomHistoryRecordKind::parse_history_record_key(&record.key),
-                Some(p2p::RoomHistoryRecordKind::Chunk(ref chunk)) if chunk.prefix == *prefix
+                p2p::ZoneHistoryRecordKind::parse_history_record_key(&record.key),
+                Some(p2p::ZoneHistoryRecordKind::Chunk(ref chunk)) if chunk.prefix == *prefix
             )
         })
         .map(|record| record.key.clone())
@@ -37,7 +37,7 @@ mod tests {
         let kept = p2p::HistoryKeyPrefix::from("kept");
         for prefix in [&gone, &kept] {
             state.put_history_record(
-                &p2p::RoomHistoryRecordKind::Manifest(prefix.clone()),
+                &p2p::ZoneHistoryRecordKind::Manifest(prefix.clone()),
                 vec![1],
                 std::time::Duration::from_secs(90),
             );

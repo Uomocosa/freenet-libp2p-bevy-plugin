@@ -9,7 +9,7 @@ use crate::time;
 
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct JoinedRoom {
-    pub name: identity::RoomName,
+    pub name: identity::ZoneName,
     pub created_at: time::UnixTime,
     pub phase: discovery::JoinPhase,
     pub members: discovery::Members,
@@ -18,7 +18,7 @@ pub struct JoinedRoom {
 
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct LobbyRow {
-    pub name: identity::RoomName,
+    pub name: identity::ZoneName,
     pub occupants: usize,
     pub room_size: discovery::RoomSize,
     pub occupancy: discovery::RoomOccupancy,

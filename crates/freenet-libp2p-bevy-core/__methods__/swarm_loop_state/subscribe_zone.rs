@@ -2,24 +2,24 @@ use crate::identity;
 use crate::p2p;
 use libp2p::gossipsub;
 
-pub fn subscribe_room<Payload: p2p::traits::Message>(
+pub fn subscribe_zone<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
-    room: identity::RoomName,
+    zone: identity::ZoneName,
 ) {
     let topic = gossipsub::IdentTopic::new(
-        identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
+        identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
     );
     match state.swarm.behaviour_mut().gossipsub.subscribe(&topic) {
         Ok(_) => {
-            tracing::info!(target: "p2p", room = %room.as_str(), "p2p room subscribed");
-            state.subscriptions.register(&topic, room);
+            tracing::info!(target: "p2p", zone = %zone.as_str(), "p2p zone subscribed");
+            state.subscriptions.register(&topic, zone);
         }
         Err(error) => {
             state
                 .event_tx
                 .send(p2p::Event::Error(format!(
-                    "room subscribe {}: {error}",
-                    room.as_str()
+                    "zone subscribe {}: {error}",
+                    zone.as_str()
                 )))
                 .ok();
         }
@@ -28,7 +28,7 @@ pub fn subscribe_room<Payload: p2p::traits::Message>(
 
 #[cfg(test)]
 mod tests {
-    use super::subscribe_room;
+    use super::subscribe_zone;
 
     use crate::identity;
     use crate::p2p;
@@ -36,7 +36,7 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
-        subscribe_room(&mut state, identity::RoomName::from("room-a"));
+        subscribe_zone(&mut state, identity::ZoneName::from("zone-a"));
         assert!(state.subscriptions.joined.is_some());
     }
 }

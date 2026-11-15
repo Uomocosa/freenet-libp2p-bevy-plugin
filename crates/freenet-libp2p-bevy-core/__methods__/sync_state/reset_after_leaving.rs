@@ -9,7 +9,7 @@ pub fn reset_after_leaving<Op>(state: &mut replica_sync::bevy_systems::SyncState
         kademlia_history: replica_sync::state_machine::KademliaHistoryState {
             is_enabled: state.kademlia_history.is_enabled,
             max_fetch_retries: state.kademlia_history.max_fetch_retries,
-            per_room_bytes: state.kademlia_history.per_room_bytes,
+            per_zone_bytes: state.kademlia_history.per_zone_bytes,
             record_ttl: state.kademlia_history.record_ttl,
             ..Default::default()
         },
@@ -27,7 +27,7 @@ mod tests {
     fn test_usage() {
         let mut state = replica_sync::bevy_systems::SyncState::<u8>(
             replica_sync::state_machine::ReplicaState {
-                room: Some(identity::RoomName::from("room")),
+                zone: Some(identity::ZoneName::from("zone")),
                 kademlia_history: replica_sync::state_machine::KademliaHistoryState {
                     is_enabled: true,
                     ..Default::default()
@@ -36,7 +36,7 @@ mod tests {
             },
         );
         reset_after_leaving(&mut state);
-        assert_eq!(state.room, None);
+        assert_eq!(state.zone, None);
         assert!(state.kademlia_history.is_enabled);
     }
 }

@@ -8,7 +8,7 @@ pub fn drop_members_whose_lease_lapsed(
     limits: &discovery::LobbyLeaseLimits,
     lobby: &mut discovery::Lobby,
     observed: &BTreeMap<
-        (identity::RoomName, identity::PeerId),
+        (identity::ZoneName, identity::PeerId),
         discovery::state_machine::ObservedLobbyHeartbeat,
     >,
     now: time::UnixTime,
@@ -63,7 +63,7 @@ mod tests {
 
     fn lobby_with(room: &str, peer: &str, member: discovery::RoomMember) -> discovery::Lobby {
         discovery::Lobby::from([(
-            identity::RoomName::from(room),
+            identity::ZoneName::from(room),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
@@ -103,14 +103,14 @@ mod tests {
         let remote_updated_at = time::UnixTime::from_secs(1000);
         let first_seen = time::UnixTime::from_secs(700);
         let observed = BTreeMap::from([(
-            (identity::RoomName::from("r"), identity::PeerId::from("p")),
+            (identity::ZoneName::from("r"), identity::PeerId::from("p")),
             discovery::state_machine::ObservedLobbyHeartbeat {
                 remote_updated_at,
                 first_seen_locally_at: first_seen,
             },
         )]);
         let mut lobby = discovery::Lobby::from([(
-            identity::RoomName::from("r"),
+            identity::ZoneName::from("r"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
@@ -149,7 +149,7 @@ mod tests {
         let now = time::UnixTime::from_secs(1000);
         let remote_updated_at = time::UnixTime::from_secs(700);
         let observed = BTreeMap::from([(
-            (identity::RoomName::from("r"), identity::PeerId::from("p")),
+            (identity::ZoneName::from("r"), identity::PeerId::from("p")),
             discovery::state_machine::ObservedLobbyHeartbeat {
                 remote_updated_at,
                 first_seen_locally_at: now,

@@ -42,7 +42,7 @@ mod tests {
 
     fn joined() -> discovery::JoinedRoom {
         discovery::JoinedRoom {
-            name: identity::RoomName::from("alpha"),
+            name: identity::ZoneName::from("alpha"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),

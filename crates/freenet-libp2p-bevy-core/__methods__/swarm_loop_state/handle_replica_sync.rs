@@ -14,24 +14,24 @@ pub fn handle_replica_sync<Payload: p2p::traits::Message>(
             let id = state.snapshot_replies.insert(channel);
             let from = identity::PeerId(peer.to_string());
             match request {
-                p2p::SnapshotRequest::Fetch { room, part } => {
+                p2p::SnapshotRequest::Fetch { zone, part } => {
                     state
                         .event_tx
                         .send(p2p::Event::Libp2p(p2p::Libp2pEvent::SnapshotRequest {
                             id,
                             from,
-                            room,
+                            zone,
                             part,
                         }))
                         .ok();
                 }
-                p2p::SnapshotRequest::FetchReplicaSlice { room, index } => {
+                p2p::SnapshotRequest::FetchReplicaSlice { zone, index } => {
                     state
                         .event_tx
                         .send(p2p::Event::Libp2p(p2p::Libp2pEvent::ReplicaSliceRequest {
                             id,
                             from,
-                            room,
+                            zone,
                             index,
                         }))
                         .ok();
@@ -48,24 +48,24 @@ pub fn handle_replica_sync<Payload: p2p::traits::Message>(
             let from = identity::PeerId(peer.to_string());
             let event = match response {
                 p2p::SnapshotResponse::Part {
-                    room,
+                    zone,
                     part,
                     total,
                     data,
                 } => p2p::Libp2pEvent::SnapshotPart {
                     from,
-                    room,
+                    zone,
                     part,
                     total,
                     data,
                 },
-                p2p::SnapshotResponse::Missing { room } => {
-                    p2p::Libp2pEvent::SnapshotMissing { from, room }
+                p2p::SnapshotResponse::Missing { zone } => {
+                    p2p::Libp2pEvent::SnapshotMissing { from, zone }
                 }
-                p2p::SnapshotResponse::ReplicaSlice { room, index, data } => {
+                p2p::SnapshotResponse::ReplicaSlice { zone, index, data } => {
                     p2p::Libp2pEvent::ReplicaSlice {
                         from,
-                        room,
+                        zone,
                         index,
                         data,
                     }
@@ -88,11 +88,11 @@ mod tests {
     async fn test_usage() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let peer = libp2p::PeerId::random();
-        let room = identity::RoomName::from("room-1");
+        let zone = identity::ZoneName::from("zone-1");
         let request_id = state.swarm.behaviour_mut().replica_sync.send_request(
             &peer,
             p2p::SnapshotRequest::Fetch {
-                room: room.clone(),
+                zone: zone.clone(),
                 part: 0,
             },
         );
@@ -101,13 +101,13 @@ mod tests {
             &peer,
             request_response::Message::Response {
                 request_id,
-                response: p2p::SnapshotResponse::Missing { room: room.clone() },
+                response: p2p::SnapshotResponse::Missing { zone: zone.clone() },
             },
         );
         assert!(matches!(
             rx.try_recv(),
-            Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::SnapshotMissing { room: missing, .. }))
-                if missing == room
+            Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::SnapshotMissing { zone: missing, .. }))
+                if missing == zone
         ));
     }
 }

@@ -24,11 +24,11 @@ impl<Op> Default for SyncState<Op> {
 
 #[atomic_delegates]
 impl<Op> SyncState<Op> {
-    pub(crate) fn room_inputs_from_entities(
+    pub(crate) fn zone_inputs_from_entities(
         state: &mut Self,
         game: &identity::GameId,
-        me_rooms: &Query<&peers::InRoom, With<peers::Me>>,
-        room_details: &Query<replica_sync::RoomDetails<'_>>,
+        me_zones: &Query<&peers::InZone, With<peers::Me>>,
+        zone_details: &Query<replica_sync::ZoneDetails<'_>>,
         member_peers: &Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>,
     ) -> (
         Vec<p2p::Libp2pCommand>,
@@ -37,9 +37,9 @@ impl<Op> SyncState<Op> {
     }
     pub(crate) fn perform<Replica: replica_sync::traits::ReplicatedState>(
         output: replica_sync::state_machine::Output<Replica::Op>,
-        room: &mut Replica,
+        zone: &mut Replica,
         clock: replica_sync::LamportClock,
-        per_room_bytes: p2p::HistoryByteCount,
+        per_zone_bytes: p2p::HistoryByteCount,
         record_ttl: Duration,
         pending: &mut Vec<p2p::Libp2pCommand>,
         failures: &mut Option<MessageWriter<replica_sync::JoinFailure>>,
@@ -48,8 +48,8 @@ impl<Op> SyncState<Op> {
     }
     pub(crate) fn reset_after_leaving(&mut self) {}
     pub(crate) fn snapshot_frame<Replica: replica_sync::traits::ReplicatedState>(
-        room: &Replica,
-        room_name: identity::RoomName,
+        zone: &Replica,
+        zone_name: identity::ZoneName,
         part: u32,
     ) -> p2p::SnapshotResponse {
     }
@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut state = SyncState::<u8>(replica_sync::state_machine::ReplicaState {
-            room: Some(identity::RoomName::from("room")),
+            zone: Some(identity::ZoneName::from("zone")),
             slice_anti_entropy: replica_sync::state_machine::SliceAntiEntropyState {
                 max_fetches_per_peer: 3,
                 ..Default::default()
@@ -84,7 +84,7 @@ mod tests {
             ..Default::default()
         });
         state.reset_after_leaving();
-        assert_eq!(state.room, None);
+        assert_eq!(state.zone, None);
         assert_eq!(state.phase, replica_sync::state_machine::Phase::Idle);
         assert_eq!(state.slice_anti_entropy.max_fetches_per_peer, 3);
         assert!(state.kademlia_history.is_enabled);

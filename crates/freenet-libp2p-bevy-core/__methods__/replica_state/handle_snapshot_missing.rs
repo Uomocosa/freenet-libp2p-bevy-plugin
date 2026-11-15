@@ -13,7 +13,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync;
-    use crate::replica_sync::state_machine::{Input, Output, Phase, ReplicaState, RoomLiveness};
+    use crate::replica_sync::state_machine::{Input, Output, Phase, ReplicaState, ZoneLiveness};
 
     #[test]
     fn test_usage() {
@@ -24,28 +24,28 @@ mod tests {
     #[test]
     fn missing_part_moves_the_fetch_to_the_next_member() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let first = identity::PeerId::from("a");
         let second = identity::PeerId::from("b");
         let now = replica_sync::ElapsedSinceAppStart::default();
         state.update(
             Input::Joined {
-                room: room.clone(),
+                zone: zone.clone(),
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![first, second.clone()],
-                liveness: RoomLiveness::default(),
+                liveness: ZoneLiveness::default(),
             },
             now,
         );
-        let outputs = state.update(Input::SnapshotMissingFromRoomMember, now);
+        let outputs = state.update(Input::SnapshotMissingFromZoneMember, now);
         assert_eq!(
             outputs,
-            vec![Output::FetchSnapshotPartFromRoomMember {
+            vec![Output::FetchSnapshotPartFromZoneMember {
                 peer: second,
-                room,
+                zone,
                 part: 0,
             }]
         );
-        assert_eq!(state.phase, Phase::FetchingSnapshotFromRoomMember);
+        assert_eq!(state.phase, Phase::FetchingSnapshotFromZoneMember);
     }
 }

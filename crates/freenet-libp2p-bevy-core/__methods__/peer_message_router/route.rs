@@ -14,8 +14,8 @@ pub fn route(
         p2p::Libp2pCommand::Dial(peer) => router.connect_dial_target(from, peer),
         command @ (p2p::Libp2pCommand::Subscribe { .. }
         | p2p::Libp2pCommand::Unsubscribe { .. }
-        | p2p::Libp2pCommand::SubscribeRoom { .. }
-        | p2p::Libp2pCommand::UnsubscribeRoom { .. }) => {
+        | p2p::Libp2pCommand::SubscribeZone { .. }
+        | p2p::Libp2pCommand::UnsubscribeZone { .. }) => {
             router.update_peer_subscriptions(from, command)
         }
         command @ (p2p::Libp2pCommand::PutHistoryRecord { .. }

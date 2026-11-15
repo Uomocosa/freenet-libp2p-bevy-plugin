@@ -2,21 +2,21 @@ use crate::identity;
 use crate::p2p;
 use libp2p::gossipsub;
 
-pub fn unsubscribe_room<Payload: p2p::traits::Message>(
+pub fn unsubscribe_zone<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
-    room: &identity::RoomName,
+    zone: &identity::ZoneName,
 ) {
     let topic = gossipsub::IdentTopic::new(
-        identity::Topic::from_room(&state.subscriptions.game, room).as_str(),
+        identity::Topic::from_zone(&state.subscriptions.game, zone).as_str(),
     );
     let _ = state.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
     state.subscriptions.unregister(&topic);
-    tracing::info!(target: "p2p", room = %room.as_str(), "p2p room unsubscribed");
+    tracing::info!(target: "p2p", zone = %zone.as_str(), "p2p zone unsubscribed");
 }
 
 #[cfg(test)]
 mod tests {
-    use super::unsubscribe_room;
+    use super::unsubscribe_zone;
 
     use crate::identity;
     use crate::p2p;
@@ -24,9 +24,9 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
-        let room = identity::RoomName::from("room-a");
-        state.subscribe_room(room.clone());
-        unsubscribe_room(&mut state, &room);
+        let zone = identity::ZoneName::from("zone-a");
+        state.subscribe_zone(zone.clone());
+        unsubscribe_zone(&mut state, &zone);
         assert!(state.subscriptions.joined.is_none());
     }
 }

@@ -43,7 +43,7 @@ mod tests {
             addrs: Vec::new(),
         });
         state.room = Some(discovery::JoinedRoom {
-            name: identity::RoomName::from("r"),
+            name: identity::ZoneName::from("r"),
             created_at: time::UnixTime::from_secs(created_at),
             phase: discovery::JoinPhase::Joining {
                 since: time::UnixTime::EPOCH,
@@ -56,7 +56,7 @@ mod tests {
 
     fn with_record(state: &mut DiscoveryState, created_at: u64) {
         state.lobby.insert(
-            identity::RoomName::from("r"),
+            identity::ZoneName::from("r"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::from_secs(created_at),
@@ -87,7 +87,7 @@ mod tests {
         assert_eq!(
             outputs,
             vec![Output::Notify(discovery::Event::RoomReady(
-                identity::RoomName::from("r")
+                identity::ZoneName::from("r")
             ))]
         );
         assert_eq!(phase(&healed), Some(discovery::JoinPhase::Ready));
@@ -103,7 +103,7 @@ mod tests {
         assert_eq!(
             outputs,
             vec![Output::Notify(discovery::Event::RoomReady(
-                identity::RoomName::from("r")
+                identity::ZoneName::from("r")
             ))]
         );
         assert_eq!(phase(&state), Some(discovery::JoinPhase::Ready));

@@ -18,7 +18,7 @@ pub struct LobbyStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoggedRoomMemberCount {
-    pub room: identity::RoomName,
+    pub room: identity::ZoneName,
     pub connected: usize,
 }
 

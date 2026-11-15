@@ -7,27 +7,27 @@ use crate::peers;
 use crate::replica_sync;
 use crate::time;
 
-pub fn room_inputs_from_entities<Op>(
+pub fn zone_inputs_from_entities<Op>(
     state: &mut replica_sync::bevy_systems::SyncState<Op>,
     game: &identity::GameId,
-    me_rooms: &Query<&peers::InRoom, With<peers::Me>>,
-    room_details: &Query<replica_sync::RoomDetails<'_>>,
+    me_zones: &Query<&peers::InZone, With<peers::Me>>,
+    zone_details: &Query<replica_sync::ZoneDetails<'_>>,
     member_peers: &Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>,
 ) -> (
     Vec<p2p::Libp2pCommand>,
     Vec<replica_sync::state_machine::Input<Op>>,
 ) {
-    let current_room_entity = me_rooms.iter().next().map(|in_room| **in_room);
-    let current = current_room_entity.and_then(|entity| {
-        let (room_name, prefix, liveness, members) = room_details.get(entity).ok()?;
-        let room_name = room_name.clone();
+    let current_zone_entity = me_zones.iter().next().map(|in_zone| **in_zone);
+    let current = current_zone_entity.and_then(|entity| {
+        let (zone_name, prefix, liveness, members) = zone_details.get(entity).ok()?;
+        let zone_name = zone_name.clone();
         let prefix = prefix
             .cloned()
-            .unwrap_or_else(|| p2p::HistoryKeyPrefix::new(game, &room_name, time::UnixTime::EPOCH));
+            .unwrap_or_else(|| p2p::HistoryKeyPrefix::new(game, &zone_name, time::UnixTime::EPOCH));
         let liveness = liveness
             .copied()
-            .unwrap_or(replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: true,
+            .unwrap_or(replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: true,
                 has_other_history_holders: false,
             });
         let mut member_ids: Vec<identity::PeerId> = members.map_or_else(Vec::new, |members| {
@@ -40,11 +40,11 @@ pub fn room_inputs_from_entities<Op>(
                 .collect()
         });
         member_ids.sort();
-        Some((room_name, prefix, member_ids, liveness))
+        Some((zone_name, prefix, member_ids, liveness))
     });
     let mut commands: Vec<p2p::Libp2pCommand> = Vec::new();
     let mut inputs: Vec<replica_sync::state_machine::Input<Op>> = Vec::new();
-    match (state.room.clone(), current) {
+    match (state.zone.clone(), current) {
         (None, None) => {}
         (Some(previous), None) => {
             commands.push(p2p::Libp2pCommand::Unsubscribe {
@@ -52,26 +52,26 @@ pub fn room_inputs_from_entities<Op>(
             });
             state.reset_after_leaving();
         }
-        (None, Some((room_name, prefix, members, liveness))) => {
+        (None, Some((zone_name, prefix, members, liveness))) => {
             commands.push(p2p::Libp2pCommand::Subscribe {
-                topic: identity::Topic::from_replica_sync(game, &room_name),
+                topic: identity::Topic::from_replica_sync(game, &zone_name),
             });
             inputs.push(replica_sync::state_machine::Input::Joined {
-                room: room_name,
+                zone: zone_name,
                 prefix,
                 members,
                 liveness,
             });
         }
-        (Some(previous), Some((room_name, prefix, members, liveness))) if previous != room_name => {
+        (Some(previous), Some((zone_name, prefix, members, liveness))) if previous != zone_name => {
             commands.push(p2p::Libp2pCommand::Unsubscribe {
                 topic: identity::Topic::from_replica_sync(game, &previous),
             });
             commands.push(p2p::Libp2pCommand::Subscribe {
-                topic: identity::Topic::from_replica_sync(game, &room_name),
+                topic: identity::Topic::from_replica_sync(game, &zone_name),
             });
             inputs.push(replica_sync::state_machine::Input::Joined {
-                room: room_name,
+                zone: zone_name,
                 prefix,
                 members,
                 liveness,
@@ -112,18 +112,18 @@ mod tests {
     fn capture(
         mut state: ResMut<replica_sync::bevy_systems::SyncState<u8>>,
         game: Res<replica_sync::SyncGame>,
-        me_rooms: Query<&peers::InRoom, With<peers::Me>>,
-        room_details: Query<replica_sync::RoomDetails<'_>>,
+        me_zones: Query<&peers::InZone, With<peers::Me>>,
+        zone_details: Query<replica_sync::ZoneDetails<'_>>,
         member_peers: Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>,
         mut captured: ResMut<Captured>,
     ) {
         let game = game.into_inner();
         let (commands, inputs) =
-            replica_sync::bevy_systems::SyncState::<u8>::room_inputs_from_entities(
+            replica_sync::bevy_systems::SyncState::<u8>::zone_inputs_from_entities(
                 &mut state,
                 game,
-                &me_rooms,
-                &room_details,
+                &me_zones,
+                &zone_details,
                 &member_peers,
             );
         captured.commands = commands;
@@ -142,25 +142,25 @@ mod tests {
 
     fn join(
         app: &mut App,
-        room: &identity::RoomName,
+        zone: &identity::ZoneName,
         members: Vec<identity::PeerId>,
         prefix: p2p::HistoryKeyPrefix,
-        liveness: replica_sync::state_machine::RoomLiveness,
+        liveness: replica_sync::state_machine::ZoneLiveness,
     ) -> Entity {
-        let room_entity = app.world_mut().spawn((room.clone(), prefix, liveness)).id();
+        let zone_entity = app.world_mut().spawn((zone.clone(), prefix, liveness)).id();
         app.world_mut().spawn((
             peers::Peer::from(identity::PeerId::from("me")),
             peers::Me,
-            peers::InRoom(room_entity),
+            peers::InZone(zone_entity),
         ));
         for member in members {
             app.world_mut().spawn((
                 peers::Peer::from(member),
-                peers::InRoom(room_entity),
+                peers::InZone(zone_entity),
                 peers::Connected,
             ));
         }
-        room_entity
+        zone_entity
     }
 
     fn captured(
@@ -176,18 +176,18 @@ mod tests {
     #[test]
     fn test_usage() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room");
-        let prefix = p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from_secs(7));
-        let liveness = replica_sync::state_machine::RoomLiveness {
-            is_room_still_listed: true,
+        let zone = identity::ZoneName::from("zone");
+        let prefix = p2p::HistoryKeyPrefix::new(&game, &zone, time::UnixTime::from_secs(7));
+        let liveness = replica_sync::state_machine::ZoneLiveness {
+            is_zone_still_listed: true,
             has_other_history_holders: true,
         };
         let mut app = app_with_capture(game);
         app.update();
         assert_eq!(captured(&app), (Vec::new(), Vec::new()));
-        let room_entity = join(
+        let zone_entity = join(
             &mut app,
-            &room,
+            &zone,
             vec![identity::PeerId::from("alice")],
             prefix,
             liveness,
@@ -206,9 +206,9 @@ mod tests {
         app.update();
         assert_eq!(captured(&app), (Vec::new(), Vec::new()));
         app.world_mut()
-            .entity_mut(room_entity)
-            .insert(replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: false,
+            .entity_mut(zone_entity)
+            .insert(replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: false,
                 has_other_history_holders: false,
             });
         app.update();
@@ -225,7 +225,7 @@ mod tests {
             .expect("me");
         app.world_mut()
             .entity_mut(me_entity)
-            .remove::<peers::InRoom>();
+            .remove::<peers::InZone>();
         app.update();
         let (commands, inputs) = captured(&app);
         assert_eq!(commands.len(), 1);
@@ -233,7 +233,7 @@ mod tests {
         assert_eq!(
             app.world()
                 .resource::<replica_sync::bevy_systems::SyncState<u8>>()
-                .room,
+                .zone,
             None
         );
     }

@@ -14,7 +14,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let command = discovery::Command::Join(identity::RoomName::from("room-1"));
+        let command = discovery::Command::Join(identity::ZoneName::from("room-1"));
         let bytes = command.to_extension_bytes();
         assert_eq!(
             bincode::deserialize::<discovery::Command>(&bytes).expect("decode"),

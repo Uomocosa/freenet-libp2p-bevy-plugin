@@ -46,7 +46,7 @@ mod tests {
                 source: None,
                 data: vec![7],
                 sequence_number: None,
-                topic: gossipsub::TopicHash::from_raw("lobby/topic"),
+                topic: gossipsub::TopicHash::from_raw("global/topic"),
             },
         };
         handle_gossipsub(&state, event);

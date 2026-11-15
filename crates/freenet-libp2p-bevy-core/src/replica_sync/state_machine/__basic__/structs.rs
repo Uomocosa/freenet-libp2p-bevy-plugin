@@ -25,10 +25,10 @@ pub struct PendingHistoryFetch {
 pub struct KademliaHistoryState {
     pub is_enabled: bool,
     pub prefix: Option<p2p::HistoryKeyPrefix>,
-    pub liveness: replica_sync::state_machine::RoomLiveness,
+    pub liveness: replica_sync::state_machine::ZoneLiveness,
     pub fetch_retries: u32,
     pub max_fetch_retries: u32,
-    pub per_room_bytes: p2p::HistoryByteCount,
+    pub per_zone_bytes: p2p::HistoryByteCount,
     pub record_ttl: std::time::Duration,
     pub pending_fetch: Option<PendingHistoryFetch>,
 }

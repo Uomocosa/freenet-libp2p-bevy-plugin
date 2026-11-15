@@ -9,6 +9,6 @@ pub struct ReplicaInputFromTimer<Op>(pub replica_sync::state_machine::Input<Op>)
 
 #[derive(Message, Debug, Clone, PartialEq, Eq)]
 pub enum JoinFailure {
-    RoomGone(identity::RoomName),
-    HistoryUnavailable(identity::RoomName),
+    ZoneGone(identity::ZoneName),
+    HistoryUnavailable(identity::ZoneName),
 }

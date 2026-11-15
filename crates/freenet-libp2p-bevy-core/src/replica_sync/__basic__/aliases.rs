@@ -8,9 +8,9 @@ pub type ReplicaSliceContentHashes = Vec<(
     replica_sync::ReplicaSliceContentHash,
 )>;
 
-pub type RoomDetails<'a> = (
-    &'a identity::RoomName,
+pub type ZoneDetails<'a> = (
+    &'a identity::ZoneName,
     Option<&'a p2p::HistoryKeyPrefix>,
-    Option<&'a replica_sync::state_machine::RoomLiveness>,
-    Option<&'a peers::RoomMembers>,
+    Option<&'a replica_sync::state_machine::ZoneLiveness>,
+    Option<&'a peers::ZoneMembers>,
 );

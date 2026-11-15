@@ -20,7 +20,7 @@ pub fn handle_create(
             continue;
         }
         tracing::info!(target: "discovery", "ui create room={name}");
-        commands.write(core_discovery::Command::Create(identity::RoomName::from(
+        commands.write(core_discovery::Command::Create(identity::ZoneName::from(
             name,
         )));
     }
@@ -55,7 +55,7 @@ mod tests {
     fn test_usage() {
         assert_eq!(
             sent_after_press(" alpha "),
-            vec![core_discovery::Command::Create(identity::RoomName::from(
+            vec![core_discovery::Command::Create(identity::ZoneName::from(
                 "alpha"
             ))]
         );

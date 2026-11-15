@@ -18,11 +18,11 @@ pub fn dispatch_command<Payload: p2p::traits::Message>(
                     .send_request(&libp2p_id, payload);
             }
         }
-        Some(p2p::Command::PublishInJoinedRoom { payload }) => {
+        Some(p2p::Command::PublishInJoinedZone { payload }) => {
             state.publish_joined(config, &payload);
         }
-        Some(p2p::Command::PublishToSpecificRoom { room, payload }) => {
-            state.publish_room(config, &room, &payload);
+        Some(p2p::Command::PublishToSpecificZone { zone, payload }) => {
+            state.publish_zone(config, &zone, &payload);
         }
         None => return false,
     }
@@ -44,7 +44,7 @@ mod tests {
     async fn test_usage() {
         let (mut state, _rx) = p2p::SwarmLoopState::<Vec<u8>>::for_test();
         let subscribe = p2p::Command::Net(p2p::Libp2pCommand::Subscribe {
-            topic: identity::Topic::from("lobby/topic"),
+            topic: identity::Topic::from("global/topic"),
         });
         assert!(dispatch_command(&mut state, &config(), Some(subscribe)));
         assert_eq!(state.swarm.behaviour().gossipsub.topics().count(), 1);
@@ -52,36 +52,36 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn subscribe_room_registers_its_topic_and_joins_it() {
+    async fn subscribe_zone_registers_its_topic_and_joins_it() {
         let (mut state, _rx) = p2p::SwarmLoopState::<Vec<u8>>::for_test();
-        let room = identity::RoomName::from("room-a");
-        let command = p2p::Command::Net(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() });
+        let zone = identity::ZoneName::from("zone-a");
+        let command = p2p::Command::Net(p2p::Libp2pCommand::SubscribeZone { zone: zone.clone() });
         assert!(dispatch_command(&mut state, &config(), Some(command)));
         let topic = libp2p::gossipsub::IdentTopic::new(
-            identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
+            identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
         );
-        assert_eq!(state.subscriptions.room(&topic.hash()), Some(&room));
-        assert_eq!(state.subscriptions.joined, Some(room));
+        assert_eq!(state.subscriptions.zone(&topic.hash()), Some(&zone));
+        assert_eq!(state.subscriptions.joined, Some(zone));
     }
 
     #[tokio::test]
-    async fn publish_without_a_joined_room_is_an_error() {
+    async fn publish_without_a_joined_zone_is_an_error() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<Vec<u8>>::for_test();
-        let command = p2p::Command::PublishInJoinedRoom {
+        let command = p2p::Command::PublishInJoinedZone {
             payload: Vec::new(),
         };
         assert!(dispatch_command(&mut state, &config(), Some(command)));
         let Ok(p2p::Event::Error(message)) = rx.try_recv() else {
             panic!("expected an error event");
         };
-        assert!(message.contains("no joined room"));
+        assert!(message.contains("no joined zone"));
     }
 
     #[tokio::test]
-    async fn oversize_room_payload_is_an_error() {
+    async fn oversize_zone_payload_is_an_error() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<Vec<u8>>::for_test();
-        let command = p2p::Command::PublishToSpecificRoom {
-            room: identity::RoomName::from("room-a"),
+        let command = p2p::Command::PublishToSpecificZone {
+            zone: identity::ZoneName::from("zone-a"),
             payload: vec![0; 70_000],
         };
         assert!(dispatch_command(&mut state, &config(), Some(command)));

@@ -11,9 +11,9 @@ pub struct PeerMessageRouter {
     pub(crate) registered_peers: BTreeSet<identity::PeerId>,
     pub(crate) connected_peers: BTreeMap<identity::PeerId, BTreeSet<identity::PeerId>>,
     pub(crate) subscribed_topics: BTreeMap<identity::PeerId, BTreeSet<identity::Topic>>,
-    pub(crate) joined_rooms: BTreeMap<identity::PeerId, identity::RoomName>,
+    pub(crate) joined_zones: BTreeMap<identity::PeerId, identity::ZoneName>,
     pub(crate) history_values: BTreeMap<Vec<u8>, Vec<u8>>,
-    pub(crate) history_kinds: BTreeMap<Vec<u8>, p2p::RoomHistoryRecordKind>,
+    pub(crate) history_kinds: BTreeMap<Vec<u8>, p2p::ZoneHistoryRecordKind>,
     pub(crate) pending_snapshot_replies: BTreeMap<p2p::ReplyId, identity::PeerId>,
     pub(crate) next_reply_id: u64,
 }
@@ -26,7 +26,7 @@ impl PeerMessageRouter {
             registered_peers: BTreeSet::new(),
             connected_peers: BTreeMap::new(),
             subscribed_topics: BTreeMap::new(),
-            joined_rooms: BTreeMap::new(),
+            joined_zones: BTreeMap::new(),
             history_values: BTreeMap::new(),
             history_kinds: BTreeMap::new(),
             pending_snapshot_replies: BTreeMap::new(),
@@ -45,16 +45,16 @@ impl PeerMessageRouter {
         command: p2p::Libp2pCommand,
     ) -> Vec<testing::RoutedEvent> {
     }
-    pub fn route_joined_room_bytes(
+    pub fn route_joined_zone_bytes(
         &mut self,
         from: &identity::PeerId,
         data: Vec<u8>,
     ) -> Vec<testing::RoutedEvent> {
     }
-    pub fn route_specific_room_bytes(
+    pub fn route_specific_zone_bytes(
         &mut self,
         from: &identity::PeerId,
-        room: &identity::RoomName,
+        zone: &identity::ZoneName,
         data: Vec<u8>,
     ) -> Vec<testing::RoutedEvent> {
     }
@@ -148,8 +148,8 @@ mod tests {
         );
     }
 
-    fn manifest(prefix: &str) -> p2p::RoomHistoryRecordKind {
-        p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from(prefix))
+    fn manifest(prefix: &str) -> p2p::ZoneHistoryRecordKind {
+        p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from(prefix))
     }
 
     #[test]
@@ -253,7 +253,7 @@ mod tests {
         router.serve_history_command(
             &peer,
             p2p::Libp2pCommand::PutHistoryRecord {
-                id: p2p::RoomHistoryRecordKind::Manifest(prefix.clone()),
+                id: p2p::ZoneHistoryRecordKind::Manifest(prefix.clone()),
                 value: vec![1, 2, 3],
                 ttl: std::time::Duration::from_secs(90),
             },
@@ -261,7 +261,7 @@ mod tests {
         router.serve_history_command(
             &peer,
             p2p::Libp2pCommand::PutHistoryRecord {
-                id: p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+                id: p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
                     prefix: prefix.clone(),
                     content_hash: p2p::ContentHash::from("h"),
                     chunk: p2p::ChunkIndex(0),
@@ -336,12 +336,12 @@ mod tests {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
         let requester = registered(&mut router, "a");
         dialed(&mut router, &requester, "b");
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchSnapshot {
                 peer_id: identity::PeerId::from("b"),
-                room: room.clone(),
+                zone: zone.clone(),
                 part: 0,
             },
         );
@@ -362,7 +362,7 @@ mod tests {
             p2p::Libp2pCommand::RespondSnapshot {
                 id: request_id,
                 frame: p2p::SnapshotResponse::Part {
-                    room: room.clone(),
+                    zone: zone.clone(),
                     part: 0,
                     total: 1,
                     data: vec![9],
@@ -375,7 +375,7 @@ mod tests {
                 to: requester,
                 event: p2p::Libp2pEvent::SnapshotPart {
                     from: responder,
-                    room,
+                    zone,
                     part: 0,
                     total: 1,
                     data: vec![9],
@@ -389,12 +389,12 @@ mod tests {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
         let requester = registered(&mut router, "a");
         registered(&mut router, "b");
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchSnapshot {
                 peer_id: identity::PeerId::from("b"),
-                room: room.clone(),
+                zone: zone.clone(),
                 part: 2,
             },
         );
@@ -404,7 +404,7 @@ mod tests {
                 to: requester,
                 event: p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                     from: identity::PeerId::from("b"),
-                    request: p2p::SnapshotRequest::Fetch { room, part: 2 },
+                    request: p2p::SnapshotRequest::Fetch { zone, part: 2 },
                 },
             }]
         );
@@ -414,12 +414,12 @@ mod tests {
     fn fetching_from_an_unknown_peer_fails_for_the_requester() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
         let requester = registered(&mut router, "a");
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchReplicaSlice {
                 peer_id: identity::PeerId::from("ghost"),
-                room: room.clone(),
+                zone: zone.clone(),
                 index: replica_sync::ReplicaSliceIndex(1),
             },
         );
@@ -430,7 +430,7 @@ mod tests {
                 event: p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                     from: identity::PeerId::from("ghost"),
                     request: p2p::SnapshotRequest::FetchReplicaSlice {
-                        room,
+                        zone,
                         index: replica_sync::ReplicaSliceIndex(1),
                     },
                 },
@@ -443,13 +443,13 @@ mod tests {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
         let requester = registered(&mut router, "a");
         dialed(&mut router, &requester, "b");
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let index = replica_sync::ReplicaSliceIndex(3);
         let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchReplicaSlice {
                 peer_id: identity::PeerId::from("b"),
-                room: room.clone(),
+                zone: zone.clone(),
                 index,
             },
         );
@@ -470,7 +470,7 @@ mod tests {
             p2p::Libp2pCommand::RespondSnapshot {
                 id: request_id,
                 frame: p2p::SnapshotResponse::ReplicaSlice {
-                    room: room.clone(),
+                    zone: zone.clone(),
                     index,
                     data: vec![5],
                 },
@@ -482,7 +482,7 @@ mod tests {
                 to: requester,
                 event: p2p::Libp2pEvent::ReplicaSlice {
                     from: responder,
-                    room,
+                    zone,
                     index,
                     data: vec![5],
                 },
@@ -495,12 +495,12 @@ mod tests {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
         let requester = registered(&mut router, "a");
         dialed(&mut router, &requester, "b");
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchSnapshot {
                 peer_id: identity::PeerId::from("b"),
-                room: room.clone(),
+                zone: zone.clone(),
                 part: 0,
             },
         );
@@ -513,7 +513,7 @@ mod tests {
             &responder,
             p2p::Libp2pCommand::RespondSnapshot {
                 id: request_id,
-                frame: p2p::SnapshotResponse::Missing { room: room.clone() },
+                frame: p2p::SnapshotResponse::Missing { zone: zone.clone() },
             },
         );
         assert_eq!(
@@ -522,7 +522,7 @@ mod tests {
                 to: requester,
                 event: p2p::Libp2pEvent::SnapshotMissing {
                     from: responder,
-                    room,
+                    zone,
                 },
             }]
         );
@@ -537,7 +537,7 @@ mod tests {
             p2p::Libp2pCommand::RespondSnapshot {
                 id: p2p::ReplyId(99),
                 frame: p2p::SnapshotResponse::Missing {
-                    room: identity::RoomName::from("room-a"),
+                    zone: identity::ZoneName::from("zone-a"),
                 },
             },
         );

@@ -8,7 +8,7 @@ use crate::p2p;
 pub struct HistoryConfig {
     pub write_interval: Duration,
     pub record_ttl: Duration,
-    pub per_room_bytes: p2p::HistoryByteCount,
+    pub per_zone_bytes: p2p::HistoryByteCount,
     pub max_fetch_retries: u32,
 }
 
@@ -17,7 +17,7 @@ impl Default for HistoryConfig {
         Self {
             write_interval: Duration::from_secs(30),
             record_ttl: Duration::from_secs(90),
-            per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
+            per_zone_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
             max_fetch_retries: 3,
         }
     }
@@ -36,7 +36,7 @@ mod tests {
         assert_eq!(config.write_interval, Duration::from_secs(30));
         assert_eq!(config.record_ttl, Duration::from_secs(90));
         assert_eq!(
-            config.per_room_bytes,
+            config.per_zone_bytes,
             p2p::HistoryByteCount::from(64u64 * 1024 * 1024)
         );
         assert_eq!(config.max_fetch_retries, 3);

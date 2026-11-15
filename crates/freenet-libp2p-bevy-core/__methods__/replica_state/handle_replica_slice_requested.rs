@@ -6,13 +6,13 @@ use crate::replica_sync;
 pub fn handle_replica_slice_requested<Op>(
     state: &replica_sync::state_machine::ReplicaState<Op>,
     id: p2p::ReplyId,
-    room: identity::RoomName,
+    zone: identity::ZoneName,
     index: replica_sync::ReplicaSliceIndex,
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
-    if state.room.as_ref() != Some(&room) {
+    if state.zone.as_ref() != Some(&zone) {
         return Vec::new();
     }
-    vec![replica_sync::state_machine::Output::SendReplicaSlice { id, room, index }]
+    vec![replica_sync::state_machine::Output::SendReplicaSlice { id, zone, index }]
 }
 
 #[cfg(test)]
@@ -29,7 +29,7 @@ mod tests {
         let outputs = handle_replica_slice_requested(
             &state,
             p2p::ReplyId(1),
-            identity::RoomName::from("room"),
+            identity::ZoneName::from("zone"),
             replica_sync::ReplicaSliceIndex(0),
         );
         assert_eq!(outputs, Vec::new());

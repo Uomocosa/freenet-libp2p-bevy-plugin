@@ -26,14 +26,14 @@ impl HistoryKeyPrefix {
     #[must_use]
     pub fn new(
         game: &identity::GameId,
-        room: &identity::RoomName,
+        zone: &identity::ZoneName,
         created_at: time::UnixTime,
     ) -> Self {
         let digest = blake3::hash(
             format!(
                 "{}/{}/{}",
                 game.as_str(),
-                room.as_str(),
+                zone.as_str(),
                 created_at.as_secs()
             )
             .as_bytes(),
@@ -51,7 +51,7 @@ mod tests {
     fn test_usage() {
         let prefix = HistoryKeyPrefix::new(
             &identity::GameId::from("game"),
-            &identity::RoomName::from("room"),
+            &identity::ZoneName::from("zone"),
             time::UnixTime::from_secs(7),
         );
         assert_eq!(prefix.len(), 64);

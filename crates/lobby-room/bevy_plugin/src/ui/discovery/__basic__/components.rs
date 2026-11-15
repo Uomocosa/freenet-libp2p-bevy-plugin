@@ -28,7 +28,7 @@ pub struct RoomBubble;
 pub struct RoomFriendBadge;
 
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
-pub struct RoomButton(pub identity::RoomName);
+pub struct RoomButton(pub identity::ZoneName);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct IsCurrentRoom;

@@ -22,7 +22,7 @@ pub fn start_history_write_check<Op>(
         records_requested_at: None,
     });
     vec![replica_sync::state_machine::Output::GetHistoryRecord {
-        id: p2p::RoomHistoryRecordKind::Manifest(prefix),
+        id: p2p::ZoneHistoryRecordKind::Manifest(prefix),
     }]
 }
 
@@ -43,7 +43,7 @@ mod tests {
         assert_eq!(
             outputs,
             vec![Output::GetHistoryRecord {
-                id: p2p::RoomHistoryRecordKind::Manifest(prefix),
+                id: p2p::ZoneHistoryRecordKind::Manifest(prefix),
             }]
         );
         assert_eq!(start_history_write_check(&mut state), Vec::new());

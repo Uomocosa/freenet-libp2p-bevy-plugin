@@ -3,12 +3,12 @@ use libp2p::kad::RecordKey;
 use crate::p2p;
 
 #[must_use]
-pub fn parse_history_record_key(record_key: &RecordKey) -> Option<p2p::RoomHistoryRecordKind> {
+pub fn parse_history_record_key(record_key: &RecordKey) -> Option<p2p::ZoneHistoryRecordKind> {
     let raw = std::str::from_utf8(record_key.as_ref()).ok()?;
-    let rest = raw.strip_prefix("lobby/history/")?;
+    let rest = raw.strip_prefix("zone/history/")?;
     let (prefix, rest) = rest.split_once('/')?;
     if rest == "manifest" {
-        return Some(p2p::RoomHistoryRecordKind::Manifest(
+        return Some(p2p::ZoneHistoryRecordKind::Manifest(
             p2p::HistoryKeyPrefix::from(prefix),
         ));
     }
@@ -17,7 +17,7 @@ pub fn parse_history_record_key(record_key: &RecordKey) -> Option<p2p::RoomHisto
     if kind != "chunk" {
         return None;
     }
-    Some(p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+    Some(p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
         prefix: p2p::HistoryKeyPrefix::from(prefix),
         content_hash: p2p::ContentHash::from(content_hash),
         chunk: p2p::ChunkIndex(chunk.parse().ok()?),
@@ -32,8 +32,8 @@ mod tests {
 
     use crate::p2p;
 
-    fn chunk_id(prefix: &str, hash: &str, chunk: u64) -> p2p::RoomHistoryRecordKind {
-        p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+    fn chunk_id(prefix: &str, hash: &str, chunk: u64) -> p2p::ZoneHistoryRecordKind {
+        p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
             prefix: p2p::HistoryKeyPrefix::from(prefix),
             content_hash: p2p::ContentHash::from(hash),
             chunk: p2p::ChunkIndex(chunk),
@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn test_usage_round_trips_the_manifest() {
-        let manifest = p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc"));
+        let manifest = p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc"));
         let key = manifest.history_record_key();
         assert_eq!(parse_history_record_key(&key), Some(manifest));
     }
@@ -66,15 +66,15 @@ mod tests {
     #[test]
     fn test_usage_rejects_non_history_keys() {
         assert_eq!(
-            parse_history_record_key(&RecordKey::new(&"lobby/room/room-a")),
+            parse_history_record_key(&RecordKey::new(&"zone/zone/zone-a")),
             None
         );
         assert_eq!(
-            parse_history_record_key(&RecordKey::new(&"lobby/history/room-a/xx")),
+            parse_history_record_key(&RecordKey::new(&"zone/history/zone-a/xx")),
             None
         );
         assert_eq!(
-            parse_history_record_key(&RecordKey::new(&"lobby/history/abc/def/other/1")),
+            parse_history_record_key(&RecordKey::new(&"zone/history/abc/def/other/1")),
             None
         );
         assert_eq!(parse_history_record_key(&RecordKey::new(&"a/b/c/d")), None);

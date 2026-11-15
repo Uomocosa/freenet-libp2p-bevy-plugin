@@ -65,7 +65,7 @@ mod tests {
             id: identity::PeerId::from("me"),
             addrs: Vec::new(),
         });
-        let room = identity::RoomName::from("r");
+        let room = identity::ZoneName::from("r");
         state.room = Some(discovery::JoinedRoom {
             name: room.clone(),
             created_at: time::UnixTime::EPOCH,

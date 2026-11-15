@@ -10,10 +10,10 @@ pub fn follow_room(
     for event in events.read() {
         match event {
             discovery::Event::Joined(room) => {
-                commands.write(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() });
+                commands.write(p2p::Libp2pCommand::SubscribeZone { zone: room.clone() });
             }
             discovery::Event::Left(room) => {
-                commands.write(p2p::Libp2pCommand::UnsubscribeRoom { room: room.clone() });
+                commands.write(p2p::Libp2pCommand::UnsubscribeZone { zone: room.clone() });
             }
             _ => {}
         }
@@ -55,16 +55,16 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut app = event_app();
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         send(&mut app, discovery::Event::Joined(room.clone()));
         assert_eq!(
             drain_commands(&mut app),
-            [p2p::Libp2pCommand::SubscribeRoom { room: room.clone() }]
+            [p2p::Libp2pCommand::SubscribeZone { zone: room.clone() }]
         );
         send(&mut app, discovery::Event::Left(room.clone()));
         assert_eq!(
             drain_commands(&mut app),
-            [p2p::Libp2pCommand::UnsubscribeRoom { room }]
+            [p2p::Libp2pCommand::UnsubscribeZone { zone: room }]
         );
     }
 
@@ -73,7 +73,7 @@ mod tests {
         let mut app = event_app();
         send(
             &mut app,
-            discovery::Event::RoomReady(identity::RoomName::from("room-a")),
+            discovery::Event::RoomReady(identity::ZoneName::from("room-a")),
         );
         assert_eq!(drain_commands(&mut app), Vec::new());
     }

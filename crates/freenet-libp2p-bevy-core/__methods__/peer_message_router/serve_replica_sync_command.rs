@@ -10,7 +10,7 @@ pub fn serve_replica_sync_command(
     match command {
         p2p::Libp2pCommand::FetchSnapshot {
             peer_id,
-            room,
+            zone,
             part,
         } => {
             let id = router.claim_reply_id(from);
@@ -20,7 +20,7 @@ pub fn serve_replica_sync_command(
                     event: p2p::Libp2pEvent::SnapshotRequest {
                         id,
                         from: from.clone(),
-                        room,
+                        zone,
                         part,
                     },
                 }]
@@ -29,14 +29,14 @@ pub fn serve_replica_sync_command(
                     to: from.clone(),
                     event: p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                         from: peer_id,
-                        request: p2p::SnapshotRequest::Fetch { room, part },
+                        request: p2p::SnapshotRequest::Fetch { zone, part },
                     },
                 }]
             }
         }
         p2p::Libp2pCommand::FetchReplicaSlice {
             peer_id,
-            room,
+            zone,
             index,
         } => {
             let id = router.claim_reply_id(from);
@@ -46,7 +46,7 @@ pub fn serve_replica_sync_command(
                     event: p2p::Libp2pEvent::ReplicaSliceRequest {
                         id,
                         from: from.clone(),
-                        room,
+                        zone,
                         index,
                     },
                 }]
@@ -55,7 +55,7 @@ pub fn serve_replica_sync_command(
                     to: from.clone(),
                     event: p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                         from: peer_id,
-                        request: p2p::SnapshotRequest::FetchReplicaSlice { room, index },
+                        request: p2p::SnapshotRequest::FetchReplicaSlice { zone, index },
                     },
                 }]
             }
@@ -66,25 +66,25 @@ pub fn serve_replica_sync_command(
             };
             let event = match frame {
                 p2p::SnapshotResponse::Part {
-                    room,
+                    zone,
                     part,
                     total,
                     data,
                 } => p2p::Libp2pEvent::SnapshotPart {
                     from: from.clone(),
-                    room,
+                    zone,
                     part,
                     total,
                     data,
                 },
-                p2p::SnapshotResponse::Missing { room } => p2p::Libp2pEvent::SnapshotMissing {
+                p2p::SnapshotResponse::Missing { zone } => p2p::Libp2pEvent::SnapshotMissing {
                     from: from.clone(),
-                    room,
+                    zone,
                 },
-                p2p::SnapshotResponse::ReplicaSlice { room, index, data } => {
+                p2p::SnapshotResponse::ReplicaSlice { zone, index, data } => {
                     p2p::Libp2pEvent::ReplicaSlice {
                         from: from.clone(),
-                        room,
+                        zone,
                         index,
                         data,
                     }
@@ -113,7 +113,7 @@ mod tests {
         let from = identity::PeerId::from("a");
         let command = p2p::Libp2pCommand::FetchReplicaSlice {
             peer_id: identity::PeerId::from("ghost"),
-            room: identity::RoomName::from("room-1"),
+            zone: identity::ZoneName::from("zone-1"),
             index: replica_sync::ReplicaSliceIndex(1),
         };
         let events = serve_replica_sync_command(&mut router, &from, command);
@@ -124,7 +124,7 @@ mod tests {
             p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                 from: identity::PeerId::from("ghost"),
                 request: p2p::SnapshotRequest::FetchReplicaSlice {
-                    room: identity::RoomName::from("room-1"),
+                    zone: identity::ZoneName::from("zone-1"),
                     index: replica_sync::ReplicaSliceIndex(1),
                 },
             }

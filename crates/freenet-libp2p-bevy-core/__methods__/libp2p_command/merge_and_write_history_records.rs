@@ -9,7 +9,7 @@ pub fn merge_and_write_history_records<Replica: replica_sync::traits::Replicated
     stored_manifest: Option<&p2p::HistoryManifest>,
     stored_snapshot: Option<&[u8]>,
     lamport_max: u64,
-    per_room_bytes: p2p::HistoryByteCount,
+    per_zone_bytes: p2p::HistoryByteCount,
     ttl: Duration,
 ) -> Vec<p2p::Libp2pCommand> {
     if let Some(bytes) = stored_snapshot
@@ -20,12 +20,12 @@ pub fn merge_and_write_history_records<Replica: replica_sync::traits::Replicated
     let Ok(bytes) = bincode::serialize(&replica.snapshot()) else {
         return Vec::new();
     };
-    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > *per_room_bytes {
+    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > *per_zone_bytes {
         tracing::error!(
             target: "replica_sync",
             bytes = bytes.len(),
-            limit = *per_room_bytes,
-            "room snapshot exceeds per-room history byte limit; refusing to store"
+            limit = *per_zone_bytes,
+            "zone snapshot exceeds per-zone history byte limit; refusing to store"
         );
         return Vec::new();
     }
@@ -37,12 +37,12 @@ pub fn merge_and_write_history_records<Replica: replica_sync::traits::Replicated
         .iter()
         .map(|chunk| u64::try_from(chunk.len()).unwrap_or(u64::MAX))
         .fold(0u64, u64::saturating_add);
-    if compressed_bytes > *per_room_bytes {
+    if compressed_bytes > *per_zone_bytes {
         tracing::error!(
             target: "replica_sync",
             bytes = compressed_bytes,
-            limit = *per_room_bytes,
-            "compressed room snapshot exceeds per-room history byte limit; refusing to store"
+            limit = *per_zone_bytes,
+            "compressed zone snapshot exceeds per-zone history byte limit; refusing to store"
         );
         return Vec::new();
     }
@@ -56,7 +56,7 @@ pub fn merge_and_write_history_records<Replica: replica_sync::traits::Replicated
         snapshot_bytes = bytes.len(),
         record_bytes = compressed_bytes,
         chunks = chunked.chunks.len(),
-        "room history written"
+        "zone history written"
     );
     let Ok(manifest_bytes) = bincode::serialize(&chunked.manifest) else {
         return Vec::new();
@@ -67,7 +67,7 @@ pub fn merge_and_write_history_records<Replica: replica_sync::traits::Replicated
             return Vec::new();
         };
         commands.push(p2p::Libp2pCommand::PutHistoryRecord {
-            id: p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+            id: p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
                 prefix: prefix.clone(),
                 content_hash: chunked.manifest.content_hash.clone(),
                 chunk: p2p::ChunkIndex(chunk_index),
@@ -77,7 +77,7 @@ pub fn merge_and_write_history_records<Replica: replica_sync::traits::Replicated
         });
     }
     commands.push(p2p::Libp2pCommand::PutHistoryRecord {
-        id: p2p::RoomHistoryRecordKind::Manifest(prefix.clone()),
+        id: p2p::ZoneHistoryRecordKind::Manifest(prefix.clone()),
         value: manifest_bytes,
         ttl,
     });
@@ -155,14 +155,14 @@ mod tests {
         assert!(matches!(
             commands.last(),
             Some(p2p::Libp2pCommand::PutHistoryRecord {
-                id: p2p::RoomHistoryRecordKind::Manifest(_),
+                id: p2p::ZoneHistoryRecordKind::Manifest(_),
                 ..
             })
         ));
     }
 
     #[test]
-    fn refuses_snapshot_exceeding_per_room_bytes() {
+    fn refuses_snapshot_exceeding_per_zone_bytes() {
         let mut replica = Map::default();
         for key in 0..50u8 {
             replica.entries.insert(key, u32::from(key));

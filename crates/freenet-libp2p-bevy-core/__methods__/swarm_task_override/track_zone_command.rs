@@ -3,19 +3,19 @@ use std::collections::BTreeMap;
 use crate::identity;
 use crate::p2p;
 
-pub fn track_room_command<Payload: p2p::traits::Message>(
+pub fn track_zone_command<Payload: p2p::traits::Message>(
     task: &p2p::SwarmTaskOverride<Payload>,
     command: &p2p::Libp2pCommand,
     game: &identity::GameId,
-    rooms_by_topic: &mut BTreeMap<identity::Topic, identity::RoomName>,
+    zones_by_topic: &mut BTreeMap<identity::Topic, identity::ZoneName>,
 ) {
     let _ = task.orchestrator_port;
     match command {
-        p2p::Libp2pCommand::SubscribeRoom { room } => {
-            rooms_by_topic.insert(identity::Topic::from_room(game, room), room.clone());
+        p2p::Libp2pCommand::SubscribeZone { zone } => {
+            zones_by_topic.insert(identity::Topic::from_zone(game, zone), zone.clone());
         }
-        p2p::Libp2pCommand::UnsubscribeRoom { room } => {
-            rooms_by_topic.remove(&identity::Topic::from_room(game, room));
+        p2p::Libp2pCommand::UnsubscribeZone { zone } => {
+            zones_by_topic.remove(&identity::Topic::from_zone(game, zone));
         }
         _ => {}
     }
@@ -25,7 +25,7 @@ pub fn track_room_command<Payload: p2p::traits::Message>(
 mod tests {
     use std::collections::BTreeMap;
 
-    use super::track_room_command;
+    use super::track_zone_command;
     use crate::identity;
     use crate::p2p;
 
@@ -39,16 +39,16 @@ mod tests {
             },
             marker: std::marker::PhantomData,
         };
-        let mut rooms = BTreeMap::new();
+        let mut zones = BTreeMap::new();
         let game = identity::GameId::from("game");
-        track_room_command(
+        track_zone_command(
             &task,
-            &p2p::Libp2pCommand::SubscribeRoom {
-                room: identity::RoomName::from("room-a"),
+            &p2p::Libp2pCommand::SubscribeZone {
+                zone: identity::ZoneName::from("zone-a"),
             },
             &game,
-            &mut rooms,
+            &mut zones,
         );
-        assert_eq!(rooms.len(), 1);
+        assert_eq!(zones.len(), 1);
     }
 }

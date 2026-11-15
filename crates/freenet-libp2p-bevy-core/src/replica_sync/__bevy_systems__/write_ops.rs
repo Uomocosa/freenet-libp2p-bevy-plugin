@@ -9,10 +9,10 @@ pub fn write_ops<Replica: replica_sync::traits::ReplicatedState>(
     mut writer: ResMut<replica_sync::PendingOps<Replica>>,
     mut clock: ResMut<replica_sync::LamportClock>,
     ready: Res<p2p::ReadyChannel>,
-    me_rooms: Query<&peers::InRoom, With<peers::Me>>,
-    room_names: Query<&identity::RoomName>,
+    me_zones: Query<&peers::InZone, With<peers::Me>>,
+    zone_names: Query<&identity::ZoneName>,
     game: Res<replica_sync::SyncGame>,
-    mut room: ResMut<Replica>,
+    mut zone: ResMut<Replica>,
     mut commands: MessageWriter<p2p::Libp2pCommand>,
 ) {
     let ready = ready.into_inner();
@@ -21,25 +21,25 @@ pub fn write_ops<Replica: replica_sync::traits::ReplicatedState>(
     if ops.is_empty() {
         return;
     }
-    let current = me_rooms
+    let current = me_zones
         .iter()
         .next()
-        .and_then(|in_room| room_names.get(**in_room).ok())
+        .and_then(|in_zone| zone_names.get(**in_zone).ok())
         .cloned();
-    let (Some(room_name), Some(me)) = (current, ready.ready_rx.borrow().clone()) else {
+    let (Some(zone_name), Some(me)) = (current, ready.ready_rx.borrow().clone()) else {
         writer.restore(ops);
         return;
     };
     let author = me.id.peer_author();
-    let topic = identity::Topic::from_replica_sync(game, &room_name);
+    let topic = identity::Topic::from_replica_sync(game, &zone_name);
     for op in ops {
         let meta = replica_sync::OpMeta {
             lamport: clock.tick(),
             author,
         };
-        room.apply(meta, &op);
+        zone.apply(meta, &op);
         let message = replica_sync::ReplicaSyncTopicMessage::ApplyThisOp {
-            room: room_name.clone(),
+            zone: zone_name.clone(),
             meta,
             op,
         };
@@ -122,9 +122,9 @@ mod tests {
                 .with_game(game.clone()),
         ));
         app.add_plugins(replica_sync::SyncPlugin::<Map>::new(game));
-        let room_entity = app
+        let zone_entity = app
             .world_mut()
-            .spawn(identity::RoomName::from("alpha"))
+            .spawn(identity::ZoneName::from("alpha"))
             .id();
         let _ = app
             .world()
@@ -137,7 +137,7 @@ mod tests {
         app.world_mut().spawn((
             peers::Peer::from(identity::PeerId::from("me")),
             peers::Me,
-            peers::InRoom(room_entity),
+            peers::InZone(zone_entity),
         ));
         app.world_mut()
             .resource_mut::<replica_sync::PendingOps<Map>>()

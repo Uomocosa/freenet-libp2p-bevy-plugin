@@ -24,14 +24,14 @@ impl FriendsView {
                     whereabouts
                         .place
                         .as_ref()
-                        .map(|room| (room, whereabouts.display_name.as_ref()))
+                        .map(|zone| (zone, whereabouts.display_name.as_ref()))
                 });
                 let (friend_presence, known_name) = match place {
-                    Some((room, display_name)) => {
+                    Some((zone, display_name)) => {
                         let name = display_name
                             .filter(|username| !username.is_empty())
                             .map(ToString::to_string);
-                        (direct_dial::FriendPresence::InRoom(room.clone()), name)
+                        (direct_dial::FriendPresence::InZone(zone.clone()), name)
                     }
                     None if connected.contains(id) => (direct_dial::FriendPresence::Online, None),
                     None => (direct_dial::FriendPresence::Offline, None),
@@ -68,11 +68,11 @@ mod tests {
 
     const LONG_ID: &str = "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC";
 
-    fn bob_in_room_7() -> presence::PeerPresence {
+    fn bob_in_zone_7() -> presence::PeerPresence {
         presence::PeerPresence(BTreeMap::from([(
             identity::PeerId::from("bob"),
             presence::Whereabouts {
-                place: Some(identity::RoomName::from("room-7")),
+                place: Some(identity::ZoneName::from("zone-7")),
                 display_name: Some(identity::Username::from("Bob")),
             },
         )]))
@@ -86,7 +86,7 @@ mod tests {
     }
 
     #[test]
-    fn offline_connected_and_in_room_presence() {
+    fn offline_connected_and_in_zone_presence() {
         let connected = BTreeSet::from([identity::PeerId::from(LONG_ID)]);
         let view = FriendsView::from_friend_ids(
             &[
@@ -94,7 +94,7 @@ mod tests {
                 identity::PeerId::from(LONG_ID),
                 identity::PeerId::from("bob"),
             ],
-            &bob_in_room_7(),
+            &bob_in_zone_7(),
             &connected,
         );
         assert_eq!(view.len(), 3);
@@ -104,7 +104,7 @@ mod tests {
             .expect("bob");
         assert_eq!(
             bob.presence,
-            direct_dial::FriendPresence::InRoom(identity::RoomName::from("room-7"))
+            direct_dial::FriendPresence::InZone(identity::ZoneName::from("zone-7"))
         );
         assert_eq!(bob.name, "Bob");
         let online = view
@@ -139,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn a_friend_without_a_place_is_not_in_the_room() {
+    fn a_friend_without_a_place_is_not_in_the_zone() {
         let placeless = presence::PeerPresence(BTreeMap::from([(
             identity::PeerId::from("bob"),
             presence::Whereabouts {

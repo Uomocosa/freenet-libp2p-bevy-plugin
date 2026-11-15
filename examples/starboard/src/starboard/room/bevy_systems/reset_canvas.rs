@@ -58,7 +58,7 @@ mod tests {
 
         app.world_mut()
             .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(identity::RoomName::from("alpha")));
+            .write(discovery::Event::Joined(identity::ZoneName::from("alpha")));
         app.update();
         assert!(
             app.world()
@@ -90,7 +90,7 @@ mod tests {
             .resource_mut::<starboard::input::PendingPressState>() = Some(press);
         app.world_mut()
             .resource_mut::<Messages<discovery::Event>>()
-            .write(discovery::Event::Joined(identity::RoomName::from("beta")));
+            .write(discovery::Event::Joined(identity::ZoneName::from("beta")));
         app.update();
 
         assert!(

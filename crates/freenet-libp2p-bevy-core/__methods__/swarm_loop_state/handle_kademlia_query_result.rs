@@ -17,8 +17,8 @@ mod tests {
 
     use crate::p2p;
 
-    fn chunk() -> p2p::RoomHistoryRecordKind {
-        p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+    fn chunk() -> p2p::ZoneHistoryRecordKind {
+        p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
             prefix: p2p::HistoryKeyPrefix::from("abc"),
             content_hash: p2p::ContentHash::from("def"),
             chunk: p2p::ChunkIndex(5),
@@ -85,7 +85,7 @@ mod tests {
             next_event(
                 &state,
                 &mut rx,
-                found(kad::RecordKey::new(&"lobby/room/room-a"))
+                found(kad::RecordKey::new(&"zone/zone/zone-a"))
             ),
             None
         );

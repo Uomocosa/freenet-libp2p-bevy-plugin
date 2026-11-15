@@ -49,27 +49,27 @@ pub fn dispatch_libp2p_command<Payload: p2p::traits::Message>(
             let topic = gossipsub::IdentTopic::new(topic.as_str());
             let _ = state.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
         }
-        p2p::Libp2pCommand::SubscribeRoom { room } => {
-            state.subscribe_room(room);
+        p2p::Libp2pCommand::SubscribeZone { zone } => {
+            state.subscribe_zone(zone);
         }
-        p2p::Libp2pCommand::UnsubscribeRoom { room } => {
-            state.unsubscribe_room(&room);
+        p2p::Libp2pCommand::UnsubscribeZone { zone } => {
+            state.unsubscribe_zone(&zone);
         }
         p2p::Libp2pCommand::FetchSnapshot {
             peer_id,
-            room,
+            zone,
             part,
         } => {
-            state.send_replica_sync_request(&peer_id, p2p::SnapshotRequest::Fetch { room, part });
+            state.send_replica_sync_request(&peer_id, p2p::SnapshotRequest::Fetch { zone, part });
         }
         p2p::Libp2pCommand::FetchReplicaSlice {
             peer_id,
-            room,
+            zone,
             index,
         } => {
             state.send_replica_sync_request(
                 &peer_id,
-                p2p::SnapshotRequest::FetchReplicaSlice { room, index },
+                p2p::SnapshotRequest::FetchReplicaSlice { zone, index },
             );
         }
         p2p::Libp2pCommand::RespondSnapshot { id, frame } => {
@@ -108,7 +108,7 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
-        let topic = identity::Topic::from("lobby/topic");
+        let topic = identity::Topic::from("global/topic");
         dispatch_libp2p_command(
             &mut state,
             p2p::Libp2pCommand::Subscribe {

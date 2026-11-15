@@ -7,8 +7,8 @@ pub use libp2p_events::Libp2pEvents;
 mod publish_slice_content_hashes;
 pub use publish_slice_content_hashes::publish_slice_content_hashes;
 
-mod refresh_room_history;
-pub use refresh_room_history::refresh_room_history;
+mod refresh_zone_history;
+pub use refresh_zone_history::refresh_zone_history;
 
 mod sync_state;
 pub use sync_state::SyncState;

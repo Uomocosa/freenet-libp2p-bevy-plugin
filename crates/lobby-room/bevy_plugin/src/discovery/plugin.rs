@@ -74,7 +74,7 @@ impl bevy::prelude::Plugin for Plugin {
                 .run_if(resource_exists::<discovery::state_machine::DiscoveryState>)
                 .after(peers::bevy_systems::track_peer_connections)
                 .before(peers::bevy_systems::despawn_orphan_peers)
-                .before(peers::bevy_systems::despawn_orphan_rooms)
+                .before(peers::bevy_systems::despawn_orphan_zones)
                 .before(direct_dial::bevy_systems::project_friends_to_entities)
                 .in_set(replica_sync::ReplicaSyncSet::Input),
         );
@@ -178,7 +178,7 @@ mod build_plugin_tests {
             .send_replace(Some(peer));
         app.update();
         app.update();
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         app.world_mut()
             .resource_mut::<Messages<discovery::state_machine::Input>>()
             .write(discovery::state_machine::Input::Command(
@@ -190,7 +190,7 @@ mod build_plugin_tests {
         while let Ok(command) = rx.try_recv() {
             if matches!(
                 &command,
-                p2p::Libp2pCommand::SubscribeRoom { room: joined } if *joined == room
+                p2p::Libp2pCommand::SubscribeZone { zone: joined } if *joined == room
             ) {
                 saw_subscribe = true;
             }
@@ -204,7 +204,7 @@ mod build_plugin_tests {
     #[test]
     fn inputs_before_swarm_ready_are_processed_after_state_appears() {
         let mut app = app_with_swarm();
-        let room = identity::RoomName::from("room-a");
+        let room = identity::ZoneName::from("room-a");
         app.world_mut()
             .resource_mut::<Messages<discovery::state_machine::Input>>()
             .write(discovery::state_machine::Input::Command(
@@ -251,7 +251,7 @@ mod build_plugin_tests {
             .resource_mut::<Messages<discovery::state_machine::Input>>()
             .write(discovery::state_machine::Input::Libp2pEvent(
                 p2p::Libp2pEvent::HistoryRecordStored {
-                    id: p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc")),
+                    id: p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc")),
                 },
             ));
         app.update();
@@ -282,7 +282,7 @@ mod build_plugin_tests {
         app.world_mut()
             .resource_mut::<Messages<discovery::state_machine::Input>>()
             .write(discovery::state_machine::Input::Command(
-                discovery::Command::Create(identity::RoomName::from("room-a")),
+                discovery::Command::Create(identity::ZoneName::from("room-a")),
             ));
         app.update();
         app.update();

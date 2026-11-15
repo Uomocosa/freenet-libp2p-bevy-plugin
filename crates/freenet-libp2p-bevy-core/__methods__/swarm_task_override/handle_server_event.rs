@@ -5,18 +5,18 @@ use crate::p2p;
 
 pub fn handle_server_event<Payload: p2p::traits::Message>(
     task: &p2p::SwarmTaskOverride<Payload>,
-    rooms_by_topic: &BTreeMap<identity::Topic, identity::RoomName>,
+    zones_by_topic: &BTreeMap<identity::Topic, identity::ZoneName>,
     event: p2p::Libp2pEvent,
     events: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
 ) {
     let _ = task.orchestrator_port;
     if let p2p::Libp2pEvent::Gossip { topic, from, data } = event {
-        if let Some(room) = rooms_by_topic.get(&topic) {
+        if let Some(zone) = zones_by_topic.get(&topic) {
             match bincode::deserialize::<Payload>(&data) {
                 Ok(payload) => {
                     events
-                        .send(p2p::Event::RoomMessage {
-                            room: room.clone(),
+                        .send(p2p::Event::ZoneMessage {
+                            zone: zone.clone(),
                             from,
                             payload,
                         })
@@ -25,7 +25,7 @@ pub fn handle_server_event<Payload: p2p::traits::Message>(
                 Err(error) => {
                     events
                         .send(p2p::Event::Error(format!(
-                            "room payload decode failed: {error}"
+                            "zone payload decode failed: {error}"
                         )))
                         .ok();
                 }

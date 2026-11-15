@@ -127,8 +127,8 @@ mod tests {
             core_direct_dial::FriendView {
                 id: freenet_libp2p_bevy_core::identity::PeerId::from("bob"),
                 name: String::from("bob"),
-                presence: core_direct_dial::FriendPresence::InRoom(
-                    freenet_libp2p_bevy_core::identity::RoomName::from("room-7"),
+                presence: core_direct_dial::FriendPresence::InZone(
+                    freenet_libp2p_bevy_core::identity::ZoneName::from("room-7"),
                 ),
             },
             core_direct_dial::FriendView {

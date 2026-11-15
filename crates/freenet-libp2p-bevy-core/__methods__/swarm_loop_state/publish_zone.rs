@@ -1,18 +1,18 @@
 use crate::identity;
 use crate::p2p;
 
-pub fn publish_room<Payload: p2p::traits::Message>(
+pub fn publish_zone<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     config: &p2p::GossipsubConfig,
-    room: &identity::RoomName,
+    zone: &identity::ZoneName,
     payload: &Payload,
 ) {
     let Ok(data) = bincode::serialize(payload) else {
         state
             .event_tx
             .send(p2p::Event::Error(format!(
-                "room publish {}: encode failed",
-                room.as_str()
+                "zone publish {}: encode failed",
+                zone.as_str()
             )))
             .ok();
         return;
@@ -21,8 +21,8 @@ pub fn publish_room<Payload: p2p::traits::Message>(
         state
             .event_tx
             .send(p2p::Event::Error(format!(
-                "room publish {}: payload {} bytes exceeds limit {}",
-                room.as_str(),
+                "zone publish {}: payload {} bytes exceeds limit {}",
+                zone.as_str(),
                 data.len(),
                 config.max_transmit_size
             )))
@@ -30,14 +30,14 @@ pub fn publish_room<Payload: p2p::traits::Message>(
         return;
     }
     let topic = libp2p::gossipsub::IdentTopic::new(
-        identity::Topic::from_room(&state.subscriptions.game, room).as_str(),
+        identity::Topic::from_zone(&state.subscriptions.game, zone).as_str(),
     );
     if let Err(error) = state.swarm.behaviour_mut().gossipsub.publish(topic, data) {
         state
             .event_tx
             .send(p2p::Event::Error(format!(
-                "room publish {}: {error}",
-                room.as_str()
+                "zone publish {}: {error}",
+                zone.as_str()
             )))
             .ok();
     }
@@ -45,7 +45,7 @@ pub fn publish_room<Payload: p2p::traits::Message>(
 
 #[cfg(test)]
 mod tests {
-    use super::publish_room;
+    use super::publish_zone;
     use crate::identity;
     use crate::p2p;
 
@@ -53,8 +53,8 @@ mod tests {
     async fn test_usage() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<Vec<u8>>::for_test();
         let config = p2p::GossipsubConfig::default();
-        let room = identity::RoomName::from("room-a");
-        publish_room(&mut state, &config, &room, &vec![0; 70_000]);
+        let zone = identity::ZoneName::from("zone-a");
+        publish_zone(&mut state, &config, &zone, &vec![0; 70_000]);
         let Ok(p2p::Event::Error(message)) = rx.try_recv() else {
             panic!("expected an error event");
         };

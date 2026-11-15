@@ -8,9 +8,9 @@ use crate::replica_sync;
 
 pub fn perform<Replica: replica_sync::traits::ReplicatedState>(
     output: replica_sync::state_machine::Output<Replica::Op>,
-    room: &mut Replica,
+    zone: &mut Replica,
     clock: replica_sync::LamportClock,
-    per_room_bytes: p2p::HistoryByteCount,
+    per_zone_bytes: p2p::HistoryByteCount,
     record_ttl: Duration,
     pending: &mut Vec<p2p::Libp2pCommand>,
     failures: &mut Option<MessageWriter<replica_sync::JoinFailure>>,
@@ -19,29 +19,29 @@ pub fn perform<Replica: replica_sync::traits::ReplicatedState>(
     use p2p::Libp2pCommand;
     use replica_sync::state_machine::Output;
     match output {
-        Output::FetchSnapshotPartFromRoomMember { peer, room, part } => {
+        Output::FetchSnapshotPartFromZoneMember { peer, zone, part } => {
             pending.push(Libp2pCommand::FetchSnapshot {
                 peer_id: peer,
-                room,
+                zone,
                 part,
             });
         }
-        Output::SendSnapshotPartToRoomMember {
+        Output::SendSnapshotPartToZoneMember {
             id,
-            room: name,
+            zone: name,
             part,
         } => {
             let frame = replica_sync::bevy_systems::SyncState::<Replica::Op>::snapshot_frame(
-                room, name, part,
+                zone, name, part,
             );
             pending.push(Libp2pCommand::RespondSnapshot { id, frame });
         }
         Output::Merge { bytes } => {
             if let Ok(snapshot) = bincode::deserialize::<Replica::Snapshot>(&bytes) {
-                room.merge(snapshot);
+                zone.merge(snapshot);
             }
         }
-        Output::Apply { meta, op } => room.apply(meta, &op),
+        Output::Apply { meta, op } => zone.apply(meta, &op),
         Output::GetHistoryRecord { id } => pending.push(Libp2pCommand::GetHistoryRecord { id }),
         Output::MergeAndWriteHistory {
             prefix,
@@ -49,55 +49,55 @@ pub fn perform<Replica: replica_sync::traits::ReplicatedState>(
             stored_snapshot,
         } => {
             pending.extend(p2p::Libp2pCommand::merge_and_write_history_records(
-                room,
+                zone,
                 &prefix,
                 stored_manifest.as_ref(),
                 stored_snapshot.as_deref(),
                 u64::from(*clock),
-                per_room_bytes,
+                per_zone_bytes,
                 record_ttl,
             ));
         }
-        Output::RoomGone { room } => {
+        Output::ZoneGone { zone } => {
             if let Some(writer) = failures {
-                writer.write(replica_sync::JoinFailure::RoomGone(room));
+                writer.write(replica_sync::JoinFailure::ZoneGone(zone));
             }
         }
-        Output::HistoryUnavailable { room } => {
+        Output::HistoryUnavailable { zone } => {
             if let Some(writer) = failures {
-                writer.write(replica_sync::JoinFailure::HistoryUnavailable(room));
+                writer.write(replica_sync::JoinFailure::HistoryUnavailable(zone));
             }
         }
-        Output::PublishSliceContentHashes { room, hashes } => {
-            tracing::debug!(target: "replica_sync", "anti-entropy publish room={room} slices={}", hashes.len());
+        Output::PublishSliceContentHashes { zone, hashes } => {
+            tracing::debug!(target: "replica_sync", "anti-entropy publish zone={zone} slices={}", hashes.len());
             let msg =
                 replica_sync::ReplicaSyncTopicMessage::<Replica::Op>::CompareSliceContentHashes {
-                    room: room.clone(),
+                    zone: zone.clone(),
                     hashes,
                 };
             if let Ok(data) = bincode::serialize(&msg) {
                 pending.push(Libp2pCommand::Publish {
-                    topic: identity::Topic::from_replica_sync(game, &room),
+                    topic: identity::Topic::from_replica_sync(game, &zone),
                     data,
                 });
             }
         }
-        Output::FetchReplicaSlice { peer, room, index } => {
+        Output::FetchReplicaSlice { peer, zone, index } => {
             pending.push(Libp2pCommand::FetchReplicaSlice {
                 peer_id: peer,
-                room,
+                zone,
                 index,
             });
         }
         Output::SendReplicaSlice {
             id,
-            room: name,
+            zone: name,
             index,
         } => {
-            let frame = bincode::serialize(&room.slice_snapshot(index)).map_or_else(
-                |_| p2p::SnapshotResponse::Missing { room: name.clone() },
+            let frame = bincode::serialize(&zone.slice_snapshot(index)).map_or_else(
+                |_| p2p::SnapshotResponse::Missing { zone: name.clone() },
                 |data| p2p::SnapshotResponse::ReplicaSlice {
-                    room: name.clone(),
+                    zone: name.clone(),
                     index,
                     data,
                 },
@@ -138,14 +138,14 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let mut room = MockReplica;
+        let mut zone = MockReplica;
         let mut pending = Vec::new();
         let game = identity::GameId::from("game");
         perform(
             replica_sync::state_machine::Output::GetHistoryRecord {
-                id: p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc")),
+                id: p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc")),
             },
-            &mut room,
+            &mut zone,
             replica_sync::LamportClock::default(),
             p2p::HistoryByteCount::from(1_u64),
             std::time::Duration::from_secs(1),

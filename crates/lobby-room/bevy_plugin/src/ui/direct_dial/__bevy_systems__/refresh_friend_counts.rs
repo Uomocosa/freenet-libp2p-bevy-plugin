@@ -72,7 +72,7 @@ mod tests {
             friend_view("bob", core_direct_dial::FriendPresence::Online),
             friend_view(
                 "carol",
-                core_direct_dial::FriendPresence::InRoom(identity::RoomName::from("room-7")),
+                core_direct_dial::FriendPresence::InZone(identity::ZoneName::from("room-7")),
             ),
         ]));
         app.update();

@@ -181,7 +181,7 @@ mod tests {
     fn test_usage() {
         let mut lobby = core_discovery::Lobby::default();
         for name in ["alpha", "beta"] {
-            lobby.insert(identity::RoomName::from(name), room(&[]));
+            lobby.insert(identity::ZoneName::from(name), room(&[]));
         }
         let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .with_lobby(lobby)
@@ -202,7 +202,7 @@ mod tests {
     fn the_count_covers_occupant_members_only() {
         let mut lobby = core_discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("alpha"),
+            identity::ZoneName::from("alpha"),
             room(&[
                 ("occupant", core_discovery::RoomMembership::Occupant),
                 ("holder", core_discovery::RoomMembership::HistoryHolder),
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn rows_come_from_the_lobby_rows_resource() {
         let rows = vec![core_discovery::LobbyRow {
-            name: identity::RoomName::from("alpha"),
+            name: identity::ZoneName::from("alpha"),
             occupants: 3,
             room_size: core_discovery::RoomSize::try_from(8).expect("8"),
             occupancy: core_discovery::RoomOccupancy::HasSpace,
@@ -239,21 +239,21 @@ mod tests {
     fn the_bubble_color_follows_the_occupancy() {
         let rows = vec![
             core_discovery::LobbyRow {
-                name: identity::RoomName::from("alpha"),
+                name: identity::ZoneName::from("alpha"),
                 occupants: 3,
                 room_size: core_discovery::RoomSize::try_from(8).expect("8"),
                 occupancy: core_discovery::RoomOccupancy::HasSpace,
                 friends: 0,
             },
             core_discovery::LobbyRow {
-                name: identity::RoomName::from("beta"),
+                name: identity::ZoneName::from("beta"),
                 occupants: 0,
                 room_size: core_discovery::RoomSize::DEFAULT,
                 occupancy: core_discovery::RoomOccupancy::Empty,
                 friends: 0,
             },
             core_discovery::LobbyRow {
-                name: identity::RoomName::from("gamma"),
+                name: identity::ZoneName::from("gamma"),
                 occupants: 4,
                 room_size: core_discovery::RoomSize::try_from(4).expect("4"),
                 occupancy: core_discovery::RoomOccupancy::Full,
@@ -280,14 +280,14 @@ mod tests {
     fn a_room_with_friends_carries_the_friend_badge() {
         let rows = vec![
             core_discovery::LobbyRow {
-                name: identity::RoomName::from("alpha"),
+                name: identity::ZoneName::from("alpha"),
                 occupants: 3,
                 room_size: core_discovery::RoomSize::try_from(8).expect("8"),
                 occupancy: core_discovery::RoomOccupancy::HasSpace,
                 friends: 2,
             },
             core_discovery::LobbyRow {
-                name: identity::RoomName::from("beta"),
+                name: identity::ZoneName::from("beta"),
                 occupants: 0,
                 room_size: core_discovery::RoomSize::DEFAULT,
                 occupancy: core_discovery::RoomOccupancy::Empty,
@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn a_long_room_name_is_clipped_unwrapped() {
         let rows = vec![core_discovery::LobbyRow {
-            name: identity::RoomName::from("very-long-room-name-that-never-fits"),
+            name: identity::ZoneName::from("very-long-room-name-that-never-fits"),
             occupants: 1,
             room_size: core_discovery::RoomSize::try_from(4).expect("4"),
             occupancy: core_discovery::RoomOccupancy::HasSpace,
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn fresh_room_row_already_carries_its_hover_styles() {
         let rows = vec![core_discovery::LobbyRow {
-            name: identity::RoomName::from("alpha"),
+            name: identity::ZoneName::from("alpha"),
             occupants: 0,
             room_size: core_discovery::RoomSize::DEFAULT,
             occupancy: core_discovery::RoomOccupancy::Empty,
@@ -377,7 +377,7 @@ mod tests {
             })
         };
         lobby.insert(
-            identity::RoomName::from("alpha"),
+            identity::ZoneName::from("alpha"),
             core_discovery::Room {
                 room_size: core_discovery::RoomSize::try_from(8)
                     .expect("fixture room size is non-zero"),
@@ -389,7 +389,7 @@ mod tests {
             },
         );
         lobby.insert(
-            identity::RoomName::from("very-long-room-name-that-never-fits"),
+            identity::ZoneName::from("very-long-room-name-that-never-fits"),
             core_discovery::Room {
                 room_size: core_discovery::RoomSize::try_from(4)
                     .expect("fixture room size is non-zero"),
@@ -398,7 +398,7 @@ mod tests {
             },
         );
         lobby.insert(
-            identity::RoomName::from("beta"),
+            identity::ZoneName::from("beta"),
             core_discovery::Room {
                 room_size: core_discovery::RoomSize::try_from(8)
                     .expect("fixture room size is non-zero"),
@@ -407,7 +407,7 @@ mod tests {
             },
         );
         lobby.insert(
-            identity::RoomName::from("gamma"),
+            identity::ZoneName::from("gamma"),
             core_discovery::Room {
                 room_size: core_discovery::RoomSize::try_from(4)
                     .expect("fixture room size is non-zero"),

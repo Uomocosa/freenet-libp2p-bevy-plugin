@@ -42,13 +42,13 @@ pub fn spawn_fake_swarm_task<Payload: p2p::traits::Message>(
                 task_override.peer.clone(),
             )))
             .ok();
-        let mut rooms_by_topic: BTreeMap<identity::Topic, identity::RoomName> = BTreeMap::new();
+        let mut zones_by_topic: BTreeMap<identity::Topic, identity::ZoneName> = BTreeMap::new();
         let mut server_frames = framing.spawn_server_frame_reader(reader);
         loop {
             tokio::select! {
                 cmd = commands.recv() => {
                     let Some(cmd) = cmd else { break };
-                    let Some(frame) = task_override.command_frame(&game, &mut rooms_by_topic, &events, cmd) else { continue };
+                    let Some(frame) = task_override.command_frame(&game, &mut zones_by_topic, &events, cmd) else { continue };
                     if !framing.write_frame(&mut writer, &frame).await {
                         tracing::error!(target: "testing", "fake swarm: command write failed");
                         break;
@@ -56,7 +56,7 @@ pub fn spawn_fake_swarm_task<Payload: p2p::traits::Message>(
                 }
                 cmd = libp2p_commands.recv() => {
                     let Some(command) = cmd else { break };
-                    task_override.track_room_command(&command, &game, &mut rooms_by_topic);
+                    task_override.track_zone_command(&command, &game, &mut zones_by_topic);
                     let frame = testing::FakeWireClientFrame::Libp2pCommand(command);
                     if !framing.write_frame(&mut writer, &frame).await {
                         tracing::error!(target: "testing", "fake swarm: command write failed");
@@ -70,7 +70,7 @@ pub fn spawn_fake_swarm_task<Payload: p2p::traits::Message>(
                     };
                     match frame {
                         testing::FakeWireServerFrame::Libp2pEvent(event) => {
-                            task_override.handle_server_event(&rooms_by_topic, event, &events);
+                            task_override.handle_server_event(&zones_by_topic, event, &events);
                         }
                         testing::FakeWireServerFrame::Extension(_) => {}
                     }

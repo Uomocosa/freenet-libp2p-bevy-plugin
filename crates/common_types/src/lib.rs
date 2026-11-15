@@ -1,6 +1,6 @@
 #[path = "__basic__/mod.rs"]
 mod basic;
-pub use basic::newtypes::{RoomName, Username};
+pub use basic::newtypes::{Username, ZoneName};
 mod peer;
 pub use peer::Peer;
 mod peer_addr;

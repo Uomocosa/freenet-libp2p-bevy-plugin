@@ -3,7 +3,7 @@ use crate::replica_sync;
 pub fn fetch_next<Op>(
     state: &mut replica_sync::state_machine::ReplicaState<Op>,
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
-    let Some(room) = state.room.clone() else {
+    let Some(zone) = state.zone.clone() else {
         return Vec::new();
     };
     let peer = state
@@ -18,9 +18,9 @@ pub fn fetch_next<Op>(
     state.member_snapshot.asked_members.push(peer.clone());
     state.member_snapshot.current_source = Some(peer.clone());
     vec![
-        replica_sync::state_machine::Output::FetchSnapshotPartFromRoomMember {
+        replica_sync::state_machine::Output::FetchSnapshotPartFromZoneMember {
             peer,
-            room,
+            zone,
             part: 0,
         },
     ]

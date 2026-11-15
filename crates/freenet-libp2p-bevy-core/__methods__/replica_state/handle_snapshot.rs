@@ -3,14 +3,14 @@ use crate::replica_sync;
 
 pub fn handle_snapshot<Op>(
     state: &mut replica_sync::state_machine::ReplicaState<Op>,
-    room: identity::RoomName,
+    zone: identity::ZoneName,
     part: u32,
     total: u32,
     data: Vec<u8>,
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
     tracing::debug!(target: "replica_sync", "snapshot part received part={} total={} phase={:?}", part, total, state.phase);
-    if state.phase != replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember
-        || state.room.as_ref() != Some(&room)
+    if state.phase != replica_sync::state_machine::Phase::FetchingSnapshotFromZoneMember
+        || state.zone.as_ref() != Some(&zone)
         || total == 0
         || part >= total
     {
@@ -29,9 +29,9 @@ pub fn handle_snapshot<Op>(
             return Vec::new();
         };
         return vec![
-            replica_sync::state_machine::Output::FetchSnapshotPartFromRoomMember {
+            replica_sync::state_machine::Output::FetchSnapshotPartFromZoneMember {
                 peer,
-                room,
+                zone,
                 part: next_part,
             },
         ];
@@ -56,7 +56,7 @@ mod tests {
         let mut state = ReplicaState::<u8>::default();
         let outputs = handle_snapshot(
             &mut state,
-            identity::RoomName::from("room"),
+            identity::ZoneName::from("zone"),
             0,
             1,
             vec![1, 2, 3],

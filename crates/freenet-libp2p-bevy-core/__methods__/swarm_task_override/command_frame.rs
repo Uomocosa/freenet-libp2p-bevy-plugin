@@ -7,37 +7,37 @@ use crate::testing;
 pub fn command_frame<Payload: p2p::traits::Message>(
     task: &p2p::SwarmTaskOverride<Payload>,
     game: &identity::GameId,
-    rooms_by_topic: &mut BTreeMap<identity::Topic, identity::RoomName>,
+    zones_by_topic: &mut BTreeMap<identity::Topic, identity::ZoneName>,
     events: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     cmd: p2p::Command<Payload>,
 ) -> Option<testing::FakeWireClientFrame> {
     let _ = task.orchestrator_port;
     match cmd {
         p2p::Command::Net(command) => {
-            task.track_room_command(&command, game, rooms_by_topic);
+            task.track_zone_command(&command, game, zones_by_topic);
             Some(testing::FakeWireClientFrame::Libp2pCommand(command))
         }
-        p2p::Command::PublishInJoinedRoom { payload } => {
+        p2p::Command::PublishInJoinedZone { payload } => {
             let Ok(data) = bincode::serialize(&payload) else {
                 events
                     .send(p2p::Event::Error(
-                        "fake network: room payload encode failed".to_string(),
+                        "fake network: zone payload encode failed".to_string(),
                     ))
                     .ok();
                 return None;
             };
-            Some(testing::FakeWireClientFrame::JoinedRoomBytes(data))
+            Some(testing::FakeWireClientFrame::JoinedZoneBytes(data))
         }
-        p2p::Command::PublishToSpecificRoom { room, payload } => {
+        p2p::Command::PublishToSpecificZone { zone, payload } => {
             let Ok(data) = bincode::serialize(&payload) else {
                 events
                     .send(p2p::Event::Error(
-                        "fake network: room payload encode failed".to_string(),
+                        "fake network: zone payload encode failed".to_string(),
                     ))
                     .ok();
                 return None;
             };
-            Some(testing::FakeWireClientFrame::SpecificRoomBytes { room, data })
+            Some(testing::FakeWireClientFrame::SpecificZoneBytes { zone, data })
         }
         p2p::Command::Send { peer_id, .. } => {
             tracing::warn!(
@@ -74,11 +74,11 @@ mod tests {
             &identity::GameId::from("game"),
             &mut BTreeMap::new(),
             &event_tx,
-            p2p::Command::PublishInJoinedRoom { payload: 7u8 },
+            p2p::Command::PublishInJoinedZone { payload: 7u8 },
         );
         assert!(matches!(
             frame,
-            Some(crate::testing::FakeWireClientFrame::JoinedRoomBytes(_))
+            Some(crate::testing::FakeWireClientFrame::JoinedZoneBytes(_))
         ));
     }
 }

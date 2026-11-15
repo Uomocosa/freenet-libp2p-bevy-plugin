@@ -12,9 +12,9 @@ pub fn libp2p_event_to_input<Replica: replica_sync::traits::ReplicatedState>(
     match event {
         p2p::Libp2pEvent::Gossip { topic, from, data } => {
             let expected = state
-                .room
+                .zone
                 .as_ref()
-                .map(|room| identity::Topic::from_replica_sync(game, room));
+                .map(|zone| identity::Topic::from_replica_sync(game, zone));
             if expected.as_ref() != Some(topic) {
                 return None;
             }
@@ -22,9 +22,9 @@ pub fn libp2p_event_to_input<Replica: replica_sync::traits::ReplicatedState>(
                 bincode::deserialize::<replica_sync::ReplicaSyncTopicMessage<Replica::Op>>(data)
                     .ok()?;
             match message {
-                replica_sync::ReplicaSyncTopicMessage::ApplyThisOp { room, meta, op } => {
+                replica_sync::ReplicaSyncTopicMessage::ApplyThisOp { zone, meta, op } => {
                     clock.observe(meta.lamport);
-                    Some(replica_sync::state_machine::Input::Remote { room, meta, op })
+                    Some(replica_sync::state_machine::Input::Remote { zone, meta, op })
                 }
                 replica_sync::ReplicaSyncTopicMessage::CompareSliceContentHashes {
                     hashes, ..
@@ -41,25 +41,25 @@ pub fn libp2p_event_to_input<Replica: replica_sync::traits::ReplicatedState>(
             }
         }
         p2p::Libp2pEvent::SnapshotPart {
-            room,
+            zone,
             part,
             total,
             data,
             ..
         } => Some(
-            replica_sync::state_machine::Input::SnapshotPartReceivedFromRoomMember {
-                room: room.clone(),
+            replica_sync::state_machine::Input::SnapshotPartReceivedFromZoneMember {
+                zone: zone.clone(),
                 part: *part,
                 total: *total,
                 data: data.clone(),
             },
         ),
         p2p::Libp2pEvent::SnapshotMissing { .. } => {
-            Some(replica_sync::state_machine::Input::SnapshotMissingFromRoomMember)
+            Some(replica_sync::state_machine::Input::SnapshotMissingFromZoneMember)
         }
         p2p::Libp2pEvent::ReplicaSyncRequestFailed { from, request } => match request {
             p2p::SnapshotRequest::Fetch { .. } => Some(
-                replica_sync::state_machine::Input::RequestToRoomMemberFailed {
+                replica_sync::state_machine::Input::RequestToZoneMemberFailed {
                     from: from.clone(),
                 },
             ),
@@ -80,30 +80,30 @@ pub fn libp2p_event_to_input<Replica: replica_sync::traits::ReplicatedState>(
             Some(replica_sync::state_machine::Input::HistoryRecordNotFound { id: id.clone() })
         }
         p2p::Libp2pEvent::ReplicaSliceRequest {
-            id, room, index, ..
+            id, zone, index, ..
         } => Some(replica_sync::state_machine::Input::ReplicaSliceRequested {
             id: *id,
-            room: room.clone(),
+            zone: zone.clone(),
             index: *index,
         }),
         p2p::Libp2pEvent::ReplicaSlice {
             from,
-            room,
+            zone,
             index,
             data,
         } => {
             tracing::debug!(target: "replica_sync", "anti-entropy slice from={from} index={} bytes={}", **index, data.len());
             Some(replica_sync::state_machine::Input::ReplicaSliceReceived {
                 from: from.clone(),
-                room: room.clone(),
+                zone: zone.clone(),
                 index: *index,
                 data: data.clone(),
             })
         }
-        p2p::Libp2pEvent::SnapshotRequest { id, room, part, .. } => Some(
-            replica_sync::state_machine::Input::SnapshotPartRequestedByRoomMember {
+        p2p::Libp2pEvent::SnapshotRequest { id, zone, part, .. } => Some(
+            replica_sync::state_machine::Input::SnapshotPartRequestedByZoneMember {
                 id: *id,
-                room: room.clone(),
+                zone: zone.clone(),
                 part: *part,
             },
         ),
@@ -147,10 +147,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let room = identity::RoomName::from("room");
+        let zone = identity::ZoneName::from("zone");
         let state = replica_sync::bevy_systems::SyncState::<u32>(
             replica_sync::state_machine::ReplicaState {
-                room: Some(room.clone()),
+                zone: Some(zone.clone()),
                 ..Default::default()
             },
         );
@@ -159,14 +159,14 @@ mod tests {
         let replica = Probe::default();
         let missing = p2p::Libp2pEvent::SnapshotMissing {
             from: identity::PeerId::from("peer"),
-            room,
+            zone,
         };
         assert!(matches!(
             libp2p_event_to_input(&missing, &state, &mut clock, &game, &replica),
-            Some(replica_sync::state_machine::Input::SnapshotMissingFromRoomMember)
+            Some(replica_sync::state_machine::Input::SnapshotMissingFromZoneMember)
         ));
         let unrelated = p2p::Libp2pEvent::HistoryRecordNotFound {
-            id: p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("prefix")),
+            id: p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("prefix")),
         };
         assert!(libp2p_event_to_input(&unrelated, &state, &mut clock, &game, &replica).is_some());
     }

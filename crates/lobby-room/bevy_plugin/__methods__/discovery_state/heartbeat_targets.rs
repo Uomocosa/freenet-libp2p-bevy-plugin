@@ -56,14 +56,14 @@ mod tests {
         });
         assert_eq!(heartbeat_targets(&state), Vec::new());
         state.room = Some(discovery::JoinedRoom {
-            name: identity::RoomName::from("r"),
+            name: identity::ZoneName::from("r"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
             how_entered: discovery::HowRoomWasEntered::Created,
         });
         state.held_rooms.insert(
-            identity::RoomName::from("old"),
+            identity::ZoneName::from("old"),
             discovery::state_machine::HeldRoomHistory {
                 created_at: time::UnixTime::EPOCH,
                 left_at: time::UnixTime::from_secs(5),
@@ -71,7 +71,7 @@ mod tests {
         );
         state
             .evicted_rooms
-            .insert(identity::RoomName::from("gone"), time::UnixTime::EPOCH);
+            .insert(identity::ZoneName::from("gone"), time::UnixTime::EPOCH);
         let presences: Vec<_> = heartbeat_targets(&state)
             .into_iter()
             .map(|target| (target.room, target.membership))
@@ -80,15 +80,15 @@ mod tests {
             presences,
             vec![
                 (
-                    identity::RoomName::from("r"),
+                    identity::ZoneName::from("r"),
                     discovery::RoomMembership::Occupant
                 ),
                 (
-                    identity::RoomName::from("old"),
+                    identity::ZoneName::from("old"),
                     discovery::RoomMembership::HistoryHolder
                 ),
                 (
-                    identity::RoomName::from("gone"),
+                    identity::ZoneName::from("gone"),
                     discovery::RoomMembership::Departed
                 ),
             ]

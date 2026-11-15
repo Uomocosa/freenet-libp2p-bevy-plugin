@@ -20,22 +20,22 @@ pub fn update_peer_subscriptions(
                 topics.remove(&topic);
             }
         }
-        p2p::Libp2pCommand::SubscribeRoom { room } => {
-            let topic = identity::Topic::from_room(&router.game, &room);
+        p2p::Libp2pCommand::SubscribeZone { zone } => {
+            let topic = identity::Topic::from_zone(&router.game, &zone);
             router
                 .subscribed_topics
                 .entry(from.clone())
                 .or_default()
                 .insert(topic);
-            router.joined_rooms.insert(from.clone(), room);
+            router.joined_zones.insert(from.clone(), zone);
         }
-        p2p::Libp2pCommand::UnsubscribeRoom { room } => {
-            let topic = identity::Topic::from_room(&router.game, &room);
+        p2p::Libp2pCommand::UnsubscribeZone { zone } => {
+            let topic = identity::Topic::from_zone(&router.game, &zone);
             if let Some(topics) = router.subscribed_topics.get_mut(from) {
                 topics.remove(&topic);
             }
-            if router.joined_rooms.get(from) == Some(&room) {
-                router.joined_rooms.remove(from);
+            if router.joined_zones.get(from) == Some(&zone) {
+                router.joined_zones.remove(from);
             }
         }
         _ => {}
@@ -90,51 +90,51 @@ mod tests {
     }
 
     #[test]
-    fn room_subscribe_tracks_the_room_topic_and_the_joined_room() {
+    fn zone_subscribe_tracks_the_zone_topic_and_the_joined_zone() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
         let peer = registered(&mut router, "a");
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let events = update_peer_subscriptions(
             &mut router,
             &peer,
-            p2p::Libp2pCommand::SubscribeRoom { room: room.clone() },
+            p2p::Libp2pCommand::SubscribeZone { zone: zone.clone() },
         );
         assert_eq!(events, Vec::new());
-        let topic = identity::Topic::from_room(&identity::GameId::from("game"), &room);
+        let topic = identity::Topic::from_zone(&identity::GameId::from("game"), &zone);
         assert!(
             router
                 .subscribed_topics
                 .get(&peer)
                 .is_some_and(|topics| topics.contains(&topic))
         );
-        assert_eq!(router.joined_rooms.get(&peer), Some(&room));
+        assert_eq!(router.joined_zones.get(&peer), Some(&zone));
         let events = update_peer_subscriptions(
             &mut router,
             &peer,
-            p2p::Libp2pCommand::UnsubscribeRoom { room },
+            p2p::Libp2pCommand::UnsubscribeZone { zone },
         );
         assert_eq!(events, Vec::new());
         assert!(!subscribed(&router, &peer));
-        assert!(!router.joined_rooms.contains_key(&peer));
+        assert!(!router.joined_zones.contains_key(&peer));
     }
 
     #[test]
-    fn leaving_another_room_keeps_the_joined_room() {
+    fn leaving_another_zone_keeps_the_joined_zone() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
         let peer = registered(&mut router, "a");
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         update_peer_subscriptions(
             &mut router,
             &peer,
-            p2p::Libp2pCommand::SubscribeRoom { room: room.clone() },
+            p2p::Libp2pCommand::SubscribeZone { zone: zone.clone() },
         );
         update_peer_subscriptions(
             &mut router,
             &peer,
-            p2p::Libp2pCommand::UnsubscribeRoom {
-                room: identity::RoomName::from("room-b"),
+            p2p::Libp2pCommand::UnsubscribeZone {
+                zone: identity::ZoneName::from("zone-b"),
             },
         );
-        assert_eq!(router.joined_rooms.get(&peer), Some(&room));
+        assert_eq!(router.joined_zones.get(&peer), Some(&zone));
     }
 }

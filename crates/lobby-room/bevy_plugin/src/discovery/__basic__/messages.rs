@@ -5,8 +5,8 @@ use crate::identity;
 
 #[derive(Message, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Command {
-    Create(identity::RoomName),
-    Join(identity::RoomName),
+    Create(identity::ZoneName),
+    Join(identity::ZoneName),
     Leave,
     Quit,
 }
@@ -14,10 +14,10 @@ pub enum Command {
 #[derive(Message, Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     LobbyUpdated,
-    Joined(identity::RoomName),
-    RoomReady(identity::RoomName),
-    Left(identity::RoomName),
+    Joined(identity::ZoneName),
+    RoomReady(identity::ZoneName),
+    Left(identity::ZoneName),
     RoomMembersUpdated,
-    RoomGone(identity::RoomName),
-    HistoryUnavailable(identity::RoomName),
+    RoomGone(identity::ZoneName),
+    HistoryUnavailable(identity::ZoneName),
 }

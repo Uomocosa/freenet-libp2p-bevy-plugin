@@ -25,12 +25,12 @@ pub struct DiscoveryState {
     pub is_lobby_fetched: bool,
     pub display_name: identity::Username,
     pub game: identity::GameId,
-    pub held_rooms: BTreeMap<identity::RoomName, discovery::state_machine::HeldRoomHistory>,
-    pub evicted_rooms: BTreeMap<identity::RoomName, time::UnixTime>,
+    pub held_rooms: BTreeMap<identity::ZoneName, discovery::state_machine::HeldRoomHistory>,
+    pub evicted_rooms: BTreeMap<identity::ZoneName, time::UnixTime>,
     pub history_size_limits: discovery::HistorySizeLimits,
     pub lease_limits: discovery::LobbyLeaseLimits,
     pub observed_lobby_heartbeats:
-        BTreeMap<(identity::RoomName, identity::PeerId), ObservedLobbyHeartbeat>,
+        BTreeMap<(identity::ZoneName, identity::PeerId), ObservedLobbyHeartbeat>,
     pub is_quitting: bool,
 }
 
@@ -119,7 +119,7 @@ impl DiscoveryState {
     pub fn heartbeat_targets(&self) -> Vec<HeartbeatTarget> {}
     pub fn join(
         &mut self,
-        room: identity::RoomName,
+        room: identity::ZoneName,
         how_entered: discovery::HowRoomWasEntered,
         now: time::UnixTime,
     ) -> Vec<Output> {
@@ -128,9 +128,9 @@ impl DiscoveryState {
     pub fn lobby_rows(&self, friend_ids: &[identity::PeerId]) -> Vec<discovery::LobbyRow> {}
     pub fn oldest_held_rooms_to_evict_until_history_fits(
         &self,
-        history_bytes_by_held_room: &BTreeMap<identity::RoomName, p2p::HistoryByteCount>,
+        history_bytes_by_held_room: &BTreeMap<identity::ZoneName, p2p::HistoryByteCount>,
         current_room_history_bytes: p2p::HistoryByteCount,
-    ) -> Vec<identity::RoomName> {
+    ) -> Vec<identity::ZoneName> {
     }
     pub fn occupants(&self) -> Vec<identity::PeerId> {}
     pub fn record_lobby_heartbeats(&mut self, lobby: &discovery::Lobby, now: time::UnixTime) {}
@@ -232,20 +232,20 @@ impl DiscoveryState {
     pub(crate) fn apply_config(&mut self, config: &discovery::Config) {}
     pub(crate) fn desired_membership(
         state: &Self,
-        room_entity_by_name: &BTreeMap<identity::RoomName, bevy::prelude::Entity>,
+        room_entity_by_name: &BTreeMap<identity::ZoneName, bevy::prelude::Entity>,
     ) -> (
         BTreeMap<identity::PeerId, bevy::prelude::Entity>,
         BTreeMap<identity::PeerId, BTreeSet<bevy::prelude::Entity>>,
     ) {
     }
-    pub(crate) fn desired_rooms(state: &Self) -> BTreeSet<identity::RoomName> {}
+    pub(crate) fn desired_rooms(state: &Self) -> BTreeSet<identity::ZoneName> {}
     pub(crate) fn room_prefix_and_lobby_status(
         state: Option<&Self>,
         game: &identity::GameId,
-        room_name: &identity::RoomName,
+        room_name: &identity::ZoneName,
     ) -> (
         p2p::HistoryKeyPrefix,
-        replica_sync::state_machine::RoomLiveness,
+        replica_sync::state_machine::ZoneLiveness,
     ) {
     }
 }
@@ -302,7 +302,7 @@ mod tests {
             addrs: Vec::new(),
         });
         state.connected.insert(identity::PeerId::from("a"));
-        let room = identity::RoomName::from("r");
+        let room = identity::ZoneName::from("r");
         let mut outputs = state.handle_command(
             discovery::Command::Create(room),
             time::UnixTime::from_secs(1),
@@ -329,7 +329,7 @@ mod tests {
             addrs: Vec::new(),
         });
         let outputs = state.handle_command(
-            discovery::Command::Create(identity::RoomName::from("   ")),
+            discovery::Command::Create(identity::ZoneName::from("   ")),
             time::UnixTime::from_secs(1),
         );
         assert_eq!(outputs.len(), 0);
@@ -376,7 +376,7 @@ mod tests {
             id: identity::PeerId::from("me"),
             addrs: Vec::new(),
         });
-        let room = identity::RoomName::from("r");
+        let room = identity::ZoneName::from("r");
         let outputs = state.update(
             Input::Command(discovery::Command::Join(room.clone())),
             time::UnixTime::from_secs(1),

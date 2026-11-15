@@ -24,7 +24,7 @@ pub fn publish_cursor(
         return;
     }
     *accumulator = 0.0;
-    commands.push(p2p::Command::PublishInJoinedRoom {
+    commands.push(p2p::Command::PublishInJoinedZone {
         payload: starboard::room::CursorUpdate {
             cell,
             size_index: brush.size_index,
@@ -65,7 +65,7 @@ mod tests {
         assert_eq!(commands.len(), 1);
         assert!(matches!(
             commands.first(),
-            Some(p2p::Command::PublishInJoinedRoom { payload })
+            Some(p2p::Command::PublishInJoinedZone { payload })
                 if payload.cell == starboard::canvas::CellPos { x: 7, y: 9 }
         ));
 

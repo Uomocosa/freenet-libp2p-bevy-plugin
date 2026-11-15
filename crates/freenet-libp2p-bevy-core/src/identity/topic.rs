@@ -26,8 +26,8 @@ pub struct Topic(pub String);
 
 #[atomic_delegates]
 impl Topic {
-    pub fn from_room(game: &identity::GameId, room: &identity::RoomName) -> Topic {}
-    pub fn from_replica_sync(game: &identity::GameId, room: &identity::RoomName) -> Topic {}
+    pub fn from_zone(game: &identity::GameId, zone: &identity::ZoneName) -> Topic {}
+    pub fn from_replica_sync(game: &identity::GameId, zone: &identity::ZoneName) -> Topic {}
 }
 
 #[cfg(test)]
@@ -36,6 +36,6 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        assert_eq!(Topic::from("game/room").as_str(), "game/room");
+        assert_eq!(Topic::from("game/zone").as_str(), "game/zone");
     }
 }

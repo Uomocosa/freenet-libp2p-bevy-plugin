@@ -1,4 +1,4 @@
-pub use common_types::{Peer, PeerAddr, PeerError, PeerId, RoomName, Username};
+pub use common_types::{Peer, PeerAddr, PeerError, PeerId, Username, ZoneName};
 
 mod game_id;
 pub use game_id::GameId;

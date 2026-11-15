@@ -43,7 +43,7 @@ mod tests {
         let empty = seed_lobby_for_deploy(&me, discovery::RoomSize::DEFAULT, None);
         assert_eq!(empty.len(), 0);
         let target = discovery::state_machine::HeartbeatTarget {
-            room: identity::RoomName::from("r"),
+            room: identity::ZoneName::from("r"),
             addrs: Vec::new(),
             display_name: identity::Username::from("me"),
             membership: discovery::RoomMembership::Occupant,

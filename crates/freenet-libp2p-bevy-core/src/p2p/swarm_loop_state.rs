@@ -15,7 +15,7 @@ use crate::p2p;
 pub struct SwarmLoopState<Payload: p2p::traits::Message> {
     pub(crate) swarm: libp2p::Swarm<p2p::Behaviour<Payload>>,
     pub(crate) event_tx: tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
-    pub(crate) subscriptions: p2p::swarm_loop::RoomSubscriptions,
+    pub(crate) subscriptions: p2p::swarm_loop::ZoneSubscriptions,
     pub(crate) snapshot_replies: p2p::swarm_loop::PendingSnapshotReplies,
     pub(crate) replica_sync_requests_in_flight:
         BTreeMap<request_response::OutboundRequestId, p2p::SnapshotRequest>,
@@ -29,7 +29,7 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
     pub const fn new(
         swarm: libp2p::Swarm<p2p::Behaviour<Payload>>,
         event_tx: tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
-        subscriptions: p2p::swarm_loop::RoomSubscriptions,
+        subscriptions: p2p::swarm_loop::ZoneSubscriptions,
         snapshot_replies: p2p::swarm_loop::PendingSnapshotReplies,
         mode: p2p::TransportMode,
     ) -> Self {
@@ -67,16 +67,16 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
         &mut self,
     ) -> BTreeMap<p2p::HistoryKeyPrefix, p2p::HistoryByteCount> {
     }
-    pub fn publish_room(
+    pub fn publish_zone(
         &mut self,
         config: &p2p::GossipsubConfig,
-        room: &identity::RoomName,
+        zone: &identity::ZoneName,
         payload: &Payload,
     ) {
     }
     pub fn put_history_record(
         &mut self,
-        id: &p2p::RoomHistoryRecordKind,
+        id: &p2p::ZoneHistoryRecordKind,
         value: Vec<u8>,
         ttl: Duration,
     ) {
@@ -89,8 +89,8 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
         request: p2p::SnapshotRequest,
     ) {
     }
-    pub fn subscribe_room(&mut self, room: identity::RoomName) {}
-    pub fn unsubscribe_room(&mut self, room: &identity::RoomName) {}
+    pub fn subscribe_zone(&mut self, zone: identity::ZoneName) {}
+    pub fn unsubscribe_zone(&mut self, zone: &identity::ZoneName) {}
     pub fn dial_mdns_peers(&mut self, peers: Vec<(libp2p::PeerId, libp2p::Multiaddr)>) {}
     pub fn dispatch_libp2p_command(&mut self, command: p2p::Libp2pCommand) {}
     pub fn handle_gossipsub(&mut self, gossip_event: gossipsub::Event) {}
@@ -141,15 +141,15 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
         }
     }
     pub(crate) fn publish_joined(&mut self, config: &p2p::GossipsubConfig, payload: &Payload) {
-        let Some(room) = self.subscriptions.joined.clone() else {
+        let Some(zone) = self.subscriptions.joined.clone() else {
             self.event_tx
                 .send(p2p::Event::Error(
-                    "room publish: no joined room".to_string(),
+                    "zone publish: no joined zone".to_string(),
                 ))
                 .ok();
             return;
         };
-        self.publish_room(config, &room, payload);
+        self.publish_zone(config, &zone, payload);
     }
     pub(crate) fn log_gossip_in(
         &self,
@@ -178,7 +178,7 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
         message: gossipsub::Message,
     ) {
         let from = identity::PeerId(message.source.unwrap_or(propagation_source).to_string());
-        let Some(room) = self.subscriptions.room(&message.topic) else {
+        let Some(zone) = self.subscriptions.zone(&message.topic) else {
             self.event_tx
                 .send(p2p::Event::Libp2p(p2p::Libp2pEvent::Gossip {
                     topic: identity::Topic(message.topic.to_string()),
@@ -191,8 +191,8 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
         match bincode::deserialize::<Payload>(&message.data) {
             Ok(payload) => {
                 self.event_tx
-                    .send(p2p::Event::RoomMessage {
-                        room: room.clone(),
+                    .send(p2p::Event::ZoneMessage {
+                        zone: zone.clone(),
                         from,
                         payload,
                     })
@@ -201,7 +201,7 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
             Err(error) => {
                 self.event_tx
                     .send(p2p::Event::Error(format!(
-                        "room payload decode failed: {error}"
+                        "zone payload decode failed: {error}"
                     )))
                     .ok();
             }
@@ -285,7 +285,7 @@ mod tests {
             let state = Self::new(
                 swarm,
                 tx,
-                p2p::swarm_loop::RoomSubscriptions::new(config.game.clone()),
+                p2p::swarm_loop::ZoneSubscriptions::new(config.game.clone()),
                 p2p::swarm_loop::PendingSnapshotReplies::default(),
                 config.mode,
             );
@@ -296,7 +296,7 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
-        let topic = identity::Topic::from("lobby/topic");
+        let topic = identity::Topic::from("global/topic");
         state.dispatch_libp2p_command(p2p::Libp2pCommand::Subscribe {
             topic: topic.clone(),
         });
@@ -312,15 +312,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn room_subscribe_and_unsubscribe_track_the_map() {
+    async fn zone_subscribe_and_unsubscribe_track_the_map() {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let hash = gossipsub::IdentTopic::new(
-            identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
+            identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
         )
         .hash();
-        state.dispatch_libp2p_command(p2p::Libp2pCommand::SubscribeRoom { room: room.clone() });
-        assert_eq!(state.subscriptions.room(&hash), Some(&room));
+        state.dispatch_libp2p_command(p2p::Libp2pCommand::SubscribeZone { zone: zone.clone() });
+        assert_eq!(state.subscriptions.zone(&hash), Some(&zone));
         assert!(
             state
                 .swarm
@@ -329,8 +329,8 @@ mod tests {
                 .topics()
                 .any(|t| *t == hash)
         );
-        state.dispatch_libp2p_command(p2p::Libp2pCommand::UnsubscribeRoom { room });
-        assert!(state.subscriptions.room(&hash).is_none());
+        state.dispatch_libp2p_command(p2p::Libp2pCommand::UnsubscribeZone { zone });
+        assert!(state.subscriptions.zone(&hash).is_none());
         assert!(
             !state
                 .swarm
@@ -344,7 +344,7 @@ mod tests {
     #[tokio::test]
     async fn raw_unsubscribe_leaves_the_swarm() {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
-        let topic = identity::Topic::from("lobby/topic");
+        let topic = identity::Topic::from("global/topic");
         let hash = IdentTopic::new(topic.as_str()).hash();
         state.dispatch_libp2p_command(p2p::Libp2pCommand::Subscribe {
             topic: topic.clone(),
@@ -394,25 +394,25 @@ mod tests {
             &relay,
             None,
             vec![7],
-            gossipsub::TopicHash::from_raw("lobby/topic"),
+            gossipsub::TopicHash::from_raw("global/topic"),
         );
         state.handle_gossipsub(event);
         let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::Gossip { topic, from, data })) = rx.try_recv()
         else {
             panic!("expected a gossip event");
         };
-        assert_eq!((topic.as_str(), data), ("lobby/topic", vec![7]));
+        assert_eq!((topic.as_str(), data), ("global/topic", vec![7]));
         assert_eq!(from.as_str(), relay.to_string());
     }
 
     #[test]
-    fn registered_room_topic_becomes_a_room_message() {
+    fn registered_zone_topic_becomes_a_zone_message() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let topic = gossipsub::IdentTopic::new(
-            identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
+            identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
         );
-        state.subscriptions.register(&topic, room.clone());
+        state.subscriptions.register(&topic, zone.clone());
         let data = bincode::serialize(&9u32).unwrap();
         state.handle_gossipsub(message_event(
             &libp2p::PeerId::random(),
@@ -420,23 +420,23 @@ mod tests {
             data,
             topic.hash(),
         ));
-        let Ok(p2p::Event::RoomMessage {
-            room: got, payload, ..
+        let Ok(p2p::Event::ZoneMessage {
+            zone: got, payload, ..
         }) = rx.try_recv()
         else {
-            panic!("expected a room message");
+            panic!("expected a zone message");
         };
-        assert_eq!((got, payload), (room, 9));
+        assert_eq!((got, payload), (zone, 9));
     }
 
     #[test]
-    fn undecodable_room_payload_is_an_error() {
+    fn undecodable_zone_payload_is_an_error() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let topic = gossipsub::IdentTopic::new(
-            identity::Topic::from_room(&state.subscriptions.game, &room).as_str(),
+            identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
         );
-        state.subscriptions.register(&topic, room);
+        state.subscriptions.register(&topic, zone);
         state.handle_gossipsub(message_event(
             &libp2p::PeerId::random(),
             None,
@@ -473,41 +473,41 @@ mod tests {
     fn invalid_fetch_snapshot_sends_replica_sync_failure() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let peer = identity::PeerId::from("not-a-peer-id");
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         state.dispatch_libp2p_command(p2p::Libp2pCommand::FetchSnapshot {
             peer_id: peer.clone(),
-            room: room.clone(),
+            zone: zone.clone(),
             part: 0,
         });
         let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::ReplicaSyncRequestFailed { from, request })) =
             rx.try_recv()
         else {
-            panic!("expected a room sync failure");
+            panic!("expected a zone sync failure");
         };
         assert_eq!(from, peer);
-        assert_eq!(request, p2p::SnapshotRequest::Fetch { room, part: 0 });
+        assert_eq!(request, p2p::SnapshotRequest::Fetch { zone, part: 0 });
     }
 
     #[test]
     fn invalid_fetch_slice_sends_replica_sync_failure() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let peer = identity::PeerId::from("not-a-peer-id");
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let index = replica_sync::ReplicaSliceIndex(2);
         state.dispatch_libp2p_command(p2p::Libp2pCommand::FetchReplicaSlice {
             peer_id: peer.clone(),
-            room: room.clone(),
+            zone: zone.clone(),
             index,
         });
         let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::ReplicaSyncRequestFailed { from, request })) =
             rx.try_recv()
         else {
-            panic!("expected a room sync failure");
+            panic!("expected a zone sync failure");
         };
         assert_eq!(from, peer);
         assert_eq!(
             request,
-            p2p::SnapshotRequest::FetchReplicaSlice { room, index }
+            p2p::SnapshotRequest::FetchReplicaSlice { zone, index }
         );
     }
 }

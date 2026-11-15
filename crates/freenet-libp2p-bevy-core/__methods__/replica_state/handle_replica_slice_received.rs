@@ -4,7 +4,7 @@ use crate::replica_sync;
 pub fn handle_replica_slice_received<Op>(
     state: &mut replica_sync::state_machine::ReplicaState<Op>,
     from: &identity::PeerId,
-    room: &identity::RoomName,
+    zone: &identity::ZoneName,
     index: replica_sync::ReplicaSliceIndex,
     data: Vec<u8>,
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
@@ -16,7 +16,7 @@ pub fn handle_replica_slice_received<Op>(
     {
         awaiting.remove(&index);
     }
-    if state.room.as_ref() != Some(room) {
+    if state.zone.as_ref() != Some(zone) {
         return Vec::new();
     }
     tracing::debug!(target: "replica_sync", "anti-entropy slice index={} merged", *index);
@@ -36,7 +36,7 @@ mod tests {
         let outputs = handle_replica_slice_received(
             &mut state,
             &identity::PeerId::from("peer"),
-            &identity::RoomName::from("room"),
+            &identity::ZoneName::from("zone"),
             replica_sync::ReplicaSliceIndex(0),
             Vec::new(),
         );

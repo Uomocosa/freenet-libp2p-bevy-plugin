@@ -29,18 +29,18 @@ pub enum Libp2pEvent {
         relay_peer_id: identity::PeerId,
     },
     HistoryRecordStored {
-        id: p2p::RoomHistoryRecordKind,
+        id: p2p::ZoneHistoryRecordKind,
     },
     HistoryRecordPutFailed {
-        id: p2p::RoomHistoryRecordKind,
+        id: p2p::ZoneHistoryRecordKind,
         reason: String,
     },
     HistoryRecordFound {
-        id: p2p::RoomHistoryRecordKind,
+        id: p2p::ZoneHistoryRecordKind,
         value: Vec<u8>,
     },
     HistoryRecordNotFound {
-        id: p2p::RoomHistoryRecordKind,
+        id: p2p::ZoneHistoryRecordKind,
     },
     HistoryStoreMeasured {
         bytes_by_prefix: BTreeMap<p2p::HistoryKeyPrefix, p2p::HistoryByteCount>,
@@ -57,19 +57,19 @@ pub enum Libp2pEvent {
     SnapshotRequest {
         id: p2p::ReplyId,
         from: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
     },
     SnapshotPart {
         from: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
         total: u32,
         data: Vec<u8>,
     },
     SnapshotMissing {
         from: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
     },
     ReplicaSyncRequestFailed {
         from: identity::PeerId,
@@ -78,12 +78,12 @@ pub enum Libp2pEvent {
     ReplicaSliceRequest {
         id: p2p::ReplyId,
         from: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
     },
     ReplicaSlice {
         from: identity::PeerId,
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
         data: Vec<u8>,
     },
@@ -99,11 +99,11 @@ pub enum ChunkError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SnapshotRequest {
     Fetch {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
     },
     FetchReplicaSlice {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
     },
 }
@@ -111,16 +111,16 @@ pub enum SnapshotRequest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SnapshotResponse {
     Part {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         part: u32,
         total: u32,
         data: Vec<u8>,
     },
     Missing {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
     },
     ReplicaSlice {
-        room: identity::RoomName,
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
         data: Vec<u8>,
     },
@@ -133,11 +133,11 @@ pub enum Command<Payload> {
         peer_id: identity::PeerId,
         payload: Payload,
     },
-    PublishInJoinedRoom {
+    PublishInJoinedZone {
         payload: Payload,
     },
-    PublishToSpecificRoom {
-        room: identity::RoomName,
+    PublishToSpecificZone {
+        zone: identity::ZoneName,
         payload: Payload,
     },
 }
@@ -149,8 +149,8 @@ pub enum Event<Payload> {
         from: identity::PeerId,
         payload: Payload,
     },
-    RoomMessage {
-        room: identity::RoomName,
+    ZoneMessage {
+        zone: identity::ZoneName,
         from: identity::PeerId,
         payload: Payload,
     },

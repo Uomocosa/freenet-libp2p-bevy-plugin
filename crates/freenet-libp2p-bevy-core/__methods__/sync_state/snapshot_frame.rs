@@ -3,12 +3,12 @@ use crate::p2p;
 use crate::replica_sync;
 
 pub fn snapshot_frame<Replica: replica_sync::traits::ReplicatedState>(
-    room: &Replica,
-    room_name: identity::RoomName,
+    zone: &Replica,
+    zone_name: identity::ZoneName,
     part: u32,
 ) -> p2p::SnapshotResponse {
-    let Ok(bytes) = bincode::serialize(&room.snapshot()) else {
-        return p2p::SnapshotResponse::Missing { room: room_name };
+    let Ok(bytes) = bincode::serialize(&zone.snapshot()) else {
+        return p2p::SnapshotResponse::Missing { zone: zone_name };
     };
     let parts = if bytes.is_empty() {
         vec![Vec::new()]
@@ -22,12 +22,12 @@ pub fn snapshot_frame<Replica: replica_sync::traits::ReplicatedState>(
         .and_then(|index| parts.get(index).cloned());
     match data {
         Some(data) => p2p::SnapshotResponse::Part {
-            room: room_name,
+            zone: zone_name,
             part,
             total,
             data,
         },
-        None => p2p::SnapshotResponse::Missing { room: room_name },
+        None => p2p::SnapshotResponse::Missing { zone: zone_name },
     }
 }
 
@@ -62,14 +62,14 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let room = MockReplica;
-        let name = identity::RoomName::from("room");
-        let frame = snapshot_frame(&room, name.clone(), 0);
+        let zone = MockReplica;
+        let name = identity::ZoneName::from("zone");
+        let frame = snapshot_frame(&zone, name.clone(), 0);
         assert!(matches!(
             frame,
             p2p::SnapshotResponse::Part { total: 1, .. }
         ));
-        let missing = snapshot_frame(&room, name, 7);
+        let missing = snapshot_frame(&zone, name, 7);
         assert!(matches!(missing, p2p::SnapshotResponse::Missing { .. }));
     }
 }

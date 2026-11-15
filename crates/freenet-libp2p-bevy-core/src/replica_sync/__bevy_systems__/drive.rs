@@ -16,26 +16,26 @@ pub fn drive<Replica: replica_sync::traits::ReplicatedState>(
     game: Res<replica_sync::SyncGame>,
     mut clock: ResMut<replica_sync::LamportClock>,
     mut state: ResMut<replica_sync::bevy_systems::SyncState<Replica::Op>>,
-    mut room: ResMut<Replica>,
+    mut zone: ResMut<Replica>,
     mut commands: MessageWriter<p2p::Libp2pCommand>,
-    me_rooms: Query<&peers::InRoom, With<peers::Me>>,
-    room_details: Query<replica_sync::RoomDetails<'_>>,
+    me_zones: Query<&peers::InZone, With<peers::Me>>,
+    zone_details: Query<replica_sync::ZoneDetails<'_>>,
     member_peers: Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>,
 ) {
     let libp2p_events = libp2p_events.into_inner();
     let game = game.into_inner();
-    let (room_commands, mut inputs) =
-        replica_sync::bevy_systems::SyncState::<Replica::Op>::room_inputs_from_entities(
+    let (zone_commands, mut inputs) =
+        replica_sync::bevy_systems::SyncState::<Replica::Op>::zone_inputs_from_entities(
             &mut state,
             game,
-            &me_rooms,
-            &room_details,
+            &me_zones,
+            &zone_details,
             &member_peers,
         );
-    let mut pending = room_commands;
+    let mut pending = zone_commands;
     for event in libp2p_events.drain() {
         let input = replica_sync::bevy_systems::SyncState::<Replica::Op>::libp2p_event_to_input(
-            &event, &state, &mut clock, game, &*room,
+            &event, &state, &mut clock, game, &*zone,
         );
         inputs.extend(input);
     }
@@ -43,7 +43,7 @@ pub fn drive<Replica: replica_sync::traits::ReplicatedState>(
         inputs.push((**timer_input).clone());
     }
     let now = replica_sync::ElapsedSinceAppStart::from(real_time.elapsed());
-    let per_room_bytes = state.kademlia_history.per_room_bytes;
+    let per_zone_bytes = state.kademlia_history.per_zone_bytes;
     let record_ttl = state.kademlia_history.record_ttl;
     for input in inputs {
         for output in state.update(input, now) {
@@ -54,9 +54,9 @@ pub fn drive<Replica: replica_sync::traits::ReplicatedState>(
             }
             replica_sync::bevy_systems::SyncState::<Replica::Op>::perform(
                 output,
-                &mut *room,
+                &mut *zone,
                 *clock,
-                per_room_bytes,
+                per_zone_bytes,
                 record_ttl,
                 &mut pending,
                 &mut failures,
@@ -196,12 +196,12 @@ mod tests {
 
     fn join_with(
         app: &mut App,
-        room: &identity::RoomName,
+        zone: &identity::ZoneName,
         members: Vec<identity::PeerId>,
         prefix: p2p::HistoryKeyPrefix,
-        liveness: replica_sync::state_machine::RoomLiveness,
+        liveness: replica_sync::state_machine::ZoneLiveness,
     ) {
-        let room_entity = app.world_mut().spawn((room.clone(), prefix, liveness)).id();
+        let zone_entity = app.world_mut().spawn((zone.clone(), prefix, liveness)).id();
         let me_entities: Vec<Entity> = app
             .world_mut()
             .query_filtered::<Entity, With<peers::Me>>()
@@ -212,19 +212,19 @@ mod tests {
             app.world_mut().spawn((
                 peers::Peer::from(self_id),
                 peers::Me,
-                peers::InRoom(room_entity),
+                peers::InZone(zone_entity),
             ));
         } else {
             for entity in me_entities {
                 app.world_mut()
                     .entity_mut(entity)
-                    .insert(peers::InRoom(room_entity));
+                    .insert(peers::InZone(zone_entity));
             }
         }
         for member in members {
             app.world_mut().spawn((
                 peers::Peer::from(member),
-                peers::InRoom(room_entity),
+                peers::InZone(zone_entity),
                 peers::Connected,
             ));
         }
@@ -233,18 +233,18 @@ mod tests {
     fn join(
         app: &mut App,
         game: &identity::GameId,
-        room: &identity::RoomName,
+        zone: &identity::ZoneName,
         members: Vec<identity::PeerId>,
     ) {
-        let prefix = p2p::HistoryKeyPrefix::new(game, room, time::UnixTime::now());
+        let prefix = p2p::HistoryKeyPrefix::new(game, zone, time::UnixTime::now());
         let listed = !members.is_empty();
         join_with(
             app,
-            room,
+            zone,
             members,
             prefix,
-            replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: listed,
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: listed,
                 has_other_history_holders: listed,
             },
         );
@@ -257,17 +257,17 @@ mod tests {
             .iter(app.world())
             .collect();
         for entity in me_entities {
-            app.world_mut().entity_mut(entity).remove::<peers::InRoom>();
+            app.world_mut().entity_mut(entity).remove::<peers::InZone>();
         }
     }
 
-    fn set_liveness(app: &mut App, liveness: replica_sync::state_machine::RoomLiveness) {
+    fn set_liveness(app: &mut App, liveness: replica_sync::state_machine::ZoneLiveness) {
         let target: Option<Entity> = app
             .world_mut()
-            .query_filtered::<&peers::InRoom, With<peers::Me>>()
+            .query_filtered::<&peers::InZone, With<peers::Me>>()
             .iter(app.world())
             .next()
-            .map(|in_room| **in_room);
+            .map(|in_zone| **in_zone);
         if let Some(entity) = target {
             app.world_mut().entity_mut(entity).insert(liveness);
         }
@@ -317,7 +317,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn late_joiner_converges_over_the_new_behaviour() {
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room-a");
+        let zone = identity::ZoneName::from("zone-a");
         let mut incumbent = node(&game);
         let mut joiner = node(&game);
 
@@ -340,8 +340,8 @@ mod tests {
             .resource_mut::<Map>()
             .entries
             .insert(7, 42);
-        join(&mut incumbent, &game, &room, Vec::new());
-        join(&mut joiner, &game, &room, vec![a.id.clone()]);
+        join(&mut incumbent, &game, &zone, Vec::new());
+        join(&mut joiner, &game, &zone, vec![a.id.clone()]);
 
         let mut saw_part = false;
         for _ in 0..MAX_ROUNDS {
@@ -371,7 +371,7 @@ mod tests {
     async fn transport_only_three_apps_converge_after_dropping_30_percent_of_ops() {
         let interval = Duration::from_millis(500);
         let game = identity::GameId::from("game");
-        let room = identity::RoomName::from("room-ae");
+        let zone = identity::ZoneName::from("zone-ae");
         let config = Some(replica_sync::AntiEntropyConfig {
             interval,
             max_slice_fetches_per_peer: 8,
@@ -401,7 +401,7 @@ mod tests {
                 .filter(|(other, _)| *other != index)
                 .map(|(_, peer)| peer.id.clone())
                 .collect();
-            join(app, &game, &room, others);
+            join(app, &game, &zone, others);
         }
         for _ in 0..50 {
             for app in &mut apps {
@@ -481,11 +481,11 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn holders_keep_history_after_leaving_and_new_joiner_restores_board() {
         let game = identity::GameId::from("game-h3");
-        let room = identity::RoomName::from("room-h3");
+        let zone = identity::ZoneName::from("zone-h3");
         let history = Some(replica_sync::HistoryConfig {
             write_interval: Duration::from_millis(80),
             record_ttl: Duration::from_secs(90),
-            per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
+            per_zone_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
             max_fetch_retries: 2,
         });
         let mut peer_a = node_with(&game, None, history);
@@ -502,12 +502,12 @@ mod tests {
         connect_and_seed_kad(&mut peer_b, &a);
 
         let gen1 = time::UnixTime::now();
-        let prefix = p2p::HistoryKeyPrefix::new(&game, &room, gen1);
-        let present = replica_sync::state_machine::RoomLiveness {
-            is_room_still_listed: true,
+        let prefix = p2p::HistoryKeyPrefix::new(&game, &zone, gen1);
+        let present = replica_sync::state_machine::ZoneLiveness {
+            is_zone_still_listed: true,
             has_other_history_holders: true,
         };
-        join_with(&mut peer_a, &room, Vec::new(), prefix.clone(), present);
+        join_with(&mut peer_a, &zone, Vec::new(), prefix.clone(), present);
         peer_a
             .world_mut()
             .resource_mut::<Map>()
@@ -516,7 +516,7 @@ mod tests {
 
         join_with(
             &mut peer_b,
-            &room,
+            &zone,
             vec![a.id.clone()],
             prefix.clone(),
             present,
@@ -546,7 +546,7 @@ mod tests {
         connect_and_seed_kad(&mut peer_c, &a);
         connect_and_seed_kad(&mut peer_c, &b);
 
-        join_with(&mut peer_c, &room, Vec::new(), prefix, present);
+        join_with(&mut peer_c, &zone, Vec::new(), prefix, present);
 
         for _ in 0..MAX_ROUNDS {
             peer_a.update();
@@ -561,20 +561,20 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn recreated_room_generation_starts_empty() {
+    async fn recreated_zone_generation_starts_empty() {
         let game = identity::GameId::from("game-recreate");
-        let room = identity::RoomName::from("room-recreate");
+        let zone = identity::ZoneName::from("zone-recreate");
         let history = Some(replica_sync::HistoryConfig::default());
         let mut peer_d = node_with(&game, None, history);
         let _d = wait_ready(&mut peer_d);
         let generation = time::UnixTime::now();
         join_with(
             &mut peer_d,
-            &room,
+            &zone,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, generation),
-            replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: true,
+            p2p::HistoryKeyPrefix::new(&game, &zone, generation),
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: true,
                 has_other_history_holders: false,
             },
         );
@@ -601,19 +601,19 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn a_room_the_contract_has_not_confirmed_yet_is_not_gone() {
+    async fn a_zone_the_contract_has_not_confirmed_yet_is_not_gone() {
         let game = identity::GameId::from("game-new");
-        let room = identity::RoomName::from("room-new");
+        let zone = identity::ZoneName::from("zone-new");
         let history = Some(replica_sync::HistoryConfig::default());
         let mut creator = node_with(&game, None, history);
         wait_ready(&mut creator);
         join_with(
             &mut creator,
-            &room,
+            &zone,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from_secs(1)),
-            replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: true,
+            p2p::HistoryKeyPrefix::new(&game, &zone, time::UnixTime::from_secs(1)),
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: true,
                 has_other_history_holders: false,
             },
         );
@@ -623,7 +623,7 @@ mod tests {
         }
         assert!(
             !log_contains_joined_error(&mut creator),
-            "a room the contract has not confirmed yet is not gone"
+            "a zone the contract has not confirmed yet is not gone"
         );
     }
 
@@ -634,18 +634,18 @@ mod tests {
             .any(|event| {
                 matches!(
                     event,
-                    replica_sync::JoinFailure::RoomGone(_)
+                    replica_sync::JoinFailure::ZoneGone(_)
                         | replica_sync::JoinFailure::HistoryUnavailable(_)
                 )
             })
     }
 
-    fn emitted_room_gone(app: &mut App, expected: &identity::RoomName) -> bool {
+    fn emitted_zone_gone(app: &mut App, expected: &identity::ZoneName) -> bool {
         app.world_mut()
             .resource_mut::<Messages<replica_sync::JoinFailure>>()
             .drain()
             .any(|event| match event {
-                replica_sync::JoinFailure::RoomGone(room) => &room == expected,
+                replica_sync::JoinFailure::ZoneGone(zone) => &zone == expected,
                 replica_sync::JoinFailure::HistoryUnavailable(_) => false,
             })
     }
@@ -653,31 +653,31 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn expired_holder_alone_is_gone_not_empty() {
         let game = identity::GameId::from("game-s4c");
-        let room = identity::RoomName::from("room-s4c");
+        let zone = identity::ZoneName::from("zone-s4c");
         let history = Some(replica_sync::HistoryConfig {
             write_interval: Duration::from_secs(30),
             record_ttl: Duration::from_secs(90),
-            per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
+            per_zone_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
             max_fetch_retries: 3,
         });
         let mut joiner = node_with(&game, None, history);
         let _joiner_peer = wait_ready(&mut joiner);
         join_with(
             &mut joiner,
-            &room,
+            &zone,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::EPOCH),
-            replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: false,
+            p2p::HistoryKeyPrefix::new(&game, &zone, time::UnixTime::EPOCH),
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: false,
                 has_other_history_holders: false,
             },
         );
 
-        let mut saw_room_gone = false;
+        let mut saw_zone_gone = false;
         for _ in 0..MAX_ROUNDS {
             joiner.update();
-            if emitted_room_gone(&mut joiner, &room) {
-                saw_room_gone = true;
+            if emitted_zone_gone(&mut joiner, &zone) {
+                saw_zone_gone = true;
                 break;
             }
             if joiner
@@ -687,44 +687,44 @@ mod tests {
                 == replica_sync::state_machine::Phase::Ready
                 && joiner.world().resource::<Map>().entries.is_empty()
             {
-                panic!("S4c joiner accepted an empty board instead of reporting the room gone");
+                panic!("S4c joiner accepted an empty board instead of reporting the zone gone");
             }
             tokio::time::sleep(SETTLE).await;
         }
         assert!(
-            saw_room_gone,
-            "expired holder alone must report the room gone, not an empty board"
+            saw_zone_gone,
+            "expired holder alone must report the zone gone, not an empty board"
         );
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn joiner_whose_lobby_holds_only_itself_sees_the_room_as_gone() {
+    async fn joiner_whose_global_holds_only_itself_sees_the_zone_as_gone() {
         let game = identity::GameId::from("game-s4j");
-        let room = identity::RoomName::from("room-s4j");
+        let zone = identity::ZoneName::from("zone-s4j");
         let history = Some(replica_sync::HistoryConfig {
             write_interval: Duration::from_secs(30),
             record_ttl: Duration::from_secs(90),
-            per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
+            per_zone_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
             max_fetch_retries: 3,
         });
         let mut joiner = node_with(&game, None, history);
         let _joiner_peer = wait_ready(&mut joiner);
         join_with(
             &mut joiner,
-            &room,
+            &zone,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::EPOCH),
-            replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: false,
+            p2p::HistoryKeyPrefix::new(&game, &zone, time::UnixTime::EPOCH),
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: false,
                 has_other_history_holders: false,
             },
         );
 
-        let mut saw_room_gone = false;
+        let mut saw_zone_gone = false;
         for _ in 0..MAX_ROUNDS {
             joiner.update();
-            if emitted_room_gone(&mut joiner, &room) {
-                saw_room_gone = true;
+            if emitted_zone_gone(&mut joiner, &zone) {
+                saw_zone_gone = true;
                 break;
             }
             if joiner
@@ -734,60 +734,60 @@ mod tests {
                 == replica_sync::state_machine::Phase::Ready
                 && joiner.world().resource::<Map>().entries.is_empty()
             {
-                panic!("S4b joiner accepted an empty board instead of reporting the room gone");
+                panic!("S4b joiner accepted an empty board instead of reporting the zone gone");
             }
             tokio::time::sleep(SETTLE).await;
         }
         assert!(
-            saw_room_gone,
-            "joiner alone in its lobby must report the room gone, not an empty board"
+            saw_zone_gone,
+            "joiner alone in its zone must report the zone gone, not an empty board"
         );
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn dead_room_and_mid_fetch_quit_emit_room_gone() {
+    async fn dead_zone_and_mid_fetch_quit_emit_zone_gone() {
         let game = identity::GameId::from("game-gone");
-        let room = identity::RoomName::from("room-gone");
+        let zone = identity::ZoneName::from("zone-gone");
         let history = Some(replica_sync::HistoryConfig {
             write_interval: Duration::from_secs(30),
             record_ttl: Duration::from_secs(90),
-            per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
+            per_zone_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
             max_fetch_retries: 3,
         });
         let mut joiner = node_with(&game, None, history);
         wait_ready(&mut joiner);
         join_with(
             &mut joiner,
-            &room,
+            &zone,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from_secs(1)),
-            replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: false,
+            p2p::HistoryKeyPrefix::new(&game, &zone, time::UnixTime::from_secs(1)),
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: false,
                 has_other_history_holders: false,
             },
         );
 
-        let mut saw_room_gone = false;
+        let mut saw_zone_gone = false;
         for _ in 0..50 {
             joiner.update();
-            if emitted_room_gone(&mut joiner, &room) {
-                saw_room_gone = true;
+            if emitted_zone_gone(&mut joiner, &zone) {
+                saw_zone_gone = true;
                 break;
             }
             tokio::time::sleep(SETTLE).await;
         }
-        assert!(saw_room_gone);
+        assert!(saw_zone_gone);
 
         let mut mid_joiner = node_with(&game, None, history);
         wait_ready(&mut mid_joiner);
         let generation = time::UnixTime::now();
         join_with(
             &mut mid_joiner,
-            &room,
+            &zone,
             Vec::new(),
-            p2p::HistoryKeyPrefix::new(&game, &room, generation),
-            replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: true,
+            p2p::HistoryKeyPrefix::new(&game, &zone, generation),
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: true,
                 has_other_history_holders: true,
             },
         );
@@ -802,15 +802,15 @@ mod tests {
 
         set_liveness(
             &mut mid_joiner,
-            replica_sync::state_machine::RoomLiveness {
-                is_room_still_listed: false,
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: false,
                 has_other_history_holders: false,
             },
         );
         mid_joiner.update();
         assert!(
-            emitted_room_gone(&mut mid_joiner, &room),
-            "mid-fetch quit must emit RoomGone"
+            emitted_zone_gone(&mut mid_joiner, &zone),
+            "mid-fetch quit must emit ZoneGone"
         );
     }
 }

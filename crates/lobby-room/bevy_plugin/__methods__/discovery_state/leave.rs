@@ -35,7 +35,7 @@ mod tests {
         });
         assert_eq!(leave(&mut state, time::UnixTime::from_secs(1)), Vec::new());
         state.room = Some(discovery::JoinedRoom {
-            name: identity::RoomName::from("r"),
+            name: identity::ZoneName::from("r"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),

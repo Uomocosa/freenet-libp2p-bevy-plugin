@@ -29,7 +29,7 @@ mod tests {
             id: identity::PeerId::from("me"),
             addrs: Vec::new(),
         });
-        let room = identity::RoomName::from("r");
+        let room = identity::ZoneName::from("r");
         state.room = Some(discovery::JoinedRoom {
             name: room.clone(),
             created_at: time::UnixTime::from_secs(500),
@@ -61,7 +61,7 @@ mod tests {
             addrs: Vec::new(),
         });
         state.room = Some(discovery::JoinedRoom {
-            name: identity::RoomName::from("r"),
+            name: identity::ZoneName::from("r"),
             created_at: time::UnixTime::from_secs(500),
             phase: discovery::JoinPhase::Joining {
                 since: time::UnixTime::EPOCH,

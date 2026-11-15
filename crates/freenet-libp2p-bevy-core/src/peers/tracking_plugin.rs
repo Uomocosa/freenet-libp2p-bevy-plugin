@@ -17,7 +17,7 @@ impl bevy::prelude::Plugin for TrackingPlugin {
                 peers::bevy_systems::spawn_me_on_ready,
                 peers::bevy_systems::track_peer_connections,
                 peers::bevy_systems::despawn_orphan_peers,
-                peers::bevy_systems::despawn_orphan_rooms,
+                peers::bevy_systems::despawn_orphan_zones,
             )
                 .chain(),
         );

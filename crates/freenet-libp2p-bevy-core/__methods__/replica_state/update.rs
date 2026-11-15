@@ -20,7 +20,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync;
-    use crate::replica_sync::state_machine::{Input, Phase, ReplicaState, RoomLiveness};
+    use crate::replica_sync::state_machine::{Input, Phase, ReplicaState, ZoneLiveness};
 
     #[test]
     fn test_usage() {
@@ -29,15 +29,15 @@ mod tests {
         let outputs = update(
             &mut state,
             Input::Joined {
-                room: identity::RoomName::from("r"),
+                zone: identity::ZoneName::from("r"),
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![identity::PeerId::from("a")],
-                liveness: RoomLiveness::default(),
+                liveness: ZoneLiveness::default(),
             },
             now,
         );
         assert_eq!(outputs.len(), 1);
-        assert_eq!(state.phase, Phase::FetchingSnapshotFromRoomMember);
+        assert_eq!(state.phase, Phase::FetchingSnapshotFromZoneMember);
         assert_eq!(state.member_snapshot.part_requested_at, Some(now));
     }
 }

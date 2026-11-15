@@ -3,7 +3,7 @@ use crate::replica_sync;
 
 pub fn handle_history_record_not_found<Op>(
     state: &mut replica_sync::state_machine::ReplicaState<Op>,
-    id: &p2p::RoomHistoryRecordKind,
+    id: &p2p::ZoneHistoryRecordKind,
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
     let prefix = id.record_prefix().clone();
     if state
@@ -25,13 +25,13 @@ pub fn handle_history_record_not_found<Op>(
             }]
         }
         replica_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
-            let Some(room) = state.room.clone() else {
+            let Some(zone) = state.zone.clone() else {
                 return Vec::new();
             };
             let liveness = state.kademlia_history.liveness;
-            if !liveness.is_room_still_listed {
+            if !liveness.is_zone_still_listed {
                 state.phase = replica_sync::state_machine::Phase::Failed;
-                return vec![replica_sync::state_machine::Output::RoomGone { room }];
+                return vec![replica_sync::state_machine::Output::ZoneGone { zone }];
             }
             if !liveness.has_other_history_holders && state.kademlia_history.fetch_retries == 0 {
                 state.phase = replica_sync::state_machine::Phase::Ready;
@@ -47,7 +47,7 @@ pub fn handle_history_record_not_found<Op>(
                 return state.start_kademlia_history_fetch();
             }
             state.phase = replica_sync::state_machine::Phase::Failed;
-            vec![replica_sync::state_machine::Output::HistoryUnavailable { room }]
+            vec![replica_sync::state_machine::Output::HistoryUnavailable { zone }]
         }
         _ => Vec::new(),
     }
@@ -61,20 +61,20 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync::state_machine::{
-        Output, PendingHistoryFetch, Phase, ReplicaState, RoomLiveness,
+        Output, PendingHistoryFetch, Phase, ReplicaState, ZoneLiveness,
     };
 
     #[test]
     fn test_usage() {
         let mut state = ReplicaState::<u8>::default();
-        let room = identity::RoomName::from("r");
+        let zone = identity::ZoneName::from("r");
         let prefix = p2p::HistoryKeyPrefix::from("abc");
-        state.room = Some(room.clone());
+        state.zone = Some(zone.clone());
         state.phase = Phase::FetchingHistoryFromKademlia;
         state.kademlia_history.is_enabled = true;
         state.kademlia_history.prefix = Some(prefix.clone());
-        state.kademlia_history.liveness = RoomLiveness {
-            is_room_still_listed: false,
+        state.kademlia_history.liveness = ZoneLiveness {
+            is_zone_still_listed: false,
             has_other_history_holders: false,
         };
         state.kademlia_history.pending_fetch = Some(PendingHistoryFetch {
@@ -85,9 +85,9 @@ mod tests {
         });
         let outputs = handle_history_record_not_found(
             &mut state,
-            &p2p::RoomHistoryRecordKind::Manifest(prefix),
+            &p2p::ZoneHistoryRecordKind::Manifest(prefix),
         );
         assert_eq!(state.phase, Phase::Failed);
-        assert_eq!(outputs, vec![Output::RoomGone { room }]);
+        assert_eq!(outputs, vec![Output::ZoneGone { zone }]);
     }
 }

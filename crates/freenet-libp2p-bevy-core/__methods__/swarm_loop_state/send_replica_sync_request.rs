@@ -6,7 +6,7 @@ pub fn send_replica_sync_request<Payload: p2p::traits::Message>(
     peer_id: &identity::PeerId,
     request: p2p::SnapshotRequest,
 ) {
-    tracing::debug!(target: "p2p", peer = %peer_id, request = ?request, "room sync request sent");
+    tracing::debug!(target: "p2p", peer = %peer_id, request = ?request, "zone sync request sent");
     let Ok(libp2p_id) = peer_id.parse::<libp2p::PeerId>() else {
         state
             .event_tx
@@ -40,7 +40,7 @@ mod tests {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let peer = identity::PeerId::from("not-a-peer-id");
         let request = p2p::SnapshotRequest::Fetch {
-            room: identity::RoomName::from("r"),
+            zone: identity::ZoneName::from("r"),
             part: 0,
         };
         send_replica_sync_request(&mut state, &peer, request.clone());
@@ -49,7 +49,7 @@ mod tests {
             request: got,
         })) = rx.try_recv()
         else {
-            panic!("expected a room sync failure");
+            panic!("expected a zone sync failure");
         };
         assert_eq!((from, got), (peer, request));
         assert!(state.replica_sync_requests_in_flight.is_empty());

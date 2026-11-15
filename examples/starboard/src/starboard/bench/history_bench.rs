@@ -96,7 +96,7 @@ impl HistoryBoard {
         let mut chunks = 0_u32;
         for command in commands {
             if let p2p::Libp2pCommand::PutHistoryRecord { id, value, .. } = command
-                && matches!(id, p2p::RoomHistoryRecordKind::Chunk(_))
+                && matches!(id, p2p::ZoneHistoryRecordKind::Chunk(_))
             {
                 bytes = bytes.saturating_add(u64::try_from(value.len()).unwrap_or(0));
                 chunks = chunks.saturating_add(1);
@@ -115,7 +115,7 @@ impl HistoryBoard {
             app.update();
             while let Ok(event) = events.try_recv() {
                 if let p2p::Libp2pEvent::HistoryRecordStored { id } = &event
-                    && matches!(id, p2p::RoomHistoryRecordKind::Manifest(_))
+                    && matches!(id, p2p::ZoneHistoryRecordKind::Manifest(_))
                 {
                     return started.elapsed();
                 }
@@ -163,11 +163,11 @@ pub struct HistoryReport {
 #[allow(clippy::future_not_send)]
 pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
     let game = identity::GameId::from(starboard::bench::BENCH_GAME);
-    let room = identity::RoomName::from(starboard::bench::BENCH_ROOM);
+    let room = identity::ZoneName::from(starboard::bench::BENCH_ROOM);
     let history = replica_sync::HistoryConfig {
         write_interval: HISTORY_WRITE_INTERVAL,
         record_ttl: HISTORY_RECORD_TTL,
-        per_room_bytes: p2p::HistoryByteCount::from(HISTORY_PER_ROOM_BYTES),
+        per_zone_bytes: p2p::HistoryByteCount::from(HISTORY_PER_ROOM_BYTES),
         max_fetch_retries: replica_sync::HistoryConfig::default().max_fetch_retries,
     };
     let mut writer = starboard::app::test_harness::node_with(&game, Some(history));
@@ -212,7 +212,7 @@ pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
         .world()
         .resource::<p2p::Libp2pCommandSender>()
         .send(p2p::Libp2pCommand::GetHistoryRecord {
-            id: p2p::RoomHistoryRecordKind::Manifest(prefix),
+            id: p2p::ZoneHistoryRecordKind::Manifest(prefix),
         })
         .ok();
     let get_latency_ms = HistoryBoard::wait_for_found(&mut reader, &mut reader_events, started)

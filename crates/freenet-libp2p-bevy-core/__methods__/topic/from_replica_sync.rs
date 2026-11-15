@@ -1,8 +1,8 @@
 use crate::identity;
 
 #[must_use]
-pub fn from_replica_sync(game: &identity::GameId, room: &identity::RoomName) -> identity::Topic {
-    let path = format!("{game}/room/{room}/sync");
+pub fn from_replica_sync(game: &identity::GameId, zone: &identity::ZoneName) -> identity::Topic {
+    let path = format!("{game}/zone/{zone}/sync");
     identity::Topic::from(path)
 }
 
@@ -15,8 +15,8 @@ mod tests {
     fn test_usage() {
         let topic = from_replica_sync(
             &identity::GameId::from("game"),
-            &identity::RoomName::from("room-a"),
+            &identity::ZoneName::from("zone-a"),
         );
-        assert_eq!(topic.as_str(), "game/room/room-a/sync");
+        assert_eq!(topic.as_str(), "game/zone/zone-a/sync");
     }
 }

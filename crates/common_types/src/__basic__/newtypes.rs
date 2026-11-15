@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "bevy", reflect(Hash))]
 #[cfg_attr(feature = "bevy", derive(bevy_ecs::component::Component))]
 #[from(forward)]
-pub struct RoomName(pub String);
+pub struct ZoneName(pub String);
 
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Deref, Display, From,

@@ -86,7 +86,7 @@ mod tests {
     fn test_usage() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("room-7"),
+            identity::ZoneName::from("room-7"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::Occupant)]),
         );
         let mut app = app_with_lobby(lobby);
@@ -94,7 +94,7 @@ mod tests {
         assert_eq!(
             presence_of(&app).get(&identity::PeerId::from("bob")),
             Some(&presence::Whereabouts {
-                place: Some(identity::RoomName::from("room-7")),
+                place: Some(identity::ZoneName::from("room-7")),
                 display_name: Some(identity::Username::from("Bob")),
             })
         );
@@ -104,7 +104,7 @@ mod tests {
     fn a_history_holder_publishes_no_place() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("room-7"),
+            identity::ZoneName::from("room-7"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::HistoryHolder)]),
         );
         let mut app = app_with_lobby(lobby);
@@ -116,11 +116,11 @@ mod tests {
     fn a_peer_in_two_rooms_takes_the_first_room_by_name() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("room-b"),
+            identity::ZoneName::from("room-b"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::Occupant)]),
         );
         lobby.insert(
-            identity::RoomName::from("room-a"),
+            identity::ZoneName::from("room-a"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::Occupant)]),
         );
         let mut app = app_with_lobby(lobby);
@@ -128,14 +128,14 @@ mod tests {
         let place = presence_of(&app)
             .get(&identity::PeerId::from("bob"))
             .and_then(|whereabouts| whereabouts.place.clone());
-        assert_eq!(place, Some(identity::RoomName::from("room-a")));
+        assert_eq!(place, Some(identity::ZoneName::from("room-a")));
     }
 
     #[test]
     fn an_unchanged_state_does_not_rebuild_the_presence() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::RoomName::from("room-7"),
+            identity::ZoneName::from("room-7"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::Occupant)]),
         );
         let mut app = app_with_lobby(lobby);

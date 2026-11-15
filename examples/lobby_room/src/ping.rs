@@ -43,7 +43,7 @@ pub fn publish_room_ping(
     *accumulator = 0.0;
     let is_connected_in_room = state.connected_members().next().is_some();
     if is_connected_in_room {
-        commands.push(p2p::Command::PublishInJoinedRoom {
+        commands.push(p2p::Command::PublishInJoinedZone {
             payload: PingPayload(user.0.clone()),
         });
     }
@@ -54,8 +54,8 @@ pub fn log_room_messages(
     mut senders: ResMut<RoomMessageSenders>,
 ) {
     for event in events.take_all() {
-        if let p2p::Event::RoomMessage {
-            room,
+        if let p2p::Event::ZoneMessage {
+            zone: room,
             from,
             payload,
         } = event
@@ -107,7 +107,7 @@ mod tests {
             identity::PeerId::from("me"),
         )
         .in_room(discovery::JoinedRoom {
-            name: identity::RoomName::from("alpha"),
+            name: identity::ZoneName::from("alpha"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members,
@@ -117,8 +117,8 @@ mod tests {
         .build();
         app.insert_resource(state);
         app.insert_resource(p2p::PendingCommands::<PingPayload>::default());
-        app.insert_resource(p2p::PendingEvents(vec![p2p::Event::RoomMessage {
-            room: identity::RoomName::from("alpha"),
+        app.insert_resource(p2p::PendingEvents(vec![p2p::Event::ZoneMessage {
+            zone: identity::ZoneName::from("alpha"),
             from: identity::PeerId::from("peer-b"),
             payload: PingPayload(identity::Username::from("bob")),
         }]));

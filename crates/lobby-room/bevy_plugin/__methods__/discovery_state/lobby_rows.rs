@@ -92,7 +92,7 @@ mod tests {
     fn state_with_lobby(rooms: Vec<(&str, discovery::Room)>) -> DiscoveryState {
         let mut lobby = discovery::Lobby::default();
         for (name, room) in rooms {
-            lobby.insert(identity::RoomName::from(name), room);
+            lobby.insert(identity::ZoneName::from(name), room);
         }
         testing_builder(lobby)
     }
@@ -154,7 +154,7 @@ mod tests {
         let rows = lobby_rows(&state, &[]);
         let occupancy_of = |name: &str| {
             rows.iter()
-                .find(|row| row.name == identity::RoomName::from(name))
+                .find(|row| row.name == identity::ZoneName::from(name))
                 .expect("row")
                 .occupancy
         };
@@ -189,7 +189,7 @@ mod tests {
         let rows = lobby_rows(&state, &friends);
         let friends_of = |name: &str| {
             rows.iter()
-                .find(|row| row.name == identity::RoomName::from(name))
+                .find(|row| row.name == identity::ZoneName::from(name))
                 .expect("row")
                 .friends
         };

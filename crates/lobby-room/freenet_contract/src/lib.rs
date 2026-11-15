@@ -1,7 +1,7 @@
 mod constants;
 mod lobby_contract;
 
-pub use common_types::{Peer, PeerAddr, PeerId, RoomName, UnixTime, Username};
+pub use common_types::{Peer, PeerAddr, PeerId, UnixTime, Username, ZoneName};
 pub use lobby_contract::LobbyContract;
 pub use lobby_room_shared_types::{Lobby, Room, RoomMember, RoomMembership, RoomSize};
 

@@ -1,7 +1,7 @@
 #[path = "__basic__/mod.rs"]
 mod basic;
 
-pub use basic::components::RoomLiveness;
+pub use basic::components::ZoneLiveness;
 pub use basic::enums::{Input, Output, Phase};
 pub use basic::structs::{KademliaHistoryState, PendingHistoryFetch, SliceAntiEntropyState};
 

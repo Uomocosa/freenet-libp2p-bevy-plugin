@@ -45,7 +45,7 @@ mod tests {
     fn snapshot_in(room: &str) -> DiscoveryState {
         testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .in_room(core_discovery::JoinedRoom {
-                name: identity::RoomName::from(room),
+                name: identity::ZoneName::from(room),
                 created_at: time::UnixTime::EPOCH,
                 phase: core_discovery::JoinPhase::Joining {
                     since: time::UnixTime::EPOCH,

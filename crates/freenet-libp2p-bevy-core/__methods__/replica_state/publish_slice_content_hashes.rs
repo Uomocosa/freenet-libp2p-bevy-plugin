@@ -5,8 +5,8 @@ pub fn publish_slice_content_hashes<Op>(
     state: &replica_sync::state_machine::ReplicaState<Op>,
     local: replica_sync::ReplicaSliceContentHashes,
 ) -> Vec<replica_sync::state_machine::Output<Op>> {
-    let Some(room) = state.room.clone() else {
-        tracing::debug!(target: "replica_sync", "anti-entropy ignored phase={:?} reason=publish-no-room", state.phase);
+    let Some(zone) = state.zone.clone() else {
+        tracing::debug!(target: "replica_sync", "anti-entropy ignored phase={:?} reason=publish-no-zone", state.phase);
         return Vec::new();
     };
     if state.phase != replica_sync::state_machine::Phase::Ready {
@@ -15,7 +15,7 @@ pub fn publish_slice_content_hashes<Op>(
     }
     vec![
         replica_sync::state_machine::Output::PublishSliceContentHashes {
-            room,
+            zone,
             hashes: local,
         },
     ]
