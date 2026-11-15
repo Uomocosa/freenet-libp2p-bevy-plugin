@@ -20,7 +20,7 @@ pub fn publish_peer_presence(
                 }
                 next.entry(peer_id.clone())
                     .or_insert_with(|| presence::Whereabouts {
-                        zone: identity::Zone::Restricted(room_name.clone()),
+                        zone: identity::Zone::Restricted(identity::ZoneName::clone(room_name)),
                         display_name: member.display_name.clone(),
                     });
             }
@@ -87,7 +87,7 @@ mod tests {
     fn test_usage() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::ZoneName::from("room-7"),
+            discovery::RoomName::from("room-7"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::Occupant)]),
         );
         let mut app = app_with_lobby(lobby);
@@ -105,7 +105,7 @@ mod tests {
     fn a_history_holder_publishes_no_zone() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::ZoneName::from("room-7"),
+            discovery::RoomName::from("room-7"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::HistoryHolder)]),
         );
         let mut app = app_with_lobby(lobby);
@@ -117,11 +117,11 @@ mod tests {
     fn a_peer_in_two_rooms_takes_the_first_room_by_name() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::ZoneName::from("room-b"),
+            discovery::RoomName::from("room-b"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::Occupant)]),
         );
         lobby.insert(
-            identity::ZoneName::from("room-a"),
+            discovery::RoomName::from("room-a"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::Occupant)]),
         );
         let mut app = app_with_lobby(lobby);
@@ -141,7 +141,7 @@ mod tests {
     fn an_unchanged_state_does_not_rebuild_the_presence() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::ZoneName::from("room-7"),
+            discovery::RoomName::from("room-7"),
             room_with(&[("bob", "Bob", discovery::RoomMembership::Occupant)]),
         );
         let mut app = app_with_lobby(lobby);

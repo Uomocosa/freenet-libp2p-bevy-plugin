@@ -178,7 +178,7 @@ mod build_plugin_tests {
             .send_replace(Some(peer));
         app.update();
         app.update();
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         app.world_mut()
             .resource_mut::<Messages<discovery::state_machine::Input>>()
             .write(discovery::state_machine::Input::Command(
@@ -190,7 +190,7 @@ mod build_plugin_tests {
         while let Ok(command) = rx.try_recv() {
             if matches!(
                 &command,
-                p2p::Libp2pCommand::SubscribeZone { zone: joined } if *joined == room
+                p2p::Libp2pCommand::SubscribeZone { zone: joined } if *joined == *room
             ) {
                 saw_subscribe = true;
             }
@@ -204,7 +204,7 @@ mod build_plugin_tests {
     #[test]
     fn inputs_before_swarm_ready_are_processed_after_state_appears() {
         let mut app = app_with_swarm();
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         app.world_mut()
             .resource_mut::<Messages<discovery::state_machine::Input>>()
             .write(discovery::state_machine::Input::Command(
@@ -282,7 +282,7 @@ mod build_plugin_tests {
         app.world_mut()
             .resource_mut::<Messages<discovery::state_machine::Input>>()
             .write(discovery::state_machine::Input::Command(
-                discovery::Command::Create(identity::ZoneName::from("room-a")),
+                discovery::Command::Create(discovery::RoomName::from("room-a")),
             ));
         app.update();
         app.update();

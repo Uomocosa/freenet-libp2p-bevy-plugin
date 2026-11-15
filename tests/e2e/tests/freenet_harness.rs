@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use freenet_contract_harness::{SuiteConfig, run_suite};
 use freenet_stdlib::prelude::*;
 use lobby_contract::{
-    Lobby, LobbyContract, Peer, PeerAddr, PeerId, Room, RoomMember, RoomSize, UnixTime, ZoneName,
+    Lobby, LobbyContract, Peer, PeerAddr, PeerId, Room, RoomMember, RoomName, RoomSize, UnixTime,
 };
 
 fn encode(lobby: &Lobby) -> State<'static> {
@@ -27,7 +27,7 @@ fn one_room(updated_at: u64, created_at: u64) -> Lobby {
     );
     let mut lobby = Lobby::default();
     lobby.insert(
-        ZoneName::from("room-a"),
+        RoomName::from("room-a"),
         Room {
             room_size: RoomSize::DEFAULT,
             created_at: UnixTime::from_secs(created_at),

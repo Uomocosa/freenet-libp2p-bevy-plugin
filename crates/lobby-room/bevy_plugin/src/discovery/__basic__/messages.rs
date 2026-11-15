@@ -1,12 +1,12 @@
 use bevy::prelude::Message;
 use serde::{Deserialize, Serialize};
 
-use crate::identity;
+use crate::discovery;
 
 #[derive(Message, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Command {
-    Create(identity::ZoneName),
-    Join(identity::ZoneName),
+    Create(discovery::RoomName),
+    Join(discovery::RoomName),
     Leave,
     Quit,
 }
@@ -14,10 +14,10 @@ pub enum Command {
 #[derive(Message, Debug, Clone, PartialEq, Eq)]
 pub enum Event {
     LobbyUpdated,
-    Joined(identity::ZoneName),
-    RoomReady(identity::ZoneName),
-    Left(identity::ZoneName),
+    Joined(discovery::RoomName),
+    RoomReady(discovery::RoomName),
+    Left(discovery::RoomName),
     RoomMembersUpdated,
-    RoomGone(identity::ZoneName),
-    HistoryUnavailable(identity::ZoneName),
+    RoomGone(discovery::RoomName),
+    HistoryUnavailable(discovery::RoomName),
 }

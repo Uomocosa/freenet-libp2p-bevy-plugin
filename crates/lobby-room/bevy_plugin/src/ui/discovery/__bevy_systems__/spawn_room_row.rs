@@ -93,8 +93,6 @@ mod tests {
     use crate::ui;
     use bevy::prelude::*;
 
-    use freenet_libp2p_bevy_core::identity;
-
     #[test]
     fn test_usage() {
         let mut app = App::new();
@@ -113,7 +111,7 @@ mod tests {
 
     fn sample_row() -> core_discovery::LobbyRow {
         core_discovery::LobbyRow {
-            name: identity::ZoneName::from("alpha"),
+            name: core_discovery::RoomName::from("alpha"),
             occupants: 3,
             room_size: core_discovery::RoomSize::try_from(8).expect("8"),
             occupancy: core_discovery::RoomOccupancy::HasSpace,

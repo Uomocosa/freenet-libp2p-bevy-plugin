@@ -52,7 +52,7 @@ mod tests {
             identity::PeerId::from("me"),
         )
         .in_room(discovery::JoinedRoom {
-            name: identity::ZoneName::from("alpha"),
+            name: discovery::RoomName::from("alpha"),
             created_at: time::UnixTime::from_secs(1),
             phase: discovery::JoinPhase::Ready,
             members,

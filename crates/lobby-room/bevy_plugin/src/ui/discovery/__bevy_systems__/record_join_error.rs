@@ -34,7 +34,6 @@ mod tests {
     use bevy::prelude::*;
 
     use super::record_join_error;
-    use freenet_libp2p_bevy_core::identity;
 
     #[test]
     fn test_usage() {
@@ -44,9 +43,9 @@ mod tests {
         app.add_systems(Update, record_join_error);
         app.world_mut()
             .resource_mut::<Messages<core_discovery::Event>>()
-            .write(core_discovery::Event::RoomGone(identity::ZoneName::from(
-                "alpha",
-            )));
+            .write(core_discovery::Event::RoomGone(
+                core_discovery::RoomName::from("alpha"),
+            ));
         app.update();
         assert_eq!(
             **app.world().resource::<ui::discovery::JoinError>(),

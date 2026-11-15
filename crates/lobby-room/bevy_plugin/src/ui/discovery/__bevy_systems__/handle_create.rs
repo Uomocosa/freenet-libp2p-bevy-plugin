@@ -4,7 +4,6 @@ use bevy::prelude::*;
 use bevy::text::EditableText;
 use bevy::ui::Pressed;
 
-use freenet_libp2p_bevy_core::identity;
 use ui::discovery::{CreateRoomButton, RoomNameInput};
 
 pub fn handle_create(
@@ -20,9 +19,9 @@ pub fn handle_create(
             continue;
         }
         tracing::info!(target: "discovery", "ui create room={name}");
-        commands.write(core_discovery::Command::Create(identity::ZoneName::from(
-            name,
-        )));
+        commands.write(core_discovery::Command::Create(
+            core_discovery::RoomName::from(name),
+        ));
     }
 }
 
@@ -33,7 +32,6 @@ mod tests {
     use bevy::prelude::*;
     use bevy::text::EditableText;
     use bevy::ui::Pressed;
-    use freenet_libp2p_bevy_core::identity;
 
     use super::handle_create;
 
@@ -55,9 +53,9 @@ mod tests {
     fn test_usage() {
         assert_eq!(
             sent_after_press(" alpha "),
-            vec![core_discovery::Command::Create(identity::ZoneName::from(
-                "alpha"
-            ))]
+            vec![core_discovery::Command::Create(
+                core_discovery::RoomName::from("alpha")
+            )]
         );
         assert_eq!(sent_after_press("   "), Vec::new());
     }

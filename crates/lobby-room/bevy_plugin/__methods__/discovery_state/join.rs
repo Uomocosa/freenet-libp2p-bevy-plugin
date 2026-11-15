@@ -1,11 +1,10 @@
 use crate::discovery;
-use crate::identity;
 use crate::time;
 use discovery::state_machine::{DiscoveryState, Output};
 
 pub fn join(
     state: &mut DiscoveryState,
-    room: identity::ZoneName,
+    room: discovery::RoomName,
     how_entered: discovery::HowRoomWasEntered,
     now: time::UnixTime,
 ) -> Vec<Output> {
@@ -46,7 +45,7 @@ mod tests {
         });
         let outputs = join(
             &mut state,
-            identity::ZoneName::from("r"),
+            discovery::RoomName::from("r"),
             discovery::HowRoomWasEntered::Joined,
             time::UnixTime::from_secs(1),
         );

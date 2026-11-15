@@ -1,6 +1,7 @@
 #[path = "__basic__/mod.rs"]
 mod basic;
 pub use basic::enums::RoomMembership;
+pub use basic::newtypes::RoomName;
 pub use basic::structs::RoomMember;
 mod constants;
 pub use constants::MAX_LOBBY_ROOMS;

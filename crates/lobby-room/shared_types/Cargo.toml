@@ -14,5 +14,9 @@ bevy_reflect = { version = "=0.20.1", optional = true }
 atomic-delegate-macros.workspace = true
 thiserror.workspace = true
 
+[dev-dependencies]
+bincode.workspace = true
+serde_json = "=1.0.154"
+
 [lints]
 workspace = true

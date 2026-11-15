@@ -31,7 +31,7 @@ mod tests {
             addrs: Vec::new(),
         });
         state.room = Some(discovery::JoinedRoom {
-            name: identity::ZoneName::from("r"),
+            name: discovery::RoomName::from("r"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),

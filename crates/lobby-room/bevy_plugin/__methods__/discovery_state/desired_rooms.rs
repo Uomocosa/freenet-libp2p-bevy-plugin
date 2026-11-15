@@ -1,12 +1,11 @@
 use std::collections::BTreeSet;
 
 use crate::discovery;
-use crate::identity;
 use discovery::state_machine::DiscoveryState;
 
 #[must_use]
-pub fn desired_rooms(state: &DiscoveryState) -> BTreeSet<identity::ZoneName> {
-    let mut rooms: BTreeSet<identity::ZoneName> = state.lobby.keys().cloned().collect();
+pub fn desired_rooms(state: &DiscoveryState) -> BTreeSet<discovery::RoomName> {
+    let mut rooms: BTreeSet<discovery::RoomName> = state.lobby.keys().cloned().collect();
     if let Some(joined) = state.room.as_ref() {
         rooms.insert(joined.name.clone());
     }
@@ -25,7 +24,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),

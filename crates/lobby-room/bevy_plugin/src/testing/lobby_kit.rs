@@ -65,7 +65,7 @@ mod tests {
         membership: discovery::RoomMembership,
     ) -> discovery::state_machine::HeartbeatTarget {
         discovery::state_machine::HeartbeatTarget {
-            room: identity::ZoneName::from(room),
+            room: discovery::RoomName::from(room),
             created_at: time::UnixTime::from_secs(created_at),
             addrs: vec![identity::PeerAddr::from("/ip4/1/tcp/4001")],
             display_name: identity::Username::from("someone"),
@@ -117,7 +117,7 @@ mod tests {
         };
         let lobby = snapshot_of(&kit.on_hello(&late, &game, time::UnixTime::from_secs(30)));
         assert!(
-            lobby.contains_key(&identity::ZoneName::from("room-a")),
+            lobby.contains_key(&discovery::RoomName::from("room-a")),
             "late joiner must see the room with no heartbeat of its own"
         );
     }
@@ -152,7 +152,7 @@ mod tests {
         assert_eq!(fan_outs[0].to, testing::FanOutTarget::Game);
         let record = snapshot_of(&[fan_outs[0].bytes.clone()]);
         let record = record
-            .get(&identity::ZoneName::from("room-a"))
+            .get(&discovery::RoomName::from("room-a"))
             .expect("room-a is present");
         assert_eq!(record.members.len(), 2);
         assert!(record.members.contains_key(&first));
@@ -172,7 +172,7 @@ mod tests {
         );
         let lobby = kit.refresh_heartbeats(&peer, &game, &[], time::UnixTime::from_secs(21));
         let record = lobby
-            .get(&identity::ZoneName::from("room-a"))
+            .get(&discovery::RoomName::from("room-a"))
             .expect("room-a stays until its lease lapses");
         assert_eq!(
             record.members.get(&peer).map(|member| member.updated_at),
@@ -205,7 +205,7 @@ mod tests {
             time::UnixTime::from_secs(40),
         );
         let record = lobby
-            .get(&identity::ZoneName::from("room-a"))
+            .get(&discovery::RoomName::from("room-a"))
             .expect("room-a is present");
         assert_eq!(
             record.members.get(&quiet).map(|member| member.updated_at),
@@ -228,7 +228,7 @@ mod tests {
             &[heartbeat("room-a", 10, discovery::RoomMembership::Departed)],
             time::UnixTime::from_secs(20),
         );
-        assert!(!lobby.contains_key(&identity::ZoneName::from("room-a")));
+        assert!(!lobby.contains_key(&discovery::RoomName::from("room-a")));
     }
 
     #[test]
@@ -246,7 +246,7 @@ mod tests {
         assert!(
             kit.shared_lobbies
                 .get(&game)
-                .and_then(|lobby| lobby.get(&identity::ZoneName::from("room-a")))
+                .and_then(|lobby| lobby.get(&discovery::RoomName::from("room-a")))
                 .is_some_and(|record| record.members.contains_key(&holder)),
             "crashed holder stays listed so a joiner still sees the room"
         );
@@ -267,7 +267,7 @@ mod tests {
         assert!(
             kit.shared_lobbies
                 .get(&game)
-                .and_then(|lobby| lobby.get(&identity::ZoneName::from("room-a")))
+                .and_then(|lobby| lobby.get(&discovery::RoomName::from("room-a")))
                 .is_none_or(|record| !record.members.contains_key(&quitter)),
             "clean quit removes the departed entry so the room can go"
         );

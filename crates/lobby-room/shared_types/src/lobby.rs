@@ -5,12 +5,12 @@ use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 
 use crate::Room;
-use common_types::ZoneName;
+use crate::RoomName;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Deref, DerefMut, From)]
 #[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
 #[from(forward)]
-pub struct Lobby(pub BTreeMap<ZoneName, Room>);
+pub struct Lobby(pub BTreeMap<RoomName, Room>);
 
 #[atomic_delegates]
 impl Lobby {
@@ -27,6 +27,7 @@ mod tests {
     use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
+    use crate::RoomName;
     use crate::RoomSize;
     use common_types::Peer;
     use common_types::PeerId;
@@ -45,7 +46,7 @@ mod tests {
             membership: RoomMembership::Occupant,
         };
         let incoming = Lobby::from([(
-            ZoneName::from("room-a"),
+            RoomName::from("room-a"),
             Room {
                 room_size: RoomSize::DEFAULT,
                 created_at: UnixTime::EPOCH,
@@ -55,5 +56,20 @@ mod tests {
         let mut lobby = Lobby::default();
         lobby.merge(incoming);
         assert_eq!(lobby.len(), 1);
+    }
+
+    #[test]
+    fn test_room_name_serializes_like_the_zone_name_it_wraps() {
+        let room = RoomName::from("a");
+        let zone = ZoneName::from("a");
+        assert_eq!(
+            bincode::serialize(&room).expect("room name encodes"),
+            bincode::serialize(&zone).expect("zone name encodes")
+        );
+        assert_eq!(
+            serde_json::to_string(&room).expect("room name encodes"),
+            serde_json::to_string(&zone).expect("zone name encodes")
+        );
+        assert_eq!(RoomName::from(zone).as_str(), "a");
     }
 }

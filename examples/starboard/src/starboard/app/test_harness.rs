@@ -34,7 +34,7 @@ pub fn node_with(game: &identity::GameId, history: Option<replica_sync::HistoryC
     );
     app.insert_resource(room_status(
         &identity::PeerId::from("me"),
-        &identity::ZoneName::from("alpha"),
+        &discovery::RoomName::from("alpha"),
         Vec::new(),
     ));
     app.init_resource::<ButtonInput<MouseButton>>();
@@ -47,7 +47,7 @@ pub fn node_with(game: &identity::GameId, history: Option<replica_sync::HistoryC
 
 pub fn room_status(
     me: &identity::PeerId,
-    room: &identity::ZoneName,
+    room: &discovery::RoomName,
     members: Vec<identity::PeerId>,
 ) -> DiscoveryState {
     let connected = members.clone();
@@ -78,7 +78,7 @@ pub fn room_status(
         .build()
 }
 
-pub fn join(app: &mut App, room: &identity::ZoneName, members: Vec<identity::PeerId>) {
+pub fn join(app: &mut App, room: &discovery::RoomName, members: Vec<identity::PeerId>) {
     let me = ready(app).map_or_else(|| identity::PeerId::from("me"), |peer| peer.id);
     app.insert_resource(room_status(&me, room, members));
     app.world_mut()

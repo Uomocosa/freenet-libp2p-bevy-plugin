@@ -6,7 +6,7 @@ use crate::time;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Handshake {
-    pub room: Option<identity::ZoneName>,
+    pub room: Option<discovery::RoomName>,
     pub addrs: Vec<identity::PeerAddr>,
     pub peers: Vec<identity::Peer>,
     pub display_name: identity::Username,
@@ -14,7 +14,7 @@ pub struct Handshake {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HeartbeatTarget {
-    pub room: identity::ZoneName,
+    pub room: discovery::RoomName,
     pub created_at: time::UnixTime,
     pub addrs: Vec<identity::PeerAddr>,
     pub display_name: identity::Username,

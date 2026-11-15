@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
+use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::{identity, p2p, replica_sync};
 use tokio::sync::broadcast;
 
@@ -237,7 +238,7 @@ pub async fn run_scenario(
             .filter(|(other, _)| *other != index)
             .map(|(_, peer)| peer.id.clone())
             .collect();
-        starboard::app::test_harness::join(app, &room, others);
+        starboard::app::test_harness::join(app, &discovery::RoomName::from(room.clone()), others);
         app.world_mut()
             .resource_mut::<starboard::input::OwnBrush>()
             .size_index = starboard::bench::BENCH_SIZE_INDEX;

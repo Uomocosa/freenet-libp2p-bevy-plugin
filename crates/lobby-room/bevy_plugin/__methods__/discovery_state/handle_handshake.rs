@@ -67,7 +67,7 @@ mod tests {
             addrs: Vec::new(),
         });
         state.room = Some(discovery::JoinedRoom {
-            name: identity::ZoneName::from("r"),
+            name: discovery::RoomName::from("r"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),
@@ -82,7 +82,7 @@ mod tests {
         let peer = identity::PeerId::from("a");
         state.connected.insert(peer.clone());
         let handshake = Handshake {
-            room: Some(identity::ZoneName::from("r")),
+            room: Some(discovery::RoomName::from("r")),
             addrs: vec![identity::PeerAddr::from("/ip4/1")],
             peers: vec![identity::Peer {
                 id: identity::PeerId::from("b"),
@@ -112,7 +112,7 @@ mod tests {
         let joiner = identity::PeerId::from("joiner");
         state.connected.insert(joiner.clone());
         let handshake = Handshake {
-            room: Some(identity::ZoneName::from("r")),
+            room: Some(discovery::RoomName::from("r")),
             addrs: vec![identity::PeerAddr::from("/ip4/1")],
             peers: Vec::new(),
             display_name: identity::Username::from("a"),

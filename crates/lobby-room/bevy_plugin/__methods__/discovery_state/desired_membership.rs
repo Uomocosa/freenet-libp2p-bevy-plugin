@@ -9,7 +9,7 @@ use discovery::state_machine::DiscoveryState;
 #[must_use]
 pub fn desired_membership(
     state: &DiscoveryState,
-    room_entity_by_name: &BTreeMap<identity::ZoneName, Entity>,
+    room_entity_by_name: &BTreeMap<discovery::RoomName, Entity>,
 ) -> (
     BTreeMap<identity::PeerId, Entity>,
     BTreeMap<identity::PeerId, BTreeSet<Entity>>,
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             room.clone(),
@@ -122,8 +122,8 @@ mod tests {
 
     #[test]
     fn joined_room_wins_over_lobby_room() {
-        let room_a = identity::ZoneName::from("room-a");
-        let room_b = identity::ZoneName::from("room-b");
+        let room_a = discovery::RoomName::from("room-a");
+        let room_b = discovery::RoomName::from("room-b");
         let mut lobby = discovery::Lobby::default();
         for (room, members) in [
             (&room_a, vec![occupant("alice")]),

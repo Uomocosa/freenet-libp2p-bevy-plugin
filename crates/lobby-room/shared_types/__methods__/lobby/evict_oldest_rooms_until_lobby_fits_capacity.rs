@@ -22,11 +22,11 @@ mod tests {
     use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
+    use crate::RoomName;
     use crate::RoomSize;
     use common_types::Peer;
     use common_types::PeerId;
     use common_types::UnixTime;
-    use common_types::ZoneName;
 
     fn room_updated_at(secs: u64) -> Room {
         let room_member = RoomMember {
@@ -48,13 +48,13 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut lobby = Lobby::from([
-            (ZoneName::from("old"), room_updated_at(1)),
-            (ZoneName::from("new"), room_updated_at(9)),
-            (ZoneName::from("mid"), room_updated_at(5)),
+            (RoomName::from("old"), room_updated_at(1)),
+            (RoomName::from("new"), room_updated_at(9)),
+            (RoomName::from("mid"), room_updated_at(5)),
         ]);
         evict_oldest_rooms_until_lobby_fits_capacity(&mut lobby, 2);
         assert_eq!(lobby.len(), 2);
-        assert!(!lobby.contains_key(&ZoneName::from("old")));
+        assert!(!lobby.contains_key(&RoomName::from("old")));
         evict_oldest_rooms_until_lobby_fits_capacity(&mut lobby, 5);
         assert_eq!(lobby.len(), 2);
     }

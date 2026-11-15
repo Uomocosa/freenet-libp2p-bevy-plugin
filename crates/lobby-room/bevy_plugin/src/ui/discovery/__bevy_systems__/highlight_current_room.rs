@@ -63,7 +63,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        let room = identity::ZoneName::from("alpha");
+        let room = core_discovery::RoomName::from("alpha");
         let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .in_room(core_discovery::JoinedRoom {
                 name: room.clone(),
@@ -93,7 +93,7 @@ mod tests {
     fn preview_snapshot(room: &str) -> DiscoveryState {
         testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .in_room(core_discovery::JoinedRoom {
-                name: identity::ZoneName::from(room),
+                name: core_discovery::RoomName::from(room),
                 created_at: time::UnixTime::EPOCH,
                 phase: core_discovery::JoinPhase::Ready,
                 members: core_discovery::Members::new(),
@@ -109,7 +109,7 @@ mod tests {
         for name in ["alpha", "beta"] {
             commands.spawn((
                 ChildOf(root),
-                ui::discovery::RoomButton(identity::ZoneName::from(name)),
+                ui::discovery::RoomButton(core_discovery::RoomName::from(name)),
                 Button,
                 Hovered::default(),
                 Node {
@@ -133,7 +133,7 @@ mod tests {
 
     fn pick_beta(world: &mut World) {
         world.resource_mut::<DiscoveryState>().room = Some(core_discovery::JoinedRoom {
-            name: identity::ZoneName::from("beta"),
+            name: core_discovery::RoomName::from("beta"),
             created_at: time::UnixTime::EPOCH,
             phase: core_discovery::JoinPhase::Ready,
             members: core_discovery::Members::new(),

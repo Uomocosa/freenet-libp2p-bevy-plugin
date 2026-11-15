@@ -18,7 +18,7 @@ impl LobbyLeaseLimits {
         &self,
         lobby: &mut discovery::Lobby,
         observed: &std::collections::BTreeMap<
-            (identity::ZoneName, identity::PeerId),
+            (discovery::RoomName, identity::PeerId),
             discovery::state_machine::ObservedLobbyHeartbeat,
         >,
         now: time::UnixTime,

@@ -19,7 +19,7 @@ pub use basic::resources::{
 pub use basic::structs::{JoinedRoom, LobbyRow, LobbyTaskChannels, RoomRosterEntry};
 pub use basic::type_aliases::Members;
 pub use lobby_room_shared_types::{
-    Lobby, Room, RoomMember, RoomMembership, RoomSize, RoomSizeError,
+    Lobby, Room, RoomMember, RoomMembership, RoomName, RoomSize, RoomSizeError,
 };
 
 mod lobby_contract_subscription;

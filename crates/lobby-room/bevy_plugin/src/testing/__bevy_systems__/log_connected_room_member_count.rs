@@ -50,7 +50,7 @@ mod tests {
         assert!(app.world_mut().run_system(system).is_ok());
         let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .in_room(discovery::JoinedRoom {
-                name: identity::ZoneName::from("alpha"),
+                name: discovery::RoomName::from("alpha"),
                 created_at: time::UnixTime::from_secs(1),
                 phase: discovery::JoinPhase::Ready,
                 members: std::collections::BTreeMap::new(),

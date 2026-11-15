@@ -88,7 +88,7 @@ mod tests {
     fn ready_status(me: &identity::PeerId) -> DiscoveryState {
         freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(me.clone())
             .in_room(discovery::JoinedRoom {
-                name: identity::ZoneName::from("alpha"),
+                name: discovery::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
@@ -532,7 +532,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn two_apps_converge_on_the_painted_canvas() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-ae");
+        let room = discovery::RoomName::from("room-ae");
         let mut apps = vec![
             test_harness::node_with(&game, None),
             test_harness::node_with(&game, None),
@@ -601,7 +601,7 @@ mod tests {
             .with_ansi(false)
             .try_init();
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-ae");
+        let room = discovery::RoomName::from("room-ae");
         let mut apps = vec![
             test_harness::node_with(&game, None),
             test_harness::node_with(&game, None),
@@ -665,7 +665,7 @@ mod tests {
             .with_ansi(false)
             .try_init();
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-ae");
+        let room = discovery::RoomName::from("room-ae");
         let mut apps = vec![
             test_harness::node_with(&game, None),
             test_harness::node_with(&game, None),
@@ -849,7 +849,7 @@ mod tests {
         }
     }
 
-    fn joined_pair(game: &identity::GameId, room: &identity::ZoneName) -> Vec<App> {
+    fn joined_pair(game: &identity::GameId, room: &discovery::RoomName) -> Vec<App> {
         let mut apps = vec![
             test_harness::node_with(game, None),
             test_harness::node_with(game, None),
@@ -873,7 +873,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn a_held_stroke_is_on_the_drawers_canvas_and_board_before_release() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-live");
+        let room = discovery::RoomName::from("room-live");
         let mut apps = joined_pair(&game, &room);
         for _ in 0..50 {
             for app in &mut apps {
@@ -905,7 +905,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn a_held_stroke_shows_on_the_other_peer_before_release_and_its_extension_too() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-live");
+        let room = discovery::RoomName::from("room-live");
         let mut apps = joined_pair(&game, &room);
         for _ in 0..50 {
             for app in &mut apps {

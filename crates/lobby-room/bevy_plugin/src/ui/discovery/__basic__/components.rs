@@ -1,7 +1,6 @@
+use crate::discovery as core_discovery;
 use bevy::prelude::Component;
 use derive_more::{Deref, DerefMut};
-
-use freenet_libp2p_bevy_core::identity;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct Root;
@@ -28,7 +27,7 @@ pub struct RoomBubble;
 pub struct RoomFriendBadge;
 
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
-pub struct RoomButton(pub identity::ZoneName);
+pub struct RoomButton(pub core_discovery::RoomName);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct IsCurrentRoom;

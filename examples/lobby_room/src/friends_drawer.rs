@@ -66,7 +66,7 @@ mod tests {
             identity::PeerId::from("me"),
         )
         .in_room(discovery::JoinedRoom {
-            name: identity::ZoneName::from("gamma"),
+            name: discovery::RoomName::from("gamma"),
             created_at: freenet_libp2p_bevy_plugin::time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),

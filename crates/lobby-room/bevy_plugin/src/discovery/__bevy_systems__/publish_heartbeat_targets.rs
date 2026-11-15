@@ -44,7 +44,7 @@ mod tests {
         );
         state.display_name = identity::Username::from("me");
         state.room = Some(discovery::JoinedRoom {
-            name: identity::ZoneName::from("room-a"),
+            name: discovery::RoomName::from("room-a"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),

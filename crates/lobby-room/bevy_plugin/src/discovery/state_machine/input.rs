@@ -24,11 +24,10 @@ impl From<&discovery::Command> for Input {
 mod tests {
     use super::Input;
     use crate::discovery;
-    use crate::identity;
 
     #[test]
     fn test_usage() {
-        let command = discovery::Command::Join(identity::ZoneName::from("room-a"));
+        let command = discovery::Command::Join(discovery::RoomName::from("room-a"));
         assert_eq!(Input::from(&command), Input::Command(command));
     }
 }

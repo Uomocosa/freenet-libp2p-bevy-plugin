@@ -25,7 +25,6 @@ mod tests {
 
     use super::decode_extension_effects;
     use crate::discovery;
-    use crate::identity;
     use crate::testing;
 
     #[test]
@@ -34,7 +33,7 @@ mod tests {
         app.add_message::<testing::E2EExtensionEffect>();
         app.add_message::<discovery::Command>();
         app.add_systems(Update, decode_extension_effects);
-        let command = discovery::Command::Create(identity::ZoneName::from("room-1"));
+        let command = discovery::Command::Create(discovery::RoomName::from("room-1"));
         app.world_mut()
             .resource_mut::<Messages<testing::E2EExtensionEffect>>()
             .write(testing::E2EExtensionEffect(command.to_extension_bytes()));

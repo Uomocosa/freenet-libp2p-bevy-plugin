@@ -32,14 +32,14 @@ pub fn project_status_to_entities(
     let Some(game) = game.map(Res::into_inner) else {
         return;
     };
-    let mut room_entity_by_name: BTreeMap<identity::ZoneName, Entity> = BTreeMap::new();
+    let mut room_entity_by_name: BTreeMap<discovery::RoomName, Entity> = BTreeMap::new();
     for (entity, room, _, _) in &room_entities {
-        room_entity_by_name.insert(room.clone(), entity);
+        room_entity_by_name.insert(discovery::RoomName::from(room.clone()), entity);
     }
     for room_name in DiscoveryState::desired_rooms(state) {
         let room_entity = room_entity_by_name
             .entry(room_name.clone())
-            .or_insert_with(|| commands.spawn(room_name.clone()).id());
+            .or_insert_with(|| commands.spawn(identity::ZoneName::clone(&room_name)).id());
         let room_entity = *room_entity;
         let (prefix, liveness) =
             DiscoveryState::room_prefix_and_lobby_status(Some(state), game, &room_name);
@@ -166,7 +166,7 @@ mod tests {
     }
 
     fn lobby_with_room(
-        room: &identity::ZoneName,
+        room: &discovery::RoomName,
         members: Vec<(identity::PeerId, discovery::RoomMember)>,
     ) -> discovery::Lobby {
         let mut lobby = discovery::Lobby::default();
@@ -196,7 +196,7 @@ mod tests {
         app
     }
 
-    fn room_entity(app: &mut App, room: &identity::ZoneName) -> Entity {
+    fn room_entity(app: &mut App, room: &discovery::RoomName) -> Entity {
         let found = room_by_name(app, room);
         assert_eq!(found.len(), 1);
         found[0]
@@ -215,11 +215,11 @@ mod tests {
             .count()
     }
 
-    fn room_by_name(app: &mut App, name: &identity::ZoneName) -> Vec<Entity> {
+    fn room_by_name(app: &mut App, name: &discovery::RoomName) -> Vec<Entity> {
         let mut found = app.world_mut().query::<(Entity, &identity::ZoneName)>();
         found
             .iter(app.world())
-            .filter(|(_, room)| **room == *name)
+            .filter(|(_, room)| **room == **name)
             .map(|(entity, _)| entity)
             .collect()
     }
@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn stale_room_entity_is_not_reused() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         let state = state_with_lobby(lobby_with_room(&room, vec![occupant("alice")]));
         let mut app = app_with_projection(state, game);
         app.update();
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn stale_peer_entity_is_not_reused() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         let state = state_with_lobby(lobby_with_room(&room, vec![occupant("alice")]));
         let mut app = app_with_projection(state, game);
         app.update();
@@ -270,8 +270,8 @@ mod tests {
     #[test]
     fn holder_of_two_rooms_links_both_without_churn() {
         let game = identity::GameId::from("game");
-        let room_a = identity::ZoneName::from("room-a");
-        let room_b = identity::ZoneName::from("room-b");
+        let room_a = discovery::RoomName::from("room-a");
+        let room_b = discovery::RoomName::from("room-b");
         let mut lobby = lobby_with_room(&room_a, vec![holder("alice")]);
         lobby.insert(
             room_b.clone(),
@@ -309,7 +309,7 @@ mod tests {
     #[test]
     fn departed_holder_frees_its_links_and_the_room_is_swept() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         let state = state_with_lobby(lobby_with_room(&room, vec![holder("alice")]));
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
@@ -348,7 +348,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         let state = state_with_lobby(lobby_with_room(
             &room,
             vec![occupant("alice"), occupant("bob")],
@@ -386,7 +386,7 @@ mod tests {
     #[test]
     fn member_who_departed_loses_in_room() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         let state = state_with_lobby(lobby_with_room(
             &room,
             vec![occupant("alice"), occupant("bob")],
@@ -424,7 +424,7 @@ mod tests {
     #[test]
     fn me_gains_and_loses_in_room_with_join_and_leave() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
             .in_room(discovery::JoinedRoom {
                 name: room.clone(),
@@ -452,8 +452,8 @@ mod tests {
     #[test]
     fn peer_listed_in_two_rooms_keeps_the_joined_room() {
         let game = identity::GameId::from("game");
-        let room_a = identity::ZoneName::from("room-a");
-        let room_b = identity::ZoneName::from("room-b");
+        let room_a = discovery::RoomName::from("room-a");
+        let room_b = discovery::RoomName::from("room-b");
         let mut lobby = lobby_with_room(&room_a, vec![occupant("alice")]);
         lobby.insert(
             room_b.clone(),
@@ -501,7 +501,7 @@ mod tests {
         app.add_plugins(discovery::Plugin::new(discovery::Config::default()));
         let game = identity::GameId::from("test");
         app.insert_resource(replica_sync::SyncGame(game.clone()));
-        let room = identity::ZoneName::from("room-a");
+        let room = discovery::RoomName::from("room-a");
         app.insert_resource(state_with_lobby(lobby_with_room(
             &room,
             vec![occupant("alice")],

@@ -9,7 +9,7 @@ use discovery::state_machine::DiscoveryState;
 pub fn room_prefix_and_lobby_status(
     state: Option<&DiscoveryState>,
     game: &identity::GameId,
-    room_name: &identity::ZoneName,
+    room_name: &discovery::RoomName,
 ) -> (
     p2p::HistoryKeyPrefix,
     replica_sync::state_machine::ZoneLiveness,
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room");
+        let room = discovery::RoomName::from("room");
         let (prefix, lobby_status) = room_prefix_and_lobby_status(None, &game, &room);
         assert_eq!(
             prefix,
@@ -143,7 +143,7 @@ mod tests {
         use std::collections::BTreeMap;
 
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room");
+        let room = discovery::RoomName::from("room");
         let holder = identity::PeerId::from("holder");
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
@@ -176,7 +176,7 @@ mod tests {
         use std::collections::BTreeMap;
 
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room");
+        let room = discovery::RoomName::from("room");
         let holder = identity::PeerId::from("holder");
         let seen_at = time::UnixTime::from_secs(10);
         let mut lobby = discovery::Lobby::default();
@@ -210,7 +210,7 @@ mod tests {
         use std::collections::BTreeMap;
 
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room");
+        let room = discovery::RoomName::from("room");
         let me = identity::PeerId::from("me");
         let gone = identity::PeerId::from("gone");
         let seen_at = time::UnixTime::from_secs(10);
@@ -269,7 +269,7 @@ mod tests {
         use std::collections::BTreeMap;
 
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room");
+        let room = discovery::RoomName::from("room");
         let me = identity::PeerId::from("me");
         let seen_at = time::UnixTime::from_secs(10);
         let mut lobby = discovery::Lobby::default();
@@ -311,7 +311,7 @@ mod tests {
     #[test]
     fn late_joiner_with_fetched_empty_lobby_sees_the_room_as_gone() {
         let game = identity::GameId::from("game");
-        let room = identity::ZoneName::from("room");
+        let room = discovery::RoomName::from("room");
         let state = state_with(
             discovery::Lobby::default(),
             Some(discovery::JoinedRoom {

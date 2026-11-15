@@ -9,7 +9,7 @@ use crate::time;
 
 pub fn publish_heartbeat(
     state: &discovery::LobbyContractSubscription,
-    room: &identity::ZoneName,
+    room: &discovery::RoomName,
     me: &identity::PeerId,
     room_member: discovery::RoomMember,
     room_size: discovery::RoomSize,
@@ -71,7 +71,7 @@ mod tests {
         assert!(
             publish_heartbeat(
                 &subscription,
-                &identity::ZoneName::from("room-a"),
+                &discovery::RoomName::from("room-a"),
                 &identity::PeerId::from("me"),
                 room_member,
                 discovery::RoomSize::DEFAULT,

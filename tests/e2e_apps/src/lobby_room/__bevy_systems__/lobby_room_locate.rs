@@ -45,7 +45,7 @@ pub fn lobby_room_locate(
 mod tests {
     use bevy::prelude::*;
     use bevy::ui::{ComputedNode, UiGlobalTransform};
-    use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
     use freenet_libp2p_bevy_plugin::lobby_room::testing::LocatedNode;
     use lobby_room::ui::{JoinButton, NameField};
     use serde_json::{Value, json};
@@ -75,7 +75,7 @@ mod tests {
         app.world_mut().spawn((placed(200.0, 100.0), NameField));
         app.world_mut().spawn((
             placed(300.0, 50.0),
-            JoinButton(identity::ZoneName::from("alpha")),
+            JoinButton(discovery::RoomName::from("alpha")),
         ));
         assert_eq!(
             locate(&mut app, json!("NameField")).map(|node| node.centre),

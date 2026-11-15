@@ -6762,9 +6762,11 @@ version = "0.0.11"
 dependencies = [
  "atomic-delegate-macros",
  "bevy_reflect",
+ "bincode",
  "common_types",
  "derive_more",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
 ]
 

@@ -21,11 +21,11 @@ mod tests {
     use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
+    use crate::RoomName;
     use crate::RoomSize;
     use common_types::Peer;
     use common_types::PeerId;
     use common_types::UnixTime;
-    use common_types::ZoneName;
 
     fn record(peer: &str, updated_at: UnixTime) -> Room {
         let mut members = BTreeMap::new();
@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn drops_a_room_when_every_member_is_departed_in_either_merge_order() {
-        let room = ZoneName::from("room-a");
+        let room = RoomName::from("room-a");
         let live = record("peer", UnixTime::from_secs(5));
         let departed = departed_room(UnixTime::from_secs(9));
         let pairs = [(live.clone(), departed.clone()), (departed, live)];
@@ -78,25 +78,25 @@ mod tests {
             (0..MAX_LOBBY_ROOMS)
                 .map(|index| {
                     (
-                        ZoneName::from(format!("room-{index:03}")),
+                        RoomName::from(format!("room-{index:03}")),
                         record("peer", newest_at(index)),
                     )
                 })
                 .collect::<BTreeMap<_, _>>(),
         );
         let incoming = Lobby::from([(
-            ZoneName::from("z-new"),
+            RoomName::from("z-new"),
             record("peer", newest_at(MAX_LOBBY_ROOMS)),
         )]);
         merge(&mut lobby, incoming);
         assert_eq!(lobby.len(), MAX_LOBBY_ROOMS);
-        assert!(!lobby.contains_key(&ZoneName::from("room-000")));
-        assert!(lobby.contains_key(&ZoneName::from("z-new")));
+        assert!(!lobby.contains_key(&RoomName::from("room-000")));
+        assert!(lobby.contains_key(&RoomName::from("z-new")));
     }
 
     #[test]
     fn test_usage() {
-        let room = ZoneName::from("room-a");
+        let room = RoomName::from("room-a");
         let mut base = Lobby::default();
         base.insert(room.clone(), record("peer", UnixTime::from_secs(5)));
         let mut incoming = Lobby::default();

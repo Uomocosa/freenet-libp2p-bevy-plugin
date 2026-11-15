@@ -38,7 +38,7 @@ mod tests {
             identity::PeerId::from("me"),
         )
         .in_room(discovery::JoinedRoom {
-            name: identity::ZoneName::from("alpha"),
+            name: discovery::RoomName::from("alpha"),
             created_at: time::UnixTime::EPOCH,
             phase,
             members: discovery::Members::new(),
@@ -83,7 +83,7 @@ mod tests {
     fn lobby_status() -> DiscoveryState {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
-            identity::ZoneName::from("alpha"),
+            discovery::RoomName::from("alpha"),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
@@ -102,7 +102,7 @@ mod tests {
         .lobby_fetched()
         .with_lobby(lobby)
         .in_room(discovery::JoinedRoom {
-            name: identity::ZoneName::from("alpha"),
+            name: discovery::RoomName::from("alpha"),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),

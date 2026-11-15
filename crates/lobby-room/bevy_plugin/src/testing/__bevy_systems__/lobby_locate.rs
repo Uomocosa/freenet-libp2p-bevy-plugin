@@ -42,7 +42,7 @@ mod tests {
     use serde_json::Value;
     use serde_json::json;
 
-    use crate::identity;
+    use crate::discovery;
     use crate::testing;
     use crate::ui;
 
@@ -97,7 +97,7 @@ mod tests {
         let mut app = App::new();
         app.world_mut().spawn((
             placed_node(10.0, 30.0),
-            ui::discovery::RoomButton(identity::ZoneName::from("alpha")),
+            ui::discovery::RoomButton(discovery::RoomName::from("alpha")),
         ));
         assert_eq!(
             locate(&mut app, json!({ "Room": "alpha" })),

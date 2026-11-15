@@ -315,7 +315,7 @@ mod tests {
         });
         state.game = game.clone();
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(1);
-        let room = identity::ZoneName::from("old-room");
+        let room = discovery::RoomName::from("old-room");
         let created_at = time::UnixTime::from_secs(7);
         state.held_rooms.insert(
             room.clone(),

@@ -211,7 +211,7 @@ mod tests {
         let mut state = world.resource_mut::<DiscoveryState>();
         for (name, room_size) in [("alpha", 8), ("beta", 4), (JOIN_ROOM, 8)] {
             state.lobby.insert(
-                identity::ZoneName::from(name),
+                discovery::RoomName::from(name),
                 discovery::Room {
                     room_size: discovery::RoomSize::try_from(room_size)
                         .expect("fixture room size is non-zero"),
@@ -275,7 +275,7 @@ mod tests {
     fn room_full(world: &mut World) {
         lobby_listed(world);
         world.resource_mut::<DiscoveryState>().room = Some(discovery::JoinedRoom {
-            name: identity::ZoneName::from(JOIN_ROOM),
+            name: discovery::RoomName::from(JOIN_ROOM),
             created_at: time::UnixTime::EPOCH,
             phase: discovery::JoinPhase::Ready,
             members: discovery::Members::new(),

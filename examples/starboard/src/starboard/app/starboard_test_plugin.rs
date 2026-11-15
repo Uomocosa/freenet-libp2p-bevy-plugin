@@ -48,7 +48,7 @@ mod tests {
     fn ready_status(me: &identity::PeerId) -> DiscoveryState {
         freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(me.clone())
             .in_room(discovery::JoinedRoom {
-                name: identity::ZoneName::from("alpha"),
+                name: discovery::RoomName::from("alpha"),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
