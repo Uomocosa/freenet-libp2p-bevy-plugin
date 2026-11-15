@@ -1,5 +1,4 @@
-pub mod e2e_report;
+pub mod example_network;
 pub mod freenet_node_dir;
-pub mod intent;
 pub mod node;
 pub mod status;

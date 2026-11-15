@@ -14,7 +14,8 @@ use lobby_room::app::LobbyRoomApp;
 use lobby_room::ping::PingPayload;
 
 use crate::ui_arg::UiArg;
-use e2e_apps::lobby_room::{LobbyRoomE2EMethods, RingPeers, spawn_ring_poller};
+use e2e_apps::lobby_room::LobbyRoomE2EMethods;
+use lobby_room::ring::{RingPeers, spawn_ring_poller};
 
 #[derive(Debug, Parser)]
 #[command(name = "lobby_room_e2e")]

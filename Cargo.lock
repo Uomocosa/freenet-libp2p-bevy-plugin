@@ -3816,23 +3816,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "e2e_check"
-version = "0.0.11"
-dependencies = [
- "clap",
- "examples_shared",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "e2e_steps"
-version = "0.0.11"
-dependencies = [
- "freenet-libp2p-bevy-plugin",
-]
-
-[[package]]
 name = "ed25519"
 version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4025,7 +4008,6 @@ dependencies = [
  "derive_more",
  "freenet",
  "freenet-libp2p-bevy-plugin",
- "serde",
  "tempfile",
  "tokio",
  "tracing",
@@ -9894,15 +9876,12 @@ dependencies = [
  "blake3",
  "clap",
  "derive_more",
- "e2e_steps",
  "examples_shared",
  "freenet-libp2p-bevy-plugin",
  "lele-bevy-preview",
  "libp2p",
  "rstest",
  "serde",
- "serde_json",
- "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",

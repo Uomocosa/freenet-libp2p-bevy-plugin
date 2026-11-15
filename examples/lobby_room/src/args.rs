@@ -2,10 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
-use freenet_libp2p_bevy_plugin::testing::{E2EArgs, NetworkArgs};
+use freenet_libp2p_bevy_plugin::testing::Network;
 use lobby_room::app::UiChoice;
-
-use crate::script_runner::LobbyStep;
 
 /// Which lobby UI to run: the plugin's default one or the example's replacement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -40,10 +38,9 @@ pub struct Args {
     /// File the friends drawer saves its peer book to (default: memory only).
     #[arg(long)]
     pub peer_book_file: Option<PathBuf>,
-    #[command(flatten)]
-    pub network: NetworkArgs,
-    #[command(flatten)]
-    pub e2e: E2EArgs<LobbyStep>,
+    /// Network to join (default: mainnet).
+    #[arg(long, value_enum, default_value = "mainnet")]
+    pub network: Network,
 }
 
 #[must_use]

@@ -11,7 +11,7 @@ use freenet_libp2p_bevy_plugin::lobby_room::freenet;
 ///
 /// The plugin's `Status` only carries transport peers (`freenet_peers`), so the
 /// example polls `node_status` itself every 500 ms and shares the count here.
-/// `run_script` reads it for `wait-ring-joined`.
+/// The e2e apps keep their own driver copy, which reads it through this module.
 #[derive(Resource, Debug, Clone)]
 pub struct RingPeers {
     count: Arc<AtomicUsize>,
@@ -42,9 +42,7 @@ impl Default for RingPeers {
 }
 
 /// Polls the embedded node's `ring_peers` forever, sharing the count via `ring`.
-/// Logs `ring joined ring_peers=N` once at info before storing, so
-/// `did_every_peer_join_the_ring` (`max_ring_peers`) sees it even when the
-/// script exits soon after joining.
+/// Logs `ring joined ring_peers=N` once at info before storing.
 pub fn spawn_ring_poller(ws_port: u16, ring: RingPeers) {
     tokio::spawn(async move {
         let mut client = freenet::Client::from_host_and_port_with_retry("127.0.0.1", ws_port).await;

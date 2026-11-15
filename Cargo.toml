@@ -6,14 +6,12 @@ members = [
     "crates/freenet-libp2p-bevy-core",
     "crates/freenet-libp2p-bevy-lobby-room",
     "crates/freenet-libp2p-bevy-plugin",
-    "examples/e2e_check",
     "examples/lobby_room",
     "examples/shared",
     "examples/starboard",
     "examples/tools",
     "tests/e2e",
     "tests/e2e_apps",
-    "tests/e2e_steps",
 ]
 
 [workspace.package]

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::remote::{BrpError, BrpResult};
 use serde_json::Value;
 
-use crate::lobby_room::RingPeers;
+use ::lobby_room::ring::RingPeers;
 
 pub fn lobby_room_ring(In(_params): In<Option<Value>>, ring: Res<RingPeers>) -> BrpResult {
     serde_json::to_value(ring.into_inner().get()).map_err(BrpError::internal)
@@ -13,7 +13,7 @@ mod tests {
     use bevy::prelude::*;
     use serde_json::Value;
 
-    use crate::lobby_room::RingPeers;
+    use ::lobby_room::ring::RingPeers;
 
     #[test]
     fn test_usage() {
