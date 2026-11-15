@@ -1,5 +1,3 @@
-pub mod run_script;
-pub use run_script::run_script;
 pub mod drain_synthetic_input;
 pub use drain_synthetic_input::drain_synthetic_input;
 pub mod e2e_click_at;

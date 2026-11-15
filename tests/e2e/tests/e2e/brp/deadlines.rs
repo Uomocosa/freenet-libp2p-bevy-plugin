@@ -4,12 +4,12 @@ use freenet_libp2p_bevy_plugin::testing::Network;
 
 const FAKE_ACTION: Duration = Duration::from_secs(60);
 const FAKE_LOBBY: Duration = Duration::from_secs(120);
-/// Real networks wait 3.5 times longer: the lobby budget becomes 420 s, the orchestrator's
-/// room-discovery budget for `Mainnet` and `LocalGateways` (`orchestrator.rs`, `default_wait_deadline`).
+/// Real networks wait 3.5 times longer: the lobby budget becomes 420 s and the old script
+/// room-discovery budget for `Mainnet` and `LocalGateways` (deleted in F7c).
 const REAL_NETWORK_MULTIPLIER: f64 = 3.5;
 
 /// The waits one run uses. `E2E_TIME_SCALE` overrides the per-network multiplier, as it does
-/// for the old orchestrator (`orchestrator.rs`, `time_scale`).
+/// for the old script orchestrator (deleted in F7c).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Deadlines {
     multiplier: f64,

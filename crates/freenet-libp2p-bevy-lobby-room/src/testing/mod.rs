@@ -6,13 +6,10 @@ pub use lobby::DiscoveryStateBuilder;
 mod lobby_kit;
 pub use lobby_kit::LobbyKit;
 
-mod lobby_step;
-pub use lobby_step::LobbyStep;
-
 #[path = "__basic__/mod.rs"]
 mod basic;
 pub use basic::enums::LobbyTarget;
-pub use basic::structs::{LobbyStatus, LobbyStepView, LocatableNode, LocatedNode};
+pub use basic::structs::{LobbyStatus, LocatableNode, LocatedNode};
 
 mod lobby_e2e_methods;
 pub use lobby_e2e_methods::LobbyE2EMethods;

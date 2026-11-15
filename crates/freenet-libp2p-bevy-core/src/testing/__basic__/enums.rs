@@ -7,20 +7,6 @@ use crate::identity;
 use crate::p2p;
 use crate::testing;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StepOutcome {
-    Pending,
-    Done,
-    Failed(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum E2EStepEffect {
-    ArmRoomAction(testing::Action),
-    Extension(Vec<u8>),
-    AbortProcess,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FakeWireClientFrame {
     Libp2pCommand(p2p::Libp2pCommand),
@@ -42,12 +28,6 @@ pub enum FakeWireServerFrame {
 pub enum FanOutTarget {
     Peer(identity::PeerId),
     Game,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PeerExit {
-    Code(i32),
-    Signal,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

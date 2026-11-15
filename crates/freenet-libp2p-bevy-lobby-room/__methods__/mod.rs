@@ -12,8 +12,6 @@ pub mod lobby_e2e_methods;
 #[cfg(feature = "testing")]
 pub mod lobby_kit;
 pub mod lobby_lease_limits;
-#[cfg(feature = "testing")]
-pub mod lobby_step;
 pub mod lobby_task_config;
 #[cfg(feature = "testing")]
 pub mod lobby_task_override;

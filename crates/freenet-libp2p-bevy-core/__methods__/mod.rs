@@ -4,12 +4,6 @@ pub mod dial_state;
 #[cfg(feature = "testing")]
 pub mod direct_dial_e2e_methods;
 #[cfg(feature = "testing")]
-pub mod e2e_args;
-#[cfg(feature = "testing")]
-pub mod e2e_step;
-#[cfg(feature = "testing")]
-pub mod e2e_step_effect_sink;
-#[cfg(feature = "testing")]
 pub mod fake_network_plugin;
 #[cfg(feature = "testing")]
 pub mod fake_network_server;
@@ -25,8 +19,6 @@ pub mod network;
 #[cfg(feature = "testing")]
 pub mod network_args;
 #[cfg(feature = "testing")]
-pub mod orchestrator;
-#[cfg(feature = "testing")]
 pub mod orchestrator_shared;
 pub mod peer_book;
 #[cfg(feature = "testing")]
@@ -36,8 +28,6 @@ pub mod replica_slice_index;
 pub mod replica_state;
 pub mod room_history_record_kind;
 pub mod runner_config;
-#[cfg(feature = "testing")]
-pub mod script_runner;
 pub mod short_peer_id;
 pub mod swarm_channels;
 pub mod swarm_loop_state;
@@ -46,7 +36,5 @@ pub mod swarm_task_override;
 pub mod sync_state;
 #[cfg(feature = "testing")]
 pub mod synthetic_input_queue;
-#[cfg(feature = "testing")]
-pub mod timed_script_step;
 pub mod topic;
 pub mod transport_mode;

@@ -372,7 +372,7 @@ impl LobbyPeer {
 }
 
 /// The failure a join of `room` has recorded: `join_error`, or no room joined while the fetched
-/// lobby does not list `room`. Mirrors `LobbyStep::join_failure_reason`.
+/// lobby does not list `room`. Mirrors the deleted `LobbyStep::join_failure_reason`.
 fn join_failure(status: &LobbyStatus, room: &str) -> Option<String> {
     if let Some(error) = &status.join_error {
         return Some(error.clone());

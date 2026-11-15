@@ -3,13 +3,7 @@ use bevy::math::Vec2;
 use bevy::ui::{ComputedNode, InteractionDisabled, UiGlobalTransform};
 use serde::{Deserialize, Serialize};
 
-use crate::discovery;
 use crate::ui;
-
-pub struct LobbyStepView<'a> {
-    pub status: &'a discovery::state_machine::DiscoveryState,
-    pub join_error: Option<&'a str>,
-}
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LobbyStatus {
