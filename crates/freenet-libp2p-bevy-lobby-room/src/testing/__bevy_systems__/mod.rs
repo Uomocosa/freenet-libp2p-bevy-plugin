@@ -4,3 +4,5 @@ pub mod lobby_locate;
 pub use lobby_locate::lobby_locate;
 pub mod lobby_status;
 pub use lobby_status::lobby_status;
+pub mod log_connected_room_member_count;
+pub use log_connected_room_member_count::log_connected_room_member_count;

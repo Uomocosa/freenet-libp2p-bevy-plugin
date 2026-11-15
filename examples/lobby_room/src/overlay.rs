@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 
-use examples_shared::status;
+use crate::local_user;
 
 const BAR_COLOR: Color = Color::srgb(0.106, 0.122, 0.153);
 
@@ -72,7 +72,7 @@ fn sync_visibility(
 
 fn sync_room_bar(
     state: Option<Res<DiscoveryState>>,
-    local_user: Res<status::LocalUser>,
+    local_user: Res<local_user::LocalUser>,
     mut title: Single<&mut Text, With<RoomTitle>>,
 ) {
     let Some(state) = state.as_ref() else {
@@ -116,9 +116,9 @@ mod tests {
             )
             .build(),
         );
-        app.insert_resource(examples_shared::status::LocalUser(
-            identity::Username::from("alice"),
-        ));
+        app.insert_resource(crate::local_user::LocalUser(identity::Username::from(
+            "alice",
+        )));
         app.add_plugins(Overlay);
         join_first_room(app.world_mut());
     }
@@ -183,9 +183,9 @@ mod tests {
             )
             .build(),
         );
-        app.insert_resource(examples_shared::status::LocalUser(
-            identity::Username::from("alice"),
-        ));
+        app.insert_resource(crate::local_user::LocalUser(identity::Username::from(
+            "alice",
+        )));
         app.add_plugins(Overlay);
         app.update();
         let mut bars = app.world_mut().query_filtered::<(), With<RoomBar>>();

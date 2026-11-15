@@ -7,7 +7,6 @@ members = [
     "crates/freenet-libp2p-bevy-lobby-room",
     "crates/freenet-libp2p-bevy-plugin",
     "examples/lobby_room",
-    "examples/shared",
     "examples/starboard",
     "tests/e2e",
     "tests/e2e_apps",

@@ -9,7 +9,7 @@ pub use lobby_kit::LobbyKit;
 #[path = "__basic__/mod.rs"]
 mod basic;
 pub use basic::enums::LobbyTarget;
-pub use basic::structs::{LobbyStatus, LocatableNode, LocatedNode};
+pub use basic::structs::{LobbyStatus, LocatableNode, LocatedNode, LoggedRoomMemberCount};
 
 mod lobby_e2e_methods;
 pub use lobby_e2e_methods::LobbyE2EMethods;

@@ -16,7 +16,7 @@ mod tests {
     use freenet_libp2p_bevy_plugin::time;
     use freenet_libp2p_bevy_plugin::{identity, p2p};
 
-    use examples_shared::status;
+    use lobby_room::local_user;
     use lobby_room::overlay;
 
     const JOIN_ROOM: &str = "gamma";
@@ -55,7 +55,7 @@ mod tests {
             )
             .build(),
         );
-        app.insert_resource(status::LocalUser(identity::Username::from("alice")));
+        app.insert_resource(local_user::LocalUser(identity::Username::from("alice")));
         app.init_resource::<ButtonInput<KeyCode>>();
         app.init_resource::<discovery::LobbyRows>();
         app.init_resource::<discovery::RoomRoster>();

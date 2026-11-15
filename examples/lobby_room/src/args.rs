@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
-use freenet_libp2p_bevy_plugin::testing::Network;
 use lobby_room::app::UiChoice;
 
 #[derive(Debug, Parser)]
@@ -25,9 +24,6 @@ pub struct Args {
     /// File the friends drawer saves its peer book to (default: memory only).
     #[arg(long)]
     pub peer_book_file: Option<PathBuf>,
-    /// Network to join (default: mainnet).
-    #[arg(long, value_enum, default_value = "mainnet")]
-    pub network: Network,
 }
 
 #[cfg(test)]

@@ -12,7 +12,7 @@ _lavapipe := `ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -n1`
 # Log filter for e2e-mainnet: lobby_room=info keeps the tick markers the BRP
 # checks read from the logs; freenet::config=info keeps the mainnet caption
 # detection truthful.
-e2e_log_filter := "warn,starboard=info,discovery=info,lobby_room=info,room_sync=info,examples_shared=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug"
+e2e_log_filter := "warn,starboard=info,discovery=info,lobby_room=info,room_sync=info,freenet_libp2p_bevy_core::methods::embedded_node=info,freenet_libp2p_bevy_lobby_room::testing::bevy_systems=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug"
 
 build:
     cargo build --workspace --all-targets --all-features

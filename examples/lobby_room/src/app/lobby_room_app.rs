@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
+use crate::local_user;
 use bevy::prelude::*;
 use bevy::window::Window;
-use examples_shared::status;
 use freenet_libp2p_bevy_plugin::lobby_room::{LobbyRoomPlugins, discovery, ui as plugin_ui};
 use freenet_libp2p_bevy_plugin::p2p::{MdnsMode, TransportMode};
 use freenet_libp2p_bevy_plugin::{direct_dial, identity, plugin};
@@ -34,7 +34,7 @@ impl LobbyRoomApp {
 impl Plugin for LobbyRoomApp {
     fn build(&self, app: &mut App) {
         app.insert_resource(discovery::FreenetPort(self.freenet_port));
-        app.insert_resource(status::LocalUser(self.username.clone()));
+        app.insert_resource(local_user::LocalUser(self.username.clone()));
         app.insert_resource(ping::IsRoomPingEnabled(self.room_ping));
         app.init_resource::<ping::RoomMessageSenders>();
         app.add_plugins(plugin::P2PPlugin(

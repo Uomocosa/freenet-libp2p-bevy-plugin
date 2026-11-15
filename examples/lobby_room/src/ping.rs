@@ -5,7 +5,7 @@ use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::{identity, p2p};
 use serde::{Deserialize, Serialize};
 
-use examples_shared::status;
+use crate::local_user;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Deref)]
 pub struct PingPayload(pub identity::Username);
@@ -22,7 +22,7 @@ pub struct RoomMessageSenders {
 pub fn publish_room_ping(
     time: Res<Time>,
     is_enabled: Res<IsRoomPingEnabled>,
-    user: Res<status::LocalUser>,
+    user: Res<local_user::LocalUser>,
     state: Option<Res<DiscoveryState>>,
     mut commands: ResMut<p2p::PendingCommands<PingPayload>>,
     mut accumulator: Local<f32>,
@@ -82,7 +82,7 @@ mod tests {
     use freenet_libp2p_bevy_plugin::{identity, p2p};
 
     use super::{IsRoomPingEnabled, PingPayload, log_room_messages, publish_room_ping};
-    use examples_shared::status::LocalUser;
+    use crate::local_user::LocalUser;
 
     #[test]
     fn test_usage() {

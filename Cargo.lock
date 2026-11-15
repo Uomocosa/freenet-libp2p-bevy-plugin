@@ -3803,7 +3803,6 @@ version = "0.0.11"
 dependencies = [
  "bevy",
  "clap",
- "examples_shared",
  "freenet-libp2p-bevy-plugin",
  "lobby_room",
  "serde",
@@ -3997,16 +3996,6 @@ checksum = "8be9f3dfaaffdae2972880079a491a1a8bb7cbed0b8dd7a347f668b4150a3b93"
 dependencies = [
  "event-listener",
  "pin-project-lite",
-]
-
-[[package]]
-name = "examples_shared"
-version = "0.0.11"
-dependencies = [
- "bevy",
- "derive_more",
- "freenet-libp2p-bevy-plugin",
- "tracing",
 ]
 
 [[package]]
@@ -6772,7 +6761,6 @@ dependencies = [
  "bevy",
  "clap",
  "derive_more",
- "examples_shared",
  "freenet",
  "freenet-libp2p-bevy-plugin",
  "lele-bevy-preview",
@@ -9874,7 +9862,6 @@ dependencies = [
  "blake3",
  "clap",
  "derive_more",
- "examples_shared",
  "freenet-libp2p-bevy-plugin",
  "lele-bevy-preview",
  "libp2p",

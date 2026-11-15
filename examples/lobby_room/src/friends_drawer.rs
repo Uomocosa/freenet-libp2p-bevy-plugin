@@ -11,7 +11,7 @@ mod tests {
     use freenet_libp2p_bevy_plugin::lobby_room::{discovery, ui};
     use freenet_libp2p_bevy_plugin::{direct_dial, identity, p2p};
 
-    use examples_shared::status;
+    use lobby_room::local_user;
 
     const PEER_ID: &str = "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC";
     const SHORT_ADDRESS: &str = "12D3Koo...99RC";
@@ -27,7 +27,7 @@ mod tests {
         ));
         app.insert_resource(discovery::FreenetPort(0));
         app.add_message::<discovery::Command>();
-        app.insert_resource(status::LocalUser(identity::Username::from("alice")));
+        app.insert_resource(local_user::LocalUser(identity::Username::from("alice")));
         app.init_resource::<ButtonInput<KeyCode>>();
         app.init_resource::<discovery::LobbyRows>();
         app.init_resource::<discovery::RoomRoster>();

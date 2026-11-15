@@ -4,7 +4,6 @@ mod journey;
 
 use bevy::prelude::*;
 use clap::Parser;
-use examples_shared as shared;
 use freenet_libp2p_bevy_plugin::freenet_node;
 use freenet_libp2p_bevy_plugin::identity;
 use lobby_room::app::LobbyRoomApp;
@@ -14,17 +13,6 @@ use lobby_room::ring;
 async fn main() -> bevy::app::AppExit {
     let args = args::Args::parse();
     init_tracing();
-    let network = match shared::example_network::network_args(args.network) {
-        Ok(network) => network,
-        Err(error) => {
-            eprintln!("{error}");
-            return bevy::app::AppExit::error();
-        }
-    };
-    if let Err(error) = network.validate() {
-        eprintln!("{error}");
-        return bevy::app::AppExit::error();
-    }
     let node = match freenet_node::EmbeddedNode::start(args.freenet_node_dir.clone()).await {
         Ok(node) => node,
         Err(error) => {

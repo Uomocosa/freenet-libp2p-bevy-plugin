@@ -5,7 +5,6 @@ use bevy::prelude::*;
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
-use freenet_libp2p_bevy_plugin::testing::Network;
 use freenet_libp2p_bevy_plugin::{identity, room_sync};
 use starboard::starboard;
 
@@ -25,9 +24,6 @@ pub struct Args {
     pub identity_file: Option<PathBuf>,
     #[arg(long)]
     pub peer_book_file: Option<PathBuf>,
-    /// Network to join (default: mainnet).
-    #[arg(long, value_enum, default_value = "mainnet")]
-    pub network: Network,
 }
 
 impl Args {
@@ -83,7 +79,6 @@ impl Args {
 
 #[cfg(test)]
 mod tests {
-    use super::Network;
     use clap::Parser;
     use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
@@ -116,6 +111,5 @@ mod tests {
             args.peer_book_file,
             Some(PathBuf::from("/tmp/p1.friends.json"))
         );
-        assert!(matches!(args.network, Network::Mainnet));
     }
 }

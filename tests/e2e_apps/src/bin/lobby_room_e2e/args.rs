@@ -72,7 +72,7 @@ impl Args {
             spawn_ring_poller(ws_port, ring.clone());
         }
         app.insert_resource(ring);
-        app.add_systems(Update, examples_shared::status::log_mesh);
+        app.add_systems(Update, freenet_libp2p_bevy_plugin::lobby_room::testing::bevy_systems::log_connected_room_member_count);
         let fake = testing::FakeNetworkPlugin::<PingPayload>::from(&self.network);
         let lobby = LobbyFakeNetworkPlugin::new(&fake);
         app.add_plugins((fake, lobby));

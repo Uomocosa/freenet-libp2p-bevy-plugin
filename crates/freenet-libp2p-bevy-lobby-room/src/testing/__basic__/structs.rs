@@ -3,6 +3,7 @@ use bevy::math::Vec2;
 use bevy::ui::{ComputedNode, InteractionDisabled, UiGlobalTransform};
 use serde::{Deserialize, Serialize};
 
+use crate::identity;
 use crate::ui;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,6 +14,12 @@ pub struct LobbyStatus {
     pub connected: usize,
     pub lobby_fetched: bool,
     pub join_error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoggedRoomMemberCount {
+    pub room: identity::RoomName,
+    pub connected: usize,
 }
 
 #[derive(QueryData)]
