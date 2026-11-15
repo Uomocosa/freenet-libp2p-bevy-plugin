@@ -1,5 +1,5 @@
 use crate::Room;
-use crate::UnixTime;
+use common_types::UnixTime;
 
 pub fn newest_room_member(room: &Room) -> UnixTime {
     room.members
@@ -14,13 +14,13 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::newest_room_member;
-    use crate::Peer;
-    use crate::PeerId;
     use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
     use crate::RoomSize;
-    use crate::UnixTime;
+    use common_types::Peer;
+    use common_types::PeerId;
+    use common_types::UnixTime;
 
     #[test]
     fn test_usage() {

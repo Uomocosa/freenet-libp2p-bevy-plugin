@@ -1,5 +1,5 @@
 use bevy::prelude::Reflect;
-use common_types::Lobby;
+use lobby_room_shared_types::Lobby;
 use serde::{Deserialize, Serialize};
 
 use crate::discovery;

@@ -18,14 +18,14 @@ mod tests {
     use super::merge;
     use crate::Lobby;
     use crate::MAX_LOBBY_ROOMS;
-    use crate::Peer;
-    use crate::PeerId;
     use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
-    use crate::RoomName;
     use crate::RoomSize;
-    use crate::UnixTime;
+    use common_types::Peer;
+    use common_types::PeerId;
+    use common_types::RoomName;
+    use common_types::UnixTime;
 
     fn record(peer: &str, updated_at: UnixTime) -> Room {
         let mut members = BTreeMap::new();

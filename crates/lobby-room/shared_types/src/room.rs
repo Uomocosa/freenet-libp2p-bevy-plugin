@@ -3,10 +3,10 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::PeerId;
 use crate::RoomMember;
 use crate::RoomSize;
-use crate::UnixTime;
+use common_types::PeerId;
+use common_types::UnixTime;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]

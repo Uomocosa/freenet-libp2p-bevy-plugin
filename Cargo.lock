@@ -4344,6 +4344,7 @@ dependencies = [
  "lele-bevy-preview",
  "lele-bevy-state-machine",
  "libp2p",
+ "lobby_room_shared_types",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
@@ -6734,6 +6735,7 @@ dependencies = [
  "derive_more",
  "freenet-macros",
  "freenet-stdlib",
+ "lobby_room_shared_types",
  "serde",
  "thiserror 2.0.21",
 ]
@@ -6752,6 +6754,18 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "lobby_room_shared_types"
+version = "0.0.11"
+dependencies = [
+ "atomic-delegate-macros",
+ "bevy_reflect",
+ "common_types",
+ "derive_more",
+ "serde",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

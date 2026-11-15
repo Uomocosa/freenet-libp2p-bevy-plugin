@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::Peer;
 use crate::RoomMembership;
-use crate::UnixTime;
-use crate::Username;
+use common_types::Peer;
+use common_types::UnixTime;
+use common_types::Username;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]

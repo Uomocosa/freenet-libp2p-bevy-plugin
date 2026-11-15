@@ -7,7 +7,7 @@ pub enum Error {
     #[error(transparent)]
     Freenet(#[from] freenet::Error),
     #[error(transparent)]
-    RoomSize(#[from] common_types::RoomSizeError),
+    RoomSize(#[from] lobby_room_shared_types::RoomSizeError),
 }
 
 #[rustfmt::skip]

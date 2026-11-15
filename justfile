@@ -170,6 +170,7 @@ sync-methods:
     lele-lint --sync-methods crates/freenet-libp2p-bevy-core
     lele-lint --sync-methods crates/lobby-room/bevy_plugin
     lele-lint --sync-methods crates/lobby-room/freenet_contract
+    lele-lint --sync-methods crates/lobby-room/shared_types
 
 # The only way to rebuild the lobby contract wasm. build.rs was removed because it
 # inherited RUSTC_WORKSPACE_WRAPPER=clippy-driver from `cargo clippy`, which rebuilt
@@ -188,12 +189,14 @@ contract:
 # Only the per-crate lele-lint stays here.
 contract-lint:
     lele-lint crates/lobby-room/freenet_contract
+    lele-lint crates/lobby-room/shared_types
 
 # common_types is a workspace member too: `just fmt`, `just clippy` and
 # `just test` (`--workspace --all-targets --all-features`) already cover it.
 # Only the per-crate lele-lint and the wasm check stay here.
 common-types-wasm:
     cargo check -p common_types --target wasm32-unknown-unknown
+    cargo check -p lobby_room_shared_types --target wasm32-unknown-unknown
 
 common-types-lint:
     lele-lint crates/common_types

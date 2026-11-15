@@ -5,6 +5,7 @@ members = [
     "crates/lobby-room/freenet_contract",
     "crates/freenet-libp2p-bevy-core",
     "crates/lobby-room/bevy_plugin",
+    "crates/lobby-room/shared_types",
     "crates/freenet-libp2p-bevy-plugin",
     "examples/lobby_room",
     "examples/starboard",
@@ -28,6 +29,7 @@ freenet-stdlib = { version = "=0.12.1" }
 atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.14" }
 lele-bevy-state-machine = { git = "https://github.com/Uomocosa/lele-bevy-state-machine", tag = "v0.1.2" }
 common_types = { path = "crates/common_types" }
+lobby_room_shared_types = { path = "crates/lobby-room/shared_types" }
 
 [workspace.lints.clippy]
 pedantic = { level = "deny", priority = -1 }

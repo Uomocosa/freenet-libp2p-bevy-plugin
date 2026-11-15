@@ -5,7 +5,7 @@ use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 
 use crate::Room;
-use crate::RoomName;
+use common_types::RoomName;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Deref, DerefMut, From)]
 #[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))]
@@ -24,14 +24,14 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::Lobby;
-    use crate::Peer;
-    use crate::PeerId;
     use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
-    use crate::RoomName;
     use crate::RoomSize;
-    use crate::UnixTime;
+    use common_types::Peer;
+    use common_types::PeerId;
+    use common_types::RoomName;
+    use common_types::UnixTime;
 
     #[test]
     fn test_usage() {

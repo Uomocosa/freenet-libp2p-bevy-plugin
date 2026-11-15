@@ -15,14 +15,14 @@ mod tests {
 
     use super::drop_rooms_where_every_member_quit;
     use crate::Lobby;
-    use crate::Peer;
-    use crate::PeerId;
     use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
-    use crate::RoomName;
     use crate::RoomSize;
-    use crate::UnixTime;
+    use common_types::Peer;
+    use common_types::PeerId;
+    use common_types::RoomName;
+    use common_types::UnixTime;
 
     fn room_with(membership: RoomMembership) -> Room {
         let room_member = RoomMember {

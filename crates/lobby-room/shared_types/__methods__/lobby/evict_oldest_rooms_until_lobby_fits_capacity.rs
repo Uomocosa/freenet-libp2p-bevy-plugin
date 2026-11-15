@@ -19,14 +19,14 @@ mod tests {
 
     use super::evict_oldest_rooms_until_lobby_fits_capacity;
     use crate::Lobby;
-    use crate::Peer;
-    use crate::PeerId;
     use crate::Room;
     use crate::RoomMember;
     use crate::RoomMembership;
-    use crate::RoomName;
     use crate::RoomSize;
-    use crate::UnixTime;
+    use common_types::Peer;
+    use common_types::PeerId;
+    use common_types::RoomName;
+    use common_types::UnixTime;
 
     fn room_updated_at(secs: u64) -> Room {
         let room_member = RoomMember {
