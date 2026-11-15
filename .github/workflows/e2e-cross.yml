@@ -1,4 +1,4 @@
-# Disabled: being rebuilt on the BRP harness (tests/E2E-BRP-PLAN.md §8, B8)
+# Disabled: being rebuilt on the BRP harness.
 name: e2e-cross
 
 on:

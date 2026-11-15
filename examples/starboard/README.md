@@ -118,8 +118,7 @@ just bench-history     # one room's history size and put/get latency; rewrites H
 
 [`BENCH.md`](BENCH.md) holds the last measured numbers of the room sync and the limits
 of the measurement; [`HISTORY.md`](HISTORY.md) holds the measured Kademlia history
-sizes and latencies. [`PLAN.md`](PLAN.md) and [`PLAN_HISTORY.md`](PLAN_HISTORY.md) hold
-the step history and the Phase 2 design.
+sizes and latencies.
 
 ## Wire format
 

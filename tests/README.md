@@ -5,12 +5,12 @@
 The e2e suite is the `e2e` test target in `tests/e2e/`. Its tests are the
 `brp_*` files in `tests/e2e/tests/e2e/`. Each one starts real game windows and
 drives them through the Bevy Remote Protocol (BRP), so the test sees what a
-player sees. The plan and status are in `tests/E2E-BRP-PLAN.md`.
+player sees.
 
 The old script-based scenarios (`starboard_*`, `lobby_room_*`, `friends_reconnect`,
 `direct_dial`, `known_peers`, `freenet_relaunch`, the `e2e-ring*` and
 `e2e-relaunch*` loops, and `ring-stats`) were deleted in F7a. `e2e-cross.yml` is
-disabled until it is rebuilt on the BRP harness (B8).
+disabled until it is rebuilt on the BRP harness.
 
 Networks, chosen with `E2E_NETWORK`:
 
