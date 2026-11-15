@@ -292,3 +292,96 @@ A LAN-only SSH tunnel stays possible for debugging, never in the plan.
 - `lobby_room` gets the same lib + wrapper split now (`lobby_room_e2e` binary).
 - Windows: deferred to another agent (firewall exe path, gdigrab, runner).
 - `bevy_picking` presence: confirm at step 2.
+
+## 8. Status and remaining work (hand-off, 2026-11-15)
+
+### Done (all on `main`)
+Every old e2e scenario has a BRP port in `tests/e2e/tests/e2e/brp_*.rs` (24 scenarios), driven by
+`tests/e2e/tests/e2e/brp/` against the test-owned apps in `tests/e2e_apps` (`starboard_e2e`,
+`lobby_room_e2e`). Networks: fake (default), mainnet, direct-dial. Local-gateways was never
+implemented (`NetworkArgs::validate` rejects it) and stays out of scope.
+
+| Batch | Commits | Content |
+|---|---|---|
+| A–C, E | 34553bb … 9a7b0f9 | core driver, starboard/lobby_room libs, lobby status/locate, e2e apps, BrpNetwork fake/mainnet |
+| F1 | 71a29c8 | starboard_e2e, late_join, simultaneous_paint, peer_killed |
+| F2 | e7bc834, 6e7b825, 5b144e6 | named keys, join_error, cell_painted; bad_token, history_holder_killed, Backspace check |
+| F3 | b28c58b, 979ee79 | Esc-menu/friends locate; leave_rejoin, history_room_gone |
+| F4 | b2e5ba8, e4e4c5e, 1ebad07, 5596d80 | e2e/dial, direct_dial/status; direct_dial, known_peers; fix: persist a newly connected peer |
+| F5 | 6095aea | friends_reconnect through the real add-friend UI |
+| F6 | 7e2f15a, 9874be9, 4df17f8, d99e852, 21deadd, f98c3e9 | lobby_room_join, room_messaging, discovery, ring, history_restore, room_auto_deletion, boot_race_heals, freenet_relaunch |
+
+Bugs the driver found: inputs had no `TabIndex` (click never focused them, 8afdab2); a peer
+reached with full addresses was never saved to the peer book (1ebad07).
+
+Lessons that matter for later work:
+- Strokes sent while the screen is still `JoiningRoom` are dropped: wait for `InRoom`
+  (`StarboardPeer::wait_until_in_room`) before painting.
+- History holders must leave the room but keep running (CROSS-OS-PLAN X5).
+- Wait 90 s between mainnet runs (tests/README.md:51-58), or the Freenet ring join fails.
+- Before an exit that a relaunch depends on, wait until the peer book on disk holds the peer's
+  identify addresses (known_peers race, 5596d80).
+
+### Remaining: F7, delete the script machinery (user decision 2026-11-15: delete all, retire e2e-cross)
+Do it in three layers, consumers first. Each layer: `just check`, `just test`, all `brp_*` on fake,
+one commit, push. Before every deletion, `git grep` that nothing outside the deleted set uses it.
+
+**F7a: tests, justfile, workflow.**
+- Delete the old `#[e2e_test]` files in `tests/e2e/tests/e2e/` (the 12 names without `brp_`),
+  the old `harness.rs` and helpers only they use; the old targets
+  `tests/e2e/tests/{lobby_room_discovery,lobby_room_join,room_messaging,starboard_e2e,starboard_history,starboard_scenarios,freenet_relaunch}.rs`
+  and their `[[test]]` entries. Keep `freenet_harness.rs`, `contract_wire.rs`.
+- `tests/e2e/tests/common/`: keep only what `brp/` uses (`check_or_deploy`, `lobby_setup`,
+  `build_game`, `freenet_node_dir_arg`, …); delete the script-only files.
+- `tests/e2e_macros/` goes. `tests/e2e_steps/` goes once `examples/starboard` stops depending on it (F7b).
+- `scripts/e2e_cross_scenario.sh`, `scripts/e2e_direct_dial_split.sh`; `scripts/ring_stats.py` and
+  the `ring-stats` recipe (old log format) if nothing else uses them.
+- justfile: remove e2e-discovery, e2e-ring*, e2e-relaunch*, e2e-join, e2e-room, e2e-starboard,
+  e2e-history, e2e-scenarios (+ unused `_e2e-notify-*`); drop `script=info` from the log filter;
+  repoint `e2e-ui-no-network` / `e2e-mainnet` to `test(/^brp_/)` (mainnet one at a time, 90 s
+  pause); add `e2e-loop TEST RUNS PAUSE`.
+- `.github/workflows/e2e-cross.yml`: keep the dispatch trigger, replace the jobs with one
+  ubuntu-latest job that fails with "disabled while it is rebuilt on the BRP harness (B8)".
+- Rewrite `tests/README.md` for the BRP suite.
+
+**F7b: examples.**
+- `examples/starboard`: delete `script.rs`, `script_runner.rs`, `scripted_starboard_step.rs`,
+  `status.rs`, `result/`, `scaled_timings.rs`, `time_scale.rs`, `friend_intent.rs`, the e2e half of
+  `args.rs`, the `e2e_steps` dependency, and the fake-network lines in `run_starboard`. `main.rs`
+  becomes: parse args, start the node, `DefaultPlugins` + `StarboardApp`.
+- `examples/lobby_room`: delete `script_runner.rs` and the e2e lines in `main.rs`; make `ring.rs`
+  public in its lib and delete the copy in `tests/e2e_apps/src/lobby_room/ring.rs` (use the
+  example's). `journey.rs` (a `#[cfg(test)]` UI test) stays.
+- `examples/shared`: delete `intent.rs` and `e2e_report/` if unused after.
+- Then delete `tests/e2e_steps/`.
+
+**F7c: core and lobby-room `testing`, docs.**
+- `crates/freenet-libp2p-bevy-core/src/testing/`: delete `script_runner.rs`, `timed_script_step.rs`,
+  `step_with_deadline.rs`, `script_checkpoint.rs`, `script_verdict.rs`, `e2e_step*.rs`,
+  `e2e_args.rs`, `__bevy_systems__/run_script.rs`, the script traits, the script parts of
+  `orchestrator*.rs` and `peer_builder.rs`, and their `__methods__` (run `lele-lint --sync-methods`).
+  Keep `FakeNetworkServer`, `FakeNetworkPlugin`, `PeerMessageRouter`, `CheckpointBoard`,
+  `NetworkArgs`/`Network`, and the BRP driver.
+- `crates/freenet-libp2p-bevy-lobby-room/src/testing/lobby_step.rs` and its methods go.
+- Harness tidy-up: the UI helpers duplicated between `brp/lobby_peer.rs` and
+  `brp/direct_dial_peer.rs` (locate, click, type, press_key) move to one shared module.
+- Update this plan's §2/§5 to the final layout; mark §6 done.
+
+### Later, not part of F7
+- **e2e-cross on BRP (B8):** one test per machine with `t.on(machine, …)`, checkpoints and final
+  canvas hashes over the GitHub `CheckpointBoard`, BRP on 127.0.0.1 only. The Windows agent
+  owns it (firewall exe path, gdigrab, runner).
+- **Product decision (user):** a real user who quits within a few hundred ms of connecting keeps
+  the new peer with no addresses in the peer book (same race as known_peers). Option: save a new
+  `PreviouslyConnected` entry only once identify delivered its addresses.
+
+### How to run (for the next session)
+- Hidden display without root: `apt-get download xvfb` + `dpkg -x` into a scratch dir, run its
+  `Xvfb :99 -screen 0 1280x800x24 -nolisten tcp`, then `DISPLAY=:99
+  VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json`.
+- Direct cargo needs `CARGO_TARGET_DIR=$HOME/.cache/cargo-target/freenet-libp2p-bevy-plugin`
+  (jemalloc rejects the space in the default path).
+- All BRP scenarios on fake, serially:
+  `cargo nextest run -p e2e --test e2e -E 'test(/^brp_/)' --run-ignored all --all-features -j 1`
+  (the real-network-only ones refuse fake by design). Mainnet: add `E2E_NETWORK=mainnet`, one at a
+  time, 90 s apart.
