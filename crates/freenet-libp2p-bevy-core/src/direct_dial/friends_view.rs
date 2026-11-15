@@ -20,13 +20,13 @@ impl FriendsView {
         let mut entries: Vec<direct_dial::FriendView> = friend_ids
             .iter()
             .map(|id| {
-                let place = presence.get(id).and_then(|whereabouts| {
+                let restricted = presence.get(id).and_then(|whereabouts| {
                     whereabouts
-                        .place
-                        .as_ref()
+                        .zone
+                        .restricted()
                         .map(|zone| (zone, whereabouts.display_name.as_ref()))
                 });
-                let (friend_presence, known_name) = match place {
+                let (friend_presence, known_name) = match restricted {
                     Some((zone, display_name)) => {
                         let name = display_name
                             .filter(|username| !username.is_empty())
@@ -72,7 +72,7 @@ mod tests {
         presence::PeerPresence(BTreeMap::from([(
             identity::PeerId::from("bob"),
             presence::Whereabouts {
-                place: Some(identity::ZoneName::from("zone-7")),
+                zone: identity::Zone::Restricted(identity::ZoneName::from("zone-7")),
                 display_name: Some(identity::Username::from("Bob")),
             },
         )]))
@@ -139,17 +139,17 @@ mod tests {
     }
 
     #[test]
-    fn a_friend_without_a_place_is_not_in_the_zone() {
-        let placeless = presence::PeerPresence(BTreeMap::from([(
+    fn a_friend_in_the_global_zone_is_not_in_a_restricted_zone() {
+        let in_global = presence::PeerPresence(BTreeMap::from([(
             identity::PeerId::from("bob"),
             presence::Whereabouts {
-                place: None,
+                zone: identity::Zone::Global,
                 display_name: Some(identity::Username::from("Bob")),
             },
         )]));
         let connected = BTreeSet::from([identity::PeerId::from("bob")]);
         let view =
-            FriendsView::from_friend_ids(&[identity::PeerId::from("bob")], &placeless, &connected);
+            FriendsView::from_friend_ids(&[identity::PeerId::from("bob")], &in_global, &connected);
         assert_eq!(view[0].presence, direct_dial::FriendPresence::Online);
         assert_eq!(view[0].name, "bob");
     }

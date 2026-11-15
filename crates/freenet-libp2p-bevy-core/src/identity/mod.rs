@@ -12,5 +12,8 @@ pub use short_peer_id::ShortPeerId;
 mod saved_keypair_error;
 pub use saved_keypair_error::SavedKeypairError;
 
+mod zone;
+pub use zone::Zone;
+
 mod topic;
 pub use topic::Topic;

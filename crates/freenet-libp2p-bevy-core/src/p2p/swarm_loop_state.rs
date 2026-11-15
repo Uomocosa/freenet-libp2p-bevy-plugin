@@ -141,7 +141,7 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
         }
     }
     pub(crate) fn publish_joined(&mut self, config: &p2p::GossipsubConfig, payload: &Payload) {
-        let Some(zone) = self.subscriptions.joined.clone() else {
+        let Some(zone) = self.subscriptions.joined.restricted().cloned() else {
             self.event_tx
                 .send(p2p::Event::Error(
                     "zone publish: no joined zone".to_string(),

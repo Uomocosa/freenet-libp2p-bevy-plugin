@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::discovery;
+use crate::identity;
 use crate::presence;
 
 pub fn publish_peer_presence(
@@ -19,7 +20,7 @@ pub fn publish_peer_presence(
                 }
                 next.entry(peer_id.clone())
                     .or_insert_with(|| presence::Whereabouts {
-                        place: Some(room_name.clone()),
+                        zone: identity::Zone::Restricted(room_name.clone()),
                         display_name: member.display_name.clone(),
                     });
             }
@@ -94,14 +95,14 @@ mod tests {
         assert_eq!(
             presence_of(&app).get(&identity::PeerId::from("bob")),
             Some(&presence::Whereabouts {
-                place: Some(identity::ZoneName::from("room-7")),
+                zone: identity::Zone::Restricted(identity::ZoneName::from("room-7")),
                 display_name: Some(identity::Username::from("Bob")),
             })
         );
     }
 
     #[test]
-    fn a_history_holder_publishes_no_place() {
+    fn a_history_holder_publishes_no_zone() {
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             identity::ZoneName::from("room-7"),
@@ -125,10 +126,15 @@ mod tests {
         );
         let mut app = app_with_lobby(lobby);
         app.update();
-        let place = presence_of(&app)
+        let zone = presence_of(&app)
             .get(&identity::PeerId::from("bob"))
-            .and_then(|whereabouts| whereabouts.place.clone());
-        assert_eq!(place, Some(identity::ZoneName::from("room-a")));
+            .map(|whereabouts| whereabouts.zone.clone());
+        assert_eq!(
+            zone,
+            Some(identity::Zone::Restricted(identity::ZoneName::from(
+                "room-a"
+            )))
+        );
     }
 
     #[test]

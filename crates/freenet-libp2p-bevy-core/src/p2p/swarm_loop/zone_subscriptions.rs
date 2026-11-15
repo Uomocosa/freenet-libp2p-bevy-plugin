@@ -7,7 +7,7 @@ use crate::identity;
 pub struct ZoneSubscriptions {
     pub game: identity::GameId,
     pub by_topic: HashMap<gossipsub::TopicHash, identity::ZoneName>,
-    pub joined: Option<identity::ZoneName>,
+    pub joined: identity::Zone,
 }
 
 impl ZoneSubscriptions {
@@ -15,7 +15,7 @@ impl ZoneSubscriptions {
         Self {
             game,
             by_topic: HashMap::new(),
-            joined: None,
+            joined: identity::Zone::Global,
         }
     }
 }
@@ -23,12 +23,12 @@ impl ZoneSubscriptions {
 impl ZoneSubscriptions {
     pub fn register(&mut self, topic: &gossipsub::IdentTopic, zone: identity::ZoneName) {
         self.by_topic.insert(topic.hash(), zone.clone());
-        self.joined = Some(zone);
+        self.joined = identity::Zone::Restricted(zone);
     }
     pub fn unregister(&mut self, topic: &gossipsub::IdentTopic) {
         let removed = self.by_topic.remove(&topic.hash());
-        if removed.as_ref() == self.joined.as_ref() {
-            self.joined = None;
+        if removed.as_ref() == self.joined.restricted() {
+            self.joined = identity::Zone::Global;
         }
     }
 }
@@ -54,12 +54,12 @@ mod tests {
         let topic =
             gossipsub::IdentTopic::new(identity::Topic::from_zone(&zones.game, &zone).as_str());
         assert_eq!(zones.zone(&topic.hash()), None);
-        assert_eq!(zones.joined, None);
+        assert_eq!(zones.joined, identity::Zone::Global);
         zones.register(&topic, zone.clone());
         assert_eq!(zones.zone(&topic.hash()), Some(&zone));
-        assert_eq!(zones.joined, Some(zone));
+        assert_eq!(zones.joined, identity::Zone::Restricted(zone));
         zones.unregister(&topic);
         assert_eq!(zones.zone(&topic.hash()), None);
-        assert_eq!(zones.joined, None);
+        assert_eq!(zones.joined, identity::Zone::Global);
     }
 }

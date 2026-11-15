@@ -76,7 +76,7 @@ mod tests {
             (
                 identity::PeerId::from("bob"),
                 presence::Whereabouts {
-                    place: Some(identity::ZoneName::from("zone-7")),
+                    zone: identity::Zone::Restricted(identity::ZoneName::from("zone-7")),
                     display_name: Some(identity::Username::from("Bob")),
                 },
             ),

@@ -61,7 +61,7 @@ mod tests {
             identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
         );
         assert_eq!(state.subscriptions.zone(&topic.hash()), Some(&zone));
-        assert_eq!(state.subscriptions.joined, Some(zone));
+        assert_eq!(state.subscriptions.joined, identity::Zone::Restricted(zone));
     }
 
     #[tokio::test]

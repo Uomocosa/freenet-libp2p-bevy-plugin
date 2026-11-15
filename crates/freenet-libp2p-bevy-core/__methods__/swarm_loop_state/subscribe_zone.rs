@@ -37,6 +37,6 @@ mod tests {
     async fn test_usage() {
         let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
         subscribe_zone(&mut state, identity::ZoneName::from("zone-a"));
-        assert!(state.subscriptions.joined.is_some());
+        assert!(state.subscriptions.joined.restricted().is_some());
     }
 }

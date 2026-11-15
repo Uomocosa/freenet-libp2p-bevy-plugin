@@ -27,6 +27,6 @@ mod tests {
         let zone = identity::ZoneName::from("zone-a");
         state.subscribe_zone(zone.clone());
         unsubscribe_zone(&mut state, &zone);
-        assert!(state.subscriptions.joined.is_none());
+        assert!(state.subscriptions.joined.restricted().is_none());
     }
 }
