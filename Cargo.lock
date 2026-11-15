@@ -3784,20 +3784,15 @@ dependencies = [
  "bincode",
  "derive_more",
  "e2e_apps",
- "e2e_macros",
- "e2e_steps",
  "examples_shared",
  "freenet",
  "freenet-contract-harness",
  "freenet-libp2p-bevy-plugin",
  "freenet-stdlib",
- "lele-bevy-state-machine",
  "lobby_contract",
  "reqwest",
- "rstest",
  "serde",
  "serde_json",
- "telegram-bot-helper 0.0.17 (git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17)",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
@@ -3828,15 +3823,6 @@ dependencies = [
  "examples_shared",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "e2e_macros"
-version = "0.0.11"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
 ]
 
 [[package]]
@@ -6110,7 +6096,7 @@ dependencies = [
  "blake3",
  "derive_more",
  "image",
- "telegram-bot-helper 0.0.17",
+ "telegram-bot-helper",
  "thiserror 2.0.21",
  "tracing",
 ]
@@ -10214,33 +10200,8 @@ dependencies = [
  "dotenvy",
  "reqwest",
  "serde_json",
- "telegram-bot-helper-macros 0.0.17",
+ "telegram-bot-helper-macros",
  "thiserror 2.0.21",
-]
-
-[[package]]
-name = "telegram-bot-helper"
-version = "0.0.17"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17#b0247a3c3cce3e6d625580ff4636900818ba9bb5"
-dependencies = [
- "atomic-delegate-macros 0.0.14 (git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.14)",
- "chrono",
- "derive_more",
- "dotenvy",
- "reqwest",
- "serde_json",
- "telegram-bot-helper-macros 0.0.17 (git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17)",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "telegram-bot-helper-macros"
-version = "0.0.17"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17#b0247a3c3cce3e6d625580ff4636900818ba9bb5"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
 ]
 
 [[package]]
@@ -10649,7 +10610,7 @@ checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
 name = "tools"
 version = "0.0.11"
 dependencies = [
- "telegram-bot-helper 0.0.17",
+ "telegram-bot-helper",
 ]
 
 [[package]]

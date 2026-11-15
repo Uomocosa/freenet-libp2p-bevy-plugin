@@ -1,13 +1,6 @@
 #[path = "../common/mod.rs"]
 mod common;
 
-use examples_shared::e2e_report::check_layer;
-use examples_shared::e2e_report::expectation_result;
-use examples_shared::e2e_report::peer_run_result;
-use examples_shared::e2e_report::scenario_expectation;
-
-use e2e_steps::starboard_steps;
-
 mod brp;
 mod brp_concurrent_strokes_converge;
 mod brp_direct_dial;
@@ -32,18 +25,5 @@ mod brp_starboard_leave_rejoin;
 mod brp_starboard_peer_killed;
 mod brp_starboard_room_auto_deletion;
 mod brp_starboard_simultaneous_paint;
-mod direct_dial;
-mod friends_reconnect;
 mod github_checkpoint_board;
-mod harness;
-mod known_peers;
 mod local_checkpoint_board;
-mod starboard_bad_token;
-mod starboard_e2e;
-mod starboard_history_holder_killed;
-mod starboard_history_restore;
-mod starboard_history_room_gone;
-mod starboard_late_join;
-mod starboard_leave_rejoin;
-mod starboard_peer_killed;
-mod starboard_simultaneous_paint;

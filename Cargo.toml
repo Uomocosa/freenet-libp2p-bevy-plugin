@@ -13,7 +13,6 @@ members = [
     "examples/tools",
     "tests/e2e",
     "tests/e2e_apps",
-    "tests/e2e_macros",
     "tests/e2e_steps",
 ]
 
