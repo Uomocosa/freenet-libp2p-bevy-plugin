@@ -297,9 +297,7 @@ mod build_friends_plugin_tests {
         let state = app
             .world()
             .resource::<direct_dial::state_machine::DialState>();
-        assert_eq!(state.entries.len(), 1);
-        assert_eq!(state.entries[0].peer.id, mallory);
-        assert_eq!(state.entries[0].peer.addrs, Vec::new());
+        assert_eq!(state.entries, Vec::new());
         let listen = vec![identity::PeerAddr::from("/ip4/10.0.0.5/tcp/4001")];
         tx.send(p2p::Libp2pEvent::PeerListenAddrs {
             peer_id: mallory.clone(),

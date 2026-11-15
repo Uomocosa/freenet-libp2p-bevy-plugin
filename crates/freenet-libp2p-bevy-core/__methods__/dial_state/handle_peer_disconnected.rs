@@ -33,7 +33,7 @@ mod tests {
     fn test_usage() {
         let now = time::UnixTime::from_secs(5);
         let mut state = direct_dial::state_machine::DialState::default();
-        let _ = state.handle_peer_connected(&identity::PeerId::from("alice"), now);
+        let _ = state.handle_peer_connected(&identity::PeerId::from("alice"));
         let outputs = handle_peer_disconnected(&mut state, &identity::PeerId::from("alice"), now);
         assert_eq!(outputs, Vec::new());
         assert!(!state.connected.contains(&identity::PeerId::from("alice")));

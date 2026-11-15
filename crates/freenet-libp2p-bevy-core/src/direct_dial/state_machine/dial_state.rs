@@ -30,9 +30,7 @@ impl lele_bevy_state_machine::traits::StateMachine for DialState {
                 self.handle_friend_added(peer, now)
             }
             direct_dial::state_machine::Input::FriendRemoved(id) => self.handle_friend_removed(&id),
-            direct_dial::state_machine::Input::PeerConnected(id) => {
-                self.handle_peer_connected(&id, now)
-            }
+            direct_dial::state_machine::Input::PeerConnected(id) => self.handle_peer_connected(&id),
             direct_dial::state_machine::Input::PeerDisconnected(id) => {
                 self.handle_peer_disconnected(&id, now)
             }
@@ -91,7 +89,6 @@ impl DialState {
     pub(crate) fn handle_peer_connected(
         &mut self,
         id: &identity::PeerId,
-        now: time::UnixTime,
     ) -> Vec<direct_dial::state_machine::Output> {
     }
     pub(crate) fn handle_peer_disconnected(
