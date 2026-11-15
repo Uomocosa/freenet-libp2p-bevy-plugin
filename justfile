@@ -50,7 +50,7 @@ preview-stability N="5":
     previous=""
     for run in $(seq 1 {{ N }}); do
         TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= LELE_PREVIEW_DRY_RUN=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features -E 'test(/_preview$/)'
-        current=$(find crates/freenet-libp2p-bevy-lobby-room/ui_preview/_unsent -type f -name '*.png' -exec sha256sum {} + 2>/dev/null | sort -k2 || true)
+        current=$(find crates/lobby-room/bevy_plugin/ui_preview/_unsent -type f -name '*.png' -exec sha256sum {} + 2>/dev/null | sort -k2 || true)
         if [ "$run" -gt 1 ] && [ "$current" != "$previous" ]; then
             echo "UNSTABLE: run $run differs"
             diff <(echo "$previous") <(echo "$current") || true
@@ -157,19 +157,19 @@ new-game-id:
 
 lint:
     lele-lint crates/freenet-libp2p-bevy-core
-    lele-lint crates/freenet-libp2p-bevy-lobby-room
+    lele-lint crates/lobby-room/bevy_plugin
     lele-lint crates/freenet-libp2p-bevy-plugin
 
 bevy-lint:
     lele-bevy-lint crates/freenet-libp2p-bevy-core
-    lele-bevy-lint crates/freenet-libp2p-bevy-lobby-room
+    lele-bevy-lint crates/lobby-room/bevy_plugin
     lele-bevy-lint crates/freenet-libp2p-bevy-plugin
 
 # Regenerate the __methods__ indexes after adding or removing #[atomic_delegates] shells.
 sync-methods:
     lele-lint --sync-methods crates/freenet-libp2p-bevy-core
-    lele-lint --sync-methods crates/freenet-libp2p-bevy-lobby-room
-    lele-lint --sync-methods crates/lobby_contract
+    lele-lint --sync-methods crates/lobby-room/bevy_plugin
+    lele-lint --sync-methods crates/lobby-room/freenet_contract
 
 # The only way to rebuild the lobby contract wasm. build.rs was removed because it
 # inherited RUSTC_WORKSPACE_WRAPPER=clippy-driver from `cargo clippy`, which rebuilt
@@ -179,15 +179,15 @@ contract:
     #!/usr/bin/env bash
     set -euo pipefail
     env -u RUSTC_WRAPPER -u RUSTC_WORKSPACE_WRAPPER -u CLIPPY_ARGS cargo build -p lobby_contract --release --target wasm32-unknown-unknown
-    cp "$CARGO_TARGET_DIR/wasm32-unknown-unknown/release/lobby_contract.wasm" crates/lobby_contract/lobby_contract.wasm
-    wc -c crates/lobby_contract/lobby_contract.wasm
-    sha256sum crates/lobby_contract/lobby_contract.wasm
+    cp "$CARGO_TARGET_DIR/wasm32-unknown-unknown/release/lobby_contract.wasm" crates/lobby-room/freenet_contract/lobby_contract.wasm
+    wc -c crates/lobby-room/freenet_contract/lobby_contract.wasm
+    sha256sum crates/lobby-room/freenet_contract/lobby_contract.wasm
 
 # The lobby contract is a workspace member: `just fmt` (`cargo fmt --all`) and
 # `just clippy` (`--workspace --all-targets --all-features`) already cover it.
 # Only the per-crate lele-lint stays here.
 contract-lint:
-    lele-lint crates/lobby_contract
+    lele-lint crates/lobby-room/freenet_contract
 
 # common_types is a workspace member too: `just fmt`, `just clippy` and
 # `just test` (`--workspace --all-targets --all-features`) already cover it.

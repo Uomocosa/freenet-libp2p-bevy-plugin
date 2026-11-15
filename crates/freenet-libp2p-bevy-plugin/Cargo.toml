@@ -29,7 +29,7 @@ missing_errors_doc = "allow"
 
 [dependencies]
 freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core", default-features = false }
-freenet-libp2p-bevy-lobby-room = { path = "../freenet-libp2p-bevy-lobby-room", optional = true }
+freenet-libp2p-bevy-lobby-room = { path = "../lobby-room/bevy_plugin", optional = true }
 
 [features]
 default = ["lobby-room", "embedded-node"]

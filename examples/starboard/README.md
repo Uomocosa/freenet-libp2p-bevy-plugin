@@ -76,7 +76,7 @@ leaves.
 ## Architecture
 
 ```text
-Freenet lobby contract (crates/lobby_contract, crates/freenet-libp2p-bevy-core/src/discovery)
+Freenet lobby contract (crates/lobby-room/freenet_contract, crates/freenet-libp2p-bevy-core/src/discovery)
         │  room name, members, created_at
         ▼
 DiscoveryState ──joined──► p2p gossipsub room topic (src/p2p)

@@ -46,7 +46,7 @@ freenet = "=0.2.155"
 tempfile = "=3.27.0"
 freenet-stdlib = { workspace = true, features = ["contract"] }
 freenet-contract-harness = { git = "https://github.com/Uomocosa/freenet-contract-harness", tag = "v0.0.12" }
-lobby_contract = { path = "../../crates/lobby_contract" }
+lobby_contract = { path = "../../crates/lobby-room/freenet_contract" }
 bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui"] }
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
 serde.workspace = true

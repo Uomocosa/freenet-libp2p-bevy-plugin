@@ -28,7 +28,7 @@ module_inception = "allow"
 missing_errors_doc = "allow"
 
 [dependencies]
-freenet-libp2p-bevy-core = { path = "../freenet-libp2p-bevy-core", default-features = false }
+freenet-libp2p-bevy-core = { path = "../../freenet-libp2p-bevy-core", default-features = false }
 atomic-delegate-macros.workspace = true
 bevy = { version = "=0.20.1", default-features = false, features = ["2d", "ui", "keyboard", "system_clipboard"] }
 common_types = { workspace = true, features = ["bevy"] }

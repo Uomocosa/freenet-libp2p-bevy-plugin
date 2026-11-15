@@ -52,9 +52,9 @@ Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
 ## Workspace layout
 
 - `crates/common_types/` — bincode wire types shared by the contract and the plugin.
-- `crates/lobby_contract/` — the Freenet lobby contract (wasm via `just contract`).
+- `crates/lobby-room/freenet_contract/` — the Freenet lobby contract (wasm via `just contract`).
 - `crates/freenet-libp2p-bevy-core/` — p2p, room sync, testing harness (no discovery).
-- `crates/freenet-libp2p-bevy-lobby-room/` — the lobby-room kit: Freenet lobby discovery, the Freenet client, and the default lobby UI (`LobbyRoomPlugins`, `ui::LobbyRoomUiPlugin`, `discovery::...`). Feature `testing`.
+- `crates/lobby-room/bevy_plugin/` — the lobby-room kit: Freenet lobby discovery, the Freenet client, and the default lobby UI (`LobbyRoomPlugins`, `ui::LobbyRoomUiPlugin`, `discovery::...`). Feature `testing`.
 - `crates/freenet-libp2p-bevy-plugin/` — thin facade (default feature `lobby-room`, re-exported as `lobby_room`) over core and the lobby-room kit.
 - `examples/*/` — runnable apps (`lobby_room`, `starboard`, `shared`, `tools`).
 - `tests/e2e/` — the e2e suite (incl. `tests/e2e/tests/contract_wire.rs`).
