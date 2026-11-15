@@ -41,7 +41,6 @@ missing_errors_doc = "allow"
 [dependencies]
 freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin", features = ["e2e"] }
 e2e_apps = { path = "../e2e_apps" }
-examples_shared = { path = "../../examples/shared" }
 reqwest = { version = "=0.12.28", default-features = false, features = ["rustls-tls", "json"] }
 freenet = "=0.2.155"
 tempfile = "=3.27.0"

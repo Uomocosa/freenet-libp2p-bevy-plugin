@@ -20,10 +20,13 @@ build:
 # every feature combination users can pick must compile
 features:
     cargo check -p freenet-libp2p-bevy-core --no-default-features
+    cargo check -p freenet-libp2p-bevy-core --no-default-features --features testing
     cargo check -p freenet-libp2p-bevy-core
     cargo check -p freenet-libp2p-bevy-lobby-room
     cargo check -p freenet-libp2p-bevy-lobby-room --features testing
     cargo check -p freenet-libp2p-bevy-plugin --no-default-features
+    cargo check -p freenet-libp2p-bevy-plugin --no-default-features --features lobby-room
+    cargo check -p freenet-libp2p-bevy-plugin --no-default-features --features embedded-node
     cargo check -p freenet-libp2p-bevy-plugin
     cargo check --workspace --all-targets --all-features
 

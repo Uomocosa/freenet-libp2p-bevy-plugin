@@ -3,6 +3,8 @@ pub mod connection_kind;
 pub mod dial_state;
 #[cfg(feature = "testing")]
 pub mod direct_dial_e2e_methods;
+#[cfg(feature = "embedded-node")]
+pub mod embedded_node;
 #[cfg(feature = "testing")]
 pub mod fake_network_plugin;
 #[cfg(feature = "testing")]

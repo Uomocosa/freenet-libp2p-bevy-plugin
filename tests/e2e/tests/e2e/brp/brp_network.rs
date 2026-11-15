@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use examples_shared::freenet_node_dir::FreenetNodeDir;
+use freenet_libp2p_bevy_plugin::freenet_node;
 use freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyKit;
 use freenet_libp2p_bevy_plugin::testing::{FakeNetworkServer, Network};
 
@@ -20,7 +20,7 @@ pub struct BrpNetwork {
     deadlines: Deadlines,
     run_dir: PathBuf,
     orchestrator: Option<FakeNetworkServer>,
-    _helper_nodes: Vec<FreenetNodeDir>,
+    _helper_nodes: Vec<freenet_node::NodeDir>,
 }
 
 impl BrpNetwork {

@@ -1,16 +1,13 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use freenet_libp2p_bevy_plugin::freenet_node;
 use freenet_libp2p_bevy_plugin::identity;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::lobby_room::freenet;
-use freenet_libp2p_bevy_plugin::testing::{Network, NetworkArgs};
 use freenet_stdlib::prelude::{
     ContractCode, ContractInstanceId, ContractKey, Parameters, WrappedContract,
 };
-
-use examples_shared::freenet_node_dir::FreenetNodeDir;
-use examples_shared::node::start_embedded_freenet_node;
 
 use super::LobbySetupError;
 use super::LobbyToken;
@@ -44,13 +41,16 @@ const HELPER_HOST: &str = "127.0.0.1";
 /// Returns the setup failure as [`LobbySetupError`] when the helper nodes
 /// cannot start, the deploy cannot land, or the contract is still not readable
 /// after the deploy.
-pub async fn check_or_deploy(token: &LobbyToken) -> Result<Vec<FreenetNodeDir>, LobbySetupError> {
+pub async fn check_or_deploy(
+    token: &LobbyToken,
+) -> Result<Vec<freenet_node::NodeDir>, LobbySetupError> {
     let started = Instant::now();
     let params = identity::GameId::from(token.as_str()).contract_params();
     let instance_id = *lobby_key(&params).id();
-    let (checker_dir, checker_port) = start_embedded_freenet_node(None, &helper_args())
+    let checker = freenet_node::EmbeddedNode::start(None)
         .await
-        .map_err(LobbySetupError::NodeStart)?;
+        .map_err(|error| LobbySetupError::NodeStart(error.to_string()))?;
+    let (checker_dir, checker_port) = (checker.node_dir, checker.websocket_port);
     let mut checker =
         freenet::Client::from_host_and_port_with_retry(HELPER_HOST, checker_port).await;
     let absent_budget = std::cmp::min(ENSURE_BUDGET, ABSENT_WINDOW);
@@ -60,9 +60,10 @@ pub async fn check_or_deploy(token: &LobbyToken) -> Result<Vec<FreenetNodeDir>, 
     if readable.is_ok() {
         return Ok(vec![checker_dir]);
     }
-    let (deployer_dir, deployer_port) = start_embedded_freenet_node(None, &helper_args())
+    let deployer = freenet_node::EmbeddedNode::start(None)
         .await
-        .map_err(LobbySetupError::NodeStart)?;
+        .map_err(|error| LobbySetupError::NodeStart(error.to_string()))?;
+    let (deployer_dir, deployer_port) = (deployer.node_dir, deployer.websocket_port);
     let mut deployer =
         freenet::Client::from_host_and_port_with_retry(HELPER_HOST, deployer_port).await;
     let mut deploy_error = None;
@@ -116,21 +117,12 @@ fn lobby_key(params: &[u8]) -> ContractKey {
     wrapped.key
 }
 
-/// The embedded helper nodes join the same network the game peers use.
-const fn helper_args() -> NetworkArgs {
-    NetworkArgs {
-        network: Network::Mainnet,
-        orchestrator_port: None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use examples_shared::freenet_node_dir::FreenetNodeDir;
-
     use super::ENSURE_BUDGET;
     use super::check_or_deploy;
     use super::lobby_key;
+    use freenet_libp2p_bevy_plugin::freenet_node;
     use freenet_libp2p_bevy_plugin::identity;
     use std::path::PathBuf;
     use std::time::Instant;
@@ -148,8 +140,8 @@ mod tests {
         let _ = check_or_deploy;
         let _ = Instant::now();
         let helper_dirs = [
-            FreenetNodeDir::Kept(PathBuf::from("/tmp/checker")),
-            FreenetNodeDir::Kept(PathBuf::from("/tmp/deployer")),
+            freenet_node::NodeDir::Kept(PathBuf::from("/tmp/checker")),
+            freenet_node::NodeDir::Kept(PathBuf::from("/tmp/deployer")),
         ];
         assert_eq!(helper_dirs.len(), 2);
     }

@@ -1,5 +1,7 @@
 pub mod direct_dial;
 
+#[cfg(feature = "embedded-node")]
+pub mod freenet_node;
 pub mod identity;
 #[path = "../__methods__/mod.rs"]
 mod methods;

@@ -3784,7 +3784,6 @@ dependencies = [
  "bincode",
  "derive_more",
  "e2e_apps",
- "examples_shared",
  "freenet",
  "freenet-contract-harness",
  "freenet-libp2p-bevy-plugin",
@@ -4006,10 +4005,7 @@ version = "0.0.11"
 dependencies = [
  "bevy",
  "derive_more",
- "freenet",
  "freenet-libp2p-bevy-plugin",
- "tempfile",
- "tokio",
  "tracing",
 ]
 
@@ -4329,6 +4325,7 @@ dependencies = [
 name = "freenet-libp2p-bevy-core"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
  "async-trait",
  "atomic-delegate-macros 0.0.14 (git+https://github.com/Uomocosa/lele-rust-linter?tag=v0.0.14)",
  "bevy",
@@ -4337,6 +4334,7 @@ dependencies = [
  "clap",
  "common_types",
  "derive_more",
+ "freenet",
  "futures",
  "futures-util",
  "lele-bevy-state-machine",
