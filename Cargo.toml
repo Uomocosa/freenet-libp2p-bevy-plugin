@@ -9,7 +9,6 @@ members = [
     "examples/lobby_room",
     "examples/shared",
     "examples/starboard",
-    "examples/tools",
     "tests/e2e",
     "tests/e2e_apps",
 ]
