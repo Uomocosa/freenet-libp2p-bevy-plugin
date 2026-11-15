@@ -10,7 +10,8 @@ use serde_json::{Value, json};
 use super::{BrpNetwork, LobbyPeer, Peer, Stroke, poll_until};
 
 const HAND_SPEED: f32 = 600.0;
-const IN_ROOM_LINE: &str = "ui screen JoiningRoom -> InRoom";
+const SCREEN_PREFIX: &str = "ui screen ";
+const IN_ROOM_SUFFIX: &str = "-> InRoom";
 
 /// One `starboard_e2e` process: the lobby actions plus painting and the canvas status.
 pub struct StarboardPeer {
@@ -115,7 +116,7 @@ impl StarboardPeer {
         self.lobby.peer().log_contains(line)
     }
 
-    /// Polls until the app logs its move from the joining screen into the room screen, the point
+    /// Polls until the app logs its move from any screen into the room screen, the point
     /// where the canvas accepts input; strokes sent while still joining are dropped.
     ///
     /// # Errors
@@ -124,7 +125,7 @@ impl StarboardPeer {
         poll_until(
             &format!("{}: in the room screen", self.name()),
             deadline,
-            async || Ok::<bool, String>(self.log_contains(IN_ROOM_LINE)),
+            async || Ok::<bool, String>(logged_entering_in_room(&self.lobby.peer().log_text())),
             |in_room| *in_room,
         )
         .await
@@ -289,5 +290,34 @@ impl StarboardPeer {
     /// Returns an error if the app does not answer or does not exit cleanly.
     pub async fn exit(self) -> Result<(), String> {
         self.lobby.exit().await
+    }
+}
+
+/// Whether `log` holds a `ui screen <from> -> InRoom` line: a joiner that finishes within one
+/// tick goes straight from the lobby, skipping the joining screen.
+fn logged_entering_in_room(log: &str) -> bool {
+    log.lines().any(|line| {
+        line.split_once(SCREEN_PREFIX).is_some_and(|(_, rest)| {
+            rest.split_once(IN_ROOM_SUFFIX)
+                .is_some_and(|(_, after)| !after.starts_with(|c: char| c.is_alphanumeric()))
+        })
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::logged_entering_in_room;
+
+    #[test]
+    fn entering_in_room_accepts_any_previous_screen() {
+        assert!(logged_entering_in_room(
+            "INFO ui screen JoiningRoom -> InRoom"
+        ));
+        assert!(logged_entering_in_room("INFO ui screen Lobby -> InRoom\n"));
+        assert!(!logged_entering_in_room(
+            "INFO ui screen Lobby -> JoiningRoom"
+        ));
+        assert!(!logged_entering_in_room("INFO ui screen InRoom -> Lobby"));
+        assert!(!logged_entering_in_room("INFO other -> InRoom"));
     }
 }

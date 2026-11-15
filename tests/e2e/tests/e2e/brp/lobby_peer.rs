@@ -5,6 +5,7 @@ use freenet_libp2p_bevy_plugin::testing::NamedKey;
 use serde_json::Value;
 
 use super::{Deadlines, Peer, UiPeer, poll_until};
+use crate::common::marker_times;
 
 const JOIN_FAILURE_BUDGET: Duration = Duration::from_secs(180);
 
@@ -92,7 +93,8 @@ impl LobbyPeer {
             |found| found.is_some_and(|node| !node.disabled),
         )
         .await?;
-        let pressed = self.ui().click(LobbyTarget::CreateRoomButton).await?;
+        self.ui().click(LobbyTarget::CreateRoomButton).await?;
+        let pressed = self.app_press_time("create", room).await?;
         self.wait_until_joined(room, self.deadlines.action())
             .await?;
         Ok(pressed)
@@ -116,10 +118,24 @@ impl LobbyPeer {
 
     async fn attempt_join_room(&self, room: &str) -> Result<u64, String> {
         self.await_room_listed(room).await?;
-        let pressed = self.ui().click(LobbyTarget::Room(room.to_string())).await?;
+        self.ui().click(LobbyTarget::Room(room.to_string())).await?;
+        let pressed = self.app_press_time("join", room).await?;
         self.wait_until_joined(room, self.deadlines.action())
             .await?;
         Ok(pressed)
+    }
+
+    /// The time of day (millis, UTC) the app logged `ui <verb> room=<room>`, i.e. the moment it
+    /// really saw the press, polled until the action deadline.
+    async fn app_press_time(&self, verb: &str, room: &str) -> Result<u64, String> {
+        poll_until(
+            &format!("{}: app logged `ui {verb} room={room}`", self.name),
+            self.deadlines.action(),
+            async || Ok(press_time_in(self.peer.log_path(), verb, room)),
+            Option::is_some,
+        )
+        .await?
+        .ok_or_else(|| format!("{}: no `ui {verb} room={room}` line", self.name))
     }
 
     /// Waits until the lobby lists `room`.
@@ -333,4 +349,41 @@ fn join_failure(status: &LobbyStatus, room: &str) -> Option<String> {
         && status.lobby_fetched
         && !status.rooms.iter().any(|listed| listed == room);
     gone.then(|| format!("room {room} no longer exists"))
+}
+
+fn press_time_in(log: &std::path::Path, verb: &str, room: &str) -> Option<u64> {
+    let needle = format!("ui {verb} room={room}");
+    marker_times(log, &needle)
+        .into_iter()
+        .filter(|(_, line)| press_line_is_for(line, &needle))
+        .map(|(ms, _)| ms)
+        .next_back()
+}
+
+fn press_line_is_for(line: &str, needle: &str) -> bool {
+    line.split_once(needle).is_some_and(|(_, after)| {
+        !after.starts_with(|c: char| c.is_alphanumeric() || c == '-' || c == '_')
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::press_line_is_for;
+
+    #[test]
+    fn press_line_matches_the_whole_room_name_only() {
+        let needle = "ui join room=room-1";
+        assert!(press_line_is_for(
+            "T INFO discovery: ui join room=room-1",
+            needle
+        ));
+        assert!(press_line_is_for(
+            "T INFO discovery: ui join room=room-1 x",
+            needle
+        ));
+        assert!(!press_line_is_for(
+            "T INFO discovery: ui join room=room-12",
+            needle
+        ));
+    }
 }

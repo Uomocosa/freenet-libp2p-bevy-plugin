@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::{StarboardPeer, poll_until};
 
-const HISTORY_WRITTEN_LINE: &str = "room history written";
+const HISTORY_WRITTEN_LINE: &str = "zone history written";
 
 /// Polls until one of `peers` logs that it wrote room history (`merge_and_write_history_records`),
 /// the same log check the old harness made for `scenario history written`.

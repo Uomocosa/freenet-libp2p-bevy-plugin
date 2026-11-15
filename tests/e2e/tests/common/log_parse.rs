@@ -116,8 +116,8 @@ pub fn history_write_bytes(path: &Path) -> Option<u64> {
     strip_ansi(&std::fs::read_to_string(path).unwrap_or_default())
         .lines()
         .filter_map(|line| {
-            let start = line.find("room history written")?;
-            let rest = line.get(start.checked_add("room history written".len())?..)?;
+            let start = line.find("zone history written")?;
+            let rest = line.get(start.checked_add("zone history written".len())?..)?;
             rest.split_whitespace()
                 .find_map(|token| token.strip_prefix("snapshot_bytes="))
                 .and_then(|value| value.parse().ok())
