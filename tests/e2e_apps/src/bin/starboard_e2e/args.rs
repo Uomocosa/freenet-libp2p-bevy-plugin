@@ -6,6 +6,7 @@ use bevy::window::WindowPosition;
 use bevy::winit::{UpdateMode, WinitSettings};
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 use freenet_libp2p_bevy_plugin::room_sync;
 use freenet_libp2p_bevy_plugin::testing::{self, NetworkArgs};
 use freenet_libp2p_bevy_plugin::{identity, lobby_room};
@@ -13,7 +14,6 @@ use starboard::starboard::app::StarboardApp;
 use starboard::starboard::room::CursorUpdate;
 
 use e2e_apps::starboard::StarboardE2EMethods;
-use e2e_apps::transport_arg::TransportArg;
 use e2e_apps::window_origin::WindowOrigin;
 
 #[derive(Debug, Parser)]
@@ -24,7 +24,7 @@ pub struct Args {
     #[arg(long)]
     pub token: Option<String>,
     #[arg(long, value_enum, default_value = "both")]
-    pub transport: TransportArg,
+    pub transport: TransportMode,
     #[arg(long)]
     pub freenet_node_dir: Option<PathBuf>,
     #[arg(long)]
@@ -65,7 +65,7 @@ impl Args {
         let game_app = StarboardApp {
             username: identity::Username::from(self.username.clone()),
             game: game.clone(),
-            transport: self.transport.mode(),
+            transport: self.transport,
             keypair,
             peer_book_file: self.peer_book_file.clone(),
             freenet_port: ws_port,

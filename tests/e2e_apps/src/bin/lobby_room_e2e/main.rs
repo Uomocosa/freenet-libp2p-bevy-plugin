@@ -1,5 +1,4 @@
 mod args;
-mod ui_arg;
 
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::identity;

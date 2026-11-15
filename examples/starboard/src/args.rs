@@ -2,19 +2,12 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use bevy::prelude::*;
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 use freenet_libp2p_bevy_plugin::testing::Network;
 use freenet_libp2p_bevy_plugin::{identity, room_sync};
 use starboard::starboard;
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum TransportArg {
-    Tcp,
-    Quic,
-    Both,
-}
 
 #[derive(Debug, Parser)]
 #[command(name = "starboard")]
@@ -24,7 +17,7 @@ pub struct Args {
     #[arg(long)]
     pub token: Option<String>,
     #[arg(long, value_enum, default_value = "both")]
-    pub transport: TransportArg,
+    pub transport: TransportMode,
     /// Folder the embedded Freenet node keeps its config, data and logs in (default: a temp dir).
     #[arg(long)]
     pub freenet_node_dir: Option<PathBuf>,
@@ -50,7 +43,7 @@ impl Args {
         let game_app = starboard::app::StarboardApp {
             username: identity::Username::from(self.username.clone()),
             game: game.clone(),
-            transport: transport_mode(self.transport),
+            transport: self.transport,
             keypair,
             peer_book_file: self.peer_book_file.clone(),
             freenet_port: ws_port,
@@ -88,26 +81,18 @@ impl Args {
     }
 }
 
-#[must_use]
-pub const fn transport_mode(arg: TransportArg) -> TransportMode {
-    match arg {
-        TransportArg::Tcp => TransportMode::Tcp,
-        TransportArg::Quic => TransportMode::Quic,
-        TransportArg::Both => TransportMode::Both,
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Network, TransportArg, transport_mode};
+    use super::Network;
     use clap::Parser;
     use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 
     #[test]
-    fn test_usage() {
-        assert_eq!(transport_mode(TransportArg::Tcp), TransportMode::Tcp);
-        assert_eq!(transport_mode(TransportArg::Quic), TransportMode::Quic);
-        assert_eq!(transport_mode(TransportArg::Both), TransportMode::Both);
+    fn transport_parses_to_transport_mode() {
+        let args =
+            super::Args::try_parse_from(["starboard", "--username", "p1", "--transport", "quic"])
+                .expect("args");
+        assert_eq!(args.transport, TransportMode::Quic);
     }
 
     #[test]

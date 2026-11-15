@@ -49,11 +49,11 @@ fn run_lobby(args: &args::Args, ws_port: u16) -> bevy::app::AppExit {
     app.add_plugins(LobbyRoomApp {
         username: identity::Username::from(args.username.clone()),
         game,
-        transport: args::transport_mode(args.transport),
+        transport: args.transport,
         peer_book_file: args.peer_book_file.clone(),
         freenet_port: ws_port,
         room_ping: args.is_room_ping_enabled,
-        ui: args::ui_choice(args.ui),
+        ui: args.ui,
     });
     app.run()
 }

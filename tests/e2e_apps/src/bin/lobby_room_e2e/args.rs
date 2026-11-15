@@ -4,16 +4,15 @@ use bevy::prelude::*;
 use bevy::window::WindowPosition;
 use bevy::winit::{UpdateMode, WinitSettings};
 use clap::Parser;
-use e2e_apps::transport_arg::TransportArg;
 use e2e_apps::window_origin::WindowOrigin;
 use freenet_libp2p_bevy_plugin::identity;
 use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyE2EMethods, LobbyFakeNetworkPlugin};
+use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 use freenet_libp2p_bevy_plugin::testing::DirectDialE2EMethods;
 use freenet_libp2p_bevy_plugin::testing::{self, NetworkArgs};
-use lobby_room::app::LobbyRoomApp;
+use lobby_room::app::{LobbyRoomApp, UiChoice};
 use lobby_room::ping::PingPayload;
 
-use crate::ui_arg::UiArg;
 use e2e_apps::lobby_room::LobbyRoomE2EMethods;
 use lobby_room::ring::{RingPeers, spawn_ring_poller};
 
@@ -25,9 +24,9 @@ pub struct Args {
     #[arg(long)]
     pub token: Option<String>,
     #[arg(long, value_enum, default_value = "both")]
-    pub transport: TransportArg,
+    pub transport: TransportMode,
     #[arg(long, value_enum, default_value = "default")]
-    pub ui: UiArg,
+    pub ui: UiChoice,
     #[arg(long)]
     pub room_ping: bool,
     #[arg(long)]
@@ -80,11 +79,11 @@ impl Args {
         app.add_plugins(LobbyRoomApp {
             username: identity::Username::from(self.username.clone()),
             game: game.clone(),
-            transport: self.transport.mode(),
+            transport: self.transport,
             peer_book_file: self.peer_book_file.clone(),
             freenet_port: ws_port,
             room_ping: self.room_ping,
-            ui: self.ui.choice(),
+            ui: self.ui,
         });
         app.add_plugins(
             testing::E2EDriverPlugin::new(self.e2e_port)

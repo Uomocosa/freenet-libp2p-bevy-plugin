@@ -1,23 +1,9 @@
 use std::path::PathBuf;
 
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
 use freenet_libp2p_bevy_plugin::testing::Network;
 use lobby_room::app::UiChoice;
-
-/// Which lobby UI to run: the plugin's default one or the example's replacement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum UiArg {
-    Default,
-    Custom,
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum TransportArg {
-    Tcp,
-    Quic,
-    Both,
-}
 
 #[derive(Debug, Parser)]
 #[command(name = "lobby_room")]
@@ -27,9 +13,10 @@ pub struct Args {
     #[arg(long)]
     pub token: Option<String>,
     #[arg(long, value_enum, default_value = "both")]
-    pub transport: TransportArg,
+    pub transport: TransportMode,
+    /// Which lobby UI to run: the plugin's default one or the example's replacement.
     #[arg(long, value_enum, default_value = "default")]
-    pub ui: UiArg,
+    pub ui: UiChoice,
     #[arg(long = "room-ping")]
     pub is_room_ping_enabled: bool,
     /// Folder the embedded Freenet node keeps its config, data and logs in (default: a temp dir).
@@ -43,37 +30,26 @@ pub struct Args {
     pub network: Network,
 }
 
-#[must_use]
-pub const fn transport_mode(arg: TransportArg) -> TransportMode {
-    match arg {
-        TransportArg::Tcp => TransportMode::Tcp,
-        TransportArg::Quic => TransportMode::Quic,
-        TransportArg::Both => TransportMode::Both,
-    }
-}
-
-#[must_use]
-pub const fn ui_choice(arg: UiArg) -> UiChoice {
-    match arg {
-        UiArg::Default => UiChoice::Default,
-        UiArg::Custom => UiChoice::Custom,
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{TransportArg, transport_mode, ui_choice};
     use clap::Parser;
     use freenet_libp2p_bevy_plugin::p2p::TransportMode;
     use lobby_room::app::UiChoice;
 
     #[test]
-    fn test_usage() {
-        assert_eq!(transport_mode(TransportArg::Tcp), TransportMode::Tcp);
-        assert_eq!(transport_mode(TransportArg::Quic), TransportMode::Quic);
-        assert_eq!(transport_mode(TransportArg::Both), TransportMode::Both);
-        assert_eq!(ui_choice(super::UiArg::Default), UiChoice::Default);
-        assert_eq!(ui_choice(super::UiArg::Custom), UiChoice::Custom);
+    fn transport_and_ui_parse_to_real_enums() {
+        let args = super::Args::try_parse_from([
+            "lobby_room",
+            "--username",
+            "p1",
+            "--transport",
+            "quic",
+            "--ui",
+            "custom",
+        ])
+        .expect("args");
+        assert_eq!(args.transport, TransportMode::Quic);
+        assert_eq!(args.ui, UiChoice::Custom);
     }
 
     #[test]

@@ -1,8 +1,9 @@
 use atomic_delegate_macros::atomic_delegates;
+use clap::ValueEnum;
 use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ValueEnum)]
 pub enum TransportMode {
     Tcp,
     Quic,
