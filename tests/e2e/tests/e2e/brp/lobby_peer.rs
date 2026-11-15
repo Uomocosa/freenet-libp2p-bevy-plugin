@@ -1,12 +1,11 @@
 use std::time::Duration;
 
-use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyStatus, LobbyTarget, LocatedNode};
-use freenet_libp2p_bevy_plugin::testing::{CursorTarget, NamedKey, PointerSpeed};
-use serde_json::{Value, json};
+use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyStatus, LobbyTarget};
+use freenet_libp2p_bevy_plugin::testing::NamedKey;
+use serde_json::Value;
 
-use super::{Deadlines, Peer, day_millis_now, poll_until};
+use super::{Deadlines, Peer, UiPeer, poll_until};
 
-const CLICK_SPEED: f32 = 1200.0;
 const JOIN_FAILURE_BUDGET: Duration = Duration::from_secs(180);
 
 /// The lobby actions every app shares: create, join, membership, all through the default UI.
@@ -24,6 +23,10 @@ impl LobbyPeer {
             peer,
             deadlines,
         }
+    }
+
+    fn ui(&self) -> UiPeer<'_> {
+        UiPeer::new(&self.name, &self.peer, self.deadlines)
     }
 
     #[must_use]
@@ -69,15 +72,15 @@ impl LobbyPeer {
     }
 
     async fn attempt_create_room(&self, room: &str) -> Result<u64, String> {
-        self.click(LobbyTarget::RoomNameInput).await?;
-        self.type_text(room).await?;
+        self.ui().click(LobbyTarget::RoomNameInput).await?;
+        self.ui().type_text(room).await?;
         self.submit_room(room).await
     }
 
     async fn attempt_create_room_after_backspace(&self, room: &str) -> Result<(), String> {
-        self.click(LobbyTarget::RoomNameInput).await?;
-        self.type_text(&format!("{room}x")).await?;
-        self.press_key(NamedKey::Backspace).await?;
+        self.ui().click(LobbyTarget::RoomNameInput).await?;
+        self.ui().type_text(&format!("{room}x")).await?;
+        self.ui().press_key(NamedKey::Backspace).await?;
         self.submit_room(room).await.map(|_| ())
     }
 
@@ -85,37 +88,14 @@ impl LobbyPeer {
         poll_until(
             &format!("{}: create button enabled", self.name),
             self.deadlines.action(),
-            async || self.locate(LobbyTarget::CreateRoomButton).await,
+            async || self.ui().locate(LobbyTarget::CreateRoomButton).await,
             |found| found.is_some_and(|node| !node.disabled),
         )
         .await?;
-        let pressed = self.click(LobbyTarget::CreateRoomButton).await?;
+        let pressed = self.ui().click(LobbyTarget::CreateRoomButton).await?;
         self.wait_until_joined(room, self.deadlines.action())
             .await?;
         Ok(pressed)
-    }
-
-    async fn type_text(&self, text: &str) -> Result<(), String> {
-        self.peer
-            .call::<Value>("e2e/type_text", json!(text))
-            .await?;
-        self.wait_until_input_idle().await
-    }
-
-    async fn press_key(&self, key: NamedKey) -> Result<(), String> {
-        self.peer.call::<Value>("e2e/press_key", json!(key)).await?;
-        self.wait_until_input_idle().await
-    }
-
-    async fn wait_until_input_idle(&self) -> Result<(), String> {
-        poll_until(
-            &format!("{}: input delivered", self.name),
-            self.deadlines.action(),
-            async || self.peer.call::<bool>("e2e/input_idle", Value::Null).await,
-            |idle| *idle,
-        )
-        .await
-        .map(|_| ())
     }
 
     /// # Errors
@@ -136,7 +116,7 @@ impl LobbyPeer {
 
     async fn attempt_join_room(&self, room: &str) -> Result<u64, String> {
         self.await_room_listed(room).await?;
-        let pressed = self.click(LobbyTarget::Room(room.to_string())).await?;
+        let pressed = self.ui().click(LobbyTarget::Room(room.to_string())).await?;
         self.wait_until_joined(room, self.deadlines.action())
             .await?;
         Ok(pressed)
@@ -252,7 +232,7 @@ impl LobbyPeer {
         if !fetched.rooms.iter().any(|listed| listed == room) {
             return Ok(format!("room {room} is not listed"));
         }
-        self.click(LobbyTarget::Room(room.to_string())).await?;
+        self.ui().click(LobbyTarget::Room(room.to_string())).await?;
         let outcome = poll_until(
             &format!("{}: join of {room} fails", self.name),
             self.deadlines.scaled(JOIN_FAILURE_BUDGET),
@@ -304,9 +284,9 @@ impl LobbyPeer {
     }
 
     async fn attempt_leave_room(&self) -> Result<(), String> {
-        self.press_key(NamedKey::Escape).await?;
-        self.click(LobbyTarget::EscMenuLeaveButton).await?;
-        self.click(LobbyTarget::LeaveYesButton).await?;
+        self.ui().press_key(NamedKey::Escape).await?;
+        self.ui().click(LobbyTarget::EscMenuLeaveButton).await?;
+        self.ui().click(LobbyTarget::LeaveYesButton).await?;
         poll_until(
             &format!("{}: left the joined room", self.name),
             self.deadlines.action(),
@@ -340,34 +320,6 @@ impl LobbyPeer {
     /// Returns an error if the app does not answer or does not exit cleanly.
     pub async fn exit(mut self) -> Result<(), String> {
         self.peer.exit().await
-    }
-
-    async fn locate(&self, target: LobbyTarget) -> Result<Option<LocatedNode>, String> {
-        self.peer.call("lobby/locate", json!(target)).await
-    }
-
-    async fn click(&self, target: LobbyTarget) -> Result<u64, String> {
-        let node = poll_until(
-            &format!("{}: {target:?} on screen", self.name),
-            self.deadlines.action(),
-            async || self.locate(target.clone()).await,
-            Option::is_some,
-        )
-        .await?
-        .ok_or_else(|| format!("{}: {target:?} not on screen", self.name))?;
-        let cursor = CursorTarget {
-            x: node.centre.x,
-            y: node.centre.y,
-            speed: PointerSpeed(CLICK_SPEED),
-        };
-        let pressed = day_millis_now();
-        self.peer
-            .call::<Value>(
-                "e2e/click_at",
-                serde_json::to_value(cursor).map_err(|e| e.to_string())?,
-            )
-            .await?;
-        Ok(pressed)
     }
 }
 

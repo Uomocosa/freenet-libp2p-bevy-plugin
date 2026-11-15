@@ -69,7 +69,7 @@ e2e-ui-no-network TEST="brp_":
 
 # The matching BRP tests on the public network, one at a time with PAUSE seconds
 # between them (the 90 s gap lets the previous test's peers leave the ring).
-# Stops at the first failing test. Telegram sends as usual.
+# Runs every matching test, then lists the failures and exits 1 if any. Telegram sends as usual.
 e2e-mainnet TEST="brp_" PAUSE="90":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -84,22 +84,34 @@ e2e-mainnet TEST="brp_" PAUSE="90":
         exit 1
     fi
     first=1
+    failed=()
     while IFS= read -r name; do
         if [ "$first" = 0 ]; then sleep {{ PAUSE }}; fi
         first=0
         echo "e2e-mainnet: $name"
-        VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p e2e --no-fail-fast -j 1 --test e2e -E "test(=$name)" --all-features --run-ignored all -- --nocapture
+        if ! VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p e2e --no-fail-fast -j 1 --test e2e -E "test(=$name)" --all-features --run-ignored all -- --nocapture; then
+            failed+=("$name")
+        fi
     done <<< "$names"
+    if [ "${#failed[@]}" -gt 0 ]; then
+        echo "e2e-mainnet: ${#failed[@]} failed:" >&2
+        printf '  %s\n' "${failed[@]}" >&2
+        exit 1
+    fi
+    echo "e2e-mainnet: all passed"
 
 # Run `just e2e-mainnet TEST` RUNS times, PAUSE seconds between runs (never before the first).
 e2e-loop TEST RUNS="5" PAUSE="90":
     #!/usr/bin/env bash
     set -euo pipefail
+    bad=0
     for run in $(seq 1 {{ RUNS }}); do
         if [ "$run" -gt 1 ]; then sleep {{ PAUSE }}; fi
         echo "e2e-loop: run $run of {{ RUNS }}"
-        just e2e-mainnet "{{ TEST }}"
+        if ! just e2e-mainnet "{{ TEST }}"; then bad=$((bad + 1)); fi
     done
+    echo "e2e-loop: $bad of {{ RUNS }} runs had failures"
+    [ "$bad" = 0 ]
 
 # Run the starboard example detached (no terminal tie-up; only the app window).
 # Extra args: --username, --token, --transport.

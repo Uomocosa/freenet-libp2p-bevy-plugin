@@ -2,14 +2,13 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::direct_dial::KnownPeerKind;
-use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyTarget, LocatedNode};
-use freenet_libp2p_bevy_plugin::testing::{CursorTarget, DirectDialStatus, NamedKey, PointerSpeed};
-use serde_json::{Value, json};
+use freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyTarget;
+use freenet_libp2p_bevy_plugin::testing::{DirectDialStatus, NamedKey};
+use serde_json::Value;
 
-use super::{BrpNetwork, Deadlines, Peer, poll_until};
+use super::{BrpNetwork, Deadlines, Peer, UiPeer, poll_until};
 
 const LINK_BUDGET: Duration = Duration::from_secs(120);
-const CLICK_SPEED: f32 = 1200.0;
 
 /// One `starboard_e2e` process on the direct-dial network, with its earlier runs' logs kept
 /// readable so the no-node check covers every launch of the peer.
@@ -41,6 +40,10 @@ impl DirectDialPeer {
             peer,
             earlier_logs: Vec::new(),
         })
+    }
+
+    fn ui(&self) -> UiPeer<'_> {
+        UiPeer::new(&self.name, &self.peer, self.deadlines)
     }
 
     /// # Errors
@@ -180,72 +183,20 @@ impl DirectDialPeer {
     /// # Errors
     /// Returns an error if a drawer control never appears or the input is never delivered.
     pub async fn add_friend_through_ui(&self, addr: &str) -> Result<(), String> {
-        self.press_key(NamedKey::Tab).await?;
-        self.click(LobbyTarget::FriendAddressInput).await?;
-        self.type_text(addr).await?;
+        self.ui().press_key(NamedKey::Tab).await?;
+        self.ui().click(LobbyTarget::FriendAddressInput).await?;
+        self.ui().type_text(addr).await?;
         poll_until(
             &format!("{}: add-friend button enabled", self.name),
             self.deadlines.action(),
-            async || self.locate(LobbyTarget::AddFriendButton).await,
+            async || self.ui().locate(LobbyTarget::AddFriendButton).await,
             |found| found.is_some_and(|node| !node.disabled),
         )
         .await?;
-        self.click(LobbyTarget::AddFriendButton).await
-    }
-
-    async fn press_key(&self, key: NamedKey) -> Result<(), String> {
-        self.peer
-            .call::<Value>("e2e/press_key", json!(key))
-            .await
-            .map_err(|error| self.peer.explain(&error))?;
-        self.wait_until_input_idle().await
-    }
-
-    async fn type_text(&self, text: &str) -> Result<(), String> {
-        self.peer
-            .call::<Value>("e2e/type_text", json!(text))
-            .await
-            .map_err(|error| self.peer.explain(&error))?;
-        self.wait_until_input_idle().await
-    }
-
-    async fn wait_until_input_idle(&self) -> Result<(), String> {
-        poll_until(
-            &format!("{}: input delivered", self.name),
-            self.deadlines.action(),
-            async || self.peer.call::<bool>("e2e/input_idle", Value::Null).await,
-            |idle| *idle,
-        )
-        .await
-        .map(|_| ())
-    }
-
-    async fn locate(&self, target: LobbyTarget) -> Result<Option<LocatedNode>, String> {
-        self.peer.call("lobby/locate", json!(target)).await
-    }
-
-    async fn click(&self, target: LobbyTarget) -> Result<(), String> {
-        let node = poll_until(
-            &format!("{}: {target:?} on screen", self.name),
-            self.deadlines.action(),
-            async || self.locate(target.clone()).await,
-            Option::is_some,
-        )
-        .await?
-        .ok_or_else(|| format!("{}: {target:?} not on screen", self.name))?;
-        let cursor = CursorTarget {
-            x: node.centre.x,
-            y: node.centre.y,
-            speed: PointerSpeed(CLICK_SPEED),
-        };
-        self.peer
-            .call::<Value>(
-                "e2e/click_at",
-                serde_json::to_value(cursor).map_err(|e| e.to_string())?,
-            )
+        self.ui()
+            .click(LobbyTarget::AddFriendButton)
             .await
             .map(|_| ())
-            .map_err(|error| self.peer.explain(&error))
     }
 
     /// # Errors

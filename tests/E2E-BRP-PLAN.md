@@ -27,24 +27,27 @@ Windows comes later. The design must not block it, but nothing here is tested on
 
 ## 2. Layout
 
+Final layout after F7a-c (what exists on `main`):
+
 ```text
 crates/freenet-libp2p-bevy-core/src/testing/
-  __traits__/e2e_methods.rs          trait E2EMethods
-  e2e_driver_plugin.rs               BRP server + generic methods
-  __basic__/structs.rs               Curve, PointerSpeed, PointerPath
-  synthetic_input_queue.rs           queue + glide
-  __bevy_systems__/drain_synthetic_input.rs
-crates/freenet-libp2p-bevy-lobby-room/src/testing/
-  lobby_e2e_methods.rs               lobby/status
-examples/starboard/src/
-  lib.rs                             pub mod starboard; pub use StarboardApp
-  main.rs                            ~10 lines, no e2e
-tests/e2e/
-  driver/                            Peer, BrpClient, Wait, poll_until
-  starboard/common/                  StarboardE2EMethods, CanvasHashWatch, board_to_window
-  starboard/bin/starboard_e2e.rs     the wrapper binary
-  starboard/starboard_peer.rs        paint, erase, create_room, …
-  tests/starboard/*.rs               scenarios
+  e2e_driver_plugin.rs, synthetic_input_queue.rs, named_key.rs   BRP server + glide + keys
+  direct_dial_e2e_methods.rs                                     direct_dial/status, e2e/dial
+  fake_network_plugin.rs, fake_network_server.rs, fake_task_handles.rs,
+  fake_wire_framing.rs, peer_message_router.rs, no_fake_network_kit.rs   the fake network
+  orchestrator_shared.rs (+ orchestrator_port)                   the fake network's socket
+  network.rs, network_args.rs, node_centre.rs
+  script_checkpoint.rs + __traits__/checkpoint_board.rs          kept for the cross-OS rebuild (B8)
+crates/freenet-libp2p-bevy-lobby-room/src/testing/               lobby/status, lobby/locate
+examples/starboard/src/      lib.rs (StarboardApp) + a clean main.rs, no e2e
+examples/lobby_room/src/     lib.rs (LobbyRoomApp, ring.rs) + a clean main.rs
+tests/e2e_apps/              starboard_e2e, lobby_room_e2e wrapper binaries
+tests/e2e/tests/
+  e2e/brp_*.rs               the 23 scenarios
+  e2e/brp/                   Peer, BrpClient, BrpNetwork, LobbyPeer, DirectDialPeer, UiPeer
+                             (UiPeer = the one copy of click/locate/type_text/press_key)
+  e2e/github_checkpoint_board.rs, local_checkpoint_board.rs      the two CheckpointBoard impls (kept)
+  common/                    only what brp/ uses; contract_wire.rs, freenet_harness.rs
 ```
 
 ## 3. Previews
@@ -236,16 +239,19 @@ One harness driving every machine's BRP would be simpler to write, but:
 
 A LAN-only SSH tunnel stays possible for debugging, never in the plan.
 
-## 5. Deleted when this lands
+## 5. Deleted (done: F7a 7b5cce5, F7b b3fb64b, F7c dec0ea2)
 
-- `examples/starboard`: `script.rs`, `script_runner.rs`, `scripted_starboard_step.rs`,
-  `status.rs`, `result/`, `scaled_timings.rs`, `time_scale.rs` (if the game's lease timings move
-  to an arg), the e2e half of `args.rs`.
-- `examples/lobby_room/src/script_runner.rs`, `examples/shared/intent.rs`, `e2e_report/` → tests.
-- `crates/freenet-libp2p-bevy-core/src/testing/`: `script_runner.rs`, `timed_script_step.rs`,
-  `step_with_deadline.rs`, `script_checkpoint.rs`, `script_verdict.rs`, `e2e_step*.rs`
-  (to confirm one by one).
-- `scripts/e2e_cross_scenario.sh`.
+- F7a: the old `#[e2e_test]` scenarios and their harness, `tests/e2e_macros/`, the script-only
+  `tests/e2e/tests/common/` files, `scripts/e2e_cross_scenario.sh`, `e2e_direct_dial_split.sh`,
+  `ring_stats.py`, the old justfile recipes, and the e2e-cross jobs (the workflow is a stub).
+- F7b: `examples/e2e_check`, `tests/e2e_steps/`, `examples/starboard` script/result/time files and
+  the e2e half of its `args.rs`, `examples/lobby_room/src/script_runner.rs`,
+  `examples/shared/intent.rs` and `e2e_report/`.
+- F7c: core `testing/` script runner, steps, orchestrator, `e2e_args`, `lobby_step`, and their
+  `__methods__`.
+- Kept on purpose: `ScriptCheckpoint`, `CheckpointBoard` and its two impls (GitHub, local) for the
+  later cross-OS rebuild (B8); `orchestrator_shared` / `orchestrator_port`, which are the fake
+  network's socket, not script machinery.
 
 ## 6. Order
 
@@ -257,9 +263,10 @@ A LAN-only SSH tunnel stays possible for debugging, never in the plan.
 3. `tests/e2e/driver/` + `starboard_e2e` binary; first scenario: one peer creates a room
    and paints, no network.
 4. `LobbyE2EMethods`, `E2EId` on lobby UI; `concurrent_strokes_converge` (two peers, no network).
-5. Same scenario on `local-gateways`, then `mainnet`.
-6. Delete the script machinery (§5).
-7. Cross-machine `t.on(..)` on Linux with `all-local`; Windows later.
+5. Same scenario on `local-gateways`, then `mainnet`. (Done for mainnet; local-gateways was never
+   implemented.)
+6. Delete the script machinery (§5). (Done: F7a-c.)
+7. Cross-machine `t.on(..)` on Linux with `all-local`; Windows later. (= B8, later.)
 
 ## 7. Settled (2026-11-14)
 
@@ -322,7 +329,8 @@ Lessons that matter for later work:
 - Before an exit that a relaunch depends on, wait until the peer book on disk holds the peer's
   identify addresses (known_peers race, 5596d80).
 
-### Remaining: F7, delete the script machinery (user decision 2026-11-15: delete all, retire e2e-cross)
+### F7, delete the script machinery: DONE (F7a 7b5cce5, F7b b3fb64b, F7c dec0ea2, F7d this commit: shared `UiPeer`, plan/README tidy, `e2e-mainnet` runs every test)
+Original plan (user decision 2026-11-15: delete all, retire e2e-cross):
 Do it in three layers, consumers first. Each layer: `just check`, `just test`, all `brp_*` on fake,
 one commit, push. Before every deletion, `git grep` that nothing outside the deleted set uses it.
 

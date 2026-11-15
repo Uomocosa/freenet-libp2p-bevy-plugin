@@ -56,8 +56,8 @@ Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
 - `crates/freenet-libp2p-bevy-core/` — p2p, room sync, testing harness (no discovery).
 - `crates/freenet-libp2p-bevy-lobby-room/` — the lobby-room kit: Freenet lobby discovery, the Freenet client, and the default lobby UI (`LobbyRoomPlugins`, `ui::LobbyRoomUiPlugin`, `discovery::...`). Feature `testing`.
 - `crates/freenet-libp2p-bevy-plugin/` — thin facade (default feature `lobby-room`, re-exported as `lobby_room`) over core and the lobby-room kit.
-- `examples/*/` — runnable apps (`lobby_room`, `starboard`, `shared`, `e2e_check`, `tools`).
-- `tests/e2e/` — the e2e suite (incl. `tests/e2e/tests/contract_wire.rs`); `tests/e2e_steps/` step definitions; `tests/e2e_macros/` test macros.
+- `examples/*/` — runnable apps (`lobby_room`, `starboard`, `shared`, `tools`).
+- `tests/e2e/` — the e2e suite (incl. `tests/e2e/tests/contract_wire.rs`).
 
 Depend on just `common_types` for the wire types, or on the whole `freenet-libp2p-bevy-plugin` facade for the plugin.
 
@@ -106,10 +106,10 @@ space-in-path `tikv-jemalloc-sys` workaround), with `jobs = 6`.
 
 ```sh
 just build | just clippy | just fmt | just test | just lint | just bevy-lint
-just run          # lobby_room, detached; args pass through (--ui, --script, …)
+just run          # lobby_room, detached; args pass through (--ui, …)
 just demo         # lobby_room with the default UI
 just run-starboard --username <name>   # starboard, detached
-just e2e-discovery | just e2e-join | just e2e-room | just e2e-starboard | just e2e-history
+just e2e-ui-no-network | just e2e-mainnet | just e2e-loop
 just bench-starboard   # rewrite examples/starboard/BENCH.md
 just bench-history     # rewrite examples/starboard/HISTORY.md
 just contract   # build the lobby contract wasm
