@@ -296,7 +296,7 @@ A LAN-only SSH tunnel stays possible for debugging, never in the plan.
 ## 8. Status and remaining work (hand-off, 2026-11-15)
 
 ### Done (all on `main`)
-Every old e2e scenario has a BRP port in `tests/e2e/tests/e2e/brp_*.rs` (24 scenarios), driven by
+Every old e2e scenario has a BRP port in `tests/e2e/tests/e2e/brp_*.rs` (23 scenarios), driven by
 `tests/e2e/tests/e2e/brp/` against the test-owned apps in `tests/e2e_apps` (`starboard_e2e`,
 `lobby_room_e2e`). Networks: fake (default), mainnet, direct-dial. Local-gateways was never
 implemented (`NetworkArgs::validate` rejects it) and stays out of scope.
