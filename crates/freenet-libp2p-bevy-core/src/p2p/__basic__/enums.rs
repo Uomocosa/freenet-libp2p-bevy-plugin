@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Libp2pEvent {
@@ -71,7 +71,7 @@ pub enum Libp2pEvent {
         from: identity::PeerId,
         room: identity::RoomName,
     },
-    RoomSyncRequestFailed {
+    ReplicaSyncRequestFailed {
         from: identity::PeerId,
         request: p2p::SnapshotRequest,
     },
@@ -79,12 +79,12 @@ pub enum Libp2pEvent {
         id: p2p::ReplyId,
         from: identity::PeerId,
         room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
     },
     ReplicaSlice {
         from: identity::PeerId,
         room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
         data: Vec<u8>,
     },
 }
@@ -104,7 +104,7 @@ pub enum SnapshotRequest {
     },
     FetchReplicaSlice {
         room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
     },
 }
 
@@ -121,7 +121,7 @@ pub enum SnapshotResponse {
     },
     ReplicaSlice {
         room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
         data: Vec<u8>,
     },
 }

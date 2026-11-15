@@ -2,9 +2,9 @@ use std::fmt::Write as _;
 use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::room_sync::traits::ReplicatedState;
+use freenet_libp2p_bevy_plugin::replica_sync::traits::ReplicatedState;
 use freenet_libp2p_bevy_plugin::time;
-use freenet_libp2p_bevy_plugin::{identity, p2p, room_sync};
+use freenet_libp2p_bevy_plugin::{identity, p2p, replica_sync};
 
 use crate::starboard;
 
@@ -63,7 +63,7 @@ impl HistoryBoard {
         for tick in 0..self.strokes() {
             let op = starboard::bench::scripted_stroke(0, 1, tick, brush);
             canvas.apply(
-                room_sync::OpMeta {
+                replica_sync::OpMeta {
                     lamport: tick.saturating_add(1),
                     author: 1,
                 },
@@ -77,7 +77,7 @@ impl HistoryBoard {
         prefix: &p2p::HistoryKeyPrefix,
     ) -> (u64, Vec<p2p::Libp2pCommand>) {
         let mut canvas = app.world_mut().resource_mut::<starboard::canvas::Canvas>();
-        let snapshot = room_sync::traits::ReplicatedState::snapshot(&*canvas);
+        let snapshot = replica_sync::traits::ReplicatedState::snapshot(&*canvas);
         let snapshot_bytes = bincode::serialize(&snapshot).map_or(0, |bytes| bytes.len());
         let commands = p2p::Libp2pCommand::merge_and_write_history_records(
             &mut *canvas,
@@ -164,11 +164,11 @@ pub struct HistoryReport {
 pub async fn measure_history(board: HistoryBoard) -> HistoryReport {
     let game = identity::GameId::from(starboard::bench::BENCH_GAME);
     let room = identity::RoomName::from(starboard::bench::BENCH_ROOM);
-    let history = room_sync::HistoryConfig {
+    let history = replica_sync::HistoryConfig {
         write_interval: HISTORY_WRITE_INTERVAL,
         record_ttl: HISTORY_RECORD_TTL,
         per_room_bytes: p2p::HistoryByteCount::from(HISTORY_PER_ROOM_BYTES),
-        max_fetch_retries: room_sync::HistoryConfig::default().max_fetch_retries,
+        max_fetch_retries: replica_sync::HistoryConfig::default().max_fetch_retries,
     };
     let mut writer = starboard::app::test_harness::node_with(&game, Some(history));
     let mut reader = starboard::app::test_harness::node_with(&game, Some(history));

@@ -1,22 +1,22 @@
 use crate::ui;
 use bevy::prelude::*;
 
-use freenet_libp2p_bevy_core::room_sync;
+use freenet_libp2p_bevy_core::replica_sync;
 use ui::discovery::JoinError;
 
 pub fn record_join_failure(
-    mut failures: MessageReader<room_sync::JoinFailure>,
+    mut failures: MessageReader<replica_sync::JoinFailure>,
     mut join_error: ResMut<JoinError>,
 ) {
     for failure in failures.read() {
         match failure {
-            room_sync::JoinFailure::RoomGone(room) => {
+            replica_sync::JoinFailure::RoomGone(room) => {
                 **join_error = Some(format!(
                     "Room {} no longer exists (all players left)",
                     room.as_str()
                 ));
             }
-            room_sync::JoinFailure::HistoryUnavailable(_) => {
+            replica_sync::JoinFailure::HistoryUnavailable(_) => {
                 **join_error = Some(String::from("Couldn't get room history"));
             }
         }
@@ -30,19 +30,19 @@ mod tests {
 
     use super::record_join_failure;
     use freenet_libp2p_bevy_core::identity;
-    use freenet_libp2p_bevy_core::room_sync;
+    use freenet_libp2p_bevy_core::replica_sync;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        app.add_message::<room_sync::JoinFailure>();
+        app.add_message::<replica_sync::JoinFailure>();
         app.init_resource::<ui::discovery::JoinError>();
         app.add_systems(Update, record_join_failure);
         app.world_mut()
-            .resource_mut::<Messages<room_sync::JoinFailure>>()
-            .write(room_sync::JoinFailure::RoomGone(identity::RoomName::from(
-                "alpha",
-            )));
+            .resource_mut::<Messages<replica_sync::JoinFailure>>()
+            .write(replica_sync::JoinFailure::RoomGone(
+                identity::RoomName::from("alpha"),
+            ));
         app.update();
         assert_eq!(
             **app.world().resource::<ui::discovery::JoinError>(),
@@ -55,12 +55,12 @@ mod tests {
     #[test]
     fn history_unavailable_sets_history_error() {
         let mut app = App::new();
-        app.add_message::<room_sync::JoinFailure>();
+        app.add_message::<replica_sync::JoinFailure>();
         app.init_resource::<ui::discovery::JoinError>();
         app.add_systems(Update, record_join_failure);
         app.world_mut()
-            .resource_mut::<Messages<room_sync::JoinFailure>>()
-            .write(room_sync::JoinFailure::HistoryUnavailable(
+            .resource_mut::<Messages<replica_sync::JoinFailure>>()
+            .write(replica_sync::JoinFailure::HistoryUnavailable(
                 identity::RoomName::from("beta"),
             ));
         app.update();

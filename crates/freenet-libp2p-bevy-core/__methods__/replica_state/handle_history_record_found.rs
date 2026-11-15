@@ -1,11 +1,11 @@
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn handle_history_record_found<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
     id: &p2p::RoomHistoryRecordKind,
     value: Vec<u8>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     match id {
         p2p::RoomHistoryRecordKind::Manifest(prefix) => {
             let Some(pending) = state.kademlia_history.pending_fetch.as_mut() else {
@@ -21,13 +21,15 @@ pub fn handle_history_record_found<Op>(
                 return state.handle_history_record_not_found(id);
             }
             let outputs: Vec<_> = (0..manifest.chunk_count)
-                .map(|index| room_sync::state_machine::Output::GetHistoryRecord {
-                    id: p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
-                        prefix: prefix.clone(),
-                        content_hash: manifest.content_hash.clone(),
-                        chunk: p2p::ChunkIndex::from(index),
-                    }),
-                })
+                .map(
+                    |index| replica_sync::state_machine::Output::GetHistoryRecord {
+                        id: p2p::RoomHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+                            prefix: prefix.clone(),
+                            content_hash: manifest.content_hash.clone(),
+                            chunk: p2p::ChunkIndex::from(index),
+                        }),
+                    },
+                )
                 .collect();
             pending.manifest = Some(manifest);
             pending.received_chunks.clear();
@@ -65,7 +67,7 @@ pub fn handle_history_record_found<Op>(
 mod tests {
     use super::handle_history_record_found;
     use crate::p2p;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {

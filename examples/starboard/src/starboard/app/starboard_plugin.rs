@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::window::{CursorLeft, CursorMoved};
 use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
-use freenet_libp2p_bevy_plugin::room_sync;
+use freenet_libp2p_bevy_plugin::replica_sync;
 
 use freenet_libp2p_bevy_plugin::lobby_room::ui;
 
@@ -24,8 +24,8 @@ impl Plugin for StarboardPlugin {
             .init_resource::<input::PendingPressState>()
             .init_resource::<input::CursorCell>()
             .init_resource::<input::CursorPoint>()
-            .init_resource::<room_sync::LamportClock>()
-            .init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
+            .init_resource::<replica_sync::LamportClock>()
+            .init_resource::<replica_sync::PendingOps<starboard::canvas::Canvas>>()
             .init_resource::<room::RoomBrushes>()
             .init_resource::<room::RemoteCursors>()
             .init_resource::<ui::roster::MemberIcons>()
@@ -76,7 +76,7 @@ mod tests {
     use bevy::window::PrimaryWindow;
     use freenet_libp2p_bevy_plugin::identity;
     use freenet_libp2p_bevy_plugin::lobby_room::discovery;
-    use freenet_libp2p_bevy_plugin::room_sync::{OpMeta, PendingOps, traits::ReplicatedState};
+    use freenet_libp2p_bevy_plugin::replica_sync::{OpMeta, PendingOps, traits::ReplicatedState};
     use freenet_libp2p_bevy_plugin::time;
 
     use rstest::rstest;
@@ -596,7 +596,7 @@ mod tests {
         let _ = tracing_subscriber::fmt()
             .with_env_filter(
                 tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("room_sync=debug")),
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("replica_sync=debug")),
             )
             .with_ansi(false)
             .try_init();
@@ -660,7 +660,7 @@ mod tests {
         let _ = tracing_subscriber::fmt()
             .with_env_filter(
                 tracing_subscriber::EnvFilter::try_from_default_env()
-                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("room_sync=debug")),
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("replica_sync=debug")),
             )
             .with_ansi(false)
             .try_init();

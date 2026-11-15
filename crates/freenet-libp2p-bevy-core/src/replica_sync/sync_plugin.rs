@@ -5,22 +5,22 @@ use bevy::prelude::*;
 
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 use std::sync::Mutex;
 
-pub struct SyncPlugin<Replica: room_sync::traits::ReplicatedState> {
+pub struct SyncPlugin<Replica: replica_sync::traits::ReplicatedState> {
     pub game: identity::GameId,
-    pub anti_entropy: Option<room_sync::AntiEntropyConfig>,
-    pub history: Option<room_sync::HistoryConfig>,
+    pub anti_entropy: Option<replica_sync::AntiEntropyConfig>,
+    pub history: Option<replica_sync::HistoryConfig>,
     pub marker: PhantomData<Replica>,
 }
 
-impl<Replica: room_sync::traits::ReplicatedState> SyncPlugin<Replica> {
+impl<Replica: replica_sync::traits::ReplicatedState> SyncPlugin<Replica> {
     #[must_use]
     pub fn new(game: identity::GameId) -> Self {
         Self {
             game,
-            anti_entropy: Some(room_sync::AntiEntropyConfig::default()),
+            anti_entropy: Some(replica_sync::AntiEntropyConfig::default()),
             history: None,
             marker: PhantomData,
         }
@@ -28,47 +28,47 @@ impl<Replica: room_sync::traits::ReplicatedState> SyncPlugin<Replica> {
 }
 
 #[rustfmt::skip]
-impl<Replica: room_sync::traits::ReplicatedState> bevy::prelude::Plugin for SyncPlugin<Replica> {
+impl<Replica: replica_sync::traits::ReplicatedState> bevy::prelude::Plugin for SyncPlugin<Replica> {
     fn build(&self, app: &mut App) {
         let Some(libp2p_events) = app
             .world()
             .get_resource::<p2p::Libp2pEventChannel>()
             .map(p2p::Libp2pEventChannel::subscribe)
         else {
-            tracing::error!(target: "room_sync", "room_sync: p2p Libp2pEventChannel missing");
+            tracing::error!(target: "replica_sync", "replica_sync: p2p Libp2pEventChannel missing");
             return;
         };
         app.init_resource::<Replica>();
-        app.init_resource::<room_sync::LamportClock>();
-        app.init_resource::<room_sync::PendingOps<Replica>>();
-        app.init_resource::<room_sync::bevy_systems::SyncState<Replica::Op>>();
-        app.add_message::<room_sync::ReplicaInputFromTimer<Replica::Op>>();
-        app.add_message::<room_sync::JoinFailure>();
+        app.init_resource::<replica_sync::LamportClock>();
+        app.init_resource::<replica_sync::PendingOps<Replica>>();
+        app.init_resource::<replica_sync::bevy_systems::SyncState<Replica::Op>>();
+        app.add_message::<replica_sync::ReplicaInputFromTimer<Replica::Op>>();
+        app.add_message::<replica_sync::JoinFailure>();
         if let Some(anti_entropy) = self.anti_entropy {
-            app.insert_resource(room_sync::AntiEntropyTimer(Timer::new(
+            app.insert_resource(replica_sync::AntiEntropyTimer(Timer::new(
                 anti_entropy.interval,
                 TimerMode::Repeating,
             )));
             app.world_mut()
-                .resource_mut::<room_sync::bevy_systems::SyncState<Replica::Op>>()
+                .resource_mut::<replica_sync::bevy_systems::SyncState<Replica::Op>>()
                 .slice_anti_entropy
                 .max_fetches_per_peer = anti_entropy.max_slice_fetches_per_peer;
             app.add_systems(
                 Update,
-                room_sync::bevy_systems::publish_slice_content_hashes::<Replica>
-                    .before(room_sync::bevy_systems::drive::<Replica>),
+                replica_sync::bevy_systems::publish_slice_content_hashes::<Replica>
+                    .before(replica_sync::bevy_systems::drive::<Replica>),
             );
         }
         if let Some(history) = self.history {
             app.insert_resource(history);
-            app.insert_resource(room_sync::HistoryWriteTimer(Timer::new(
+            app.insert_resource(replica_sync::HistoryWriteTimer(Timer::new(
                 history.write_interval,
                 TimerMode::Repeating,
             )));
             {
                 let mut sync_state = app
                     .world_mut()
-                    .resource_mut::<room_sync::bevy_systems::SyncState<Replica::Op>>();
+                    .resource_mut::<replica_sync::bevy_systems::SyncState<Replica::Op>>();
                 sync_state.kademlia_history.is_enabled = true;
                 sync_state.kademlia_history.max_fetch_retries = history.max_fetch_retries;
                 sync_state.kademlia_history.per_room_bytes = history.per_room_bytes;
@@ -76,47 +76,50 @@ impl<Replica: room_sync::traits::ReplicatedState> bevy::prelude::Plugin for Sync
             }
             app.add_systems(
                 Update,
-                room_sync::bevy_systems::refresh_room_history::<Replica>
-                    .before(room_sync::bevy_systems::drive::<Replica>),
+                replica_sync::bevy_systems::refresh_room_history::<Replica>
+                    .before(replica_sync::bevy_systems::drive::<Replica>),
             );
         }
-        app.insert_resource(room_sync::SyncGame(self.game.clone()));
-        app.insert_resource(room_sync::bevy_systems::Libp2pEvents {
+        app.insert_resource(replica_sync::SyncGame(self.game.clone()));
+        app.insert_resource(replica_sync::bevy_systems::Libp2pEvents {
             receiver: Mutex::new(libp2p_events),
         });
         app.configure_sets(
             Update,
-            room_sync::RoomSyncSet::Input.before(room_sync::RoomSyncSet::Drive),
+            replica_sync::ReplicaSyncSet::Input.before(replica_sync::ReplicaSyncSet::Drive),
         );
         app.add_systems(
             Update,
             (
-                room_sync::bevy_systems::drive::<Replica>.in_set(room_sync::RoomSyncSet::Drive),
-                room_sync::bevy_systems::write_ops::<Replica>,
+                replica_sync::bevy_systems::drive::<Replica>.in_set(replica_sync::ReplicaSyncSet::Drive),
+                replica_sync::bevy_systems::write_ops::<Replica>,
             ),
         );
     }
 }
 
-impl<Replica: room_sync::traits::ReplicatedState> SyncPlugin<Replica> {
+impl<Replica: replica_sync::traits::ReplicatedState> SyncPlugin<Replica> {
     #[must_use]
     pub const fn with_anti_entropy_config(
         mut self,
-        anti_entropy: Option<room_sync::AntiEntropyConfig>,
+        anti_entropy: Option<replica_sync::AntiEntropyConfig>,
     ) -> Self {
         self.anti_entropy = anti_entropy;
         self
     }
 
     #[must_use]
-    pub const fn with_history_config(mut self, history: Option<room_sync::HistoryConfig>) -> Self {
+    pub const fn with_history_config(
+        mut self,
+        history: Option<replica_sync::HistoryConfig>,
+    ) -> Self {
         self.history = history;
         self
     }
 }
 
 #[atomic_delegates]
-impl<Replica: room_sync::traits::ReplicatedState> SyncPlugin<Replica> {}
+impl<Replica: replica_sync::traits::ReplicatedState> SyncPlugin<Replica> {}
 
 // no test_usage necessary
 
@@ -131,7 +134,7 @@ mod build_plugin_tests {
     use crate::identity;
     use crate::p2p;
     use crate::plugin;
-    use crate::room_sync;
+    use crate::replica_sync;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     struct Op {
@@ -144,11 +147,11 @@ mod build_plugin_tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::traits::ReplicatedState for Map {
+    impl replica_sync::traits::ReplicatedState for Map {
         type Op = Op;
         type Snapshot = Vec<(u8, u32)>;
 
-        fn apply(&mut self, _meta: room_sync::OpMeta, op: &Self::Op) {
+        fn apply(&mut self, _meta: replica_sync::OpMeta, op: &Self::Op) {
             self.entries.insert(op.key, op.value);
         }
 
@@ -165,14 +168,16 @@ mod build_plugin_tests {
             }
         }
 
-        fn slice_content_hashes(&self) -> room_sync::ReplicaSliceContentHashes {
+        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
             vec![(
-                room_sync::ReplicaSliceIndex(0),
-                room_sync::ReplicaSliceContentHash(u64::try_from(self.entries.len()).unwrap_or(0)),
+                replica_sync::ReplicaSliceIndex(0),
+                replica_sync::ReplicaSliceContentHash(
+                    u64::try_from(self.entries.len()).unwrap_or(0),
+                ),
             )]
         }
 
-        fn slice_snapshot(&self, _index: room_sync::ReplicaSliceIndex) -> Self::Snapshot {
+        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
             self.snapshot()
         }
     }
@@ -186,19 +191,19 @@ mod build_plugin_tests {
             p2p::MdnsMode::Disabled,
         )));
         app.add_plugins(
-            room_sync::SyncPlugin::<Map>::new(identity::GameId::from("test"))
-                .with_history_config(Some(room_sync::HistoryConfig::default())),
+            replica_sync::SyncPlugin::<Map>::new(identity::GameId::from("test"))
+                .with_history_config(Some(replica_sync::HistoryConfig::default())),
         );
         app.update();
         assert!(
             app.world()
-                .get_resource::<room_sync::PendingOps<Map>>()
+                .get_resource::<replica_sync::PendingOps<Map>>()
                 .is_some()
         );
         assert!(app.world().get_resource::<Map>().is_some());
         assert!(
             app.world()
-                .get_resource::<room_sync::HistoryConfig>()
+                .get_resource::<replica_sync::HistoryConfig>()
                 .is_some()
         );
     }

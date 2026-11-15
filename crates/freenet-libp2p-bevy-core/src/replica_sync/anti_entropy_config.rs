@@ -19,11 +19,11 @@ impl Default for AntiEntropyConfig {
 mod tests {
     use std::time::Duration;
 
-    use crate::room_sync;
+    use crate::replica_sync;
 
     #[test]
     fn test_usage() {
-        let config = room_sync::AntiEntropyConfig::default();
+        let config = replica_sync::AntiEntropyConfig::default();
         assert_eq!(config.interval, Duration::from_secs(2));
         assert_eq!(config.max_slice_fetches_per_peer, 8);
     }

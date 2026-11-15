@@ -1,7 +1,7 @@
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
-pub fn drain(events: &room_sync::bevy_systems::Libp2pEvents) -> Vec<p2p::Libp2pEvent> {
+pub fn drain(events: &replica_sync::bevy_systems::Libp2pEvents) -> Vec<p2p::Libp2pEvent> {
     let Ok(mut receiver) = events.receiver.lock() else {
         return Vec::new();
     };
@@ -10,7 +10,7 @@ pub fn drain(events: &room_sync::bevy_systems::Libp2pEvents) -> Vec<p2p::Libp2pE
         match receiver.try_recv() {
             Ok(event) => out.push(event),
             Err(tokio::sync::broadcast::error::TryRecvError::Lagged(skipped)) => {
-                tracing::warn!(target: "room_sync", "libp2p events lagged, dropped={skipped}");
+                tracing::warn!(target: "replica_sync", "libp2p events lagged, dropped={skipped}");
             }
             Err(
                 tokio::sync::broadcast::error::TryRecvError::Empty
@@ -26,7 +26,7 @@ mod tests {
     use super::drain;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync::bevy_systems::Libp2pEvents;
+    use crate::replica_sync::bevy_systems::Libp2pEvents;
     use std::sync::Mutex;
 
     fn lagged_events() -> Libp2pEvents {

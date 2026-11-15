@@ -1,10 +1,10 @@
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn handle_history_record_not_found<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
     id: &p2p::RoomHistoryRecordKind,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     let prefix = id.record_prefix().clone();
     if state
         .kademlia_history
@@ -17,27 +17,27 @@ pub fn handle_history_record_not_found<Op>(
     }
     state.kademlia_history.pending_fetch = None;
     match state.phase {
-        room_sync::state_machine::Phase::Ready => {
-            vec![room_sync::state_machine::Output::MergeAndWriteHistory {
+        replica_sync::state_machine::Phase::Ready => {
+            vec![replica_sync::state_machine::Output::MergeAndWriteHistory {
                 prefix,
                 stored_manifest: None,
                 stored_snapshot: None,
             }]
         }
-        room_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
+        replica_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
             let Some(room) = state.room.clone() else {
                 return Vec::new();
             };
             let liveness = state.kademlia_history.liveness;
             if !liveness.is_room_still_listed {
-                state.phase = room_sync::state_machine::Phase::Failed;
-                return vec![room_sync::state_machine::Output::RoomGone { room }];
+                state.phase = replica_sync::state_machine::Phase::Failed;
+                return vec![replica_sync::state_machine::Output::RoomGone { room }];
             }
             if !liveness.has_other_history_holders && state.kademlia_history.fetch_retries == 0 {
-                state.phase = room_sync::state_machine::Phase::Ready;
+                state.phase = replica_sync::state_machine::Phase::Ready;
                 let mut outputs = Vec::new();
                 for (meta, op) in state.buffered_ops.drain(..) {
-                    outputs.push(room_sync::state_machine::Output::Apply { meta, op });
+                    outputs.push(replica_sync::state_machine::Output::Apply { meta, op });
                 }
                 return outputs;
             }
@@ -46,8 +46,8 @@ pub fn handle_history_record_not_found<Op>(
                     state.kademlia_history.fetch_retries.saturating_add(1);
                 return state.start_kademlia_history_fetch();
             }
-            state.phase = room_sync::state_machine::Phase::Failed;
-            vec![room_sync::state_machine::Output::HistoryUnavailable { room }]
+            state.phase = replica_sync::state_machine::Phase::Failed;
+            vec![replica_sync::state_machine::Output::HistoryUnavailable { room }]
         }
         _ => Vec::new(),
     }
@@ -60,7 +60,7 @@ mod tests {
     use super::handle_history_record_not_found;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync::state_machine::{
+    use crate::replica_sync::state_machine::{
         Output, PendingHistoryFetch, Phase, ReplicaState, RoomLiveness,
     };
 

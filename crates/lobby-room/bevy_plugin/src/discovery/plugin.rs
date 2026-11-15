@@ -6,7 +6,7 @@ use crate::direct_dial;
 use crate::discovery;
 use crate::p2p;
 use crate::peers;
-use crate::room_sync;
+use crate::replica_sync;
 use bevy::prelude::*;
 use discovery::Config;
 use lele_bevy_state_machine::{StateMachinePlugin, StateMachineSystems};
@@ -76,11 +76,11 @@ impl bevy::prelude::Plugin for Plugin {
                 .before(peers::bevy_systems::despawn_orphan_peers)
                 .before(peers::bevy_systems::despawn_orphan_rooms)
                 .before(direct_dial::bevy_systems::project_friends_to_entities)
-                .in_set(room_sync::RoomSyncSet::Input),
+                .in_set(replica_sync::ReplicaSyncSet::Input),
         );
         app.add_systems(
             Update,
-            discovery::bevy_systems::leave_failed_room.after(room_sync::RoomSyncSet::Drive),
+            discovery::bevy_systems::leave_failed_room.after(replica_sync::ReplicaSyncSet::Drive),
         );
         app.init_resource::<discovery::LobbyRows>();
         app.init_resource::<discovery::RoomRoster>();

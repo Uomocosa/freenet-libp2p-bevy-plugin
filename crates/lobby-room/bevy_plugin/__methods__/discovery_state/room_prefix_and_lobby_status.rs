@@ -1,7 +1,7 @@
 use crate::discovery;
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 use crate::time;
 use discovery::state_machine::DiscoveryState;
 
@@ -12,7 +12,7 @@ pub fn room_prefix_and_lobby_status(
     room_name: &identity::RoomName,
 ) -> (
     p2p::HistoryKeyPrefix,
-    room_sync::state_machine::RoomLiveness,
+    replica_sync::state_machine::RoomLiveness,
 ) {
     let created_at = state
         .and_then(|state| {
@@ -31,7 +31,7 @@ pub fn room_prefix_and_lobby_status(
         .unwrap_or(time::UnixTime::EPOCH);
     let prefix = p2p::HistoryKeyPrefix::new(game, room_name, created_at);
     let lobby_status = state.map_or(
-        room_sync::state_machine::RoomLiveness {
+        replica_sync::state_machine::RoomLiveness {
             is_room_still_listed: true,
             has_other_history_holders: false,
         },
@@ -43,24 +43,24 @@ pub fn room_prefix_and_lobby_status(
                     .as_ref()
                     .filter(|joined| &joined.name == room_name);
                 let Some(joined) = joined else {
-                    return room_sync::state_machine::RoomLiveness {
+                    return replica_sync::state_machine::RoomLiveness {
                         is_room_still_listed: false,
                         has_other_history_holders: false,
                     };
                 };
                 if joined.how_entered == discovery::HowRoomWasEntered::Created {
-                    return room_sync::state_machine::RoomLiveness {
+                    return replica_sync::state_machine::RoomLiveness {
                         is_room_still_listed: true,
                         has_other_history_holders: false,
                     };
                 }
                 if !state.is_lobby_fetched {
-                    return room_sync::state_machine::RoomLiveness {
+                    return replica_sync::state_machine::RoomLiveness {
                         is_room_still_listed: true,
                         has_other_history_holders: true,
                     };
                 }
-                return room_sync::state_machine::RoomLiveness {
+                return replica_sync::state_machine::RoomLiveness {
                     is_room_still_listed: false,
                     has_other_history_holders: false,
                 };
@@ -89,7 +89,7 @@ pub fn room_prefix_and_lobby_status(
                 let is_other = *peer != self_peer_id;
                 is_other && room_member.membership == discovery::RoomMembership::HistoryHolder
             });
-            room_sync::state_machine::RoomLiveness {
+            replica_sync::state_machine::RoomLiveness {
                 is_room_still_listed,
                 has_other_history_holders: other_live_count > 0 || has_other_history_holder,
             }

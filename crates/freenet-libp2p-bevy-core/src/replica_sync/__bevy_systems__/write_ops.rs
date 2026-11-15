@@ -3,15 +3,15 @@ use bevy::prelude::*;
 use crate::identity;
 use crate::p2p;
 use crate::peers;
-use crate::room_sync;
+use crate::replica_sync;
 
-pub fn write_ops<Replica: room_sync::traits::ReplicatedState>(
-    mut writer: ResMut<room_sync::PendingOps<Replica>>,
-    mut clock: ResMut<room_sync::LamportClock>,
+pub fn write_ops<Replica: replica_sync::traits::ReplicatedState>(
+    mut writer: ResMut<replica_sync::PendingOps<Replica>>,
+    mut clock: ResMut<replica_sync::LamportClock>,
     ready: Res<p2p::ReadyChannel>,
     me_rooms: Query<&peers::InRoom, With<peers::Me>>,
     room_names: Query<&identity::RoomName>,
-    game: Res<room_sync::SyncGame>,
+    game: Res<replica_sync::SyncGame>,
     mut room: ResMut<Replica>,
     mut commands: MessageWriter<p2p::Libp2pCommand>,
 ) {
@@ -31,14 +31,14 @@ pub fn write_ops<Replica: room_sync::traits::ReplicatedState>(
         return;
     };
     let author = me.id.peer_author();
-    let topic = identity::Topic::from_room_sync(game, &room_name);
+    let topic = identity::Topic::from_replica_sync(game, &room_name);
     for op in ops {
-        let meta = room_sync::OpMeta {
+        let meta = replica_sync::OpMeta {
             lamport: clock.tick(),
             author,
         };
         room.apply(meta, &op);
-        let message = room_sync::ReplicaSyncTopicMessage::ApplyThisOp {
+        let message = replica_sync::ReplicaSyncTopicMessage::ApplyThisOp {
             room: room_name.clone(),
             meta,
             op,
@@ -64,7 +64,7 @@ mod tests {
     use crate::p2p;
     use crate::peers;
     use crate::plugin;
-    use crate::room_sync;
+    use crate::replica_sync;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     struct Op {
@@ -77,11 +77,11 @@ mod tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::traits::ReplicatedState for Map {
+    impl replica_sync::traits::ReplicatedState for Map {
         type Op = Op;
         type Snapshot = Vec<(u8, u32)>;
 
-        fn apply(&mut self, _meta: room_sync::OpMeta, op: &Self::Op) {
+        fn apply(&mut self, _meta: replica_sync::OpMeta, op: &Self::Op) {
             self.entries.insert(op.key, op.value);
         }
 
@@ -98,14 +98,16 @@ mod tests {
             }
         }
 
-        fn slice_content_hashes(&self) -> room_sync::ReplicaSliceContentHashes {
+        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
             vec![(
-                room_sync::ReplicaSliceIndex(0),
-                room_sync::ReplicaSliceContentHash(u64::try_from(self.entries.len()).unwrap_or(0)),
+                replica_sync::ReplicaSliceIndex(0),
+                replica_sync::ReplicaSliceContentHash(
+                    u64::try_from(self.entries.len()).unwrap_or(0),
+                ),
             )]
         }
 
-        fn slice_snapshot(&self, _index: room_sync::ReplicaSliceIndex) -> Self::Snapshot {
+        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
             self.snapshot()
         }
     }
@@ -119,7 +121,7 @@ mod tests {
             plugin::Config::<u8>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
                 .with_game(game.clone()),
         ));
-        app.add_plugins(room_sync::SyncPlugin::<Map>::new(game));
+        app.add_plugins(replica_sync::SyncPlugin::<Map>::new(game));
         let room_entity = app
             .world_mut()
             .spawn(identity::RoomName::from("alpha"))
@@ -138,7 +140,7 @@ mod tests {
             peers::InRoom(room_entity),
         ));
         app.world_mut()
-            .resource_mut::<room_sync::PendingOps<Map>>()
+            .resource_mut::<replica_sync::PendingOps<Map>>()
             .ops
             .push(Op { key: 1, value: 2 });
         app.update();

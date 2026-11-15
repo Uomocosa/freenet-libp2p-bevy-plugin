@@ -1,6 +1,6 @@
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Phase {
@@ -18,16 +18,16 @@ pub enum Input<Op> {
         room: identity::RoomName,
         prefix: p2p::HistoryKeyPrefix,
         members: Vec<identity::PeerId>,
-        liveness: room_sync::state_machine::RoomLiveness,
+        liveness: replica_sync::state_machine::RoomLiveness,
     },
     Members {
         members: Vec<identity::PeerId>,
         prefix: p2p::HistoryKeyPrefix,
-        liveness: room_sync::state_machine::RoomLiveness,
+        liveness: replica_sync::state_machine::RoomLiveness,
     },
     Remote {
         room: identity::RoomName,
-        meta: room_sync::OpMeta,
+        meta: replica_sync::OpMeta,
         op: Op,
     },
     SnapshotPartReceivedFromRoomMember {
@@ -54,27 +54,27 @@ pub enum Input<Op> {
         id: p2p::RoomHistoryRecordKind,
     },
     AntiEntropyTimerFired {
-        local: room_sync::ReplicaSliceContentHashes,
+        local: replica_sync::ReplicaSliceContentHashes,
     },
     RemoteSliceContentHashes {
         from: identity::PeerId,
-        local: room_sync::ReplicaSliceContentHashes,
-        remote: room_sync::ReplicaSliceContentHashes,
+        local: replica_sync::ReplicaSliceContentHashes,
+        remote: replica_sync::ReplicaSliceContentHashes,
     },
     ReplicaSliceRequested {
         id: p2p::ReplyId,
         room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
     },
     ReplicaSliceReceived {
         from: identity::PeerId,
         room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
         data: Vec<u8>,
     },
     ReplicaSliceRequestFailed {
         from: identity::PeerId,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
     },
 }
 
@@ -94,7 +94,7 @@ pub enum Output<Op> {
         bytes: Vec<u8>,
     },
     Apply {
-        meta: room_sync::OpMeta,
+        meta: replica_sync::OpMeta,
         op: Op,
     },
     GetHistoryRecord {
@@ -113,16 +113,16 @@ pub enum Output<Op> {
     },
     PublishSliceContentHashes {
         room: identity::RoomName,
-        hashes: room_sync::ReplicaSliceContentHashes,
+        hashes: replica_sync::ReplicaSliceContentHashes,
     },
     FetchReplicaSlice {
         peer: identity::PeerId,
         room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
     },
     SendReplicaSlice {
         id: p2p::ReplyId,
         room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
     },
 }

@@ -1,11 +1,11 @@
 use crate::identity;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn handle_replica_slice_request_failed<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
     from: &identity::PeerId,
-    index: room_sync::ReplicaSliceIndex,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+    index: replica_sync::ReplicaSliceIndex,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     let should_remove_peer = state
         .slice_anti_entropy
         .fetches_awaiting_reply
@@ -24,20 +24,20 @@ pub fn handle_replica_slice_request_failed<Op>(
 mod tests {
     use super::handle_replica_slice_request_failed;
     use crate::identity;
-    use crate::room_sync;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {
         let mut state = ReplicaState::<u8>::default();
         let peer = identity::PeerId::from("peer");
-        let index = room_sync::ReplicaSliceIndex(0);
+        let index = replica_sync::ReplicaSliceIndex(0);
         state
             .slice_anti_entropy
             .fetches_awaiting_reply
             .entry(peer.clone())
             .or_default()
-            .insert(index, room_sync::ElapsedSinceAppStart::default());
+            .insert(index, replica_sync::ElapsedSinceAppStart::default());
         assert_eq!(
             handle_replica_slice_request_failed(&mut state, &peer, index),
             Vec::new()

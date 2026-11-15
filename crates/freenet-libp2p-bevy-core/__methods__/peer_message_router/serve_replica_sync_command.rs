@@ -2,7 +2,7 @@ use crate::identity;
 use crate::p2p;
 use crate::testing;
 
-pub fn serve_room_sync_command(
+pub fn serve_replica_sync_command(
     router: &mut testing::PeerMessageRouter,
     from: &identity::PeerId,
     command: p2p::Libp2pCommand,
@@ -27,7 +27,7 @@ pub fn serve_room_sync_command(
             } else {
                 vec![testing::RoutedEvent {
                     to: from.clone(),
-                    event: p2p::Libp2pEvent::RoomSyncRequestFailed {
+                    event: p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                         from: peer_id,
                         request: p2p::SnapshotRequest::Fetch { room, part },
                     },
@@ -53,7 +53,7 @@ pub fn serve_room_sync_command(
             } else {
                 vec![testing::RoutedEvent {
                     to: from.clone(),
-                    event: p2p::Libp2pEvent::RoomSyncRequestFailed {
+                    event: p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                         from: peer_id,
                         request: p2p::SnapshotRequest::FetchReplicaSlice { room, index },
                     },
@@ -101,10 +101,10 @@ pub fn serve_room_sync_command(
 
 #[cfg(test)]
 mod tests {
-    use super::serve_room_sync_command;
+    use super::serve_replica_sync_command;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync;
+    use crate::replica_sync;
     use crate::testing;
 
     #[test]
@@ -114,18 +114,18 @@ mod tests {
         let command = p2p::Libp2pCommand::FetchReplicaSlice {
             peer_id: identity::PeerId::from("ghost"),
             room: identity::RoomName::from("room-1"),
-            index: room_sync::ReplicaSliceIndex(1),
+            index: replica_sync::ReplicaSliceIndex(1),
         };
-        let events = serve_room_sync_command(&mut router, &from, command);
+        let events = serve_replica_sync_command(&mut router, &from, command);
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].to, from);
         assert_eq!(
             events[0].event,
-            p2p::Libp2pEvent::RoomSyncRequestFailed {
+            p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                 from: identity::PeerId::from("ghost"),
                 request: p2p::SnapshotRequest::FetchReplicaSlice {
                     room: identity::RoomName::from("room-1"),
-                    index: room_sync::ReplicaSliceIndex(1),
+                    index: replica_sync::ReplicaSliceIndex(1),
                 },
             }
         );

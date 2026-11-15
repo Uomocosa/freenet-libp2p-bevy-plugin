@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
-pub fn merge_and_write_history_records<Replica: room_sync::traits::ReplicatedState>(
+pub fn merge_and_write_history_records<Replica: replica_sync::traits::ReplicatedState>(
     replica: &mut Replica,
     prefix: &p2p::HistoryKeyPrefix,
     stored_manifest: Option<&p2p::HistoryManifest>,
@@ -22,7 +22,7 @@ pub fn merge_and_write_history_records<Replica: room_sync::traits::ReplicatedSta
     };
     if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > *per_room_bytes {
         tracing::error!(
-            target: "room_sync",
+            target: "replica_sync",
             bytes = bytes.len(),
             limit = *per_room_bytes,
             "room snapshot exceeds per-room history byte limit; refusing to store"
@@ -39,7 +39,7 @@ pub fn merge_and_write_history_records<Replica: room_sync::traits::ReplicatedSta
         .fold(0u64, u64::saturating_add);
     if compressed_bytes > *per_room_bytes {
         tracing::error!(
-            target: "room_sync",
+            target: "replica_sync",
             bytes = compressed_bytes,
             limit = *per_room_bytes,
             "compressed room snapshot exceeds per-room history byte limit; refusing to store"
@@ -52,7 +52,7 @@ pub fn merge_and_write_history_records<Replica: room_sync::traits::ReplicatedSta
         return Vec::new();
     }
     tracing::info!(
-        target: "room_sync",
+        target: "replica_sync",
         snapshot_bytes = bytes.len(),
         record_bytes = compressed_bytes,
         chunks = chunked.chunks.len(),
@@ -95,7 +95,7 @@ mod tests {
 
     use super::merge_and_write_history_records;
     use crate::p2p;
-    use crate::room_sync;
+    use crate::replica_sync;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     struct Op {
@@ -108,11 +108,11 @@ mod tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::traits::ReplicatedState for Map {
+    impl replica_sync::traits::ReplicatedState for Map {
         type Op = Op;
         type Snapshot = Vec<(u8, u32)>;
 
-        fn apply(&mut self, _meta: room_sync::OpMeta, op: &Self::Op) {
+        fn apply(&mut self, _meta: replica_sync::OpMeta, op: &Self::Op) {
             self.entries.insert(op.key, op.value);
         }
 
@@ -126,11 +126,11 @@ mod tests {
             }
         }
 
-        fn slice_content_hashes(&self) -> room_sync::ReplicaSliceContentHashes {
+        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
             Vec::new()
         }
 
-        fn slice_snapshot(&self, _index: room_sync::ReplicaSliceIndex) -> Self::Snapshot {
+        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
             self.snapshot()
         }
     }

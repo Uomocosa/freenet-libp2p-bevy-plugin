@@ -27,7 +27,7 @@ pub fn route(
         command @ (p2p::Libp2pCommand::FetchSnapshot { .. }
         | p2p::Libp2pCommand::FetchReplicaSlice { .. }
         | p2p::Libp2pCommand::RespondSnapshot { .. }) => {
-            router.serve_room_sync_command(from, command)
+            router.serve_replica_sync_command(from, command)
         }
         command
         @ (p2p::Libp2pCommand::Publish { .. } | p2p::Libp2pCommand::PeerExchange { .. }) => {

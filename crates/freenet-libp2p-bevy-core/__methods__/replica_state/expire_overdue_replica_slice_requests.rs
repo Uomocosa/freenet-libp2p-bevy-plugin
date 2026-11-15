@@ -1,14 +1,15 @@
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn expire_overdue_replica_slice_requests<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-    now: room_sync::ElapsedSinceAppStart,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
+    now: replica_sync::ElapsedSinceAppStart,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     let mut expired: usize = 0;
     for awaiting in state.slice_anti_entropy.fetches_awaiting_reply.values_mut() {
         let before = awaiting.len();
-        awaiting
-            .retain(|_, at| (*now).saturating_sub(**at) < room_sync::REPLICA_SLICE_REPLY_TIMEOUT);
+        awaiting.retain(|_, at| {
+            (*now).saturating_sub(**at) < replica_sync::REPLICA_SLICE_REPLY_TIMEOUT
+        });
         expired = expired.saturating_add(before.saturating_sub(awaiting.len()));
     }
     state
@@ -16,7 +17,7 @@ pub fn expire_overdue_replica_slice_requests<Op>(
         .fetches_awaiting_reply
         .retain(|_, awaiting| !awaiting.is_empty());
     if expired > 0 {
-        tracing::debug!(target: "room_sync", "replica slice requests expired expired={}", expired);
+        tracing::debug!(target: "replica_sync", "replica slice requests expired expired={}", expired);
     }
     Vec::new()
 }
@@ -26,21 +27,21 @@ mod tests {
     use super::expire_overdue_replica_slice_requests;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync;
-    use crate::room_sync::state_machine::{Input, ReplicaState, RoomLiveness};
+    use crate::replica_sync;
+    use crate::replica_sync::state_machine::{Input, ReplicaState, RoomLiveness};
 
     #[test]
     fn test_usage() {
         let mut state = ReplicaState::<u8>::default();
-        let now = room_sync::ElapsedSinceAppStart::default();
+        let now = replica_sync::ElapsedSinceAppStart::default();
         assert_eq!(
             expire_overdue_replica_slice_requests(&mut state, now),
             Vec::new()
         );
     }
 
-    fn at_secs(secs: u64) -> room_sync::ElapsedSinceAppStart {
-        room_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
+    fn at_secs(secs: u64) -> replica_sync::ElapsedSinceAppStart {
+        replica_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
     }
 
     #[test]
@@ -58,7 +59,7 @@ mod tests {
         );
         joiner.update(Input::SnapshotMissingFromRoomMember, at_secs(0));
         let peer = identity::PeerId::from("a");
-        let index = room_sync::ReplicaSliceIndex(2);
+        let index = replica_sync::ReplicaSliceIndex(2);
         joiner
             .slice_anti_entropy
             .fetches_awaiting_reply
@@ -67,7 +68,7 @@ mod tests {
             .insert(index, at_secs(0));
         let remote = Input::Remote {
             room: identity::RoomName::from("other"),
-            meta: room_sync::OpMeta {
+            meta: replica_sync::OpMeta {
                 lamport: 1,
                 author: 1,
             },

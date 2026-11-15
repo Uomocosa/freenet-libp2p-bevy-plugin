@@ -1,17 +1,17 @@
 use crate::identity;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn handle_remote<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
     room: &identity::RoomName,
-    meta: room_sync::OpMeta,
+    meta: replica_sync::OpMeta,
     op: Op,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     if state.room.as_ref() != Some(room) {
         return Vec::new();
     }
-    if state.phase == room_sync::state_machine::Phase::Ready {
-        vec![room_sync::state_machine::Output::Apply { meta, op }]
+    if state.phase == replica_sync::state_machine::Phase::Ready {
+        vec![replica_sync::state_machine::Output::Apply { meta, op }]
     } else {
         state.buffered_ops.push((meta, op));
         Vec::new()
@@ -22,8 +22,8 @@ pub fn handle_remote<Op>(
 mod tests {
     use super::handle_remote;
     use crate::identity;
-    use crate::room_sync;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {
@@ -31,7 +31,7 @@ mod tests {
         let outputs = handle_remote(
             &mut state,
             &identity::RoomName::from("room"),
-            room_sync::OpMeta {
+            replica_sync::OpMeta {
                 lamport: 1,
                 author: 2,
             },

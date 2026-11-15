@@ -1,22 +1,22 @@
 use std::collections::BTreeMap;
 
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn start_kademlia_history_fetch<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     let Some(prefix) = state.kademlia_history.prefix.clone() else {
         return Vec::new();
     };
-    state.phase = room_sync::state_machine::Phase::FetchingHistoryFromKademlia;
-    state.kademlia_history.pending_fetch = Some(room_sync::state_machine::PendingHistoryFetch {
+    state.phase = replica_sync::state_machine::Phase::FetchingHistoryFromKademlia;
+    state.kademlia_history.pending_fetch = Some(replica_sync::state_machine::PendingHistoryFetch {
         prefix: prefix.clone(),
         manifest: None,
         received_chunks: BTreeMap::new(),
         records_requested_at: None,
     });
-    vec![room_sync::state_machine::Output::GetHistoryRecord {
+    vec![replica_sync::state_machine::Output::GetHistoryRecord {
         id: p2p::RoomHistoryRecordKind::Manifest(prefix),
     }]
 }
@@ -25,7 +25,7 @@ pub fn start_kademlia_history_fetch<Op>(
 mod tests {
     use super::start_kademlia_history_fetch;
     use crate::p2p;
-    use crate::room_sync::state_machine::{Output, Phase, ReplicaState};
+    use crate::replica_sync::state_machine::{Output, Phase, ReplicaState};
 
     #[test]
     fn test_usage() {

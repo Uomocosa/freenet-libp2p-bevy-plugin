@@ -4,7 +4,7 @@ use crate::discovery;
 use crate::freenet;
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 use crate::time;
 use bevy::prelude::Resource;
 use discovery::state_machine::{Handshake, HeartbeatTarget, Input, ObservedLobbyHeartbeat, Output};
@@ -245,7 +245,7 @@ impl DiscoveryState {
         room_name: &identity::RoomName,
     ) -> (
         p2p::HistoryKeyPrefix,
-        room_sync::state_machine::RoomLiveness,
+        replica_sync::state_machine::RoomLiveness,
     ) {
     }
 }

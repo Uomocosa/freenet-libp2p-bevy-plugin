@@ -6,14 +6,14 @@ use crate::discovery;
 use crate::identity;
 use crate::p2p;
 use crate::peers;
-use crate::room_sync;
+use crate::replica_sync;
 use discovery::state_machine::DiscoveryState;
 
 type RoomRow<'a> = (
     Entity,
     &'a identity::RoomName,
     Option<&'a p2p::HistoryKeyPrefix>,
-    Option<&'a room_sync::state_machine::RoomLiveness>,
+    Option<&'a replica_sync::state_machine::RoomLiveness>,
 );
 
 type PeerRow<'a> = (Entity, &'a peers::Peer, Option<&'a peers::InRoom>);
@@ -23,7 +23,7 @@ type HoldLinkRow<'a> = (Entity, &'a peers::HeldBy, &'a peers::HoldOf);
 pub fn project_status_to_entities(
     mut commands: Commands,
     state: Res<DiscoveryState>,
-    game: Option<Res<room_sync::SyncGame>>,
+    game: Option<Res<replica_sync::SyncGame>>,
     room_entities: Query<RoomRow<'_>>,
     peer_entities: Query<PeerRow<'_>>,
     links: Query<HoldLinkRow<'_>, With<peers::HistoryHold>>,
@@ -133,7 +133,7 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::peers;
-    use crate::room_sync;
+    use crate::replica_sync;
     use crate::testing;
     use crate::time;
     use discovery::state_machine::DiscoveryState;
@@ -191,7 +191,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(state);
-        app.insert_resource(room_sync::SyncGame(game));
+        app.insert_resource(replica_sync::SyncGame(game));
         app.add_systems(Update, project_status_to_entities);
         app
     }
@@ -314,7 +314,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(state);
-        app.insert_resource(room_sync::SyncGame(game));
+        app.insert_resource(replica_sync::SyncGame(game));
         app.add_systems(
             Update,
             (
@@ -364,7 +364,7 @@ mod tests {
         );
         assert_eq!(
             app.world()
-                .get::<room_sync::state_machine::RoomLiveness>(room_entity),
+                .get::<replica_sync::state_machine::RoomLiveness>(room_entity),
             Some(&expected_liveness)
         );
         for name in ["alice", "bob"] {
@@ -500,7 +500,7 @@ mod tests {
         app.add_message::<AppExit>();
         app.add_plugins(discovery::Plugin::new(discovery::Config::default()));
         let game = identity::GameId::from("test");
-        app.insert_resource(room_sync::SyncGame(game.clone()));
+        app.insert_resource(replica_sync::SyncGame(game.clone()));
         let room = identity::RoomName::from("room-a");
         app.insert_resource(state_with_lobby(lobby_with_room(
             &room,
@@ -519,7 +519,7 @@ mod tests {
         );
         assert_eq!(
             app.world()
-                .get::<room_sync::state_machine::RoomLiveness>(room_entity),
+                .get::<replica_sync::state_machine::RoomLiveness>(room_entity),
             Some(&expected_liveness)
         );
     }

@@ -1,15 +1,15 @@
 use crate::identity;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn handle_snapshot<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
     room: identity::RoomName,
     part: u32,
     total: u32,
     data: Vec<u8>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
-    tracing::debug!(target: "room_sync", "snapshot part received part={} total={} phase={:?}", part, total, state.phase);
-    if state.phase != room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember
+) -> Vec<replica_sync::state_machine::Output<Op>> {
+    tracing::debug!(target: "replica_sync", "snapshot part received part={} total={} phase={:?}", part, total, state.phase);
+    if state.phase != replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember
         || state.room.as_ref() != Some(&room)
         || total == 0
         || part >= total
@@ -29,7 +29,7 @@ pub fn handle_snapshot<Op>(
             return Vec::new();
         };
         return vec![
-            room_sync::state_machine::Output::FetchSnapshotPartFromRoomMember {
+            replica_sync::state_machine::Output::FetchSnapshotPartFromRoomMember {
                 peer,
                 room,
                 part: next_part,
@@ -37,10 +37,10 @@ pub fn handle_snapshot<Op>(
         ];
     }
     let bytes = state.member_snapshot.join_received_parts();
-    state.phase = room_sync::state_machine::Phase::Ready;
-    let mut outputs = vec![room_sync::state_machine::Output::Merge { bytes }];
+    state.phase = replica_sync::state_machine::Phase::Ready;
+    let mut outputs = vec![replica_sync::state_machine::Output::Merge { bytes }];
     for (meta, op) in state.buffered_ops.drain(..) {
-        outputs.push(room_sync::state_machine::Output::Apply { meta, op });
+        outputs.push(replica_sync::state_machine::Output::Apply { meta, op });
     }
     outputs
 }
@@ -49,7 +49,7 @@ pub fn handle_snapshot<Op>(
 mod tests {
     use super::handle_snapshot;
     use crate::identity;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {

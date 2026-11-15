@@ -1,8 +1,8 @@
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn fetch_next<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     let Some(room) = state.room.clone() else {
         return Vec::new();
     };
@@ -18,7 +18,7 @@ pub fn fetch_next<Op>(
     state.member_snapshot.asked_members.push(peer.clone());
     state.member_snapshot.current_source = Some(peer.clone());
     vec![
-        room_sync::state_machine::Output::FetchSnapshotPartFromRoomMember {
+        replica_sync::state_machine::Output::FetchSnapshotPartFromRoomMember {
             peer,
             room,
             part: 0,
@@ -29,7 +29,7 @@ pub fn fetch_next<Op>(
 #[cfg(test)]
 mod tests {
     use super::fetch_next;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {

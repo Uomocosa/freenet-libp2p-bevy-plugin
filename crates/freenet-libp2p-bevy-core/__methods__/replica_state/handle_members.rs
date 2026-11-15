@@ -1,55 +1,55 @@
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn handle_members<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
     members: Vec<identity::PeerId>,
     prefix: p2p::HistoryKeyPrefix,
-    liveness: room_sync::state_machine::RoomLiveness,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+    liveness: replica_sync::state_machine::RoomLiveness,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     let mut members = members;
     members.sort();
     state.member_snapshot.members = members;
     state.kademlia_history.prefix = Some(prefix);
     state.kademlia_history.liveness = liveness;
     match state.phase {
-        room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember => {
+        replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember => {
             if !liveness.is_room_still_listed {
                 let Some(room) = state.room.clone() else {
                     return Vec::new();
                 };
-                state.phase = room_sync::state_machine::Phase::Failed;
+                state.phase = replica_sync::state_machine::Phase::Failed;
                 state.kademlia_history.pending_fetch = None;
-                return vec![room_sync::state_machine::Output::RoomGone { room }];
+                return vec![replica_sync::state_machine::Output::RoomGone { room }];
             }
             state.fetch_next()
         }
-        room_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
+        replica_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
             if !liveness.is_room_still_listed {
                 let Some(room) = state.room.clone() else {
                     return Vec::new();
                 };
-                state.phase = room_sync::state_machine::Phase::Failed;
+                state.phase = replica_sync::state_machine::Phase::Failed;
                 state.kademlia_history.pending_fetch = None;
-                return vec![room_sync::state_machine::Output::RoomGone { room }];
+                return vec![replica_sync::state_machine::Output::RoomGone { room }];
             }
             let outputs = state.fetch_next();
             if !outputs.is_empty() {
-                state.phase = room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember;
+                state.phase = replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember;
                 state.kademlia_history.pending_fetch = None;
                 state.kademlia_history.fetch_retries = 0;
             }
             outputs
         }
-        room_sync::state_machine::Phase::Ready => {
+        replica_sync::state_machine::Phase::Ready => {
             if !liveness.is_room_still_listed {
                 let Some(room) = state.room.clone() else {
                     return Vec::new();
                 };
-                state.phase = room_sync::state_machine::Phase::Failed;
+                state.phase = replica_sync::state_machine::Phase::Failed;
                 state.kademlia_history.pending_fetch = None;
-                return vec![room_sync::state_machine::Output::RoomGone { room }];
+                return vec![replica_sync::state_machine::Output::RoomGone { room }];
             }
             Vec::new()
         }
@@ -64,7 +64,7 @@ mod tests {
     use super::handle_members;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync::state_machine::{
+    use crate::replica_sync::state_machine::{
         Output, PendingHistoryFetch, Phase, ReplicaState, RoomLiveness,
     };
 

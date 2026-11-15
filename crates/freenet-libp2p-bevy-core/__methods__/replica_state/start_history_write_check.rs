@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn start_history_write_check<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
-    if state.phase != room_sync::state_machine::Phase::Ready
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
+    if state.phase != replica_sync::state_machine::Phase::Ready
         || !state.kademlia_history.is_enabled
         || state.kademlia_history.pending_fetch.is_some()
     {
@@ -15,13 +15,13 @@ pub fn start_history_write_check<Op>(
     let Some(prefix) = state.kademlia_history.prefix.clone() else {
         return Vec::new();
     };
-    state.kademlia_history.pending_fetch = Some(room_sync::state_machine::PendingHistoryFetch {
+    state.kademlia_history.pending_fetch = Some(replica_sync::state_machine::PendingHistoryFetch {
         prefix: prefix.clone(),
         manifest: None,
         received_chunks: BTreeMap::new(),
         records_requested_at: None,
     });
-    vec![room_sync::state_machine::Output::GetHistoryRecord {
+    vec![replica_sync::state_machine::Output::GetHistoryRecord {
         id: p2p::RoomHistoryRecordKind::Manifest(prefix),
     }]
 }
@@ -30,7 +30,7 @@ pub fn start_history_write_check<Op>(
 mod tests {
     use super::start_history_write_check;
     use crate::p2p;
-    use crate::room_sync::state_machine::{Output, Phase, ReplicaState};
+    use crate::replica_sync::state_machine::{Output, Phase, ReplicaState};
 
     #[test]
     fn test_usage() {

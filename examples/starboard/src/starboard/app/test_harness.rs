@@ -6,14 +6,14 @@ use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::time;
-use freenet_libp2p_bevy_plugin::{identity, p2p, plugin, room_sync};
+use freenet_libp2p_bevy_plugin::{identity, p2p, plugin, replica_sync};
 
 use crate::starboard;
 
 pub const SETTLE: Duration = Duration::from_millis(20);
 pub const MAX_ROUNDS: usize = 400;
 
-pub fn node_with(game: &identity::GameId, history: Option<room_sync::HistoryConfig>) -> App {
+pub fn node_with(game: &identity::GameId, history: Option<replica_sync::HistoryConfig>) -> App {
     let mut app = App::new();
     app.add_plugins((
         MinimalPlugins,
@@ -29,7 +29,7 @@ pub fn node_with(game: &identity::GameId, history: Option<room_sync::HistoryConf
     ));
     app.add_plugins(discovery::Plugin::new(discovery::Config::default()));
     app.add_plugins(
-        room_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game.clone())
+        replica_sync::SyncPlugin::<starboard::canvas::Canvas>::new(game.clone())
             .with_history_config(history),
     );
     app.insert_resource(room_status(

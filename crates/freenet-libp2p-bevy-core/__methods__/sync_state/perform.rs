@@ -4,20 +4,20 @@ use bevy::prelude::MessageWriter;
 
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
-pub fn perform<Replica: room_sync::traits::ReplicatedState>(
-    output: room_sync::state_machine::Output<Replica::Op>,
+pub fn perform<Replica: replica_sync::traits::ReplicatedState>(
+    output: replica_sync::state_machine::Output<Replica::Op>,
     room: &mut Replica,
-    clock: room_sync::LamportClock,
+    clock: replica_sync::LamportClock,
     per_room_bytes: p2p::HistoryByteCount,
     record_ttl: Duration,
     pending: &mut Vec<p2p::Libp2pCommand>,
-    failures: &mut Option<MessageWriter<room_sync::JoinFailure>>,
+    failures: &mut Option<MessageWriter<replica_sync::JoinFailure>>,
     game: &identity::GameId,
 ) {
     use p2p::Libp2pCommand;
-    use room_sync::state_machine::Output;
+    use replica_sync::state_machine::Output;
     match output {
         Output::FetchSnapshotPartFromRoomMember { peer, room, part } => {
             pending.push(Libp2pCommand::FetchSnapshot {
@@ -31,8 +31,9 @@ pub fn perform<Replica: room_sync::traits::ReplicatedState>(
             room: name,
             part,
         } => {
-            let frame =
-                room_sync::bevy_systems::SyncState::<Replica::Op>::snapshot_frame(room, name, part);
+            let frame = replica_sync::bevy_systems::SyncState::<Replica::Op>::snapshot_frame(
+                room, name, part,
+            );
             pending.push(Libp2pCommand::RespondSnapshot { id, frame });
         }
         Output::Merge { bytes } => {
@@ -59,24 +60,24 @@ pub fn perform<Replica: room_sync::traits::ReplicatedState>(
         }
         Output::RoomGone { room } => {
             if let Some(writer) = failures {
-                writer.write(room_sync::JoinFailure::RoomGone(room));
+                writer.write(replica_sync::JoinFailure::RoomGone(room));
             }
         }
         Output::HistoryUnavailable { room } => {
             if let Some(writer) = failures {
-                writer.write(room_sync::JoinFailure::HistoryUnavailable(room));
+                writer.write(replica_sync::JoinFailure::HistoryUnavailable(room));
             }
         }
         Output::PublishSliceContentHashes { room, hashes } => {
-            tracing::debug!(target: "room_sync", "anti-entropy publish room={room} slices={}", hashes.len());
+            tracing::debug!(target: "replica_sync", "anti-entropy publish room={room} slices={}", hashes.len());
             let msg =
-                room_sync::ReplicaSyncTopicMessage::<Replica::Op>::CompareSliceContentHashes {
+                replica_sync::ReplicaSyncTopicMessage::<Replica::Op>::CompareSliceContentHashes {
                     room: room.clone(),
                     hashes,
                 };
             if let Ok(data) = bincode::serialize(&msg) {
                 pending.push(Libp2pCommand::Publish {
-                    topic: identity::Topic::from_room_sync(game, &room),
+                    topic: identity::Topic::from_replica_sync(game, &room),
                     data,
                 });
             }
@@ -113,24 +114,24 @@ mod tests {
     use super::perform;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync;
+    use crate::replica_sync;
 
     #[derive(Resource, Default)]
     struct MockReplica;
 
-    impl room_sync::traits::ReplicatedState for MockReplica {
+    impl replica_sync::traits::ReplicatedState for MockReplica {
         type Op = u8;
         type Snapshot = Vec<u8>;
 
-        fn apply(&mut self, _meta: room_sync::OpMeta, _op: &u8) {}
+        fn apply(&mut self, _meta: replica_sync::OpMeta, _op: &u8) {}
         fn snapshot(&self) -> Vec<u8> {
             Vec::new()
         }
         fn merge(&mut self, _snapshot: Vec<u8>) {}
-        fn slice_content_hashes(&self) -> room_sync::ReplicaSliceContentHashes {
+        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
             Vec::new()
         }
-        fn slice_snapshot(&self, _index: room_sync::ReplicaSliceIndex) -> Vec<u8> {
+        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Vec<u8> {
             Vec::new()
         }
     }
@@ -141,11 +142,11 @@ mod tests {
         let mut pending = Vec::new();
         let game = identity::GameId::from("game");
         perform(
-            room_sync::state_machine::Output::GetHistoryRecord {
+            replica_sync::state_machine::Output::GetHistoryRecord {
                 id: p2p::RoomHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc")),
             },
             &mut room,
-            room_sync::LamportClock::default(),
+            replica_sync::LamportClock::default(),
             p2p::HistoryByteCount::from(1_u64),
             std::time::Duration::from_secs(1),
             &mut pending,

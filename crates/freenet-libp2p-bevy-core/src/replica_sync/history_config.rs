@@ -28,11 +28,11 @@ mod tests {
     use std::time::Duration;
 
     use crate::p2p;
-    use crate::room_sync;
+    use crate::replica_sync;
 
     #[test]
     fn test_usage() {
-        let config = room_sync::HistoryConfig::default();
+        let config = replica_sync::HistoryConfig::default();
         assert_eq!(config.write_interval, Duration::from_secs(30));
         assert_eq!(config.record_ttl, Duration::from_secs(90));
         assert_eq!(

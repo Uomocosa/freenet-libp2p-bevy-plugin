@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::room_sync;
+use freenet_libp2p_bevy_plugin::replica_sync;
 
 use crate::starboard;
 
 pub fn send_local_draws(
     mut draws: MessageReader<starboard::input::PendingLocalDraw>,
-    mut pending: ResMut<room_sync::PendingOps<starboard::canvas::Canvas>>,
+    mut pending: ResMut<replica_sync::PendingOps<starboard::canvas::Canvas>>,
 ) {
     for draw in draws.read() {
         pending.send((**draw).clone());
@@ -15,7 +15,7 @@ pub fn send_local_draws(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
-    use freenet_libp2p_bevy_plugin::room_sync;
+    use freenet_libp2p_bevy_plugin::replica_sync;
 
     use super::send_local_draws;
     use crate::starboard;
@@ -24,7 +24,7 @@ mod tests {
     fn test_usage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>();
+        app.init_resource::<replica_sync::PendingOps<starboard::canvas::Canvas>>();
         app.add_message::<starboard::input::PendingLocalDraw>();
         app.add_systems(Update, send_local_draws);
 
@@ -41,7 +41,7 @@ mod tests {
 
         let pending = app
             .world()
-            .resource::<room_sync::PendingOps<starboard::canvas::Canvas>>();
+            .resource::<replica_sync::PendingOps<starboard::canvas::Canvas>>();
         assert_eq!(pending.ops.len(), 1);
         assert_eq!(
             pending

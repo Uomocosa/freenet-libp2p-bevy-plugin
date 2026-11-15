@@ -1,9 +1,9 @@
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn retry_fetch<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
-    if state.phase != room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember {
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
+    if state.phase != replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember {
         return Vec::new();
     }
     let next = state.fetch_next();
@@ -22,13 +22,13 @@ pub fn retry_fetch<Op>(
     let part = (0..state.member_snapshot.total_parts)
         .find(|index| !state.member_snapshot.received_parts.contains_key(index))
         .unwrap_or(state.member_snapshot.total_parts);
-    vec![room_sync::state_machine::Output::FetchSnapshotPartFromRoomMember { peer, room, part }]
+    vec![replica_sync::state_machine::Output::FetchSnapshotPartFromRoomMember { peer, room, part }]
 }
 
 #[cfg(test)]
 mod tests {
     use super::retry_fetch;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {

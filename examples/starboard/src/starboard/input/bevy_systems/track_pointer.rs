@@ -1,7 +1,7 @@
 use bevy::picking::pointer::{PointerId, PointerLocation};
 use bevy::prelude::*;
 use freenet_libp2p_bevy_plugin::lobby_room::ui;
-use freenet_libp2p_bevy_plugin::room_sync;
+use freenet_libp2p_bevy_plugin::replica_sync;
 
 use crate::starboard;
 
@@ -12,7 +12,7 @@ pub fn track_pointer(
     pointers: Query<(&PointerId, &PointerLocation)>,
     time: Res<Time>,
     brush: Res<starboard::input::OwnBrush>,
-    clock: Res<room_sync::LamportClock>,
+    clock: Res<replica_sync::LamportClock>,
     mut latest_painted: ResMut<starboard::input::LatestPaintedCell>,
     mut pending: ResMut<starboard::input::PendingPressState>,
     mut draws: MessageWriter<starboard::input::PendingLocalDraw>,
@@ -101,7 +101,7 @@ mod tests {
     use bevy::prelude::*;
     use bevy::time::TimeUpdateStrategy;
     use freenet_libp2p_bevy_plugin::lobby_room::ui;
-    use freenet_libp2p_bevy_plugin::room_sync;
+    use freenet_libp2p_bevy_plugin::replica_sync;
 
     use std::ops::{Mul, Sub};
 
@@ -116,10 +116,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
-        app.init_resource::<room_sync::PendingOps<starboard::canvas::Canvas>>();
+        app.init_resource::<replica_sync::PendingOps<starboard::canvas::Canvas>>();
         app.insert_resource(starboard::render::CanvasView::fit(Vec2::splat(1024.0)));
         app.insert_resource(starboard::input::OwnBrush::default());
-        app.init_resource::<room_sync::LamportClock>();
+        app.init_resource::<replica_sync::LamportClock>();
         app.init_resource::<starboard::input::LatestPaintedCell>();
         app.init_resource::<starboard::input::PendingPressState>();
         app.init_resource::<starboard::input::CursorCell>();
@@ -174,7 +174,7 @@ mod tests {
 
     fn sent(app: &App) -> Vec<DrawOp> {
         app.world()
-            .resource::<room_sync::PendingOps<starboard::canvas::Canvas>>()
+            .resource::<replica_sync::PendingOps<starboard::canvas::Canvas>>()
             .ops
             .clone()
     }
@@ -182,7 +182,7 @@ mod tests {
     /// Stands in for core's `write_ops`, which ticks the clock once per op it writes.
     fn tick_once_per_sent_op(app: &mut App) {
         let count = sent(app).len();
-        let mut clock = app.world_mut().resource_mut::<room_sync::LamportClock>();
+        let mut clock = app.world_mut().resource_mut::<replica_sync::LamportClock>();
         for _ in 0..count {
             clock.tick();
         }
@@ -492,7 +492,7 @@ mod tests {
     fn a_press_after_observing_a_remote_op_ranks_above_it() {
         let mut app = app_with_pointer();
         app.world_mut()
-            .resource_mut::<room_sync::LamportClock>()
+            .resource_mut::<replica_sync::LamportClock>()
             .observe(50);
         point_at(&mut app, Vec2::new(100.0, 100.0));
         press(&mut app, MouseButton::Left);

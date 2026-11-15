@@ -12,7 +12,7 @@ impl From<&[u8]> for ReplicaSliceContentHash {
 
 #[cfg(test)]
 mod tests {
-    use crate::room_sync::ReplicaSliceContentHash;
+    use crate::replica_sync::ReplicaSliceContentHash;
 
     #[test]
     fn test_usage() {

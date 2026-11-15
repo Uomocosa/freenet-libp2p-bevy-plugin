@@ -2,7 +2,7 @@ use crate::discovery as core_discovery;
 use crate::ui;
 use bevy::prelude::App;
 use bevy::prelude::*;
-use freenet_libp2p_bevy_core::room_sync;
+use freenet_libp2p_bevy_core::replica_sync;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LobbyRoomUiPlugin;
@@ -18,7 +18,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
         app.init_resource::<ui::discovery::FriendsPressBeat>();
         app.init_resource::<ButtonInput<KeyCode>>();
         app.add_message::<core_discovery::Event>();
-        app.add_message::<room_sync::JoinFailure>();
+        app.add_message::<replica_sync::JoinFailure>();
         app.add_systems(OnEnter(Screen::Connecting), systems::spawn_connecting);
         app.add_systems(OnEnter(Screen::Lobby), systems::spawn_root);
         app.add_systems(OnEnter(Screen::JoiningRoom), systems::spawn_joining_room);

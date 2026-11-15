@@ -2,7 +2,7 @@ use crate::identity;
 use crate::p2p;
 use libp2p::request_response;
 
-pub fn handle_room_sync<Payload: p2p::traits::Message>(
+pub fn handle_replica_sync<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     peer: &libp2p::PeerId,
     message: request_response::Message<p2p::SnapshotRequest, p2p::SnapshotResponse>,
@@ -43,7 +43,7 @@ pub fn handle_room_sync<Payload: p2p::traits::Message>(
             response,
             ..
         } => {
-            state.room_sync_requests_in_flight.remove(&request_id);
+            state.replica_sync_requests_in_flight.remove(&request_id);
             tracing::debug!(target: "p2p", peer = %peer, "snapshot response received");
             let from = identity::PeerId(peer.to_string());
             let event = match response {
@@ -80,7 +80,7 @@ pub fn handle_room_sync<Payload: p2p::traits::Message>(
 mod tests {
     use libp2p::request_response;
 
-    use super::handle_room_sync;
+    use super::handle_replica_sync;
     use crate::identity;
     use crate::p2p;
 
@@ -89,14 +89,14 @@ mod tests {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let peer = libp2p::PeerId::random();
         let room = identity::RoomName::from("room-1");
-        let request_id = state.swarm.behaviour_mut().room_sync.send_request(
+        let request_id = state.swarm.behaviour_mut().replica_sync.send_request(
             &peer,
             p2p::SnapshotRequest::Fetch {
                 room: room.clone(),
                 part: 0,
             },
         );
-        handle_room_sync(
+        handle_replica_sync(
             &mut state,
             &peer,
             request_response::Message::Response {

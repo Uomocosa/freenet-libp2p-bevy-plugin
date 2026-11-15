@@ -83,7 +83,7 @@ impl PeerMessageRouter {
         command: p2p::Libp2pCommand,
     ) -> Vec<testing::RoutedEvent> {
     }
-    pub(crate) fn serve_room_sync_command(
+    pub(crate) fn serve_replica_sync_command(
         &mut self,
         from: &identity::PeerId,
         command: p2p::Libp2pCommand,
@@ -104,7 +104,7 @@ mod tests {
     use super::PeerMessageRouter;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync;
+    use crate::replica_sync;
     use crate::testing;
 
     fn registered(router: &mut testing::PeerMessageRouter, id: &str) -> identity::PeerId {
@@ -337,7 +337,7 @@ mod tests {
         let requester = registered(&mut router, "a");
         dialed(&mut router, &requester, "b");
         let room = identity::RoomName::from("room-a");
-        let events = router.serve_room_sync_command(
+        let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchSnapshot {
                 peer_id: identity::PeerId::from("b"),
@@ -357,7 +357,7 @@ mod tests {
             _ => p2p::ReplyId(0),
         };
         let responder = identity::PeerId::from("b");
-        let events = router.serve_room_sync_command(
+        let events = router.serve_replica_sync_command(
             &responder,
             p2p::Libp2pCommand::RespondSnapshot {
                 id: request_id,
@@ -390,7 +390,7 @@ mod tests {
         let requester = registered(&mut router, "a");
         registered(&mut router, "b");
         let room = identity::RoomName::from("room-a");
-        let events = router.serve_room_sync_command(
+        let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchSnapshot {
                 peer_id: identity::PeerId::from("b"),
@@ -402,7 +402,7 @@ mod tests {
             events,
             vec![testing::RoutedEvent {
                 to: requester,
-                event: p2p::Libp2pEvent::RoomSyncRequestFailed {
+                event: p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                     from: identity::PeerId::from("b"),
                     request: p2p::SnapshotRequest::Fetch { room, part: 2 },
                 },
@@ -415,23 +415,23 @@ mod tests {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
         let requester = registered(&mut router, "a");
         let room = identity::RoomName::from("room-a");
-        let events = router.serve_room_sync_command(
+        let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchReplicaSlice {
                 peer_id: identity::PeerId::from("ghost"),
                 room: room.clone(),
-                index: room_sync::ReplicaSliceIndex(1),
+                index: replica_sync::ReplicaSliceIndex(1),
             },
         );
         assert_eq!(
             events,
             vec![testing::RoutedEvent {
                 to: requester,
-                event: p2p::Libp2pEvent::RoomSyncRequestFailed {
+                event: p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                     from: identity::PeerId::from("ghost"),
                     request: p2p::SnapshotRequest::FetchReplicaSlice {
                         room,
-                        index: room_sync::ReplicaSliceIndex(1),
+                        index: replica_sync::ReplicaSliceIndex(1),
                     },
                 },
             }]
@@ -444,8 +444,8 @@ mod tests {
         let requester = registered(&mut router, "a");
         dialed(&mut router, &requester, "b");
         let room = identity::RoomName::from("room-a");
-        let index = room_sync::ReplicaSliceIndex(3);
-        let events = router.serve_room_sync_command(
+        let index = replica_sync::ReplicaSliceIndex(3);
+        let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchReplicaSlice {
                 peer_id: identity::PeerId::from("b"),
@@ -465,7 +465,7 @@ mod tests {
             _ => p2p::ReplyId(0),
         };
         let responder = identity::PeerId::from("b");
-        let events = router.serve_room_sync_command(
+        let events = router.serve_replica_sync_command(
             &responder,
             p2p::Libp2pCommand::RespondSnapshot {
                 id: request_id,
@@ -496,7 +496,7 @@ mod tests {
         let requester = registered(&mut router, "a");
         dialed(&mut router, &requester, "b");
         let room = identity::RoomName::from("room-a");
-        let events = router.serve_room_sync_command(
+        let events = router.serve_replica_sync_command(
             &requester,
             p2p::Libp2pCommand::FetchSnapshot {
                 peer_id: identity::PeerId::from("b"),
@@ -509,7 +509,7 @@ mod tests {
             _ => p2p::ReplyId(0),
         };
         let responder = identity::PeerId::from("b");
-        let events = router.serve_room_sync_command(
+        let events = router.serve_replica_sync_command(
             &responder,
             p2p::Libp2pCommand::RespondSnapshot {
                 id: request_id,
@@ -532,7 +532,7 @@ mod tests {
     fn replies_to_unknown_ids_are_dropped() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
         let responder = registered(&mut router, "b");
-        let events = router.serve_room_sync_command(
+        let events = router.serve_replica_sync_command(
             &responder,
             p2p::Libp2pCommand::RespondSnapshot {
                 id: p2p::ReplyId(99),

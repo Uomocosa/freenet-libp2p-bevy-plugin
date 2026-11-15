@@ -11,7 +11,7 @@ use crate::p2p;
 pub struct Behaviour<Payload: p2p::traits::Message> {
     pub request_response: request_response::Behaviour<p2p::MessageCodec<Payload>>,
     pub peer_exchange: request_response::Behaviour<p2p::MessageCodec<Vec<u8>>>,
-    pub room_sync:
+    pub replica_sync:
         request_response::Behaviour<p2p::MessageCodec<p2p::SnapshotRequest, p2p::SnapshotResponse>>,
     pub kademlia: kad::Behaviour<MemoryStore>,
     pub identify: identify::Behaviour,

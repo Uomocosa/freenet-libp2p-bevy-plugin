@@ -1,5 +1,5 @@
 pub use freenet_libp2p_bevy_core::{
-    direct_dial, identity, p2p, peers, plugin, presence, room_sync, time,
+    direct_dial, identity, p2p, peers, plugin, presence, replica_sync, time,
 };
 
 pub mod discovery;

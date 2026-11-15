@@ -1,16 +1,16 @@
 use crate::identity;
 use crate::p2p;
 use crate::peers;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub type ReplicaSliceContentHashes = Vec<(
-    room_sync::ReplicaSliceIndex,
-    room_sync::ReplicaSliceContentHash,
+    replica_sync::ReplicaSliceIndex,
+    replica_sync::ReplicaSliceContentHash,
 )>;
 
 pub type RoomDetails<'a> = (
     &'a identity::RoomName,
     Option<&'a p2p::HistoryKeyPrefix>,
-    Option<&'a room_sync::state_machine::RoomLiveness>,
+    Option<&'a replica_sync::state_machine::RoomLiveness>,
     Option<&'a peers::RoomMembers>,
 );

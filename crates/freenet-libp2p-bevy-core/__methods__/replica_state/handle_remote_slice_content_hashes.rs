@@ -1,18 +1,18 @@
 use crate::identity;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn handle_remote_slice_content_hashes<Op>(
-    state: &room_sync::state_machine::ReplicaState<Op>,
+    state: &replica_sync::state_machine::ReplicaState<Op>,
     from: &identity::PeerId,
-    local: &room_sync::ReplicaSliceContentHashes,
-    remote: &room_sync::ReplicaSliceContentHashes,
-) -> Vec<room_sync::state_machine::Output<Op>> {
-    if state.phase != room_sync::state_machine::Phase::Ready {
-        tracing::debug!(target: "room_sync", "anti-entropy ignored phase={:?} reason=remote-hashes-not-ready", state.phase);
+    local: &replica_sync::ReplicaSliceContentHashes,
+    remote: &replica_sync::ReplicaSliceContentHashes,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
+    if state.phase != replica_sync::state_machine::Phase::Ready {
+        tracing::debug!(target: "replica_sync", "anti-entropy ignored phase={:?} reason=remote-hashes-not-ready", state.phase);
         return Vec::new();
     }
     let Some(room) = state.room.clone() else {
-        tracing::debug!(target: "room_sync", "anti-entropy ignored phase={:?} reason=remote-hashes-no-room", state.phase);
+        tracing::debug!(target: "replica_sync", "anti-entropy ignored phase={:?} reason=remote-hashes-no-room", state.phase);
         return Vec::new();
     };
     let max_fetches = state.slice_anti_entropy.max_fetches_per_peer;
@@ -21,8 +21,8 @@ pub fn handle_remote_slice_content_hashes<Op>(
         .fetches_awaiting_reply
         .get(from)
         .map_or(0, std::collections::BTreeMap::len);
-    let outputs: Vec<room_sync::state_machine::Output<Op>> =
-        room_sync::ReplicaSliceIndex::from_hash_mismatches(local, remote)
+    let outputs: Vec<replica_sync::state_machine::Output<Op>> =
+        replica_sync::ReplicaSliceIndex::from_hash_mismatches(local, remote)
             .into_iter()
             .filter(|index| {
                 !state
@@ -33,14 +33,14 @@ pub fn handle_remote_slice_content_hashes<Op>(
             })
             .take(max_fetches.saturating_sub(awaiting_len))
             .map(
-                |index| room_sync::state_machine::Output::FetchReplicaSlice {
+                |index| replica_sync::state_machine::Output::FetchReplicaSlice {
                     peer: from.clone(),
                     room: room.clone(),
                     index,
                 },
             )
             .collect();
-    tracing::debug!(target: "room_sync", "anti-entropy compare fetches={}", outputs.len());
+    tracing::debug!(target: "replica_sync", "anti-entropy compare fetches={}", outputs.len());
     outputs
 }
 
@@ -48,13 +48,13 @@ pub fn handle_remote_slice_content_hashes<Op>(
 mod tests {
     use super::handle_remote_slice_content_hashes;
     use crate::identity;
-    use crate::room_sync;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {
         let state = ReplicaState::<u8>::default();
-        let local = room_sync::ReplicaSliceContentHashes::default();
+        let local = replica_sync::ReplicaSliceContentHashes::default();
         let outputs = handle_remote_slice_content_hashes(
             &state,
             &identity::PeerId::from("peer"),

@@ -17,7 +17,7 @@ pub struct SwarmLoopState<Payload: p2p::traits::Message> {
     pub(crate) event_tx: tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     pub(crate) subscriptions: p2p::swarm_loop::RoomSubscriptions,
     pub(crate) snapshot_replies: p2p::swarm_loop::PendingSnapshotReplies,
-    pub(crate) room_sync_requests_in_flight:
+    pub(crate) replica_sync_requests_in_flight:
         BTreeMap<request_response::OutboundRequestId, p2p::SnapshotRequest>,
     pub(crate) listen_addrs: Vec<identity::PeerAddr>,
     pub(crate) ready_deadline: Option<tokio::time::Instant>,
@@ -38,7 +38,7 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
             event_tx,
             subscriptions,
             snapshot_replies,
-            room_sync_requests_in_flight: BTreeMap::new(),
+            replica_sync_requests_in_flight: BTreeMap::new(),
             listen_addrs: Vec::new(),
             ready_deadline: None,
             mode,
@@ -83,7 +83,7 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
     }
     pub fn remove_history_records(&mut self, prefix: &p2p::HistoryKeyPrefix) {}
     pub fn seed_kad_peer(&mut self, peer_id: &identity::PeerId, addrs: &[identity::PeerAddr]) {}
-    pub fn send_room_sync_request(
+    pub fn send_replica_sync_request(
         &mut self,
         peer_id: &identity::PeerId,
         request: p2p::SnapshotRequest,
@@ -106,7 +106,7 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
         message: request_response::Message<Vec<u8>, Vec<u8>>,
     ) {
     }
-    pub fn handle_room_sync(
+    pub fn handle_replica_sync(
         &mut self,
         peer: &libp2p::PeerId,
         message: request_response::Message<p2p::SnapshotRequest, p2p::SnapshotResponse>,
@@ -261,7 +261,7 @@ mod tests {
     use super::SwarmLoopState;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync;
+    use crate::replica_sync;
     use libp2p::gossipsub;
     use libp2p::gossipsub::IdentTopic;
     use libp2p::identity::Keypair;
@@ -470,7 +470,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_fetch_snapshot_sends_room_sync_failure() {
+    fn invalid_fetch_snapshot_sends_replica_sync_failure() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let peer = identity::PeerId::from("not-a-peer-id");
         let room = identity::RoomName::from("r");
@@ -479,7 +479,7 @@ mod tests {
             room: room.clone(),
             part: 0,
         });
-        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::RoomSyncRequestFailed { from, request })) =
+        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::ReplicaSyncRequestFailed { from, request })) =
             rx.try_recv()
         else {
             panic!("expected a room sync failure");
@@ -489,17 +489,17 @@ mod tests {
     }
 
     #[test]
-    fn invalid_fetch_slice_sends_room_sync_failure() {
+    fn invalid_fetch_slice_sends_replica_sync_failure() {
         let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
         let peer = identity::PeerId::from("not-a-peer-id");
         let room = identity::RoomName::from("r");
-        let index = room_sync::ReplicaSliceIndex(2);
+        let index = replica_sync::ReplicaSliceIndex(2);
         state.dispatch_libp2p_command(p2p::Libp2pCommand::FetchReplicaSlice {
             peer_id: peer.clone(),
             room: room.clone(),
             index,
         });
-        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::RoomSyncRequestFailed { from, request })) =
+        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::ReplicaSyncRequestFailed { from, request })) =
             rx.try_recv()
         else {
             panic!("expected a room sync failure");

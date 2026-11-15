@@ -32,24 +32,24 @@ pub fn handle_swarm_event<Payload: p2p::traits::Message>(
         )) => {
             state.handle_peer_exchange(&peer, message);
         }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RoomSync(
+        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::ReplicaSync(
             request_response::Event::Message { peer, message, .. },
         )) => {
-            state.handle_room_sync(&peer, message);
+            state.handle_replica_sync(&peer, message);
         }
-        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::RoomSync(
+        SwarmEvent::Behaviour(p2p::behaviour::BehaviourEvent::ReplicaSync(
             request_response::Event::OutboundFailure {
                 peer, request_id, ..
             },
         )) => {
-            let Some(request) = state.room_sync_requests_in_flight.remove(&request_id) else {
+            let Some(request) = state.replica_sync_requests_in_flight.remove(&request_id) else {
                 tracing::debug!(target: "p2p", peer = %peer, "room sync failure without a tracked request");
                 return;
             };
             state
                 .event_tx
                 .send(p2p::Event::Libp2p(
-                    p2p::Libp2pEvent::RoomSyncRequestFailed {
+                    p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                         from: identity::PeerId(peer.to_string()),
                         request,
                     },

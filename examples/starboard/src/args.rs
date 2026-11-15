@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
 use freenet_libp2p_bevy_plugin::p2p::TransportMode;
-use freenet_libp2p_bevy_plugin::{identity, room_sync};
+use freenet_libp2p_bevy_plugin::{identity, replica_sync};
 use starboard::starboard;
 
 #[derive(Debug, Parser)]
@@ -48,10 +48,10 @@ impl Args {
                 ttl: Duration::from_secs(90),
                 remote_clock_skew_margin: Duration::from_mins(10),
             },
-            history: room_sync::HistoryConfig {
+            history: replica_sync::HistoryConfig {
                 write_interval: Duration::from_secs(30),
                 record_ttl: Duration::from_mins(10),
-                ..room_sync::HistoryConfig::default()
+                ..replica_sync::HistoryConfig::default()
             },
         };
         let mut app = App::new();

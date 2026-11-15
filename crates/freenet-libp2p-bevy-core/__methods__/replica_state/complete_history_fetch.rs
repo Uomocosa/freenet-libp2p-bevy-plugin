@@ -1,23 +1,23 @@
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn complete_history_fetch<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
     prefix: p2p::HistoryKeyPrefix,
     manifest: p2p::HistoryManifest,
     bytes: Vec<u8>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     match state.phase {
-        room_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
-            state.phase = room_sync::state_machine::Phase::Ready;
-            let mut outputs = vec![room_sync::state_machine::Output::Merge { bytes }];
+        replica_sync::state_machine::Phase::FetchingHistoryFromKademlia => {
+            state.phase = replica_sync::state_machine::Phase::Ready;
+            let mut outputs = vec![replica_sync::state_machine::Output::Merge { bytes }];
             for (meta, op) in state.buffered_ops.drain(..) {
-                outputs.push(room_sync::state_machine::Output::Apply { meta, op });
+                outputs.push(replica_sync::state_machine::Output::Apply { meta, op });
             }
             outputs
         }
-        room_sync::state_machine::Phase::Ready => {
-            vec![room_sync::state_machine::Output::MergeAndWriteHistory {
+        replica_sync::state_machine::Phase::Ready => {
+            vec![replica_sync::state_machine::Output::MergeAndWriteHistory {
                 prefix,
                 stored_manifest: Some(manifest),
                 stored_snapshot: Some(bytes),
@@ -31,7 +31,7 @@ pub fn complete_history_fetch<Op>(
 mod tests {
     use super::complete_history_fetch;
     use crate::p2p;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {

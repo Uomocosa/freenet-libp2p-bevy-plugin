@@ -27,7 +27,7 @@ pub struct Topic(pub String);
 #[atomic_delegates]
 impl Topic {
     pub fn from_room(game: &identity::GameId, room: &identity::RoomName) -> Topic {}
-    pub fn from_room_sync(game: &identity::GameId, room: &identity::RoomName) -> Topic {}
+    pub fn from_replica_sync(game: &identity::GameId, room: &identity::RoomName) -> Topic {}
 }
 
 #[cfg(test)]

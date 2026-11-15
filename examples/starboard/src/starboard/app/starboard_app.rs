@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::window::Window;
 use freenet_libp2p_bevy_plugin::lobby_room::{LobbyRoomPlugins, discovery};
 use freenet_libp2p_bevy_plugin::p2p::{MdnsMode, TransportMode};
-use freenet_libp2p_bevy_plugin::{direct_dial, identity, plugin, room_sync};
+use freenet_libp2p_bevy_plugin::{direct_dial, identity, plugin, replica_sync};
 
 use crate::starboard::app::StarboardPlugin;
 use crate::starboard::canvas::Canvas;
@@ -18,7 +18,7 @@ pub struct StarboardApp {
     pub peer_book_file: Option<PathBuf>,
     pub freenet_port: u16,
     pub lease: discovery::HolderHeartbeatIntervals,
-    pub history: room_sync::HistoryConfig,
+    pub history: replica_sync::HistoryConfig,
 }
 
 impl StarboardApp {
@@ -53,7 +53,7 @@ impl Plugin for StarboardApp {
             ..discovery::Config::default()
         }));
         app.add_plugins(
-            room_sync::SyncPlugin::<Canvas>::new(self.game.clone())
+            replica_sync::SyncPlugin::<Canvas>::new(self.game.clone())
                 .with_history_config(Some(self.history)),
         );
         app.add_plugins(StarboardPlugin);

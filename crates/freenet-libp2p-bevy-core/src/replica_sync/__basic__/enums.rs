@@ -2,10 +2,10 @@ use bevy::prelude::SystemSet;
 use serde::{Deserialize, Serialize};
 
 use crate::identity;
-use crate::room_sync;
+use crate::replica_sync;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum RoomSyncSet {
+pub enum ReplicaSyncSet {
     Input,
     Drive,
 }
@@ -14,11 +14,11 @@ pub enum RoomSyncSet {
 pub enum ReplicaSyncTopicMessage<Op> {
     ApplyThisOp {
         room: identity::RoomName,
-        meta: room_sync::OpMeta,
+        meta: replica_sync::OpMeta,
         op: Op,
     },
     CompareSliceContentHashes {
         room: identity::RoomName,
-        hashes: room_sync::ReplicaSliceContentHashes,
+        hashes: replica_sync::ReplicaSliceContentHashes,
     },
 }

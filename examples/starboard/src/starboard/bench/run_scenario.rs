@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
-use freenet_libp2p_bevy_plugin::{identity, p2p, room_sync};
+use freenet_libp2p_bevy_plugin::{identity, p2p, replica_sync};
 use tokio::sync::broadcast;
 
 use crate::starboard;
@@ -38,9 +38,9 @@ impl TapTally {
     ) -> starboard::bench::BenchReport {
         let announcement_bytes = apps.first().map_or(0, |app| {
             let canvas = app.world().resource::<starboard::canvas::Canvas>();
-            let message = room_sync::ReplicaSyncTopicMessage::<starboard::canvas::DrawOp>::CompareSliceContentHashes {
+            let message = replica_sync::ReplicaSyncTopicMessage::<starboard::canvas::DrawOp>::CompareSliceContentHashes {
                 room: room.clone(),
-                hashes: room_sync::traits::ReplicatedState::slice_content_hashes(canvas),
+                hashes: replica_sync::traits::ReplicatedState::slice_content_hashes(canvas),
             };
             bincode::serialized_size(&message)
                 .ok()
@@ -170,11 +170,12 @@ impl TapTally {
                         }
                         self.count_bytes(peer_ids, &from, data.len());
                         let Ok(message) = bincode::deserialize::<
-                            room_sync::ReplicaSyncTopicMessage<starboard::canvas::DrawOp>,
+                            replica_sync::ReplicaSyncTopicMessage<starboard::canvas::DrawOp>,
                         >(&data) else {
                             continue;
                         };
-                        if let room_sync::ReplicaSyncTopicMessage::ApplyThisOp { op, .. } = message
+                        if let replica_sync::ReplicaSyncTopicMessage::ApplyThisOp { op, .. } =
+                            message
                         {
                             let key = starboard::bench::op_ends(&op);
                             if let Some(sent_at) = self.pending.get(&key) {
@@ -214,7 +215,7 @@ pub async fn run_scenario(
 ) -> starboard::bench::BenchReport {
     let game = identity::GameId::from(starboard::bench::BENCH_GAME);
     let room = identity::RoomName::from(starboard::bench::BENCH_ROOM);
-    let topic = identity::Topic::from_room_sync(&game, &room);
+    let topic = identity::Topic::from_replica_sync(&game, &room);
     let mut apps: Vec<App> = (0..config.peers)
         .map(|_| starboard::app::test_harness::node_with(&game, None))
         .collect();

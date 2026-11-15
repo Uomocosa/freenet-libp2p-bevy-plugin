@@ -7,7 +7,7 @@ pub use basic::constants::HISTORY_RECORD_REPLY_TIMEOUT;
 pub use basic::constants::PART_BYTES;
 pub use basic::constants::REPLICA_SLICE_REPLY_TIMEOUT;
 pub use basic::constants::SNAPSHOT_PART_REPLY_TIMEOUT;
-pub use basic::enums::{ReplicaSyncTopicMessage, RoomSyncSet};
+pub use basic::enums::{ReplicaSyncSet, ReplicaSyncTopicMessage};
 pub use basic::messages::{JoinFailure, ReplicaInputFromTimer};
 pub use basic::newtypes::ElapsedSinceAppStart;
 pub use basic::resources::{AntiEntropyTimer, HistoryWriteTimer, SyncGame};

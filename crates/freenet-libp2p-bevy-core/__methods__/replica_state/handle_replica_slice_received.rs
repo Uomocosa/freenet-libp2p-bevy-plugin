@@ -1,14 +1,14 @@
 use crate::identity;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn handle_replica_slice_received<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
     from: &identity::PeerId,
     room: &identity::RoomName,
-    index: room_sync::ReplicaSliceIndex,
+    index: replica_sync::ReplicaSliceIndex,
     data: Vec<u8>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
-    tracing::debug!(target: "room_sync", "anti-entropy slice from={from} index={} bytes={}", *index, data.len());
+) -> Vec<replica_sync::state_machine::Output<Op>> {
+    tracing::debug!(target: "replica_sync", "anti-entropy slice from={from} index={} bytes={}", *index, data.len());
     if let Some(awaiting) = state
         .slice_anti_entropy
         .fetches_awaiting_reply
@@ -19,16 +19,16 @@ pub fn handle_replica_slice_received<Op>(
     if state.room.as_ref() != Some(room) {
         return Vec::new();
     }
-    tracing::debug!(target: "room_sync", "anti-entropy slice index={} merged", *index);
-    vec![room_sync::state_machine::Output::Merge { bytes: data }]
+    tracing::debug!(target: "replica_sync", "anti-entropy slice index={} merged", *index);
+    vec![replica_sync::state_machine::Output::Merge { bytes: data }]
 }
 
 #[cfg(test)]
 mod tests {
     use super::handle_replica_slice_received;
     use crate::identity;
-    use crate::room_sync;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {
@@ -37,7 +37,7 @@ mod tests {
             &mut state,
             &identity::PeerId::from("peer"),
             &identity::RoomName::from("room"),
-            room_sync::ReplicaSliceIndex(0),
+            replica_sync::ReplicaSliceIndex(0),
             Vec::new(),
         );
         assert_eq!(outputs, Vec::new());

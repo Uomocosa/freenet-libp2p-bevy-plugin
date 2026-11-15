@@ -1,19 +1,19 @@
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 #[must_use]
 pub fn handle_fetch<Op>(
-    state: &room_sync::state_machine::ReplicaState<Op>,
+    state: &replica_sync::state_machine::ReplicaState<Op>,
     id: p2p::ReplyId,
     room: identity::RoomName,
     part: u32,
-) -> Vec<room_sync::state_machine::Output<Op>> {
-    tracing::debug!(target: "room_sync", "snapshot fetch requested room={:?} part={}", room, part);
+) -> Vec<replica_sync::state_machine::Output<Op>> {
+    tracing::debug!(target: "replica_sync", "snapshot fetch requested room={:?} part={}", room, part);
     if state.room.is_none() {
         return Vec::new();
     }
-    vec![room_sync::state_machine::Output::SendSnapshotPartToRoomMember { id, room, part }]
+    vec![replica_sync::state_machine::Output::SendSnapshotPartToRoomMember { id, room, part }]
 }
 
 #[cfg(test)]
@@ -21,7 +21,7 @@ mod tests {
     use super::handle_fetch;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync::state_machine::ReplicaState;
+    use crate::replica_sync::state_machine::ReplicaState;
 
     #[test]
     fn test_usage() {

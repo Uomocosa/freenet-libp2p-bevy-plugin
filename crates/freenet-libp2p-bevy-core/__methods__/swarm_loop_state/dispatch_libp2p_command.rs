@@ -60,14 +60,14 @@ pub fn dispatch_libp2p_command<Payload: p2p::traits::Message>(
             room,
             part,
         } => {
-            state.send_room_sync_request(&peer_id, p2p::SnapshotRequest::Fetch { room, part });
+            state.send_replica_sync_request(&peer_id, p2p::SnapshotRequest::Fetch { room, part });
         }
         p2p::Libp2pCommand::FetchReplicaSlice {
             peer_id,
             room,
             index,
         } => {
-            state.send_room_sync_request(
+            state.send_replica_sync_request(
                 &peer_id,
                 p2p::SnapshotRequest::FetchReplicaSlice { room, index },
             );
@@ -78,7 +78,7 @@ pub fn dispatch_libp2p_command<Payload: p2p::traits::Message>(
                 let _ = state
                     .swarm
                     .behaviour_mut()
-                    .room_sync
+                    .replica_sync
                     .send_response(channel, frame);
             }
         }

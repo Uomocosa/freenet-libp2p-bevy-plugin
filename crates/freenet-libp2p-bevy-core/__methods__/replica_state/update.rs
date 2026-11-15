@@ -1,10 +1,10 @@
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn update<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-    input: room_sync::state_machine::Input<Op>,
-    now: room_sync::ElapsedSinceAppStart,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
+    input: replica_sync::state_machine::Input<Op>,
+    now: replica_sync::ElapsedSinceAppStart,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     let mut outputs = state.dispatch_input(input);
     let expired = state.expire_overdue_requests(now);
     outputs.extend(expired);
@@ -19,13 +19,13 @@ mod tests {
     use super::update;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync;
-    use crate::room_sync::state_machine::{Input, Phase, ReplicaState, RoomLiveness};
+    use crate::replica_sync;
+    use crate::replica_sync::state_machine::{Input, Phase, ReplicaState, RoomLiveness};
 
     #[test]
     fn test_usage() {
         let mut state = ReplicaState::<u8>::default();
-        let now = room_sync::ElapsedSinceAppStart::default();
+        let now = replica_sync::ElapsedSinceAppStart::default();
         let outputs = update(
             &mut state,
             Input::Joined {

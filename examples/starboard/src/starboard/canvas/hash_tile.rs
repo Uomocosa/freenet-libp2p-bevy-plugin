@@ -1,14 +1,14 @@
-use freenet_libp2p_bevy_plugin::room_sync;
+use freenet_libp2p_bevy_plugin::replica_sync;
 
 use crate::starboard;
 
 #[must_use]
-pub fn hash_tile(tile: &starboard::canvas::Tile) -> room_sync::ReplicaSliceContentHash {
+pub fn hash_tile(tile: &starboard::canvas::Tile) -> replica_sync::ReplicaSliceContentHash {
     let mut bytes = Vec::with_capacity(starboard::canvas::CELLS_PER_TILE.saturating_mul(24));
     for cell in tile.iter() {
         bytes.extend_from_slice(&bincode::serialize(cell).unwrap_or_default());
     }
-    room_sync::ReplicaSliceContentHash::from(bytes.as_slice())
+    replica_sync::ReplicaSliceContentHash::from(bytes.as_slice())
 }
 
 #[cfg(test)]

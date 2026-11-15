@@ -2,30 +2,30 @@ use bevy::prelude::*;
 
 use crate::p2p;
 use crate::peers;
-use crate::room_sync;
+use crate::replica_sync;
 
 type ReplicaInputSources<'a, 's, Op> = (
-    Res<'a, room_sync::bevy_systems::Libp2pEvents>,
-    MessageReader<'a, 's, room_sync::ReplicaInputFromTimer<Op>>,
+    Res<'a, replica_sync::bevy_systems::Libp2pEvents>,
+    MessageReader<'a, 's, replica_sync::ReplicaInputFromTimer<Op>>,
     Res<'a, Time<Real>>,
 );
 
-pub fn drive<Replica: room_sync::traits::ReplicatedState>(
-    mut failures: Option<MessageWriter<room_sync::JoinFailure>>,
+pub fn drive<Replica: replica_sync::traits::ReplicatedState>(
+    mut failures: Option<MessageWriter<replica_sync::JoinFailure>>,
     (libp2p_events, mut timer_inputs, real_time): ReplicaInputSources<'_, '_, Replica::Op>,
-    game: Res<room_sync::SyncGame>,
-    mut clock: ResMut<room_sync::LamportClock>,
-    mut state: ResMut<room_sync::bevy_systems::SyncState<Replica::Op>>,
+    game: Res<replica_sync::SyncGame>,
+    mut clock: ResMut<replica_sync::LamportClock>,
+    mut state: ResMut<replica_sync::bevy_systems::SyncState<Replica::Op>>,
     mut room: ResMut<Replica>,
     mut commands: MessageWriter<p2p::Libp2pCommand>,
     me_rooms: Query<&peers::InRoom, With<peers::Me>>,
-    room_details: Query<room_sync::RoomDetails<'_>>,
+    room_details: Query<replica_sync::RoomDetails<'_>>,
     member_peers: Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>,
 ) {
     let libp2p_events = libp2p_events.into_inner();
     let game = game.into_inner();
     let (room_commands, mut inputs) =
-        room_sync::bevy_systems::SyncState::<Replica::Op>::room_inputs_from_entities(
+        replica_sync::bevy_systems::SyncState::<Replica::Op>::room_inputs_from_entities(
             &mut state,
             game,
             &me_rooms,
@@ -34,7 +34,7 @@ pub fn drive<Replica: room_sync::traits::ReplicatedState>(
         );
     let mut pending = room_commands;
     for event in libp2p_events.drain() {
-        let input = room_sync::bevy_systems::SyncState::<Replica::Op>::libp2p_event_to_input(
+        let input = replica_sync::bevy_systems::SyncState::<Replica::Op>::libp2p_event_to_input(
             &event, &state, &mut clock, game, &*room,
         );
         inputs.extend(input);
@@ -42,16 +42,17 @@ pub fn drive<Replica: room_sync::traits::ReplicatedState>(
     for timer_input in timer_inputs.read() {
         inputs.push((**timer_input).clone());
     }
-    let now = room_sync::ElapsedSinceAppStart::from(real_time.elapsed());
+    let now = replica_sync::ElapsedSinceAppStart::from(real_time.elapsed());
     let per_room_bytes = state.kademlia_history.per_room_bytes;
     let record_ttl = state.kademlia_history.record_ttl;
     for input in inputs {
         for output in state.update(input, now) {
-            if let room_sync::state_machine::Output::FetchReplicaSlice { peer, index, .. } = &output
+            if let replica_sync::state_machine::Output::FetchReplicaSlice { peer, index, .. } =
+                &output
             {
-                tracing::debug!(target: "room_sync", "anti-entropy fetch peer={peer} index={}", **index);
+                tracing::debug!(target: "replica_sync", "anti-entropy fetch peer={peer} index={}", **index);
             }
-            room_sync::bevy_systems::SyncState::<Replica::Op>::perform(
+            replica_sync::bevy_systems::SyncState::<Replica::Op>::perform(
                 output,
                 &mut *room,
                 *clock,
@@ -78,7 +79,7 @@ mod tests {
     use crate::p2p;
     use crate::peers;
     use crate::plugin;
-    use crate::room_sync;
+    use crate::replica_sync;
     use crate::time;
 
     const SETTLE: Duration = Duration::from_millis(20);
@@ -95,11 +96,11 @@ mod tests {
         entries: BTreeMap<u8, u32>,
     }
 
-    impl room_sync::traits::ReplicatedState for Map {
+    impl replica_sync::traits::ReplicatedState for Map {
         type Op = Op;
         type Snapshot = Vec<(u8, u32)>;
 
-        fn apply(&mut self, _meta: room_sync::OpMeta, op: &Self::Op) {
+        fn apply(&mut self, _meta: replica_sync::OpMeta, op: &Self::Op) {
             self.entries.insert(op.key, op.value);
         }
 
@@ -116,8 +117,8 @@ mod tests {
             }
         }
 
-        fn slice_content_hashes(&self) -> room_sync::ReplicaSliceContentHashes {
-            let mut by_slice: BTreeMap<room_sync::ReplicaSliceIndex, Vec<(u8, u32)>> =
+        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
+            let mut by_slice: BTreeMap<replica_sync::ReplicaSliceIndex, Vec<(u8, u32)>> =
                 BTreeMap::new();
             for (key, value) in &self.entries {
                 by_slice
@@ -131,13 +132,13 @@ mod tests {
                     let bytes = bincode::serialize(&entries).unwrap_or_default();
                     (
                         index,
-                        room_sync::ReplicaSliceContentHash::from(bytes.as_slice()),
+                        replica_sync::ReplicaSliceContentHash::from(bytes.as_slice()),
                     )
                 })
                 .collect()
         }
 
-        fn slice_snapshot(&self, index: room_sync::ReplicaSliceIndex) -> Self::Snapshot {
+        fn slice_snapshot(&self, index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
             self.entries
                 .iter()
                 .filter(|(key, _)| slice_of(**key) == index)
@@ -146,18 +147,18 @@ mod tests {
         }
     }
 
-    fn slice_of(key: u8) -> room_sync::ReplicaSliceIndex {
-        room_sync::ReplicaSliceIndex(u32::from(key / 16))
+    fn slice_of(key: u8) -> replica_sync::ReplicaSliceIndex {
+        replica_sync::ReplicaSliceIndex(u32::from(key / 16))
     }
 
     fn node(game: &identity::GameId) -> App {
-        node_with(game, Some(room_sync::AntiEntropyConfig::default()), None)
+        node_with(game, Some(replica_sync::AntiEntropyConfig::default()), None)
     }
 
     fn node_with(
         game: &identity::GameId,
-        anti_entropy: Option<room_sync::AntiEntropyConfig>,
-        history: Option<room_sync::HistoryConfig>,
+        anti_entropy: Option<replica_sync::AntiEntropyConfig>,
+        history: Option<replica_sync::HistoryConfig>,
     ) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
@@ -166,7 +167,7 @@ mod tests {
                 .with_game(game.clone()),
         ));
         app.add_plugins(
-            room_sync::SyncPlugin::<Map>::new(game.clone())
+            replica_sync::SyncPlugin::<Map>::new(game.clone())
                 .with_anti_entropy_config(anti_entropy)
                 .with_history_config(history),
         );
@@ -198,7 +199,7 @@ mod tests {
         room: &identity::RoomName,
         members: Vec<identity::PeerId>,
         prefix: p2p::HistoryKeyPrefix,
-        liveness: room_sync::state_machine::RoomLiveness,
+        liveness: replica_sync::state_machine::RoomLiveness,
     ) {
         let room_entity = app.world_mut().spawn((room.clone(), prefix, liveness)).id();
         let me_entities: Vec<Entity> = app
@@ -242,7 +243,7 @@ mod tests {
             room,
             members,
             prefix,
-            room_sync::state_machine::RoomLiveness {
+            replica_sync::state_machine::RoomLiveness {
                 is_room_still_listed: listed,
                 has_other_history_holders: listed,
             },
@@ -260,7 +261,7 @@ mod tests {
         }
     }
 
-    fn set_liveness(app: &mut App, liveness: room_sync::state_machine::RoomLiveness) {
+    fn set_liveness(app: &mut App, liveness: replica_sync::state_machine::RoomLiveness) {
         let target: Option<Entity> = app
             .world_mut()
             .query_filtered::<&peers::InRoom, With<peers::Me>>()
@@ -308,7 +309,7 @@ mod tests {
         app.update();
         assert!(
             app.world()
-                .get_resource::<room_sync::bevy_systems::SyncState<Op>>()
+                .get_resource::<replica_sync::bevy_systems::SyncState<Op>>()
                 .is_some()
         );
     }
@@ -371,7 +372,7 @@ mod tests {
         let interval = Duration::from_millis(500);
         let game = identity::GameId::from("game");
         let room = identity::RoomName::from("room-ae");
-        let config = Some(room_sync::AntiEntropyConfig {
+        let config = Some(replica_sync::AntiEntropyConfig {
             interval,
             max_slice_fetches_per_peer: 8,
         });
@@ -424,7 +425,7 @@ mod tests {
             } else {
                 apps[author]
                     .world_mut()
-                    .resource_mut::<room_sync::PendingOps<Map>>()
+                    .resource_mut::<replica_sync::PendingOps<Map>>()
                     .ops
                     .push(op);
             }
@@ -437,10 +438,10 @@ mod tests {
             for app in &mut apps {
                 app.update();
             }
-            let hashes: Vec<room_sync::ReplicaSliceContentHashes> = apps
+            let hashes: Vec<replica_sync::ReplicaSliceContentHashes> = apps
                 .iter()
                 .map(|app| {
-                    room_sync::traits::ReplicatedState::slice_content_hashes(
+                    replica_sync::traits::ReplicatedState::slice_content_hashes(
                         app.world().resource::<Map>(),
                     )
                 })
@@ -481,7 +482,7 @@ mod tests {
     async fn holders_keep_history_after_leaving_and_new_joiner_restores_board() {
         let game = identity::GameId::from("game-h3");
         let room = identity::RoomName::from("room-h3");
-        let history = Some(room_sync::HistoryConfig {
+        let history = Some(replica_sync::HistoryConfig {
             write_interval: Duration::from_millis(80),
             record_ttl: Duration::from_secs(90),
             per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
@@ -502,7 +503,7 @@ mod tests {
 
         let gen1 = time::UnixTime::now();
         let prefix = p2p::HistoryKeyPrefix::new(&game, &room, gen1);
-        let present = room_sync::state_machine::RoomLiveness {
+        let present = replica_sync::state_machine::RoomLiveness {
             is_room_still_listed: true,
             has_other_history_holders: true,
         };
@@ -563,7 +564,7 @@ mod tests {
     async fn recreated_room_generation_starts_empty() {
         let game = identity::GameId::from("game-recreate");
         let room = identity::RoomName::from("room-recreate");
-        let history = Some(room_sync::HistoryConfig::default());
+        let history = Some(replica_sync::HistoryConfig::default());
         let mut peer_d = node_with(&game, None, history);
         let _d = wait_ready(&mut peer_d);
         let generation = time::UnixTime::now();
@@ -572,7 +573,7 @@ mod tests {
             &room,
             Vec::new(),
             p2p::HistoryKeyPrefix::new(&game, &room, generation),
-            room_sync::state_machine::RoomLiveness {
+            replica_sync::state_machine::RoomLiveness {
                 is_room_still_listed: true,
                 has_other_history_holders: false,
             },
@@ -581,9 +582,9 @@ mod tests {
             peer_d.update();
             if peer_d
                 .world()
-                .resource::<room_sync::bevy_systems::SyncState<Op>>()
+                .resource::<replica_sync::bevy_systems::SyncState<Op>>()
                 .phase
-                == room_sync::state_machine::Phase::Ready
+                == replica_sync::state_machine::Phase::Ready
             {
                 break;
             }
@@ -592,9 +593,9 @@ mod tests {
         assert_eq!(
             peer_d
                 .world()
-                .resource::<room_sync::bevy_systems::SyncState<Op>>()
+                .resource::<replica_sync::bevy_systems::SyncState<Op>>()
                 .phase,
-            room_sync::state_machine::Phase::Ready
+            replica_sync::state_machine::Phase::Ready
         );
         assert!(peer_d.world().resource::<Map>().entries.is_empty());
     }
@@ -603,7 +604,7 @@ mod tests {
     async fn a_room_the_contract_has_not_confirmed_yet_is_not_gone() {
         let game = identity::GameId::from("game-new");
         let room = identity::RoomName::from("room-new");
-        let history = Some(room_sync::HistoryConfig::default());
+        let history = Some(replica_sync::HistoryConfig::default());
         let mut creator = node_with(&game, None, history);
         wait_ready(&mut creator);
         join_with(
@@ -611,7 +612,7 @@ mod tests {
             &room,
             Vec::new(),
             p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from_secs(1)),
-            room_sync::state_machine::RoomLiveness {
+            replica_sync::state_machine::RoomLiveness {
                 is_room_still_listed: true,
                 has_other_history_holders: false,
             },
@@ -628,24 +629,24 @@ mod tests {
 
     fn log_contains_joined_error(app: &mut App) -> bool {
         app.world_mut()
-            .resource_mut::<Messages<room_sync::JoinFailure>>()
+            .resource_mut::<Messages<replica_sync::JoinFailure>>()
             .drain()
             .any(|event| {
                 matches!(
                     event,
-                    room_sync::JoinFailure::RoomGone(_)
-                        | room_sync::JoinFailure::HistoryUnavailable(_)
+                    replica_sync::JoinFailure::RoomGone(_)
+                        | replica_sync::JoinFailure::HistoryUnavailable(_)
                 )
             })
     }
 
     fn emitted_room_gone(app: &mut App, expected: &identity::RoomName) -> bool {
         app.world_mut()
-            .resource_mut::<Messages<room_sync::JoinFailure>>()
+            .resource_mut::<Messages<replica_sync::JoinFailure>>()
             .drain()
             .any(|event| match event {
-                room_sync::JoinFailure::RoomGone(room) => &room == expected,
-                room_sync::JoinFailure::HistoryUnavailable(_) => false,
+                replica_sync::JoinFailure::RoomGone(room) => &room == expected,
+                replica_sync::JoinFailure::HistoryUnavailable(_) => false,
             })
     }
 
@@ -653,7 +654,7 @@ mod tests {
     async fn expired_holder_alone_is_gone_not_empty() {
         let game = identity::GameId::from("game-s4c");
         let room = identity::RoomName::from("room-s4c");
-        let history = Some(room_sync::HistoryConfig {
+        let history = Some(replica_sync::HistoryConfig {
             write_interval: Duration::from_secs(30),
             record_ttl: Duration::from_secs(90),
             per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
@@ -666,7 +667,7 @@ mod tests {
             &room,
             Vec::new(),
             p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::EPOCH),
-            room_sync::state_machine::RoomLiveness {
+            replica_sync::state_machine::RoomLiveness {
                 is_room_still_listed: false,
                 has_other_history_holders: false,
             },
@@ -681,9 +682,9 @@ mod tests {
             }
             if joiner
                 .world()
-                .resource::<room_sync::bevy_systems::SyncState<Op>>()
+                .resource::<replica_sync::bevy_systems::SyncState<Op>>()
                 .phase
-                == room_sync::state_machine::Phase::Ready
+                == replica_sync::state_machine::Phase::Ready
                 && joiner.world().resource::<Map>().entries.is_empty()
             {
                 panic!("S4c joiner accepted an empty board instead of reporting the room gone");
@@ -700,7 +701,7 @@ mod tests {
     async fn joiner_whose_lobby_holds_only_itself_sees_the_room_as_gone() {
         let game = identity::GameId::from("game-s4j");
         let room = identity::RoomName::from("room-s4j");
-        let history = Some(room_sync::HistoryConfig {
+        let history = Some(replica_sync::HistoryConfig {
             write_interval: Duration::from_secs(30),
             record_ttl: Duration::from_secs(90),
             per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
@@ -713,7 +714,7 @@ mod tests {
             &room,
             Vec::new(),
             p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::EPOCH),
-            room_sync::state_machine::RoomLiveness {
+            replica_sync::state_machine::RoomLiveness {
                 is_room_still_listed: false,
                 has_other_history_holders: false,
             },
@@ -728,9 +729,9 @@ mod tests {
             }
             if joiner
                 .world()
-                .resource::<room_sync::bevy_systems::SyncState<Op>>()
+                .resource::<replica_sync::bevy_systems::SyncState<Op>>()
                 .phase
-                == room_sync::state_machine::Phase::Ready
+                == replica_sync::state_machine::Phase::Ready
                 && joiner.world().resource::<Map>().entries.is_empty()
             {
                 panic!("S4b joiner accepted an empty board instead of reporting the room gone");
@@ -747,7 +748,7 @@ mod tests {
     async fn dead_room_and_mid_fetch_quit_emit_room_gone() {
         let game = identity::GameId::from("game-gone");
         let room = identity::RoomName::from("room-gone");
-        let history = Some(room_sync::HistoryConfig {
+        let history = Some(replica_sync::HistoryConfig {
             write_interval: Duration::from_secs(30),
             record_ttl: Duration::from_secs(90),
             per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
@@ -760,7 +761,7 @@ mod tests {
             &room,
             Vec::new(),
             p2p::HistoryKeyPrefix::new(&game, &room, time::UnixTime::from_secs(1)),
-            room_sync::state_machine::RoomLiveness {
+            replica_sync::state_machine::RoomLiveness {
                 is_room_still_listed: false,
                 has_other_history_holders: false,
             },
@@ -785,7 +786,7 @@ mod tests {
             &room,
             Vec::new(),
             p2p::HistoryKeyPrefix::new(&game, &room, generation),
-            room_sync::state_machine::RoomLiveness {
+            replica_sync::state_machine::RoomLiveness {
                 is_room_still_listed: true,
                 has_other_history_holders: true,
             },
@@ -794,14 +795,14 @@ mod tests {
         assert_eq!(
             mid_joiner
                 .world()
-                .resource::<room_sync::bevy_systems::SyncState<Op>>()
+                .resource::<replica_sync::bevy_systems::SyncState<Op>>()
                 .phase,
-            room_sync::state_machine::Phase::FetchingHistoryFromKademlia
+            replica_sync::state_machine::Phase::FetchingHistoryFromKademlia
         );
 
         set_liveness(
             &mut mid_joiner,
-            room_sync::state_machine::RoomLiveness {
+            replica_sync::state_machine::RoomLiveness {
                 is_room_still_listed: false,
                 has_other_history_holders: false,
             },

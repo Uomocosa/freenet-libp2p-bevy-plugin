@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Message)]
 pub enum Libp2pCommand {
@@ -48,7 +48,7 @@ pub enum Libp2pCommand {
     FetchReplicaSlice {
         peer_id: identity::PeerId,
         room: identity::RoomName,
-        index: room_sync::ReplicaSliceIndex,
+        index: replica_sync::ReplicaSliceIndex,
     },
     RespondSnapshot {
         id: p2p::ReplyId,
@@ -66,7 +66,7 @@ pub enum Libp2pCommand {
 
 #[atomic_delegates]
 impl Libp2pCommand {
-    pub fn merge_and_write_history_records<Replica: room_sync::traits::ReplicatedState>(
+    pub fn merge_and_write_history_records<Replica: replica_sync::traits::ReplicatedState>(
         replica: &mut Replica,
         prefix: &p2p::HistoryKeyPrefix,
         stored_manifest: Option<&p2p::HistoryManifest>,

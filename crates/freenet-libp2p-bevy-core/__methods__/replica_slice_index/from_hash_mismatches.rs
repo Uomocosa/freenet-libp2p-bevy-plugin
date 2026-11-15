@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
-use crate::room_sync;
+use crate::replica_sync;
 
 #[must_use]
 pub fn from_hash_mismatches(
-    local: &room_sync::ReplicaSliceContentHashes,
-    remote: &room_sync::ReplicaSliceContentHashes,
-) -> Vec<room_sync::ReplicaSliceIndex> {
+    local: &replica_sync::ReplicaSliceContentHashes,
+    remote: &replica_sync::ReplicaSliceContentHashes,
+) -> Vec<replica_sync::ReplicaSliceIndex> {
     let local_hash_by_index: BTreeMap<_, _> = local.iter().copied().collect();
     remote
         .iter()
@@ -17,7 +17,7 @@ pub fn from_hash_mismatches(
 
 #[cfg(test)]
 mod tests {
-    use crate::room_sync::{ReplicaSliceContentHash, ReplicaSliceIndex};
+    use crate::replica_sync::{ReplicaSliceContentHash, ReplicaSliceIndex};
 
     fn hashes(entries: &[(u32, u64)]) -> Vec<(ReplicaSliceIndex, ReplicaSliceContentHash)> {
         entries

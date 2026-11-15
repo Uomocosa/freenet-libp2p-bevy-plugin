@@ -1,17 +1,17 @@
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn expire_overdue_snapshot_part_request<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-    now: room_sync::ElapsedSinceAppStart,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
+    now: replica_sync::ElapsedSinceAppStart,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     let Some(at) = state.member_snapshot.part_requested_at else {
         return Vec::new();
     };
-    if (*now).saturating_sub(*at) < room_sync::SNAPSHOT_PART_REPLY_TIMEOUT {
+    if (*now).saturating_sub(*at) < replica_sync::SNAPSHOT_PART_REPLY_TIMEOUT {
         return Vec::new();
     }
     state.member_snapshot.part_requested_at = None;
-    tracing::debug!(target: "room_sync", "snapshot part request expired");
+    tracing::debug!(target: "replica_sync", "snapshot part request expired");
     state.retry_fetch()
 }
 
@@ -20,21 +20,21 @@ mod tests {
     use super::expire_overdue_snapshot_part_request;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync;
-    use crate::room_sync::state_machine::{Input, Output, ReplicaState, RoomLiveness};
+    use crate::replica_sync;
+    use crate::replica_sync::state_machine::{Input, Output, ReplicaState, RoomLiveness};
 
     #[test]
     fn test_usage() {
         let mut state = ReplicaState::<u8>::default();
-        let now = room_sync::ElapsedSinceAppStart::default();
+        let now = replica_sync::ElapsedSinceAppStart::default();
         assert_eq!(
             expire_overdue_snapshot_part_request(&mut state, now),
             Vec::new()
         );
     }
 
-    fn at_secs(secs: u64) -> room_sync::ElapsedSinceAppStart {
-        room_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
+    fn at_secs(secs: u64) -> replica_sync::ElapsedSinceAppStart {
+        replica_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
     }
 
     fn alive_status() -> RoomLiveness {
@@ -47,7 +47,7 @@ mod tests {
     fn other_room_remote() -> Input<u8> {
         Input::Remote {
             room: identity::RoomName::from("other"),
-            meta: room_sync::OpMeta {
+            meta: replica_sync::OpMeta {
                 lamport: 1,
                 author: 1,
             },

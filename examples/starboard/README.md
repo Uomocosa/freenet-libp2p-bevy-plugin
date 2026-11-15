@@ -82,7 +82,7 @@ Freenet lobby contract (crates/lobby-room/freenet_contract, crates/freenet-libp2
 DiscoveryState ──joined──► p2p gossipsub room topic (src/p2p)
         │                         │ CursorUpdate, ~30 Hz, lossy
         │                         ▼
-        └──────────────► room_sync::SyncPlugin<Canvas> (src/room_sync)
+        └──────────────► replica_sync::SyncPlugin<Canvas> (src/replica_sync)
                                   │ ops + Lamport clock
                                   │ join snapshot
                                   │ anti-entropy per replica slice
@@ -125,6 +125,6 @@ sizes and latencies.
 - A cell is `{ lamport: u32, author: u16, color: Option<u8> }`; merge keeps the
   greatest `(lamport, author, color)`, with `None` (erased) below `Some(_)`.
 - Ops travel on the room topic; join snapshots and slice repairs travel on the
-  plugin's room-sync request/response protocol.
+  plugin's replica-sync request/response protocol.
 - A replica slice is one 32×32 tile; its content hash is 8 bytes of blake3.
 - The 1024×1024 logical canvas is letterboxed into the window.

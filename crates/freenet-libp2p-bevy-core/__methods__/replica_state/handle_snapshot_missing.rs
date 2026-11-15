@@ -1,8 +1,8 @@
-use crate::room_sync;
+use crate::replica_sync;
 
 pub const fn handle_snapshot_missing<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     state.member_snapshot.part_requested_at = None;
     Vec::new()
 }
@@ -12,8 +12,8 @@ mod tests {
     use super::handle_snapshot_missing;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync;
-    use crate::room_sync::state_machine::{Input, Output, Phase, ReplicaState, RoomLiveness};
+    use crate::replica_sync;
+    use crate::replica_sync::state_machine::{Input, Output, Phase, ReplicaState, RoomLiveness};
 
     #[test]
     fn test_usage() {
@@ -27,7 +27,7 @@ mod tests {
         let room = identity::RoomName::from("r");
         let first = identity::PeerId::from("a");
         let second = identity::PeerId::from("b");
-        let now = room_sync::ElapsedSinceAppStart::default();
+        let now = replica_sync::ElapsedSinceAppStart::default();
         state.update(
             Input::Joined {
                 room: room.clone(),

@@ -1,20 +1,20 @@
 use crate::identity;
 use crate::p2p;
-use crate::room_sync;
+use crate::replica_sync;
 
 pub fn handle_joined<Op>(
-    state: &mut room_sync::state_machine::ReplicaState<Op>,
+    state: &mut replica_sync::state_machine::ReplicaState<Op>,
     room: identity::RoomName,
     prefix: p2p::HistoryKeyPrefix,
     members: Vec<identity::PeerId>,
-    liveness: room_sync::state_machine::RoomLiveness,
-) -> Vec<room_sync::state_machine::Output<Op>> {
+    liveness: replica_sync::state_machine::RoomLiveness,
+) -> Vec<replica_sync::state_machine::Output<Op>> {
     state.room = Some(room);
-    state.phase = room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember;
+    state.phase = replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember;
     state.buffered_ops.clear();
     let mut members = members;
     members.sort();
-    state.member_snapshot = room_sync::state_machine::MemberSnapshotFetchState {
+    state.member_snapshot = replica_sync::state_machine::MemberSnapshotFetchState {
         total_parts: 0,
         received_parts: std::collections::BTreeMap::new(),
         members,
@@ -29,7 +29,7 @@ pub fn handle_joined<Op>(
     state.kademlia_history.pending_fetch = None;
     let next = state.fetch_next();
     let is_fetching_snapshot = !next.is_empty();
-    tracing::debug!(target: "room_sync", "snapshot joined room={:?} members={:?} is_fetching_snapshot={} history_enabled={}", state.room, state.member_snapshot.members, is_fetching_snapshot, state.kademlia_history.is_enabled);
+    tracing::debug!(target: "replica_sync", "snapshot joined room={:?} members={:?} is_fetching_snapshot={} history_enabled={}", state.room, state.member_snapshot.members, is_fetching_snapshot, state.kademlia_history.is_enabled);
     if is_fetching_snapshot {
         return next;
     }
@@ -41,8 +41,8 @@ mod tests {
     use super::handle_joined;
     use crate::identity;
     use crate::p2p;
-    use crate::room_sync;
-    use crate::room_sync::state_machine::{ReplicaState, RoomLiveness};
+    use crate::replica_sync;
+    use crate::replica_sync::state_machine::{ReplicaState, RoomLiveness};
 
     #[test]
     fn test_usage() {
@@ -57,7 +57,7 @@ mod tests {
         assert_eq!(outputs.len(), 1);
         assert_eq!(
             state.phase,
-            room_sync::state_machine::Phase::FetchingSnapshotFromRoomMember
+            replica_sync::state_machine::Phase::FetchingSnapshotFromRoomMember
         );
     }
 
@@ -73,15 +73,15 @@ mod tests {
             RoomLiveness::default(),
         );
         assert_eq!(outputs, Vec::new());
-        assert_eq!(state.phase, room_sync::state_machine::Phase::Ready);
-        let meta = room_sync::OpMeta {
+        assert_eq!(state.phase, replica_sync::state_machine::Phase::Ready);
+        let meta = replica_sync::OpMeta {
             lamport: 1,
             author: 2,
         };
         let outputs = state.handle_remote(&room, meta, 7_u8);
         assert_eq!(
             outputs,
-            vec![room_sync::state_machine::Output::Apply { meta, op: 7_u8 }]
+            vec![replica_sync::state_machine::Output::Apply { meta, op: 7_u8 }]
         );
     }
 }

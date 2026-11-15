@@ -1,7 +1,7 @@
 use crate::identity;
 use crate::p2p;
 
-pub fn send_room_sync_request<Payload: p2p::traits::Message>(
+pub fn send_replica_sync_request<Payload: p2p::traits::Message>(
     state: &mut p2p::SwarmLoopState<Payload>,
     peer_id: &identity::PeerId,
     request: p2p::SnapshotRequest,
@@ -11,7 +11,7 @@ pub fn send_room_sync_request<Payload: p2p::traits::Message>(
         state
             .event_tx
             .send(p2p::Event::Libp2p(
-                p2p::Libp2pEvent::RoomSyncRequestFailed {
+                p2p::Libp2pEvent::ReplicaSyncRequestFailed {
                     from: peer_id.clone(),
                     request,
                 },
@@ -22,16 +22,16 @@ pub fn send_room_sync_request<Payload: p2p::traits::Message>(
     let request_id = state
         .swarm
         .behaviour_mut()
-        .room_sync
+        .replica_sync
         .send_request(&libp2p_id, request.clone());
     state
-        .room_sync_requests_in_flight
+        .replica_sync_requests_in_flight
         .insert(request_id, request);
 }
 
 #[cfg(test)]
 mod tests {
-    use super::send_room_sync_request;
+    use super::send_replica_sync_request;
     use crate::identity;
     use crate::p2p;
 
@@ -43,13 +43,15 @@ mod tests {
             room: identity::RoomName::from("r"),
             part: 0,
         };
-        send_room_sync_request(&mut state, &peer, request.clone());
-        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::RoomSyncRequestFailed { from, request: got })) =
-            rx.try_recv()
+        send_replica_sync_request(&mut state, &peer, request.clone());
+        let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::ReplicaSyncRequestFailed {
+            from,
+            request: got,
+        })) = rx.try_recv()
         else {
             panic!("expected a room sync failure");
         };
         assert_eq!((from, got), (peer, request));
-        assert!(state.room_sync_requests_in_flight.is_empty());
+        assert!(state.replica_sync_requests_in_flight.is_empty());
     }
 }

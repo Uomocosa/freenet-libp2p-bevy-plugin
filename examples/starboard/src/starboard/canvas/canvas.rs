@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use bevy::prelude::Resource;
-use freenet_libp2p_bevy_plugin::room_sync;
+use freenet_libp2p_bevy_plugin::replica_sync;
 
 use crate::starboard;
 
@@ -20,11 +20,11 @@ impl Default for Canvas {
     }
 }
 
-impl room_sync::traits::ReplicatedState for Canvas {
+impl replica_sync::traits::ReplicatedState for Canvas {
     type Op = starboard::canvas::DrawOp;
     type Snapshot = starboard::canvas::CanvasSnapshot;
 
-    fn apply(&mut self, meta: room_sync::OpMeta, op: &Self::Op) {
+    fn apply(&mut self, meta: replica_sync::OpMeta, op: &Self::Op) {
         let color = match op.action {
             starboard::canvas::DrawAction::Paint(palette_color) => Some(palette_color),
             starboard::canvas::DrawAction::Erase => None,
@@ -62,18 +62,18 @@ impl room_sync::traits::ReplicatedState for Canvas {
         }
     }
 
-    fn slice_content_hashes(&self) -> room_sync::ReplicaSliceContentHashes {
+    fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
         let mut hashes = Vec::new();
         for (idx, maybe_tile) in self.tiles.iter().enumerate() {
             if let Some(tile) = maybe_tile {
-                let slice_idx = room_sync::ReplicaSliceIndex(u32::try_from(idx).unwrap_or(0));
+                let slice_idx = replica_sync::ReplicaSliceIndex(u32::try_from(idx).unwrap_or(0));
                 hashes.push((slice_idx, starboard::canvas::hash_tile(tile)));
             }
         }
         hashes
     }
 
-    fn slice_snapshot(&self, index: room_sync::ReplicaSliceIndex) -> Self::Snapshot {
+    fn slice_snapshot(&self, index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
         let idx = usize::try_from(*index).unwrap_or(starboard::canvas::TILE_COUNT);
         let mut touched = Vec::new();
         if let Some(Some(tile)) = self.tiles.get(idx) {
@@ -88,7 +88,7 @@ impl room_sync::traits::ReplicatedState for Canvas {
 
 #[cfg(test)]
 mod tests {
-    use freenet_libp2p_bevy_plugin::room_sync::{
+    use freenet_libp2p_bevy_plugin::replica_sync::{
         OpMeta, ReplicaSliceIndex, traits::ReplicatedState,
     };
 

@@ -60,7 +60,7 @@ pub fn build_swarm<Payload: p2p::traits::Message>(
                     )],
                     request_response::Config::default(),
                 );
-                let room_sync = request_response::Behaviour::with_codec(
+                let replica_sync = request_response::Behaviour::with_codec(
                     p2p::MessageCodec::<p2p::SnapshotRequest, p2p::SnapshotResponse>::default(),
                     [(
                         config.game.sync_protocol().map_err(|error| format!("room sync: {error}"))?,
@@ -78,7 +78,7 @@ pub fn build_swarm<Payload: p2p::traits::Message>(
                 Ok(p2p::Behaviour {
                     request_response: rr,
                     peer_exchange,
-                    room_sync,
+                    replica_sync,
                     kademlia,
                     identify: identify::Behaviour::new(identify::Config::new(
                         "/lobby/id/1.0.0".to_string(),
