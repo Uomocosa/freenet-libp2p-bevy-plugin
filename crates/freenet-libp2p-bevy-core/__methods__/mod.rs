@@ -18,9 +18,13 @@ pub mod fake_network_server;
 #[cfg(feature = "testing")]
 pub mod fake_wire_framing;
 pub mod game_id;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod git_hub_checkpoint_board;
 pub mod gossipsub_config;
 pub mod libp2p_command;
 pub mod libp2p_events;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod local_checkpoint_board;
 #[cfg(all(feature = "testing", feature = "e2e-harness"))]
 pub mod log_file;
 pub mod member_snapshot_fetch_state;

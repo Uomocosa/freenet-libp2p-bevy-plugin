@@ -1,37 +1,19 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use freenet_libp2p_bevy_plugin::{identity, testing};
+use atomic_delegate_macros::atomic_delegates;
+use derive_more::Deref;
 
-pub struct LocalCheckpointBoard {
-    dir: PathBuf,
-}
+use crate::identity;
+use crate::testing;
+
+#[derive(Deref)]
+pub struct LocalCheckpointBoard(pub PathBuf);
 
 impl LocalCheckpointBoard {
+    #[must_use]
     pub const fn new(dir: PathBuf) -> Self {
-        Self { dir }
-    }
-
-    pub fn board_dir_from_env() -> PathBuf {
-        let raw = std::env::var("E2E_BOARD_DIR").unwrap_or_default();
-        let trimmed = raw.trim();
-        if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
-        }
-        std::env::temp_dir().join(format!("e2e-board-{}", std::process::id()))
-    }
-
-    fn checkpoint_path(&self, checkpoint: &testing::ScriptCheckpoint) -> PathBuf {
-        self.dir.join(format!("checkpoint-{checkpoint}"))
-    }
-
-    fn peer_path(&self, name: &str) -> PathBuf {
-        self.dir.join(format!("peer-{name}.json"))
-    }
-
-    fn ensure_dir(&self) -> Result<(), String> {
-        std::fs::create_dir_all(&self.dir)
-            .map_err(|error| format!("board dir {}: {error}", self.dir.display()))
+        Self(dir)
     }
 }
 
@@ -58,15 +40,28 @@ impl testing::traits::CheckpointBoard for LocalCheckpointBoard {
 
     async fn find_peer(&self, name: &str) -> Result<Option<identity::Peer>, String> {
         self.ensure_dir()?;
-        let path = self.peer_path(name);
-        if !path.exists() {
-            return Ok(None);
-        }
-        let text =
-            std::fs::read_to_string(&path).map_err(|error| format!("read peer {name}: {error}"))?;
-        serde_json::from_str(&text)
-            .map(Some)
-            .map_err(|error| format!("decode peer {name}: {error}"))
+        self.read_peer_file(name).await
+    }
+}
+
+#[atomic_delegates]
+impl LocalCheckpointBoard {
+    pub fn board_dir_from_env() -> PathBuf {}
+}
+
+#[rustfmt::skip]
+impl LocalCheckpointBoard {
+    pub(crate) fn checkpoint_path(&self, checkpoint: &testing::ScriptCheckpoint) -> PathBuf { self.join(format!("checkpoint-{checkpoint}")) }
+    pub(crate) fn peer_path(&self, name: &str) -> PathBuf { self.join(format!("peer-{name}.json")) }
+}
+
+#[atomic_delegates]
+impl LocalCheckpointBoard {
+    pub(crate) fn ensure_dir(&self) -> Result<(), String> {}
+    pub(crate) async fn read_peer_file(
+        &self,
+        name: &str,
+    ) -> Result<Option<identity::Peer>, String> {
     }
 }
 
@@ -75,8 +70,9 @@ mod tests {
     use std::path::PathBuf;
 
     use super::LocalCheckpointBoard;
-    use freenet_libp2p_bevy_plugin::testing::traits::CheckpointBoard;
-    use freenet_libp2p_bevy_plugin::{identity, testing};
+    use crate::identity;
+    use crate::testing;
+    use crate::testing::traits::CheckpointBoard;
 
     fn board() -> (tempfile::TempDir, LocalCheckpointBoard) {
         let dir = tempfile::tempdir().expect("tempdir");

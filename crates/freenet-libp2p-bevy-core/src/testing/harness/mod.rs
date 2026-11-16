@@ -1,6 +1,10 @@
 mod brp_client;
 pub use brp_client::BrpClient;
 
+mod checkpoint_board;
+pub(crate) use checkpoint_board::{BoardStatus, CachedStatuses};
+pub use checkpoint_board::{GitHubCheckpointBoard, LocalCheckpointBoard};
+
 mod constants;
 pub(crate) use constants::{
     DEFAULT_RUST_LOG, DISCOVER_DEADLINE, EXIT_DEADLINE, FAKE_ACTION, FAKE_LOBBY, LOG_TAIL_LINES,
