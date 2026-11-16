@@ -48,6 +48,7 @@ async fn brp_starboard_e2e() -> Result<(), String> {
     watcher
         .wait_until_room_has_at_least_other_members(OTHERS_IN_THREE)
         .await?;
+    painter.wait_until_in_room(net.deadlines().action()).await?;
     painter.paint_all(STROKES).await?;
     painter.wait_until_canvas_stops_changing(QUIET).await?;
     helper

@@ -39,6 +39,7 @@ async fn brp_starboard_peer_killed() -> Result<(), String> {
     let bob = StarboardPeer::launch(&bin, "helper", &net, PEER_WINDOWS[1]).await?;
     let mut carol = StarboardPeer::launch(&bin, "crasher", &net, PEER_WINDOWS[2]).await?;
     alice.create_room(&room).await?;
+    alice.wait_until_in_room(net.deadlines().action()).await?;
     alice.paint_all(STROKES).await?;
     bob.join_room(&room).await?;
     carol.join_room(&room).await?;

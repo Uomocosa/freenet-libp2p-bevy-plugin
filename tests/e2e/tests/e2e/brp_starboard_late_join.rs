@@ -35,6 +35,7 @@ async fn brp_starboard_late_join() -> Result<(), String> {
     helper
         .wait_until_room_has_at_least_other_members(OTHERS_IN_TWO)
         .await?;
+    painter.wait_until_in_room(net.deadlines().action()).await?;
     painter.paint_all(STROKES).await?;
     helper
         .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_DEADLINE))

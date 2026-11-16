@@ -45,6 +45,8 @@ async fn brp_concurrent_strokes_converge() -> Result<(), String> {
         return Err(format!("{error}\n{}", bob.describe().await));
     }
     bob.wait_until_room_has_other_members(1).await?;
+    alice.wait_until_in_room(net.deadlines().action()).await?;
+    bob.wait_until_in_room(net.deadlines().action()).await?;
     tokio::try_join!(alice.paint(STROKE_ACROSS), bob.paint(STROKE_DOWN))?;
     let before_erase = bob.wait_until_canvas_stops_changing(SETTLE).await?;
     bob.erase(ERASE_OVER_CROSSING).await?;
