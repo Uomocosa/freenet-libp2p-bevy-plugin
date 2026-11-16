@@ -1,4 +1,5 @@
 use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyTarget, LocatedNode};
+use freenet_libp2p_bevy_plugin::testing::harness::KeysBuilder;
 use freenet_libp2p_bevy_plugin::testing::{CursorTarget, Key, PointerSpeed};
 use serde_json::{Value, json};
 
@@ -24,35 +25,21 @@ impl<'a> UiPeer<'a> {
         }
     }
 
+    #[must_use]
+    pub const fn keys(&self) -> KeysBuilder<'_> {
+        self.peer.keys(self.deadlines)
+    }
+
     /// # Errors
     /// Returns an error if the key is not delivered in time.
     pub async fn press_key(&self, key: Key) -> Result<(), String> {
-        self.peer
-            .call::<Value>("e2e/press_key", json!(key))
-            .await
-            .map_err(|error| self.peer.explain(&error))?;
-        self.wait_until_input_idle().await
+        self.keys().tap(key).send().await
     }
 
     /// # Errors
     /// Returns an error if the text is not delivered in time.
     pub async fn type_text(&self, text: &str) -> Result<(), String> {
-        self.peer
-            .call::<Value>("e2e/type_text", json!(text))
-            .await
-            .map_err(|error| self.peer.explain(&error))?;
-        self.wait_until_input_idle().await
-    }
-
-    async fn wait_until_input_idle(&self) -> Result<(), String> {
-        poll_until(
-            &format!("{}: input delivered", self.name),
-            self.deadlines.action(),
-            async || self.peer.call::<bool>("e2e/input_idle", Value::Null).await,
-            |idle| *idle,
-        )
-        .await
-        .map(|_| ())
+        self.keys().text(text).send().await
     }
 
     /// # Errors

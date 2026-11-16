@@ -79,8 +79,12 @@ impl LobbyPeer {
 
     async fn attempt_create_room_after_backspace(&self, room: &str) -> Result<(), String> {
         self.ui().click(LobbyTarget::RoomNameInput).await?;
-        self.ui().type_text(&format!("{room}x")).await?;
-        self.ui().press_key(Key::Backspace).await?;
+        self.ui()
+            .keys()
+            .text(&format!("{room}x"))
+            .tap(Key::Backspace)
+            .send()
+            .await?;
         self.submit_room(room).await.map(|_| ())
     }
 
