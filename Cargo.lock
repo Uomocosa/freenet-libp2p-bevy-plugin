@@ -5683,6 +5683,7 @@ dependencies = [
  "freenet-libp2p-bevy-core",
  "serde",
  "serde_json",
+ "tokio",
  "tracing",
  "tracing-subscriber",
 ]
