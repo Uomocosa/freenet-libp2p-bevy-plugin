@@ -84,6 +84,16 @@ before `Ok(())`.
   message. Recording is Linux-only for now: Windows will capture the desktop with
   gdigrab later.
 
+### Per-OS recipes
+
+`e2e`, `e2e-record`, `e2e-mainnet`, `input-fidelity`, and the `*-demo` recipes
+have per-OS variants (`[linux]` / `[windows]` / `[macos]` / `[unix]`), so
+`just --list` shows one entry each. Linux keeps the current behaviour. Windows
+`e2e` runs the same nextest selection without `VK_ICD_FILENAMES` and with
+`E2E_WINDOW_MODE=on-top` (not read by the harness yet; windows stay on top and
+gdigrab recording comes later). `input-fidelity` is Linux-only (XTest);
+`e2e` on macOS is not supported yet.
+
 Direct cargo needs `CARGO_TARGET_DIR=$HOME/.cache/cargo-target/freenet-libp2p-bevy-plugin`
 (jemalloc rejects the space in the default path). `just` sets it for you.
 

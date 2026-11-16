@@ -1,4 +1,5 @@
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 # Build outside `[R] Rust` (jemalloc's configure rejects spaces); persistent, portable.
 export CARGO_TARGET_DIR := env("HOME") / ".cache/cargo-target/freenet-libp2p-bevy-plugin"
@@ -7,7 +8,9 @@ export CARGO_TARGET_DIR := env("HOME") / ".cache/cargo-target/freenet-libp2p-bev
 # Extra tools: cargo-nextest, just, lele-lint / lele-bevy-lint.
 
 # Headless Bevy previews use the software Vulkan driver for deterministic, clean teardown.
-_lavapipe := `ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -n1`
+# Linux-only path: just evaluates only the taken branch's backtick, so non-Linux
+# shells never run the `ls` (verified on 1.58: untaken `exit 1` backtick is skipped).
+_lavapipe := if os() == "linux" { `ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -n1` } else { "" }
 
 # Log filter for e2e-mainnet: lobby_room=info keeps the tick markers the BRP
 # checks read from the logs; freenet::config=info keeps the mainnet caption
@@ -136,10 +139,28 @@ setup:
 # leaves the unit tests nested inside the `e2e` binaries to `just test`.
 [group('e2e')]
 [doc('Run e2e BRP tests on the fake network (optional name pattern).')]
+[linux]
 e2e TEST="":
     #!/usr/bin/env bash
     set -euo pipefail
     VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
+
+# Windows e2e is not supported yet and windows will be on top; gdigrab recording comes later.
+# E2E_WINDOW_MODE is not read by the harness yet.
+[group('e2e')]
+[doc('Run e2e BRP tests on the fake network (optional name pattern).')]
+[windows]
+e2e TEST="":
+    $env:E2E_NETWORK="fake"; $env:TELEGRAM_BOT_TOKEN=""; $env:TELEGRAM_CHAT_ID=""; $env:E2E_WINDOW_MODE="on-top"; cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
+
+[group('e2e')]
+[doc('Run e2e BRP tests on the fake network (optional name pattern).')]
+[macos]
+e2e TEST="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "e2e on macOS is not supported yet" >&2
+    exit 1
 
 # UI layer on the fake network, one recorded video per test sent to Telegram.
 # Needs an Xvfb (E2E_XVFB=/path/to/Xvfb when it is not on PATH) and
@@ -147,10 +168,28 @@ e2e TEST="":
 # Encode without sending: E2E_RECORD_DRY_RUN=1 just e2e-record
 [group('e2e')]
 [doc('Run e2e BRP tests on fake, recording one video per test.')]
+[linux]
 e2e-record TEST="":
     #!/usr/bin/env bash
     set -euo pipefail
     E2E_RECORD=1 VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
+
+# Windows e2e is not supported yet and windows will be on top; gdigrab recording comes later.
+# E2E_WINDOW_MODE is not read by the harness yet.
+[group('e2e')]
+[doc('Run e2e BRP tests on fake, recording one video per test.')]
+[windows]
+e2e-record TEST="":
+    $env:E2E_RECORD="1"; $env:E2E_NETWORK="fake"; $env:E2E_WINDOW_MODE="on-top"; cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
+
+[group('e2e')]
+[doc('Run e2e BRP tests on fake, recording one video per test.')]
+[macos]
+e2e-record TEST="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "e2e on macOS is not supported yet" >&2
+    exit 1
 
 # The matching BRP tests on the public network, one at a time with PAUSE seconds
 # between them (the 90 s gap lets the previous test's peers leave the ring).
@@ -159,6 +198,7 @@ e2e-record TEST="":
 # Records every test and sends its video to Telegram unless E2E_RECORD=0 / E2E_RECORD_DRY_RUN=1.
 [group('e2e')]
 [doc('Run e2e BRP tests on mainnet, RUNS times, PAUSE s apart.')]
+[linux]
 e2e-mainnet TEST="" PAUSE="90" RUNS="1":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -195,15 +235,55 @@ e2e-mainnet TEST="" PAUSE="90" RUNS="1":
     echo "e2e-mainnet: $bad_runs of {{ RUNS }} runs had failures"
     [ "$bad_runs" = 0 ]
 
+# Windows e2e is not supported yet and windows will be on top; gdigrab recording comes later.
+# E2E_WINDOW_MODE is not read by the harness yet.
+[group('e2e')]
+[doc('Run e2e BRP tests on mainnet, RUNS times, PAUSE s apart.')]
+[windows]
+e2e-mainnet TEST="" PAUSE="90" RUNS="1":
+    if (-not $env:LOBBY_RUST_LOG) { $env:LOBBY_RUST_LOG = '{{ e2e_log_filter }}' }
+    if (-not $env:E2E_RECORD) { $env:E2E_RECORD = '1' }
+    $env:E2E_WINDOW_MODE="on-top"; $names = cargo nextest list -p lobby_room_e2e -p starboard_e2e --test e2e --all-features --run-ignored all --message-format oneline -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' | ForEach-Object { $_ -replace '^lobby_room_e2e::e2e ', '' -replace '^starboard_e2e::e2e ', '' } | Where-Object { $_ -ne '' }
+    if (-not $names) { Write-Host "e2e-mainnet: no test matches '{{ TEST }}'"; exit 1 }
+    $bad_runs = 0
+    for ($run = 1; $run -le {{ RUNS }}; $run++) { if ($run -gt 1) { Start-Sleep -Seconds {{ PAUSE }} }; Write-Host "e2e-mainnet: run $run of {{ RUNS }}"; $first = 1; $failed = @(); foreach ($name in $names) { if ($first -eq 0) { Start-Sleep -Seconds {{ PAUSE }} }; $first = 0; Write-Host "e2e-mainnet: $name"; $env:E2E_NETWORK="mainnet"; cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E "test(=$name)" --all-features --run-ignored all -- --nocapture; if ($LASTEXITCODE -ne 0) { $failed += $name } }; if ($failed.Count -gt 0) { Write-Host "e2e-mainnet: run ${run}: $($failed.Count) failed"; $failed | ForEach-Object { Write-Host "  $_" }; $bad_runs++ } else { Write-Host "e2e-mainnet: run $run passed" } }
+    Write-Host "e2e-mainnet: $bad_runs of {{ RUNS }} runs had failures"
+    if ($bad_runs -ne 0) { exit 1 }
+
+[group('e2e')]
+[doc('Run e2e BRP tests on mainnet, RUNS times, PAUSE s apart.')]
+[macos]
+e2e-mainnet TEST="" PAUSE="90" RUNS="1":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "e2e on macOS is not supported yet" >&2
+    exit 1
+
 # Input-fidelity e2e: proves the synthetic e2e input writes the same Bevy input
 # messages as real XTest input. Starts its own Xvfb (never :0); prints the diff
 # when the two logs disagree. Expected to fail on known gaps (named-key `text`).
 [group('e2e')]
 [doc('Prove synthetic e2e input matches real XTest input.')]
+[linux]
 input-fidelity TEST="synthetic_input_matches_real_os_input":
     #!/usr/bin/env bash
     set -euo pipefail
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p input_fidelity_e2e --test e2e --all-features --run-ignored all -j 1 -E 'test(/{{ TEST }}/)' -- --nocapture
+
+[group('e2e')]
+[doc('Prove synthetic e2e input matches real XTest input.')]
+[windows]
+input-fidelity TEST="synthetic_input_matches_real_os_input":
+    Write-Host "input-fidelity is Linux-only (XTest)"; exit 1
+
+[group('e2e')]
+[doc('Prove synthetic e2e input matches real XTest input.')]
+[macos]
+input-fidelity TEST="synthetic_input_matches_real_os_input":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "input-fidelity is Linux-only (XTest)" >&2
+    exit 1
 
 # Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
 [group('e2e')]
@@ -213,19 +293,34 @@ freenet-harness:
 
 [group('demo')]
 [doc('Run the lobby_room example detached (defaults: --username lele --ui default).')]
+[unix]
 lobby-room-demo *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
     if [ -n "{{ ARGS }}" ]; then just _detached lobby_room {{ ARGS }}; else just _detached lobby_room --username lele --ui default; fi
 
 [group('demo')]
+[doc('Run the lobby_room example detached (defaults: --username lele --ui default).')]
+[windows]
+lobby-room-demo *ARGS:
+    if ('{{ ARGS }}' -ne '') { just _detached lobby_room {{ ARGS }} } else { just _detached lobby_room --username lele --ui default }
+
+[group('demo')]
 [doc('Run the starboard example detached (default: --username lele).')]
+[unix]
 starboard-demo *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
     if [ -n "{{ ARGS }}" ]; then just _detached starboard {{ ARGS }}; else just _detached starboard --username lele; fi
 
+[group('demo')]
+[doc('Run the starboard example detached (default: --username lele).')]
+[windows]
+starboard-demo *ARGS:
+    if ('{{ ARGS }}' -ne '') { just _detached starboard {{ ARGS }} } else { just _detached starboard --username lele }
+
 [private]
+[unix]
 _detached BIN *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -234,6 +329,15 @@ _detached BIN *ARGS:
     log=".local-run/{{ BIN }}.log"
     setsid "$CARGO_TARGET_DIR/debug/{{ BIN }}" {{ ARGS }} >"$log" 2>&1 &
     echo "{{ BIN }} running detached - log: $log"
+
+[private]
+[windows]
+_detached BIN *ARGS:
+    cargo build -p {{ BIN }}
+    New-Item -ItemType Directory -Force -Path .local-run | Out-Null
+    $log = ".local-run/{{ BIN }}.log"
+    Start-Process -FilePath "$env:CARGO_TARGET_DIR/debug/{{ BIN }}.exe" -ArgumentList '{{ ARGS }}' -RedirectStandardOutput $log -RedirectStandardError $log
+    Write-Host "{{ BIN }} running detached - log: $log"
 
 [group('previews')]
 [doc('Render UI previews; pass --resend to re-send every preview to Telegram.')]
