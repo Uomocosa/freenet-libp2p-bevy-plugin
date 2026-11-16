@@ -5675,6 +5675,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "input_fidelity_e2e"
+version = "0.0.11"
+dependencies = [
+ "bevy",
+ "clap",
+ "freenet-libp2p-bevy-core",
+ "serde",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "inventory"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"

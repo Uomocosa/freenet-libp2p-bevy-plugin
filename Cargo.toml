@@ -9,6 +9,7 @@ members = [
     "crates/freenet-libp2p-bevy-plugin",
     "examples/lobby_room",
     "examples/starboard",
+    "tests/input-fidelity",
     "tests/lobby-room",
     "tests/starboard",
 ]
