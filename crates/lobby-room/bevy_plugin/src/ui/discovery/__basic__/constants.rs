@@ -53,8 +53,10 @@ pub const PREVIEW_HOVER_DELAY_SECS: f32 = 0.3;
 pub const PREVIEW_WIDTH: f32 = 320.0;
 pub const PREVIEW_HEIGHT: f32 = 200.0;
 pub const PREVIEW_TOP: f32 = 48.0;
-/// Right edge of the lobby Root (12) plus its width (212 row + 16 padding) plus a 12 px gap.
-pub const PREVIEW_RIGHT: f32 = 252.0;
+pub const LOBBY_PANEL_RIGHT: f32 = 12.0;
+pub const LOBBY_PANEL_WIDTH: f32 = 228.0;
+pub const LOBBY_PANEL_GAP: f32 = 12.0;
+pub const PREVIEW_RIGHT: f32 = LOBBY_PANEL_RIGHT + LOBBY_PANEL_WIDTH + LOBBY_PANEL_GAP;
 pub const PREVIEW_PADDING: f32 = 8.0;
 pub const PREVIEW_ROW_GAP: f32 = 8.0;
 pub const PREVIEW_MEMBER_GAP: f32 = 3.0;

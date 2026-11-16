@@ -8,7 +8,8 @@ use bevy::ui_widgets::{Button, TextInput};
 
 use ui::discovery::{
     BUTTON_COLOR, CARET_COLOR, CARET_SELECTION_COLOR, CreateRoomButton, HOVER_OUTLINE_WIDTH,
-    HoverGlow, HoverOutlineOnly, INPUT_COLOR, PANEL_COLOR, RoomList, RoomNameInput, Root, Screen,
+    HoverGlow, HoverOutlineOnly, INPUT_COLOR, LOBBY_PANEL_RIGHT, LOBBY_PANEL_WIDTH, PANEL_COLOR,
+    RoomList, RoomNameInput, Root, Screen,
 };
 
 pub fn spawn_root(mut commands: Commands) {
@@ -19,7 +20,8 @@ pub fn spawn_root(mut commands: Commands) {
             Node {
                 position_type: PositionType::Absolute,
                 top: Val::Px(48.0),
-                right: Val::Px(12.0),
+                right: Val::Px(LOBBY_PANEL_RIGHT),
+                width: Val::Px(LOBBY_PANEL_WIDTH),
                 flex_direction: FlexDirection::Column,
                 row_gap: Val::Px(8.0),
                 padding: UiRect::all(Val::Px(8.0)),
