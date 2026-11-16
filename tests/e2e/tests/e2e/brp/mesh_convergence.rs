@@ -1,11 +1,17 @@
 use std::path::Path;
 use std::time::Duration;
 
+use freenet_libp2p_bevy_plugin::lobby_room::discovery::TICK;
+
 use super::{LobbyRoomPeer, poll_until};
 use crate::common::marker_times;
 
 const MESH_MARKER: &str = "lobby mesh ";
-const CONVERGE_BUDGET_MS: u64 = 500;
+const CONVERGE_BUDGET_TICKS: u32 = 2;
+
+const fn converge_budget() -> Duration {
+    TICK.saturating_mul(CONVERGE_BUDGET_TICKS)
+}
 
 /// The first time at or after `after_ms` (day millis) that the app logged a mesh line with
 /// `connected=<connected>`, or `None` while the mesh is not yet complete.
@@ -19,8 +25,8 @@ pub fn fully_meshed_at(log: &Path, after_ms: u64, connected: usize) -> Option<u6
 }
 
 /// Waits until every member logged a full mesh of `members` peers after `last_press`, then checks
-/// that the last press reached the full mesh within the 500 ms budget of the old `lobby_room_join`
-/// (`did_mesh_converge_within_budget`, `tests/e2e/tests/common/scenario.rs`).
+/// that the last press reached the full mesh within `converge_budget()` (`CONVERGE_BUDGET_TICKS`
+/// discovery ticks).
 ///
 /// # Errors
 /// Returns an error if the mesh never completes before `deadline`, or if it takes longer than the budget.
@@ -42,9 +48,12 @@ pub async fn expect_meshed_within_budget(
     };
     let done = times.into_iter().max().unwrap_or(last_press);
     let converge_ms = done.saturating_sub(last_press);
-    let detail =
-        format!("converge {converge_ms}ms budget={CONVERGE_BUDGET_MS}ms (last press -> full mesh)");
-    if converge_ms <= CONVERGE_BUDGET_MS {
+    let budget = converge_budget();
+    let detail = format!(
+        "converge {converge_ms}ms budget={CONVERGE_BUDGET_TICKS} ticks ({}ms) (last press -> full mesh)",
+        budget.as_millis()
+    );
+    if Duration::from_millis(converge_ms) <= budget {
         Ok(detail)
     } else {
         Err(detail)
