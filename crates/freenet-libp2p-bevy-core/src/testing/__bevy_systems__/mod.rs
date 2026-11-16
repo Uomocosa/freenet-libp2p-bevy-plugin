@@ -8,6 +8,8 @@ pub mod e2e_follow;
 pub use e2e_follow::e2e_follow;
 pub mod e2e_input_idle;
 pub use e2e_input_idle::e2e_input_idle;
+pub mod e2e_keys;
+pub use e2e_keys::e2e_keys;
 pub mod e2e_move_cursor;
 pub use e2e_move_cursor::e2e_move_cursor;
 pub mod e2e_type_text;

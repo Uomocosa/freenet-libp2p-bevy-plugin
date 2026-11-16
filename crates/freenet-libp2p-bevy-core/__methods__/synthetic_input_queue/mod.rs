@@ -1,6 +1,10 @@
 mod follow;
 mod last_queued_cursor;
-mod type_text;
+mod push_same_frame;
+mod push_steps;
+mod push_text;
 pub use follow::follow;
 pub use last_queued_cursor::last_queued_cursor;
-pub use type_text::type_text;
+pub use push_same_frame::push_same_frame;
+pub use push_steps::push_steps;
+pub use push_text::push_text;

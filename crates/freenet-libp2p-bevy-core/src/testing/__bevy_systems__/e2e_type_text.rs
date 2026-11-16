@@ -10,7 +10,7 @@ pub fn e2e_type_text(
 ) -> BrpResult {
     let text: testing::TypedText =
         serde_json::from_value(params.unwrap_or(Value::Null)).map_err(BrpError::internal)?;
-    queue.type_text(&text);
+    queue.push_text(&text);
     Ok(Value::Null)
 }
 

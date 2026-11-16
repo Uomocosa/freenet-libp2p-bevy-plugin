@@ -239,7 +239,7 @@ mod tests {
         let mut app = app_with_window();
         app.world_mut()
             .resource_mut::<testing::SyntheticInputQueue>()
-            .type_text("a");
+            .push_text("a");
         app.update();
         let pressed = KeyStep {
             key_code: KeyCode::KeyA,
@@ -274,7 +274,7 @@ mod tests {
         let mut app = app_with_window();
         app.world_mut()
             .resource_mut::<testing::SyntheticInputQueue>()
-            .type_text("a1-");
+            .push_text("a1-");
         for _ in 0..8 {
             app.update();
         }
@@ -303,7 +303,7 @@ mod tests {
         let mut app = app_with_window();
         app.world_mut()
             .resource_mut::<testing::SyntheticInputQueue>()
-            .type_text("B");
+            .push_text("B");
         for _ in 0..6 {
             app.update();
         }
@@ -343,7 +343,7 @@ mod tests {
         let mut app = app_with_window();
         app.world_mut()
             .resource_mut::<testing::SyntheticInputQueue>()
-            .type_text(" ");
+            .push_text(" ");
         for _ in 0..4 {
             app.update();
         }
@@ -371,7 +371,7 @@ mod tests {
         let mut app = app_with_window();
         app.world_mut()
             .resource_mut::<testing::SyntheticInputQueue>()
-            .type_text("a");
+            .push_text("a");
         for _ in 0..4 {
             app.update();
         }
@@ -390,7 +390,7 @@ mod tests {
         let mut app = app_with_window();
         app.world_mut()
             .resource_mut::<testing::SyntheticInputQueue>()
-            .type_text("é");
+            .push_text("é");
         for _ in 0..4 {
             app.update();
         }
@@ -440,7 +440,7 @@ mod tests {
         app.insert_resource(InputFocus::from_entity(editable));
         app.world_mut()
             .resource_mut::<testing::SyntheticInputQueue>()
-            .type_text("ab");
+            .push_text("ab");
         for _ in 0..10 {
             app.update();
         }
@@ -480,7 +480,7 @@ mod tests {
         app.world_mut().spawn((Window::default(), PrimaryWindow));
         app.world_mut()
             .resource_mut::<testing::SyntheticInputQueue>()
-            .press_named_key(testing::Key::Escape);
+            .push_tap(testing::Key::Escape);
         for _ in 0..4 {
             app.update();
         }
@@ -530,7 +530,7 @@ mod tests {
         ] {
             app.world_mut()
                 .resource_mut::<testing::SyntheticInputQueue>()
-                .press_named_key(key);
+                .push_tap(key);
         }
         for _ in 0..10 {
             app.update();

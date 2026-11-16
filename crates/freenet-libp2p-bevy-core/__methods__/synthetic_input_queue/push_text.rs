@@ -2,7 +2,7 @@ use bevy::input::ButtonState;
 
 use crate::testing;
 
-pub fn type_text(queue: &mut testing::SyntheticInputQueue, text: &str) {
+pub fn push_text(queue: &mut testing::SyntheticInputQueue, text: &str) {
     for character in text.chars() {
         let key = testing::Key::Char(character);
         if key.needs_shift() {
@@ -53,14 +53,14 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut queue = testing::SyntheticInputQueue::default();
-        super::type_text(&mut queue, "ab");
+        super::push_text(&mut queue, "ab");
         assert_eq!(queue.pending.len(), 4);
     }
 
     #[test]
     fn test_uppercase_wraps_key_in_shift_press_and_release() {
         let mut queue = testing::SyntheticInputQueue::default();
-        super::type_text(&mut queue, "B");
+        super::push_text(&mut queue, "B");
         assert_eq!(
             queue.pending.iter().collect::<Vec<_>>(),
             vec![

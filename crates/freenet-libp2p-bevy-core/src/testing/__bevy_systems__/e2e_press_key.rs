@@ -10,7 +10,7 @@ pub fn e2e_press_key(
 ) -> BrpResult {
     let key: testing::Key =
         serde_json::from_value(params.unwrap_or(Value::Null)).map_err(BrpError::internal)?;
-    queue.press_named_key(key);
+    queue.push_tap(key);
     Ok(Value::Null)
 }
 

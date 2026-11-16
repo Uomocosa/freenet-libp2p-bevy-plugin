@@ -34,6 +34,7 @@ impl Plugin for E2EDriverPlugin {
             .with_method_main("e2e/type_text", testing::bevy_systems::e2e_type_text)
             .with_method_main("e2e/press_key", testing::bevy_systems::e2e_press_key)
             .with_method_main("e2e/input_idle", testing::bevy_systems::e2e_input_idle)
+            .with_method_main("e2e/keys", testing::bevy_systems::e2e_keys)
             .with_method_main("e2e/exit", testing::bevy_systems::e2e_exit);
         let remote = self
             .extensions
