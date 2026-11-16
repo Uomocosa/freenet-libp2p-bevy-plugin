@@ -29,6 +29,24 @@ pub struct RoomFriendBadge;
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
 pub struct RoomButton(pub core_discovery::RoomName);
 
+#[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
+pub struct EnterRoomButton(pub core_discovery::RoomName);
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomFullBadge;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomPreviewPanel;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomPreviewTitle;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomPreviewViewport;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomPreviewActionSlot;
+
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct LeaveDoorRoot;
 

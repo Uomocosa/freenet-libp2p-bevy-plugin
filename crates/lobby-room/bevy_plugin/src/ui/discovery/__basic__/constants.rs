@@ -49,6 +49,23 @@ pub const ROOM_SEARCH_TOOLTIP_FONT_SIZE: f32 = 10.0;
 pub const ROOM_SEARCH_TOOLTIP_Z: i32 = 50;
 pub const ROOM_SEARCH_TOOLTIP_BG_COLOR: Color = Color::srgb(0.18, 0.07, 0.21);
 
+pub const PREVIEW_HOVER_DELAY_SECS: f32 = 0.3;
+pub const PREVIEW_WIDTH: f32 = 320.0;
+pub const PREVIEW_HEIGHT: f32 = 200.0;
+pub const PREVIEW_TOP: f32 = 48.0;
+/// Right edge of the lobby Root (12) plus its width (212 row + 16 padding) plus an 8 px gap.
+pub const PREVIEW_RIGHT: f32 = 248.0;
+pub const PREVIEW_PADDING: f32 = 8.0;
+pub const PREVIEW_ROW_GAP: f32 = 8.0;
+pub const PREVIEW_MEMBER_GAP: f32 = 3.0;
+pub const PREVIEW_TITLE_FONT_SIZE: f32 = 15.0;
+pub const PREVIEW_MEMBER_FONT_SIZE: f32 = 11.0;
+pub const PREVIEW_VIEWPORT_PADDING: f32 = 6.0;
+pub const PREVIEW_BUTTON_RADIUS: f32 = 6.0;
+pub const ENTER_BUTTON_COLOR: Color = Color::srgb(0.16, 0.52, 0.28);
+pub const ROOM_FULL_BUTTON_COLOR: Color = Color::srgb(0.30, 0.31, 0.35);
+pub const ROOM_FULL_BUTTON_LABEL_COLOR: Color = Color::srgb(0.70, 0.71, 0.74);
+
 pub const SPINNER_SIZE: f32 = 48.0;
 pub const SPIN_TURNS_PER_SEC: f32 = 1.0;
 pub const SPINNER_TRACK_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.08);

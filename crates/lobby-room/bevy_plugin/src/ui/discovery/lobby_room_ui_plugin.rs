@@ -16,11 +16,16 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
         app.init_resource::<JoinError>();
         app.init_resource::<EscMenuState>();
         app.init_resource::<ui::discovery::FriendsPressBeat>();
+        app.init_resource::<ui::discovery::SelectedRoom>();
         app.init_resource::<ButtonInput<KeyCode>>();
         app.add_message::<core_discovery::Event>();
         app.add_message::<replica_sync::JoinFailure>();
         app.add_systems(OnEnter(Screen::Connecting), systems::spawn_connecting);
         app.add_systems(OnEnter(Screen::Lobby), systems::spawn_root);
+        app.add_systems(
+            OnEnter(Screen::Lobby),
+            (systems::reset_room_selection, systems::spawn_room_preview),
+        );
         app.add_systems(OnEnter(Screen::JoiningRoom), systems::spawn_joining_room);
         app.add_systems(OnEnter(Screen::JoinFailed), systems::spawn_join_failed);
         app.add_systems(OnEnter(Screen::InRoom), systems::spawn_leave_door);
@@ -58,6 +63,15 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                     systems::gate_create,
                     systems::handle_create,
                     systems::handle_join,
+                    (
+                        systems::drop_stale_room_selection,
+                        systems::track_room_preview,
+                        systems::lock_room_selection,
+                        systems::refresh_room_preview,
+                        systems::rebuild_room_preview_members,
+                        systems::rebuild_room_preview_action,
+                    )
+                        .chain(),
                 )
                     .run_if(in_state(Screen::Lobby)),
                 (
@@ -149,14 +163,35 @@ mod tests {
             })
             .collect();
         let mut lobby = core_discovery::Lobby::default();
-        for (name, room_size) in [("alpha", 8), ("beta", 4)] {
+        let rooms: [(&str, u16, &[&str]); 3] = [
+            ("alpha", 8, &["alice", "bob"]),
+            ("beta", 4, &[]),
+            ("gamma", 4, &["erin", "frank", "grace", "henry"]),
+        ];
+        for (name, room_size, member_names) in rooms {
             lobby.insert(
                 core_discovery::RoomName::from(name),
                 core_discovery::Room {
                     room_size: core_discovery::RoomSize::try_from(room_size)
                         .expect("fixture room size is non-zero"),
                     created_at: time::UnixTime::EPOCH,
-                    members: std::collections::BTreeMap::new(),
+                    members: member_names
+                        .iter()
+                        .map(|member| {
+                            (
+                                identity::PeerId::from(*member),
+                                core_discovery::RoomMember {
+                                    peer: identity::Peer {
+                                        id: identity::PeerId::from(*member),
+                                        addrs: Vec::new(),
+                                    },
+                                    display_name: Some(identity::Username::from(*member)),
+                                    updated_at: time::UnixTime::EPOCH,
+                                    membership: core_discovery::RoomMembership::Occupant,
+                                },
+                            )
+                        })
+                        .collect(),
                 },
             );
         }
@@ -218,6 +253,20 @@ mod tests {
         }
     }
 
+    fn lock_room_preview(world: &mut World, room: &str) {
+        let mut selection = world.resource_mut::<ui::discovery::SelectedRoom>();
+        selection.room = Some(core_discovery::RoomName::from(room));
+        selection.is_locked = true;
+    }
+
+    fn select_room(world: &mut World) {
+        lock_room_preview(world, "alpha");
+    }
+
+    fn select_full_room(world: &mut World) {
+        lock_room_preview(world, "gamma");
+    }
+
     #[test]
     fn test_usage() {
         let mut app = App::new();
@@ -254,6 +303,14 @@ mod tests {
                 lele_bevy_preview::scene::State {
                     label: String::from("rooms header hovered"),
                     apply: hover_rooms_header,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("room selected"),
+                    apply: select_room,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("full room selected"),
+                    apply: select_full_room,
                 },
             ],
             timeline: None,

@@ -2,15 +2,16 @@
 mod basic;
 
 pub use basic::components::{
-    ConnectingRoot, CreateRoomButton, DoorLabel, DoorOpening, DoorPanel, EscMenu, EscMenuBackdrop,
-    EscMenuFriendsButton, EscMenuLeaveButton, EscMenuResumeButton, HoverGlow, HoverOutlineOnly,
-    JoinErrorDismissButton, JoinErrorRoot, JoiningRoomRoot, LeaveDoor, LeaveDoorRoot,
-    LeaveNoButton, LeaveYesButton, RoomBubble, RoomButton, RoomFriendBadge, RoomList, RoomNameClip,
-    RoomNameInput, RoomNameScroller, RoomSearchIndicator, RoomSearchTooltip, RoomsHeader, Root,
-    SpinnerRing,
+    ConnectingRoot, CreateRoomButton, DoorLabel, DoorOpening, DoorPanel, EnterRoomButton, EscMenu,
+    EscMenuBackdrop, EscMenuFriendsButton, EscMenuLeaveButton, EscMenuResumeButton, HoverGlow,
+    HoverOutlineOnly, JoinErrorDismissButton, JoinErrorRoot, JoiningRoomRoot, LeaveDoor,
+    LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble, RoomButton, RoomFriendBadge,
+    RoomFullBadge, RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, RoomPreviewActionSlot,
+    RoomPreviewPanel, RoomPreviewTitle, RoomPreviewViewport, RoomSearchIndicator,
+    RoomSearchTooltip, RoomsHeader, Root, SpinnerRing,
 };
 pub use basic::constants::*;
-pub use basic::resources::{FriendsPressBeat, JoinError};
+pub use basic::resources::{FriendsPressBeat, JoinError, SelectedRoom};
 pub use basic::states::{LeaveDialog, Screen};
 mod esc_menu_panel;
 pub use esc_menu_panel::EscMenuPanel;
