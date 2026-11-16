@@ -54,12 +54,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                 systems::show_room_search_tooltip.run_if(in_state(Screen::Lobby)),
                 systems::dismiss_join_failed.run_if(in_state(Screen::JoinFailed)),
                 (
-                    (
-                        systems::rebuild_room_list,
-                        systems::highlight_current_room,
-                        systems::scroll_room_names,
-                    )
-                        .chain(),
+                    (systems::rebuild_room_list, systems::scroll_room_names).chain(),
                     systems::gate_create,
                     systems::handle_create,
                     systems::handle_join,
@@ -109,13 +104,33 @@ mod tests {
     fn preview_build(app: &mut App) {
         app.add_message::<core_discovery::Command>();
         app.insert_resource(preview_snapshot());
-        app.init_resource::<core_discovery::LobbyRows>();
+        app.insert_resource(core_discovery::LobbyRows(vec![
+            core_discovery::LobbyRow {
+                name: core_discovery::RoomName::from("alpha"),
+                occupants: 2,
+                room_size: core_discovery::RoomSize::try_from(8)
+                    .expect("fixture room size is non-zero"),
+                occupancy: core_discovery::RoomOccupancy::HasSpace,
+                friends: 1,
+            },
+            core_discovery::LobbyRow {
+                name: core_discovery::RoomName::from("beta"),
+                occupants: 0,
+                room_size: core_discovery::RoomSize::try_from(4)
+                    .expect("fixture room size is non-zero"),
+                occupancy: core_discovery::RoomOccupancy::Empty,
+                friends: 0,
+            },
+            core_discovery::LobbyRow {
+                name: core_discovery::RoomName::from("gamma"),
+                occupants: 4,
+                room_size: core_discovery::RoomSize::try_from(4)
+                    .expect("fixture room size is non-zero"),
+                occupancy: core_discovery::RoomOccupancy::Full,
+                friends: 0,
+            },
+        ]));
         app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
-        app.add_systems(
-            Update,
-            core_discovery::bevy_systems::rebuild_lobby_rows
-                .before(ui::discovery::bevy_systems::rebuild_room_list),
-        );
         app.add_systems(
             Update,
             pin_hover.before(ui::discovery::bevy_systems::animate_hover),
@@ -229,7 +244,7 @@ mod tests {
             build: preview_build,
             states: vec![
                 lele_bevy_preview::scene::State {
-                    label: String::from("lobby with two rooms"),
+                    label: String::from("lobby with three rooms"),
                     apply: preview_noop,
                 },
                 lele_bevy_preview::scene::State {

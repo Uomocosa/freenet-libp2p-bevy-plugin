@@ -4,10 +4,10 @@ mod basic;
 pub use basic::components::{
     ConnectingRoot, CreateRoomButton, DoorLabel, DoorOpening, DoorPanel, EscMenu, EscMenuBackdrop,
     EscMenuFriendsButton, EscMenuLeaveButton, EscMenuResumeButton, HoverGlow, HoverOutlineOnly,
-    IsCurrentRoom, JoinErrorDismissButton, JoinErrorRoot, JoiningRoomRoot, LeaveDoor,
-    LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble, RoomButton, RoomFriendBadge,
-    RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, RoomSearchIndicator,
-    RoomSearchTooltip, RoomsHeader, Root, SpinnerRing,
+    JoinErrorDismissButton, JoinErrorRoot, JoiningRoomRoot, LeaveDoor, LeaveDoorRoot,
+    LeaveNoButton, LeaveYesButton, RoomBubble, RoomButton, RoomFriendBadge, RoomList, RoomNameClip,
+    RoomNameInput, RoomNameScroller, RoomSearchIndicator, RoomSearchTooltip, RoomsHeader, Root,
+    SpinnerRing,
 };
 pub use basic::constants::*;
 pub use basic::resources::{FriendsPressBeat, JoinError};

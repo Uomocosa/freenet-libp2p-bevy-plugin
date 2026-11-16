@@ -30,9 +30,6 @@ pub struct RoomFriendBadge;
 pub struct RoomButton(pub core_discovery::RoomName);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
-pub struct IsCurrentRoom;
-
-#[derive(Component, Debug, Default, Clone, Copy)]
 pub struct LeaveDoorRoot;
 
 #[derive(Component, Debug, Default, Clone, Copy)]

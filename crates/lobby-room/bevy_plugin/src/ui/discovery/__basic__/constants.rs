@@ -1,7 +1,5 @@
 use bevy::prelude::Color;
 
-pub const CURRENT_ROOM_COLOR: Color = Color::srgb(0.18, 0.45, 0.25);
-
 pub const ROOM_ROW_WIDTH: f32 = 212.0;
 pub const ROOM_NAME_WIDTH: f32 = 128.0;
 pub const ROOM_NAME_SCROLL_PER_SEC: f32 = 26.0;
