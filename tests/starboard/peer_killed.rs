@@ -28,6 +28,7 @@ const CONVERGE_DEADLINE: Duration = Duration::from_secs(60);
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn starboard_peer_killed() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("starboard_peer_killed");
     let bin = build_package_bin("starboard_e2e", "starboard_e2e", "dev")?;
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let alice = StarboardPeer::launch(&bin, "painter", &net, PEER_WINDOWS[0]).await?;
@@ -71,5 +72,7 @@ async fn starboard_peer_killed() -> Result<(), String> {
     )
     .await?;
     alice.exit().await?;
-    bob.exit().await
+    bob.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

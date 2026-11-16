@@ -7,6 +7,7 @@ use crate::common::build_package_bin;
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn direct_dial() -> Result<(), String> {
     let net = BrpNetwork::prepare_for(Network::DirectDial).await?;
+    let mut recording = net.recording("direct_dial");
     let bin = build_package_bin("starboard_e2e", "starboard_e2e", "dev")?;
     let mut alice = DirectDialPeer::launch(&bin, "alice", &net, PEER_WINDOWS[0]).await?;
     let mut bob = DirectDialPeer::launch(&bin, "bob", &net, PEER_WINDOWS[1]).await?;
@@ -24,5 +25,6 @@ async fn direct_dial() -> Result<(), String> {
             "a peer started a freenet node: {FREENET_NODE_STARTED}"
         ));
     }
+    recording.mark_passed();
     Ok(())
 }

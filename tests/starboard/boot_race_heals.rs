@@ -15,6 +15,7 @@ async fn starboard_boot_race_heals() -> Result<(), String> {
         LobbySetup::Absent,
     )
     .await?;
+    let mut recording = net.recording("starboard_boot_race_heals");
     let bin = build_package_bin("starboard_e2e", "starboard_e2e", "dev")?;
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let (creator, joiner) = tokio::try_join!(
@@ -30,5 +31,7 @@ async fn starboard_boot_race_heals() -> Result<(), String> {
     joiner.wait_until_room_has_at_least_other_members(1).await?;
     tokio::time::sleep(SETTLE).await;
     creator.exit().await?;
-    joiner.exit().await
+    joiner.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

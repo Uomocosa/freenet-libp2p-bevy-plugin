@@ -19,6 +19,7 @@ fn peer_count() -> usize {
 async fn lobby_room_discovery() -> Result<(), String> {
     Network::from_env().require_real("lobby_room_discovery")?;
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("lobby_room_discovery");
     let bin = build_package_bin("lobby_room_e2e", "lobby_room_e2e", "dev")?;
     let room = format!("brp-discover-{}", UnixTime::now().as_secs());
     let creator_window = PEER_WINDOWS.first().copied().unwrap_or((0, 0));
@@ -45,5 +46,7 @@ async fn lobby_room_discovery() -> Result<(), String> {
     for joiner in joiners {
         joiner.exit().await?;
     }
-    creator.exit().await
+    creator.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

@@ -12,6 +12,7 @@ const SETTLE: Duration = Duration::from_secs(5);
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn room_messaging() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("room_messaging");
     let bin = build_package_bin("lobby_room_e2e", "lobby_room_e2e", "dev")?;
     let room = format!("brp-msg-{}", UnixTime::now().as_secs());
     let (members, last_press) = meet_in_room(&bin, &net, PEERS, &room).await?;
@@ -28,5 +29,6 @@ async fn room_messaging() -> Result<(), String> {
     for member in members {
         member.exit().await?;
     }
+    recording.mark_passed();
     Ok(())
 }

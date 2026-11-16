@@ -30,6 +30,7 @@ const CONVERGE_DEADLINE: Duration = Duration::from_secs(60);
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn concurrent_strokes_converge() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("concurrent_strokes_converge");
     let bin = build_package_bin("starboard_e2e", "starboard_e2e", "dev")?;
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let alice = StarboardPeer::launch(&bin, "alice", &net, ALICE_WINDOW).await?;
@@ -59,5 +60,7 @@ async fn concurrent_strokes_converge() -> Result<(), String> {
     )
     .await?;
     alice.exit().await?;
-    bob.exit().await
+    bob.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

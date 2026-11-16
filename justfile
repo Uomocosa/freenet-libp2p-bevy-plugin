@@ -69,14 +69,25 @@ e2e-ui-no-network TEST="":
     set -euo pipefail
     VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
 
+# UI layer on the fake network, one recorded video per test sent to Telegram.
+# Needs an Xvfb (E2E_XVFB=/path/to/Xvfb when it is not on PATH) and
+# TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (env or .env).
+# Encode without sending: E2E_RECORD_DRY_RUN=1 just e2e-ui-record
+e2e-ui-record TEST="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    E2E_RECORD=1 VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
+
 # The matching BRP tests on the public network, one at a time with PAUSE seconds
 # between them (the 90 s gap lets the previous test's peers leave the ring).
-# Runs every matching test, then lists the failures and exits 1 if any. Telegram sends as usual.
+# Runs every matching test, then lists the failures and exits 1 if any.
+# Records every test and sends its video to Telegram unless E2E_RECORD=0 / E2E_RECORD_DRY_RUN=1.
 e2e-mainnet TEST="" PAUSE="90":
     #!/usr/bin/env bash
     set -euo pipefail
     # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
     export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-{{ e2e_log_filter }}}"
+    export E2E_RECORD="${E2E_RECORD:-1}"
     names="$(cargo nextest list -p lobby_room_e2e -p starboard_e2e --test e2e --all-features --run-ignored all --message-format oneline -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' 2>/dev/null | sed -n 's/^lobby_room_e2e::e2e //p; s/^starboard_e2e::e2e //p')"
     if [ -z "$names" ]; then
         echo "e2e-mainnet: no test matches '{{ TEST }}'" >&2

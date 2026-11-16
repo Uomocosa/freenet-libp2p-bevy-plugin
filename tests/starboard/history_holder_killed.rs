@@ -20,6 +20,7 @@ const HOLDER_SETTLE: Duration = Duration::from_secs(5);
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn starboard_history_holder_killed() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("starboard_history_holder_killed");
     let bin = build_package_bin("starboard_e2e", "starboard_e2e", "dev")?;
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let mut holder = StarboardPeer::launch(&bin, "holder", &net, PEER_WINDOWS[0]).await?;
@@ -42,5 +43,7 @@ async fn starboard_history_holder_killed() -> Result<(), String> {
         ));
     }
     late_joiner.exit().await?;
-    watcher.exit().await
+    watcher.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

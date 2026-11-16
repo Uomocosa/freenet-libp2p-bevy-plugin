@@ -19,6 +19,7 @@ fn peer_count() -> usize {
 async fn freenet_ring() -> Result<(), String> {
     Network::from_env().require_real("freenet_ring")?;
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("freenet_ring");
     let bin = build_package_bin("lobby_room_e2e", "lobby_room_e2e", "dev")?;
     let mut peers = Vec::new();
     for index in 0..peer_count() {
@@ -38,5 +39,6 @@ async fn freenet_ring() -> Result<(), String> {
     for peer in peers {
         peer.exit().await?;
     }
+    recording.mark_passed();
     Ok(())
 }

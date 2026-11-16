@@ -9,6 +9,7 @@ const ALICE_WINDOW: (i32, i32) = (0, 0);
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn lobby_room_backspace() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("lobby_room_backspace");
     let bin = build_package_bin("lobby_room_e2e", "lobby_room_e2e", "dev")?;
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let alice = LobbyRoomPeer::launch(&bin, "alice", &net, ALICE_WINDOW).await?;
@@ -19,5 +20,7 @@ async fn lobby_room_backspace() -> Result<(), String> {
             "joined {joined:?} after Backspace, expected {room:?}"
         ));
     }
-    alice.exit().await
+    alice.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

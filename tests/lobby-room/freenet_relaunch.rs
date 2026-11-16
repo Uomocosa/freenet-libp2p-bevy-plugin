@@ -20,6 +20,7 @@ fn relaunch_gap() -> Duration {
 async fn freenet_relaunch() -> Result<(), String> {
     Network::from_env().require_real("freenet_relaunch")?;
     let net = BrpNetwork::try_from_network_setup(Network::from_env(), LobbySetup::Absent).await?;
+    let mut recording = net.recording("freenet_relaunch");
     let bin = build_package_bin("lobby_room_e2e", "lobby_room_e2e", "dev")?;
     let cold = LobbyRoomPeer::launch(&bin, "relaunch", &net, PEER_WINDOWS[0]).await?;
     cold.wait_until_ring_joined(RING_DEADLINE).await?;
@@ -29,5 +30,7 @@ async fn freenet_relaunch() -> Result<(), String> {
     let warm = LobbyRoomPeer::launch(&bin, "relaunch", &net, PEER_WINDOWS[0]).await?;
     warm.wait_until_ring_joined(RING_DEADLINE).await?;
     warm.wait_until_lobby_fetched(LOBBY_READY_DEADLINE).await?;
-    warm.exit().await
+    warm.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

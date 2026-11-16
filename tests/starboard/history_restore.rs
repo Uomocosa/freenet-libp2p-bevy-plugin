@@ -23,6 +23,7 @@ const HISTORY_BUDGET: Duration = Duration::from_secs(120);
 async fn starboard_history_restore() -> Result<(), String> {
     Network::from_env().require_real("starboard_history_restore")?;
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("starboard_history_restore");
     let bin = build_package_bin("starboard_e2e", "starboard_e2e", "dev")?;
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let painter = StarboardPeer::launch(&bin, "holder1", &net, PEER_WINDOWS[0]).await?;
@@ -60,5 +61,7 @@ async fn starboard_history_restore() -> Result<(), String> {
     }
     late_joiner.exit().await?;
     helper.exit().await?;
-    painter.exit().await
+    painter.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

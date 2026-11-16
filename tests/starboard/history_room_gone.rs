@@ -26,6 +26,7 @@ const QUIET: Duration = Duration::from_secs(3);
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn starboard_history_room_gone() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("starboard_history_room_gone");
     let bin = build_package_bin("starboard_e2e", "starboard_e2e", "dev")?;
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let painter = StarboardPeer::launch(&bin, "painter", &net, PEER_WINDOWS[0]).await?;
@@ -67,5 +68,7 @@ async fn starboard_history_room_gone() -> Result<(), String> {
         ));
     }
     late_joiner.exit().await?;
-    watcher.exit().await
+    watcher.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

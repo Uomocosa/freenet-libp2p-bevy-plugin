@@ -12,6 +12,7 @@ const ROOM_AUTO_DELETION_EXPIRY_WINDOW: Duration = Duration::from_mins(12);
 async fn starboard_room_auto_deletion() -> Result<(), String> {
     Network::from_env().require_real("starboard_room_auto_deletion")?;
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("starboard_room_auto_deletion");
     let bin = build_package_bin("starboard_e2e", "starboard_e2e", "dev")?;
     let room = format!("room-{}", UnixTime::now().as_secs());
     let mut creator = StarboardPeer::launch(&bin, "p1", &net, PEER_WINDOWS[0]).await?;
@@ -28,5 +29,7 @@ async fn starboard_room_auto_deletion() -> Result<(), String> {
         .wait_until_room_gone_within(&room, ROOM_AUTO_DELETION_EXPIRY_WINDOW)
         .await?;
     late_observer.exit().await?;
-    observer.exit().await
+    observer.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }
