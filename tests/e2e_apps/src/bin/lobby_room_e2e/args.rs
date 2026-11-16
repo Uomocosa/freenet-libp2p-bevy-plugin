@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use bevy::prelude::*;
-use bevy::window::WindowPosition;
+use bevy::window::{PresentMode, WindowPosition};
 use bevy::winit::{UpdateMode, WinitSettings};
 use clap::Parser;
 use e2e_apps::window_origin::WindowOrigin;
@@ -53,6 +53,7 @@ impl Args {
 
     pub fn run(&self, ws_port: u16, game: &identity::GameId) -> AppExit {
         let mut window = LobbyRoomApp::primary_window(&self.username);
+        window.present_mode = PresentMode::AutoNoVsync;
         if let Some(origin) = self.window_position {
             window.position = WindowPosition::At(origin.0);
         }

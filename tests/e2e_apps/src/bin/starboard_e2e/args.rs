@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy::window::WindowPosition;
+use bevy::window::{PresentMode, WindowPosition};
 use bevy::winit::{UpdateMode, WinitSettings};
 use clap::Parser;
 use freenet_libp2p_bevy_plugin::lobby_room::discovery;
@@ -82,6 +82,7 @@ impl Args {
         };
         let mut app = App::new();
         let mut window = StarboardApp::primary_window(&self.username);
+        window.present_mode = PresentMode::AutoNoVsync;
         if let Some(origin) = self.window_position {
             window.position = WindowPosition::At(origin.0);
         }
