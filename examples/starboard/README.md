@@ -52,8 +52,7 @@ error: invalid value 'paint-from-to:10.20-9999.5' for '--script [<...>...]':
 ```
 
 The Kademlia history is on: every peer stores its room's board in the local
-Kademlia store, so a peer that joins a room nobody is in still gets the board back
-(`examples/starboard/HISTORY.md` has the measured sizes and latencies).
+Kademlia store, so a peer that joins a room nobody is in still gets the board back.
 
 ## Controls
 
@@ -104,7 +103,6 @@ The plugin owns discovery, transport and sync; the example owns the game:
 | `room/` | room brushes, presence publishing, cursor collection, canvas reset on join |
 | `starboard/ui/` | member panel |
 | `app/` | `StarboardPlugin`, the ordered system chain, the test harness |
-| `bench/` | `#[cfg(test)]` benchmark behind `just bench-starboard` |
 
 ## Tests
 
@@ -112,13 +110,7 @@ The plugin owns discovery, transport and sync; the example owns the game:
 just test              # unit tests and UI previews
 just e2e-starboard     # 3 real windows + a late joiner over Freenet (X + network)
 just e2e-history       # the Kademlia history scenarios S4a, S4b, S4c (X + network)
-just bench-starboard   # 2 and 8 in-process peers; rewrites BENCH.md
-just bench-history     # one room's history size and put/get latency; rewrites HISTORY.md
 ```
-
-[`BENCH.md`](BENCH.md) holds the last measured numbers of the room sync and the limits
-of the measurement; [`HISTORY.md`](HISTORY.md) holds the measured Kademlia history
-sizes and latencies.
 
 ## Wire format
 

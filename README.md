@@ -111,8 +111,6 @@ just run          # lobby_room, detached; args pass through (--ui, …)
 just demo         # lobby_room with the default UI
 just run-starboard --username <name>   # starboard, detached
 just e2e-ui-no-network | just e2e-mainnet | just e2e-loop
-just bench-starboard   # rewrite examples/starboard/BENCH.md
-just bench-history     # rewrite examples/starboard/HISTORY.md
 just contract   # build the lobby contract wasm
 just freenet-harness   # freenet contract harness (CRDT laws) against the lobby contract
 just setup      # one-time per clone: install the prek git hooks

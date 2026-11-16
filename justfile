@@ -43,23 +43,6 @@ test:
 resend-all-previews:
     LELE_PREVIEW_RESEND_ALL=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features -E 'test(/_preview$/)'
 
-# Render every preview N times without sending; fail if any render differs between runs.
-preview-stability N="5":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    previous=""
-    for run in $(seq 1 {{ N }}); do
-        TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= LELE_PREVIEW_DRY_RUN=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features -E 'test(/_preview$/)'
-        current=$(find crates/lobby-room/bevy_plugin/ui_preview/_unsent -type f -name '*.png' -exec sha256sum {} + 2>/dev/null | sort -k2 || true)
-        if [ "$run" -gt 1 ] && [ "$current" != "$previous" ]; then
-            echo "UNSTABLE: run $run differs"
-            diff <(echo "$previous") <(echo "$current") || true
-            exit 1
-        fi
-        previous=$current
-    done
-    echo "STABLE across {{ N }} runs"
-
 # UI layer on the fake network (BRP suite by default): fast, for reviewing the UI.
 # Telegram stays silent. `just e2e-ui-no-network direct_dial` runs one name pattern.
 # The `[^:]*::[^:]*` conjunct keeps the e2e test fns (one `mod::fn` level) and
@@ -141,16 +124,6 @@ run-starboard *ARGS:
     log=.local-run/starboard.log
     setsid "$CARGO_TARGET_DIR/debug/starboard" {{ ARGS }} >"$log" 2>&1 &
     echo "starboard running detached — log: $log"
-
-# Headless starboard benchmark (no window): 2 and 8 in-process peers, 60 strokes/s each,
-# 20 s measured per scenario; overwrites examples/starboard/BENCH.md.
-bench-starboard:
-    cargo nextest run -p starboard --all-features --run-ignored all -E 'test(bench_starboard)' -- --nocapture
-
-# Headless history measurement (no window): one room's Kademlia history size and
-# put/get latency; overwrites examples/starboard/HISTORY.md.
-bench-history:
-    cargo nextest run -p starboard --all-features --run-ignored all -E 'test(history_bench)' -- --nocapture
 
 # Run the lobby_room example detached (no terminal tie-up; only the app window).
 # Extra args toggle ui/script/transport, e.g. `just run --ui custom --script "create:room-1, stay"`.

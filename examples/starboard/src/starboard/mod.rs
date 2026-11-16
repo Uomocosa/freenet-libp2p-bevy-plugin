@@ -1,6 +1,4 @@
 pub mod app;
-#[cfg(test)]
-pub mod bench;
 pub mod canvas;
 pub mod identity;
 pub mod input;
