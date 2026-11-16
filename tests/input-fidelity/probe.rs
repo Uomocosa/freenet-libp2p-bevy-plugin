@@ -56,6 +56,26 @@ impl ProbePeer {
             .map(|_| ())
     }
 
+    /// Waits until winit has seen the probe window's `FocusIn`; before that it
+    /// drops every key event, so the real driver must not type yet.
+    ///
+    /// # Errors
+    /// Returns an error if the probe never records a focus gain in time.
+    pub async fn wait_for_focus(&self) -> Result<(), String> {
+        Polling::from(Duration::from_secs(10))
+            .until(
+                "probe window focus",
+                async || self.records().await,
+                |records| {
+                    records.iter().any(|record| {
+                        matches!(record, InputRecord::FocusChanged { is_focused: true })
+                    })
+                },
+            )
+            .await
+            .map(|_| ())
+    }
+
     /// # Errors
     /// Returns an error if the probe does not answer.
     pub async fn records(&self) -> Result<Vec<InputRecord>, String> {

@@ -8,6 +8,7 @@ use crate::probe_e2e_methods::ProbeE2EMethods;
 
 pub const PROBE_WINDOW_SIZE: (u32, u32) = (960, 540);
 pub const PROBE_WINDOW_ORIGIN: IVec2 = IVec2::new(0, 0);
+pub const PROBE_WINDOW_TITLE: &str = "input-probe";
 
 #[derive(Debug, Parser)]
 #[command(name = "input_probe")]
@@ -29,7 +30,7 @@ impl ProbeArgs {
     #[must_use]
     pub fn run(&self) -> AppExit {
         let window = Window {
-            title: "input-probe".to_string(),
+            title: PROBE_WINDOW_TITLE.to_string(),
             resolution: PROBE_WINDOW_SIZE.into(),
             position: WindowPosition::At(PROBE_WINDOW_ORIGIN),
             present_mode: PresentMode::AutoNoVsync,
