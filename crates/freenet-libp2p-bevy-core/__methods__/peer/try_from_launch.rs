@@ -7,6 +7,7 @@ use crate::testing;
 pub async fn try_from_launch(
     bin: &Path,
     args: &[String],
+    display: Option<&str>,
 ) -> Result<testing::harness::Peer, String> {
     let port = testing::harness::Peer::free_port()?;
     let log_dir = tempfile::tempdir().map_err(|e| format!("temp dir: {e}"))?;
@@ -26,6 +27,9 @@ pub async fn try_from_launch(
         .stdin(Stdio::null())
         .stdout(stdout)
         .stderr(stderr);
+    if let Some(display) = display {
+        command.env("DISPLAY", display).env_remove("XAUTHORITY");
+    }
     if let Some(icd) = testing::harness::Peer::lavapipe_icd() {
         command.env("VK_ICD_FILENAMES", icd);
     }
@@ -51,6 +55,6 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let missing = Path::new("/nonexistent-e2e-bin");
-        assert!(try_from_launch(missing, &[]).await.is_err());
+        assert!(try_from_launch(missing, &[], None).await.is_err());
     }
 }

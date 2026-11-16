@@ -67,9 +67,6 @@ preview-stability N="5":
 e2e-ui-no-network TEST="":
     #!/usr/bin/env bash
     set -euo pipefail
-    # Headless-safe display defaults (overridable); the e2e peers need X.
-    export DISPLAY="${DISPLAY:-:0}"
-    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
 
 # The matching BRP tests on the public network, one at a time with PAUSE seconds
@@ -80,9 +77,6 @@ e2e-mainnet TEST="" PAUSE="90":
     set -euo pipefail
     # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
     export LOBBY_RUST_LOG="${LOBBY_RUST_LOG:-{{ e2e_log_filter }}}"
-    # Headless-safe display defaults (overridable); the e2e peers need X.
-    export DISPLAY="${DISPLAY:-:0}"
-    export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
     names="$(cargo nextest list -p lobby_room_e2e -p starboard_e2e --test e2e --all-features --run-ignored all --message-format oneline -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' 2>/dev/null | sed -n 's/^lobby_room_e2e::e2e //p; s/^starboard_e2e::e2e //p')"
     if [ -z "$names" ]; then
         echo "e2e-mainnet: no test matches '{{ TEST }}'" >&2

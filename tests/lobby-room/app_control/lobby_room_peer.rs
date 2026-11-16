@@ -22,7 +22,7 @@ impl LobbyRoomPeer {
     ) -> Result<Self, String> {
         let mut args = net.peer_args(name, window);
         args.push("--room-ping".to_string());
-        let peer = Peer::try_from_launch(bin, &args).await?;
+        let peer = Peer::try_from_launch(bin, &args, net.display_name()).await?;
         Ok(Self {
             lobby: LobbyPeer::new(name, peer, net.deadlines),
         })

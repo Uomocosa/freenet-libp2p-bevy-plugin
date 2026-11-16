@@ -16,6 +16,7 @@ pub struct DirectDialPeer {
     name: String,
     bin: PathBuf,
     args: Vec<String>,
+    display: Option<String>,
     deadlines: Deadlines,
     peer: Peer,
     earlier_logs: Vec<String>,
@@ -31,11 +32,13 @@ impl DirectDialPeer {
         window: (i32, i32),
     ) -> Result<Self, String> {
         let args = net.peer_args(name, window);
-        let peer = Peer::try_from_launch(bin, &args).await?;
+        let display = net.display_name().map(str::to_string);
+        let peer = Peer::try_from_launch(bin, &args, display.as_deref()).await?;
         Ok(Self {
             name: name.to_string(),
             bin: bin.to_path_buf(),
             args,
+            display,
             deadlines: net.deadlines,
             peer,
             earlier_logs: Vec::new(),
@@ -212,7 +215,7 @@ impl DirectDialPeer {
     /// Returns an error if the app does not start or does not answer over BRP.
     pub async fn relaunch(&mut self) -> Result<(), String> {
         self.earlier_logs.push(self.peer.log_text());
-        self.peer = Peer::try_from_launch(&self.bin, &self.args).await?;
+        self.peer = Peer::try_from_launch(&self.bin, &self.args, self.display.as_deref()).await?;
         Ok(())
     }
 

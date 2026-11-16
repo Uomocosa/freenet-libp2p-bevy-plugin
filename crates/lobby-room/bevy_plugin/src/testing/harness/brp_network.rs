@@ -11,6 +11,7 @@ pub struct BrpNetwork {
     pub(crate) token: String,
     pub deadlines: core_harness::Deadlines,
     pub(crate) run_dir: PathBuf,
+    pub(crate) display: Option<core_harness::E2EDisplay>,
     pub(crate) orchestrator: Option<testing::FakeNetworkServer>,
     pub(crate) _helper_nodes: Vec<freenet_node::NodeDir>,
 }
@@ -37,6 +38,8 @@ impl BrpNetwork {
 impl BrpNetwork {
     #[must_use]
     pub fn peer_args(&self, username: &str, window: (i32, i32)) -> Vec<String> { self.peer_args_with_token(username, window, &self.token) }
+    #[must_use]
+    pub fn display_name(&self) -> Option<&str> { self.display.as_ref().map(|display| display.name.as_str()) }
 }
 
 impl BrpNetwork {
@@ -77,6 +80,7 @@ mod tests {
             token: "brp-1".to_string(),
             deadlines: core_harness::Deadlines(1.0),
             run_dir: PathBuf::from("/tmp/brp-test"),
+            display: None,
             orchestrator: None,
             _helper_nodes: Vec::new(),
         }
@@ -90,5 +94,6 @@ mod tests {
         assert!(args.contains(&"--token".to_string()));
         assert!(args.contains(&"brp-1".to_string()));
         assert!(args.contains(&"10,20".to_string()));
+        assert_eq!(net.display_name(), None);
     }
 }

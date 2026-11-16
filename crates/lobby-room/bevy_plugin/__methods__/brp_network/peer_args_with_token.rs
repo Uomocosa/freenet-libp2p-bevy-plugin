@@ -58,6 +58,7 @@ mod tests {
             token: "brp-1".to_string(),
             deadlines: core_harness::Deadlines(1.0),
             run_dir: PathBuf::from("/tmp/brp-args"),
+            display: None,
             orchestrator: None,
             _helper_nodes: Vec::new(),
         };

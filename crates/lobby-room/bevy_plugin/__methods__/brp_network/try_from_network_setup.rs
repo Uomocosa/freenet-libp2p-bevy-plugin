@@ -15,6 +15,7 @@ pub async fn try_from_network_setup(
         .join(".local-run")
         .join(format!("brp-{stamp}"));
     std::fs::create_dir_all(&run_dir).map_err(|e| format!("run dir: {e}"))?;
+    let display = core_harness::E2EDisplay::from_env(&run_dir)?;
     let deadlines = core_harness::Deadlines::from(network);
     match network {
         testing::Network::Fake => {
@@ -26,6 +27,7 @@ pub async fn try_from_network_setup(
                 token: format!("brp-{}", core_harness::UnixNanos::now()),
                 deadlines,
                 run_dir,
+                display,
                 orchestrator: Some(server),
                 _helper_nodes: Vec::new(),
             })
@@ -46,6 +48,7 @@ pub async fn try_from_network_setup(
                 token,
                 deadlines,
                 run_dir,
+                display,
                 orchestrator: None,
                 _helper_nodes: helpers,
             })
@@ -59,6 +62,7 @@ pub async fn try_from_network_setup(
             token: format!("brp-{}", core_harness::UnixNanos::now()),
             deadlines,
             run_dir,
+            display,
             orchestrator: None,
             _helper_nodes: Vec::new(),
         }),

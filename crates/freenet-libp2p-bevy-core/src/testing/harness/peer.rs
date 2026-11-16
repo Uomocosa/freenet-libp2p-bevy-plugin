@@ -17,7 +17,12 @@ pub struct Peer {
 
 #[atomic_delegates]
 impl Peer {
-    pub async fn try_from_launch(bin: &Path, args: &[String]) -> Result<Self, String> {}
+    pub async fn try_from_launch(
+        bin: &Path,
+        args: &[String],
+        display: Option<&str>,
+    ) -> Result<Self, String> {
+    }
 }
 
 #[atomic_delegates]

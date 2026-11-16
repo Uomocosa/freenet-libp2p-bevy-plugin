@@ -9,6 +9,8 @@ pub mod deadlines;
 pub mod dial_state;
 #[cfg(feature = "testing")]
 pub mod direct_dial_e2e_methods;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod e2e_display;
 #[cfg(feature = "embedded-node")]
 pub mod embedded_node;
 #[cfg(feature = "testing")]
