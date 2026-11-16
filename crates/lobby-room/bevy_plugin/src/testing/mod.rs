@@ -19,3 +19,6 @@ pub use lobby_fake_network_plugin::LobbyFakeNetworkPlugin;
 
 #[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;
+
+#[cfg(feature = "e2e-harness")]
+pub mod harness;

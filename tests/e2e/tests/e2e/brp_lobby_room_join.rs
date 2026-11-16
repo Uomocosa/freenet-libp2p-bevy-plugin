@@ -15,7 +15,7 @@ async fn brp_lobby_room_join() -> Result<(), String> {
     let room = format!("brp-join-{}", UnixTime::now().as_secs());
     let (members, last_press) = meet_in_room(&bin, &net, PEERS, &room).await?;
     let converged =
-        expect_meshed_within_budget(&members, last_press, net.deadlines().lobby()).await?;
+        expect_meshed_within_budget(&members, last_press, net.deadlines.lobby()).await?;
     tokio::time::sleep(SETTLE).await;
     eprintln!("brp_lobby_room_join {converged}");
     for member in members {

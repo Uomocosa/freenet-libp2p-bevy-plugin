@@ -41,12 +41,10 @@ async fn brp_starboard_leave_rejoin() -> Result<(), String> {
     bystander
         .wait_until_room_has_other_members(OTHERS_IN_THREE)
         .await?;
-    painter.wait_until_in_room(net.deadlines().action()).await?;
+    painter.wait_until_in_room(net.deadlines.action()).await?;
     painter.paint_all(STROKES).await?;
     leaver.wait_until_cell_is_painted(PAINTER_CELL).await?;
-    bystander
-        .wait_until_in_room(net.deadlines().action())
-        .await?;
+    bystander.wait_until_in_room(net.deadlines.action()).await?;
     bystander.paint_all(&[BYSTANDER_MARK]).await?;
     leaver.wait_until_cell_is_painted(BYSTANDER_CELL).await?;
     leaver.leave_room().await?;
@@ -74,7 +72,7 @@ async fn brp_starboard_leave_rejoin() -> Result<(), String> {
     expect_canvases_converge(
         &[&painter, &leaver, &bystander],
         QUIET,
-        net.deadlines().scaled(CONVERGE_DEADLINE),
+        net.deadlines.scaled(CONVERGE_DEADLINE),
     )
     .await?;
     painter.exit().await?;

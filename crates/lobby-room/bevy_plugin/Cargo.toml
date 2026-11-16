@@ -48,6 +48,7 @@ tokio-tungstenite = { version = "=0.27.0" }
 http = { version = "=1.5.0" }
 
 [features]
+e2e-harness = ["testing", "freenet-libp2p-bevy-core/e2e-harness", "freenet-libp2p-bevy-core/embedded-node"]
 testing = ["freenet-libp2p-bevy-core/testing", "dep:serde_json"]
 
 [dev-dependencies]

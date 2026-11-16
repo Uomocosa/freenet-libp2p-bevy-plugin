@@ -3,16 +3,3 @@
 
 mod build_game;
 pub use build_game::{build_game, build_package_bin};
-
-#[path = "__basic__/mod.rs"]
-mod basic;
-pub use basic::newtypes::LobbyToken;
-
-mod check_or_deploy;
-pub use check_or_deploy::check_or_deploy;
-
-mod lobby_setup;
-pub use lobby_setup::LobbySetup;
-
-mod lobby_setup_error;
-pub use lobby_setup_error::LobbySetupError;

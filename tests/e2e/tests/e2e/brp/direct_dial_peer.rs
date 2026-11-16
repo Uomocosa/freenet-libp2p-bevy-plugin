@@ -36,7 +36,7 @@ impl DirectDialPeer {
             name: name.to_string(),
             bin: bin.to_path_buf(),
             args,
-            deadlines: net.deadlines(),
+            deadlines: net.deadlines,
             peer,
             earlier_logs: Vec::new(),
         })

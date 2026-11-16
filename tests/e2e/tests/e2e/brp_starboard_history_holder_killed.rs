@@ -24,7 +24,7 @@ async fn brp_starboard_history_holder_killed() -> Result<(), String> {
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let mut holder = StarboardPeer::launch(&bin, "holder", &net, PEER_WINDOWS[0]).await?;
     holder.create_room(&room).await?;
-    holder.wait_until_in_room(net.deadlines().action()).await?;
+    holder.wait_until_in_room(net.deadlines.action()).await?;
     let watcher = StarboardPeer::launch(&bin, "watcher", &net, PEER_WINDOWS[1]).await?;
     watcher.wait_until_room_listed(&room).await?;
     holder.paint_all(STROKES).await?;

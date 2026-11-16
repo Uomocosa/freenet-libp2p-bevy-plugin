@@ -30,10 +30,10 @@ async fn brp_starboard_late_join() -> Result<(), String> {
     helper
         .wait_until_room_has_at_least_other_members(OTHERS_IN_TWO)
         .await?;
-    painter.wait_until_in_room(net.deadlines().action()).await?;
+    painter.wait_until_in_room(net.deadlines.action()).await?;
     painter.paint_all(STROKES).await?;
     helper
-        .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_DEADLINE))
+        .wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_DEADLINE))
         .await?;
     let late_joiner = StarboardPeer::launch(&bin, "late_joiner", &net, PEER_WINDOWS[2]).await?;
     late_joiner.join_room(&room).await?;
@@ -44,7 +44,7 @@ async fn brp_starboard_late_join() -> Result<(), String> {
         .wait_until_room_has_at_least_other_members(OTHERS_IN_THREE)
         .await?;
     late_joiner
-        .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_DEADLINE))
+        .wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_DEADLINE))
         .await?;
     painter.wait_until_canvas_stops_changing(QUIET).await?;
     helper.wait_until_canvas_stops_changing(QUIET).await?;
@@ -52,7 +52,7 @@ async fn brp_starboard_late_join() -> Result<(), String> {
     expect_canvases_converge(
         &[&painter, &helper, &late_joiner],
         QUIET,
-        net.deadlines().scaled(CONVERGE_DEADLINE),
+        net.deadlines.scaled(CONVERGE_DEADLINE),
     )
     .await?;
     painter.exit().await?;

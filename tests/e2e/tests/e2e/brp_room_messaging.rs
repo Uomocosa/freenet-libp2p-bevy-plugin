@@ -16,7 +16,7 @@ async fn brp_room_messaging() -> Result<(), String> {
     let room = format!("brp-msg-{}", UnixTime::now().as_secs());
     let (members, last_press) = meet_in_room(&bin, &net, PEERS, &room).await?;
     let converged =
-        expect_meshed_within_budget(&members, last_press, net.deadlines().lobby()).await?;
+        expect_meshed_within_budget(&members, last_press, net.deadlines.lobby()).await?;
     let others = PEERS.saturating_sub(1);
     for member in &members {
         member

@@ -30,10 +30,10 @@ async fn brp_starboard_history_room_gone() -> Result<(), String> {
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let painter = StarboardPeer::launch(&bin, "painter", &net, PEER_WINDOWS[0]).await?;
     painter.create_room(&room).await?;
-    painter.wait_until_in_room(net.deadlines().action()).await?;
+    painter.wait_until_in_room(net.deadlines.action()).await?;
     let helper = StarboardPeer::launch(&bin, "helper", &net, PEER_WINDOWS[1]).await?;
     helper.join_room(&room).await?;
-    helper.wait_until_in_room(net.deadlines().action()).await?;
+    helper.wait_until_in_room(net.deadlines.action()).await?;
     let watcher = StarboardPeer::launch(&bin, "watcher", &net, PEER_WINDOWS[2]).await?;
     watcher.wait_until_room_listed(&room).await?;
     painter
@@ -44,14 +44,14 @@ async fn brp_starboard_history_room_gone() -> Result<(), String> {
         .await?;
     painter.paint_all(STROKES).await?;
     helper
-        .wait_until_canvas_has_content(net.deadlines().scaled(Duration::from_secs(60)))
+        .wait_until_canvas_has_content(net.deadlines.scaled(Duration::from_secs(60)))
         .await?;
     helper.erase_all(ERASE_STROKES).await?;
     painter.wait_until_canvas_stops_changing(QUIET).await?;
     helper.wait_until_canvas_stops_changing(QUIET).await?;
     wait_until_any_history_written(
         &[&painter, &helper],
-        net.deadlines().scaled(Duration::from_secs(120)),
+        net.deadlines.scaled(Duration::from_secs(120)),
     )
     .await?;
     painter.exit().await?;

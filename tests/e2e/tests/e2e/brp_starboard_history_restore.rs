@@ -27,7 +27,7 @@ async fn brp_starboard_history_restore() -> Result<(), String> {
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let painter = StarboardPeer::launch(&bin, "holder1", &net, PEER_WINDOWS[0]).await?;
     painter.create_room(&room).await?;
-    painter.wait_until_in_room(net.deadlines().action()).await?;
+    painter.wait_until_in_room(net.deadlines.action()).await?;
     let helper = StarboardPeer::launch(&bin, "holder2", &net, PEER_WINDOWS[1]).await?;
     helper.join_room(&room).await?;
     painter
@@ -37,10 +37,10 @@ async fn brp_starboard_history_restore() -> Result<(), String> {
     painter.paint_all(STROKES).await?;
     painter.wait_until_canvas_stops_changing(QUIET).await?;
     helper
-        .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_BUDGET))
+        .wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_BUDGET))
         .await?;
     helper.wait_until_canvas_stops_changing(QUIET).await?;
-    wait_until_any_history_written(&[&painter, &helper], net.deadlines().scaled(HISTORY_BUDGET))
+    wait_until_any_history_written(&[&painter, &helper], net.deadlines.scaled(HISTORY_BUDGET))
         .await?;
     let painted_hash = painter.canvas_status().await?.hash;
     painter.leave_room().await?;
@@ -49,7 +49,7 @@ async fn brp_starboard_history_restore() -> Result<(), String> {
     let late_joiner = StarboardPeer::launch(&bin, "late_joiner", &net, PEER_WINDOWS[2]).await?;
     late_joiner.join_room(&room).await?;
     late_joiner
-        .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_BUDGET))
+        .wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_BUDGET))
         .await?;
     let restored = late_joiner.wait_until_canvas_stops_changing(QUIET).await?;
     if restored.hash != painted_hash {

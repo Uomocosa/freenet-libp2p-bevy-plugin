@@ -24,7 +24,7 @@ impl LobbyRoomPeer {
         args.push("--room-ping".to_string());
         let peer = Peer::try_from_launch(bin, &args).await?;
         Ok(Self {
-            lobby: LobbyPeer::new(name, peer, net.deadlines()),
+            lobby: LobbyPeer::new(name, peer, net.deadlines),
         })
     }
 

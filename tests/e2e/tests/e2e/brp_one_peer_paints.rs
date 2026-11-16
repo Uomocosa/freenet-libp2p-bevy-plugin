@@ -22,10 +22,10 @@ async fn brp_one_peer_paints() -> Result<(), String> {
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let alice = StarboardPeer::launch(&bin, "alice", &net, (0, 0)).await?;
     alice.create_room(&room).await?;
-    alice.wait_until_in_room(net.deadlines().action()).await?;
+    alice.wait_until_in_room(net.deadlines.action()).await?;
     alice.paint(LINE).await?;
     alice
-        .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_DEADLINE))
+        .wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_DEADLINE))
         .await?;
     let settled = alice.wait_until_canvas_stops_changing(QUIET).await?;
     if settled.painted_tiles == 0 {

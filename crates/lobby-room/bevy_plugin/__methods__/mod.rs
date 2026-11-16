@@ -1,3 +1,5 @@
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod brp_network;
 pub mod client;
 pub mod config;
 pub mod discovery_state;
@@ -6,6 +8,8 @@ pub mod esc_menu_state;
 pub mod friends_drawer_state;
 pub mod leave_prompt;
 pub mod list_state;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod lobby_contract_deployer;
 pub mod lobby_contract_subscription;
 #[cfg(feature = "testing")]
 pub mod lobby_e2e_methods;

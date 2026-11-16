@@ -34,7 +34,7 @@ async fn brp_starboard_peer_killed() -> Result<(), String> {
     let bob = StarboardPeer::launch(&bin, "helper", &net, PEER_WINDOWS[1]).await?;
     let mut carol = StarboardPeer::launch(&bin, "crasher", &net, PEER_WINDOWS[2]).await?;
     alice.create_room(&room).await?;
-    alice.wait_until_in_room(net.deadlines().action()).await?;
+    alice.wait_until_in_room(net.deadlines.action()).await?;
     alice.paint_all(STROKES).await?;
     bob.join_room(&room).await?;
     carol.join_room(&room).await?;
@@ -47,14 +47,14 @@ async fn brp_starboard_peer_killed() -> Result<(), String> {
         .wait_until_room_has_at_least_other_members(OTHERS_IN_THREE)
         .await?;
     alice
-        .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_DEADLINE))
+        .wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_DEADLINE))
         .await?;
-    bob.wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_DEADLINE))
+    bob.wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_DEADLINE))
         .await?;
     carol
-        .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_DEADLINE))
+        .wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_DEADLINE))
         .await?;
-    tokio::time::sleep(net.deadlines().scaled(CRASH_AFTER)).await;
+    tokio::time::sleep(net.deadlines.scaled(CRASH_AFTER)).await;
     carol.kill()?;
     alice
         .wait_until_room_has_at_most_other_members(OTHERS_IN_TWO)
@@ -67,7 +67,7 @@ async fn brp_starboard_peer_killed() -> Result<(), String> {
     expect_canvases_converge(
         &[&alice, &bob],
         QUIET,
-        net.deadlines().scaled(CONVERGE_DEADLINE),
+        net.deadlines.scaled(CONVERGE_DEADLINE),
     )
     .await?;
     alice.exit().await?;

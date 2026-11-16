@@ -1,25 +1,30 @@
 use thiserror::Error;
 
-/// Why the lobby setup could not make the run's contract readable.
+use freenet_libp2p_bevy_core::freenet_node;
+
+use crate::freenet;
+
 #[derive(Debug, Error)]
 pub enum LobbySetupError {
-    #[error("lobby setup: embedded helper node failed to start: {0}")]
-    NodeStart(String),
+    #[error("lobby setup: embedded helper node failed to start")]
+    NodeStart(#[source] freenet_node::Error),
     #[error("lobby setup: contract deploy failed")]
-    Deploy(#[source] freenet_libp2p_bevy_plugin::lobby_room::freenet::Error),
+    Deploy(#[source] freenet::Error),
     #[error("lobby setup: contract not readable after deploy")]
-    NotReadableAfterDeploy(#[source] freenet_libp2p_bevy_plugin::lobby_room::freenet::Error),
+    NotReadableAfterDeploy(#[source] freenet::Error),
 }
 
 #[cfg(test)]
 mod tests {
-    use freenet_libp2p_bevy_plugin::lobby_room::freenet;
-
     use super::LobbySetupError;
+    use freenet_libp2p_bevy_core::freenet_node;
+
+    use crate::freenet;
 
     #[test]
     fn test_usage() {
-        let start = LobbySetupError::NodeStart("no port".to_string());
+        let start =
+            LobbySetupError::NodeStart(freenet_node::Error::Bind(std::io::Error::other("no port")));
         assert!(start.to_string().contains("failed to start"));
 
         let deploy = LobbySetupError::Deploy(freenet::Error::ConnectionTimeout);

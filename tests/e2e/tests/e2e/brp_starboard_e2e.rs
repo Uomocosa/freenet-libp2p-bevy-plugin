@@ -43,22 +43,22 @@ async fn brp_starboard_e2e() -> Result<(), String> {
     watcher
         .wait_until_room_has_at_least_other_members(OTHERS_IN_THREE)
         .await?;
-    painter.wait_until_in_room(net.deadlines().action()).await?;
+    painter.wait_until_in_room(net.deadlines.action()).await?;
     painter.paint_all(STROKES).await?;
     painter.wait_until_canvas_stops_changing(QUIET).await?;
     helper
-        .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_DEADLINE))
+        .wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_DEADLINE))
         .await?;
     helper.erase_all(ERASE_STROKES).await?;
     helper.wait_until_canvas_stops_changing(QUIET).await?;
     watcher
-        .wait_until_canvas_has_content(net.deadlines().scaled(CONTENT_DEADLINE))
+        .wait_until_canvas_has_content(net.deadlines.scaled(CONTENT_DEADLINE))
         .await?;
     watcher.wait_until_canvas_stops_changing(QUIET).await?;
     expect_canvases_converge(
         &[&painter, &helper, &watcher],
         QUIET,
-        net.deadlines().scaled(CONVERGE_DEADLINE),
+        net.deadlines.scaled(CONVERGE_DEADLINE),
     )
     .await?;
     painter.exit().await?;
