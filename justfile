@@ -1,5 +1,8 @@
+[unix]
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
-set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+
+[windows]
+set shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 # Build outside `[R] Rust` (jemalloc's configure rejects spaces); persistent, portable.
 export CARGO_TARGET_DIR := env("HOME") / ".cache/cargo-target/freenet-libp2p-bevy-plugin"
