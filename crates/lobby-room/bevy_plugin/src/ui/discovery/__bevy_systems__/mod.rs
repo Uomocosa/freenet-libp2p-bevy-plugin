@@ -40,6 +40,7 @@ pub mod spawn_root;
 pub mod spin_spinners;
 pub mod start_friends_beat;
 pub mod track_room_preview;
+pub mod watch_selected_room;
 
 pub use animate_door::animate_door;
 pub use animate_esc_menu::animate_esc_menu;
@@ -83,3 +84,4 @@ pub use spawn_root::spawn_root;
 pub use spin_spinners::spin_spinners;
 pub use start_friends_beat::start_friends_beat;
 pub use track_room_preview::track_room_preview;
+pub use watch_selected_room::watch_selected_room;

@@ -9,6 +9,7 @@ pub enum Command {
     Join(discovery::RoomName),
     Leave,
     Quit,
+    Watch(discovery::RoomName),
 }
 
 #[derive(Message, Debug, Clone, PartialEq, Eq)]

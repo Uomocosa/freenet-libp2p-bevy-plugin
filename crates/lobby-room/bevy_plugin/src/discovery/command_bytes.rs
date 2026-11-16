@@ -20,4 +20,14 @@ mod tests {
             command
         );
     }
+
+    #[test]
+    fn watch_round_trips() {
+        let command = discovery::Command::Watch(discovery::RoomName::from("room-2"));
+        let bytes = command.to_extension_bytes();
+        assert_eq!(
+            bincode::deserialize::<discovery::Command>(&bytes).expect("decode"),
+            command
+        );
+    }
 }

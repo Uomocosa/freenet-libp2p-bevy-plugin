@@ -138,6 +138,7 @@ impl DiscoveryState {
     pub fn send_handshake(&self, peer: &identity::PeerId) -> Vec<Output> {}
     pub fn tick(&mut self, now: time::UnixTime) -> Vec<Output> {}
     pub fn wait_for_contract_self_heal(&mut self, now: time::UnixTime) -> Vec<Output> {}
+    pub fn watch(&mut self, room: discovery::RoomName, now: time::UnixTime) -> Vec<Output> {}
 }
 
 impl DiscoveryState {
@@ -167,6 +168,7 @@ impl DiscoveryState {
             discovery::Command::Join(room) => (room, discovery::HowRoomWasEntered::Joined),
             discovery::Command::Leave => return self.leave(now),
             discovery::Command::Quit => return self.quit(now),
+            discovery::Command::Watch(room) => return self.watch(room, now),
         };
         if room.as_str().trim().is_empty() {
             tracing::error!(target: "discovery", "discovery rejected: empty room name");
@@ -334,6 +336,29 @@ mod tests {
         );
         assert_eq!(outputs.len(), 0);
         assert!(state.room.is_none());
+    }
+
+    #[test]
+    fn watching_a_lobby_room_holds_its_history() {
+        let mut state = DiscoveryState::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
+        let room = discovery::RoomName::from("r");
+        state.lobby.insert(
+            room.clone(),
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::from_secs(3),
+                members: std::collections::BTreeMap::new(),
+            },
+        );
+        let outputs = state.handle_command(
+            discovery::Command::Watch(room.clone()),
+            time::UnixTime::from_secs(4),
+        );
+        assert_eq!(outputs, Vec::new());
+        assert!(state.held_rooms.contains_key(&room));
     }
 
     #[test]

@@ -66,6 +66,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                     (
                         systems::drop_stale_room_selection,
                         systems::track_room_preview,
+                        systems::watch_selected_room,
                         systems::lock_room_selection,
                         systems::enter_on_double_click,
                         systems::highlight_selected_room.after(systems::animate_hover),
