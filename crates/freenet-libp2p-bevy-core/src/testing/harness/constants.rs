@@ -4,6 +4,9 @@ pub const PEER_WINDOWS: [(i32, i32); 4] = [(0, 0), (481, 0), (0, 260), (481, 260
 
 pub const E2E_DISPLAY_ENV: &str = "E2E_DISPLAY";
 pub const E2E_XVFB_ENV: &str = "E2E_XVFB";
+pub const E2E_RECORD_ENV: &str = "E2E_RECORD";
+pub const E2E_RECORD_DRY_RUN_ENV: &str = "E2E_RECORD_DRY_RUN";
+pub const E2E_FFMPEG_ENV: &str = "E2E_FFMPEG";
 
 pub const XVFB_FIRST_DISPLAY: u16 = 90;
 pub const XVFB_LAST_DISPLAY: u16 = 120;
@@ -13,8 +16,18 @@ pub const XVFB_LAST_DISPLAY: u16 = 120;
 /// rounded up to 1442 because yuv420p video needs even dimensions.
 pub const XVFB_SCREEN_SIZE: &str = "1442x800x24";
 
+pub const E2E_CAPTURE_SIZE: &str = "1442x800";
+pub const E2E_RECORDING_FPS: &str = "10";
+pub const E2E_RECORDING_CRF: &str = "30";
+pub const E2E_RECORDING_RECODE_CRF: &str = "36";
+
+/// Telegram caps a video at 50 MB; 45 MiB leaves room for the multipart envelope.
+pub const TELEGRAM_VIDEO_BYTES: u64 = 47_185_920;
+
 pub const XVFB_START_TIMEOUT: Duration = Duration::from_secs(5);
 pub const XVFB_POLL_INTERVAL: Duration = Duration::from_millis(50);
+pub const FFMPEG_SHUTDOWN_ATTEMPTS: u32 = 100;
+pub const FFMPEG_SHUTDOWN_POLL: Duration = Duration::from_millis(100);
 
 pub const POLL_INTERVAL: Duration = Duration::from_millis(250);
 

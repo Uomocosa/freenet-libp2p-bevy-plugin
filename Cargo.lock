@@ -4282,6 +4282,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "telegram-bot-helper",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",

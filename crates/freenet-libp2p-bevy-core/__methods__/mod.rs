@@ -46,7 +46,11 @@ pub mod polling;
 pub mod replica_slice_content_hash;
 pub mod replica_slice_index;
 pub mod replica_state;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod run_recording;
 pub mod runner_config;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod screen_capture;
 pub mod short_peer_id;
 pub mod swarm_channels;
 pub mod swarm_loop_state;

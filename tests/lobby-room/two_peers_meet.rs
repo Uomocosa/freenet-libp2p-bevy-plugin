@@ -10,6 +10,7 @@ const BOB_WINDOW: (i32, i32) = (481, 0);
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn lobby_room_two_peers_meet() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("lobby_room_two_peers_meet");
     let bin = build_package_bin("lobby_room_e2e", "lobby_room_e2e", "dev")?;
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let alice = LobbyRoomPeer::launch(&bin, "alice", &net, ALICE_WINDOW).await?;
@@ -23,5 +24,7 @@ async fn lobby_room_two_peers_meet() -> Result<(), String> {
     alice.wait_until_hears_a_peer().await?;
     bob.wait_until_hears_a_peer().await?;
     alice.exit().await?;
-    bob.exit().await
+    bob.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

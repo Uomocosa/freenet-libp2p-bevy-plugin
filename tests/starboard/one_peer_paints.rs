@@ -18,6 +18,7 @@ const QUIET: Duration = Duration::from_secs(2);
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn one_peer_paints() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
+    let mut recording = net.recording("one_peer_paints");
     let bin = build_package_bin("starboard_e2e", "starboard_e2e", "dev")?;
     let room = format!("brp-{}", UnixTime::now().as_secs());
     let alice = StarboardPeer::launch(&bin, "alice", &net, (0, 0)).await?;
@@ -31,5 +32,7 @@ async fn one_peer_paints() -> Result<(), String> {
     if settled.painted_tiles == 0 {
         return Err(format!("canvas has no painted tile: {settled:?}"));
     }
-    alice.exit().await
+    alice.exit().await?;
+    recording.mark_passed();
+    Ok(())
 }

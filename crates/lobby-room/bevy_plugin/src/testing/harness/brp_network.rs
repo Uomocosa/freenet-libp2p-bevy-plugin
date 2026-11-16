@@ -40,6 +40,8 @@ impl BrpNetwork {
     pub fn peer_args(&self, username: &str, window: (i32, i32)) -> Vec<String> { self.peer_args_with_token(username, window, &self.token) }
     #[must_use]
     pub fn display_name(&self) -> Option<&str> { self.display.as_ref().map(|display| display.name.as_str()) }
+    #[must_use]
+    pub fn recording(&self, test_name: &str) -> core_harness::RunRecording { core_harness::RunRecording::from_env(&self.run_dir, test_name, self.display_name()) }
 }
 
 impl BrpNetwork {
@@ -95,5 +97,10 @@ mod tests {
         assert!(args.contains(&"brp-1".to_string()));
         assert!(args.contains(&"10,20".to_string()));
         assert_eq!(net.display_name(), None);
+        assert!(
+            net.recording("probe")
+                .clip_path()
+                .ends_with("e2e-probe.mp4")
+        );
     }
 }
