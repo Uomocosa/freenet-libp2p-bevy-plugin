@@ -25,7 +25,7 @@ pub fn evict_held_rooms_over_history_limit(
         .iter()
         .map(|(room, held)| (room.clone(), bytes_at(&prefix_of(room, held.created_at))))
         .collect();
-    let evicted = state.oldest_held_rooms_to_evict_until_history_fits(
+    let evicted = state.oldest_held_rooms_to_evict_until_history_limits_hold(
         &history_bytes_by_held_room,
         current_room_history_bytes,
     );

@@ -4,6 +4,7 @@ use crate::p2p;
 pub struct HistorySizeLimits {
     pub per_process_bytes: p2p::HistoryByteCount,
     pub per_room_bytes: p2p::HistoryByteCount,
+    pub max_held_rooms: usize,
 }
 
 impl Default for HistorySizeLimits {
@@ -11,6 +12,7 @@ impl Default for HistorySizeLimits {
         Self {
             per_process_bytes: p2p::HistoryByteCount::from(256u64 * 1024 * 1024),
             per_room_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
+            max_held_rooms: 8,
         }
     }
 }

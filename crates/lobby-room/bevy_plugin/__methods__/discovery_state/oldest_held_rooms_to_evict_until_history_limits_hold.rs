@@ -5,7 +5,7 @@ use crate::p2p;
 use discovery::state_machine::DiscoveryState;
 
 #[must_use]
-pub fn oldest_held_rooms_to_evict_until_history_fits(
+pub fn oldest_held_rooms_to_evict_until_history_limits_hold(
     state: &DiscoveryState,
     history_bytes_by_held_room: &BTreeMap<discovery::RoomName, p2p::HistoryByteCount>,
     current_room_history_bytes: p2p::HistoryByteCount,
@@ -16,6 +16,7 @@ pub fn oldest_held_rooms_to_evict_until_history_fits(
             .map_or(0, |bytes| **bytes)
     };
     let limit = state.history_size_limits.per_process_bytes;
+    let max_held_rooms = state.history_size_limits.max_held_rooms;
     let total_history_bytes = state
         .held_rooms
         .keys()
@@ -32,9 +33,11 @@ pub fn oldest_held_rooms_to_evict_until_history_fits(
     oldest_left_first
         .into_iter()
         .scan(
-            total_history_bytes,
-            |bytes_left_after_evictions, (room, _)| {
-                if *bytes_left_after_evictions <= *limit {
+            (total_history_bytes, state.held_rooms.len()),
+            |(bytes_left_after_evictions, rooms_left_after_evictions), (room, _)| {
+                let is_over_bytes = *bytes_left_after_evictions > *limit;
+                let is_over_count = *rooms_left_after_evictions > max_held_rooms;
+                if !is_over_bytes && !is_over_count {
                     return None;
                 }
                 let room_history_bytes = history_bytes_of_room(room);
@@ -46,6 +49,7 @@ pub fn oldest_held_rooms_to_evict_until_history_fits(
                 );
                 *bytes_left_after_evictions =
                     bytes_left_after_evictions.saturating_sub(room_history_bytes);
+                *rooms_left_after_evictions = rooms_left_after_evictions.saturating_sub(1);
                 Some(room.clone())
             },
         )
@@ -55,7 +59,7 @@ pub fn oldest_held_rooms_to_evict_until_history_fits(
 mod tests {
     use std::collections::BTreeMap;
 
-    use super::oldest_held_rooms_to_evict_until_history_fits;
+    use super::oldest_held_rooms_to_evict_until_history_limits_hold;
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
@@ -95,7 +99,7 @@ mod tests {
     fn test_usage() {
         let mut state = state_with_held(&[("a", 1)]);
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(5);
-        let evicted = oldest_held_rooms_to_evict_until_history_fits(
+        let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
             &bytes(&[("a", 10)]),
             p2p::HistoryByteCount(0),
@@ -107,7 +111,7 @@ mod tests {
     fn held_room_left_first_is_evicted_first() {
         let mut state = state_with_held(&[("new", 30), ("old", 10), ("mid", 20)]);
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(15);
-        let evicted = oldest_held_rooms_to_evict_until_history_fits(
+        let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
             &bytes(&[("new", 10), ("old", 10), ("mid", 10)]),
             p2p::HistoryByteCount(0),
@@ -122,10 +126,34 @@ mod tests {
     }
 
     #[test]
+    fn leaving_a_third_room_evicts_the_one_left_first_when_two_are_allowed() {
+        let mut state = state_with_held(&[("c", 30), ("a", 10), ("b", 20)]);
+        state.history_size_limits.max_held_rooms = 2;
+        let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
+            &state,
+            &bytes(&[("a", 1), ("b", 1), ("c", 1)]),
+            p2p::HistoryByteCount(0),
+        );
+        assert_eq!(evicted, vec![discovery::RoomName::from("a")]);
+    }
+
+    #[test]
+    fn rejoined_room_is_not_counted_twice() {
+        let mut state = state_with_held(&[("a", 10), ("b", 20)]);
+        state.history_size_limits.max_held_rooms = 2;
+        let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
+            &state,
+            &bytes(&[("a", 1), ("b", 1)]),
+            p2p::HistoryByteCount(1),
+        );
+        assert_eq!(evicted, Vec::<discovery::RoomName>::new());
+    }
+
+    #[test]
     fn nothing_is_evicted_under_the_limit() {
         let mut state = state_with_held(&[("a", 1)]);
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(15);
-        let evicted = oldest_held_rooms_to_evict_until_history_fits(
+        let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
             &bytes(&[("a", 10)]),
             p2p::HistoryByteCount(5),
@@ -137,7 +165,7 @@ mod tests {
     fn current_room_alone_over_the_limit_evicts_every_held_room_but_itself() {
         let mut state = state_with_held(&[("a", 1), ("b", 2)]);
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(10);
-        let evicted = oldest_held_rooms_to_evict_until_history_fits(
+        let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
             &bytes(&[("a", 1), ("b", 1)]),
             p2p::HistoryByteCount(100),
