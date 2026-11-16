@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyStatus, LobbyTarget};
-use freenet_libp2p_bevy_plugin::testing::NamedKey;
+use freenet_libp2p_bevy_plugin::testing::Key;
 use serde_json::Value;
 
 use super::{Deadlines, LogFile, Peer, UiPeer, poll_until};
@@ -80,7 +80,7 @@ impl LobbyPeer {
     async fn attempt_create_room_after_backspace(&self, room: &str) -> Result<(), String> {
         self.ui().click(LobbyTarget::RoomNameInput).await?;
         self.ui().type_text(&format!("{room}x")).await?;
-        self.ui().press_key(NamedKey::Backspace).await?;
+        self.ui().press_key(Key::Backspace).await?;
         self.submit_room(room).await.map(|_| ())
     }
 
@@ -299,7 +299,7 @@ impl LobbyPeer {
     }
 
     async fn attempt_leave_room(&self) -> Result<(), String> {
-        self.ui().press_key(NamedKey::Escape).await?;
+        self.ui().press_key(Key::Escape).await?;
         self.ui().click(LobbyTarget::EscMenuLeaveButton).await?;
         self.ui().click(LobbyTarget::LeaveYesButton).await?;
         poll_until(

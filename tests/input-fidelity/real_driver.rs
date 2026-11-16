@@ -6,8 +6,8 @@
 // probe would see a different physical key than the one the layout maps the
 // character to (decision D1).
 
-use enigo::{Button, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
-use freenet_libp2p_bevy_core::testing::NamedKey;
+use enigo::{Button, Coordinate, Direction, Enigo, Keyboard, Mouse, Settings};
+use freenet_libp2p_bevy_core::testing::Key;
 use input_fidelity_e2e::args::PROBE_WINDOW_TITLE;
 use input_fidelity_e2e::window_geometry::WindowGeometry;
 use x11rb::connection::Connection;
@@ -68,13 +68,43 @@ const fn us_keycode(character: char) -> Option<u16> {
 // The named keys' keysyms already live in the default keymap, so `key` reuses
 // the existing physical keycode instead of binding a spare one (enigo
 // `key_to_keycode` returns early when the keysym is already mapped).
-const fn named_key(key: NamedKey) -> Key {
+const fn named_key(key: Key) -> Option<enigo::Key> {
     match key {
-        NamedKey::Tab => Key::Tab,
-        NamedKey::Enter => Key::Return,
-        NamedKey::Backspace => Key::Backspace,
-        NamedKey::Escape => Key::Escape,
-        NamedKey::ShiftLeft => Key::Shift,
+        Key::Tab => Some(enigo::Key::Tab),
+        Key::Enter => Some(enigo::Key::Return),
+        Key::Backspace => Some(enigo::Key::Backspace),
+        Key::Escape => Some(enigo::Key::Escape),
+        Key::Shift => Some(enigo::Key::Shift),
+        Key::Char(_)
+        | Key::Delete
+        | Key::Insert
+        | Key::Home
+        | Key::End
+        | Key::PageUp
+        | Key::PageDown
+        | Key::ArrowUp
+        | Key::ArrowDown
+        | Key::ArrowLeft
+        | Key::ArrowRight
+        | Key::F1
+        | Key::F2
+        | Key::F3
+        | Key::F4
+        | Key::F5
+        | Key::F6
+        | Key::F7
+        | Key::F8
+        | Key::F9
+        | Key::F10
+        | Key::F11
+        | Key::F12
+        | Key::Ctrl
+        | Key::Alt
+        | Key::Super
+        | Key::CtrlRight
+        | Key::ShiftRight
+        | Key::AltRight
+        | Key::SuperRight => None,
     }
 }
 
@@ -174,8 +204,10 @@ impl RealDriver {
                     self.move_to(root_x, root_y)?;
                 }
                 InputStep::PressKey(key) => {
+                    let pressed = named_key(*key)
+                        .ok_or_else(|| format!("real driver: no enigo key for {key:?}"))?;
                     self.enigo
-                        .key(named_key(*key), Direction::Click)
+                        .key(pressed, Direction::Click)
                         .map_err(|error| format!("real driver: tap {key:?}: {error}"))?;
                 }
                 InputStep::TypeText(text) => {

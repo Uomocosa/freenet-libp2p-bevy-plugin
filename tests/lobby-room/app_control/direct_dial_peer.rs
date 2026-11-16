@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::direct_dial::KnownPeerKind;
 use freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyTarget;
-use freenet_libp2p_bevy_plugin::testing::{DirectDialStatus, NamedKey};
+use freenet_libp2p_bevy_plugin::testing::{DirectDialStatus, Key};
 use serde_json::Value;
 
 use super::{BrpNetwork, Deadlines, Peer, UiPeer, poll_until};
@@ -186,7 +186,7 @@ impl DirectDialPeer {
     /// # Errors
     /// Returns an error if a drawer control never appears or the input is never delivered.
     pub async fn add_friend_through_ui(&self, addr: &str) -> Result<(), String> {
-        self.ui().press_key(NamedKey::Tab).await?;
+        self.ui().press_key(Key::Tab).await?;
         self.ui().click(LobbyTarget::FriendAddressInput).await?;
         self.ui().type_text(addr).await?;
         poll_until(

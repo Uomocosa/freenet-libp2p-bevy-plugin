@@ -1,4 +1,4 @@
-use freenet_libp2p_bevy_core::testing::NamedKey;
+use freenet_libp2p_bevy_core::testing::Key;
 
 use crate::input_step::InputStep;
 
@@ -7,11 +7,11 @@ pub const CLICK_SPEED: f32 = 1200.0;
 pub const INPUT_SCRIPT: &[InputStep] = &[
     InputStep::ClickAt { x: 120.0, y: 80.0 },
     InputStep::MoveTo { x: 400.0, y: 300.0 },
-    InputStep::PressKey(NamedKey::Tab),
+    InputStep::PressKey(Key::Tab),
     InputStep::TypeText("aB1 "),
-    InputStep::PressKey(NamedKey::Backspace),
-    InputStep::PressKey(NamedKey::Enter),
-    InputStep::PressKey(NamedKey::Escape),
+    InputStep::PressKey(Key::Backspace),
+    InputStep::PressKey(Key::Enter),
+    InputStep::PressKey(Key::Escape),
     InputStep::ClickAt { x: 300.0, y: 220.0 },
 ];
 

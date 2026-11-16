@@ -51,8 +51,8 @@ pub use e2e_driver_plugin::E2EDriverPlugin;
 mod direct_dial_e2e_methods;
 pub use direct_dial_e2e_methods::DirectDialE2EMethods;
 
-mod named_key;
-pub use named_key::NamedKey;
+mod key;
+pub use key::Key;
 
 mod synthetic_input_queue;
 pub use synthetic_input_queue::SyntheticInputQueue;

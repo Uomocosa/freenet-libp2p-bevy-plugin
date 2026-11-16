@@ -24,7 +24,7 @@ impl SyntheticInputQueue {
         });
     }
 
-    pub fn press_named_key(&mut self, key: testing::NamedKey) {
+    pub fn press_named_key(&mut self, key: testing::Key) {
         self.pending
             .push_back(testing::SyntheticInput::Named(key, ButtonState::Pressed));
         self.pending

@@ -53,7 +53,7 @@ pub fn drain_synthetic_input(
                 key_code: named.key_code(),
                 logical_key: named.logical_key(),
                 state,
-                text: named.key_text().map(Into::into),
+                text: named.text().map(Into::into),
                 repeat: false,
                 window,
             };
@@ -475,7 +475,7 @@ mod tests {
         app.world_mut().spawn((Window::default(), PrimaryWindow));
         app.world_mut()
             .resource_mut::<testing::SyntheticInputQueue>()
-            .press_named_key(testing::NamedKey::Escape);
+            .press_named_key(testing::Key::Escape);
         for _ in 0..4 {
             app.update();
         }
@@ -518,10 +518,10 @@ mod tests {
             .add_systems(Update, record_key_log);
         app.world_mut().spawn((Window::default(), PrimaryWindow));
         for key in [
-            testing::NamedKey::Backspace,
-            testing::NamedKey::Enter,
-            testing::NamedKey::Tab,
-            testing::NamedKey::Escape,
+            testing::Key::Backspace,
+            testing::Key::Enter,
+            testing::Key::Tab,
+            testing::Key::Escape,
         ] {
             app.world_mut()
                 .resource_mut::<testing::SyntheticInputQueue>()

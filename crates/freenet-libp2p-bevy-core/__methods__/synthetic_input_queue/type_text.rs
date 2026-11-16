@@ -6,7 +6,7 @@ pub fn type_text(queue: &mut testing::SyntheticInputQueue, text: &str) {
     for character in text.chars() {
         if testing::TypedKey::from(character).needs_shift {
             queue.pending.push_back(testing::SyntheticInput::Named(
-                testing::NamedKey::ShiftLeft,
+                testing::Key::Shift,
                 ButtonState::Pressed,
             ));
         }
@@ -20,7 +20,7 @@ pub fn type_text(queue: &mut testing::SyntheticInputQueue, text: &str) {
         ));
         if testing::TypedKey::from(character).needs_shift {
             queue.pending.push_back(testing::SyntheticInput::Named(
-                testing::NamedKey::ShiftLeft,
+                testing::Key::Shift,
                 ButtonState::Released,
             ));
         }
@@ -47,13 +47,10 @@ mod tests {
         assert_eq!(
             queue.pending.iter().collect::<Vec<_>>(),
             vec![
-                &testing::SyntheticInput::Named(testing::NamedKey::ShiftLeft, ButtonState::Pressed),
+                &testing::SyntheticInput::Named(testing::Key::Shift, ButtonState::Pressed),
                 &testing::SyntheticInput::Key('B', ButtonState::Pressed),
                 &testing::SyntheticInput::Key('B', ButtonState::Released),
-                &testing::SyntheticInput::Named(
-                    testing::NamedKey::ShiftLeft,
-                    ButtonState::Released
-                ),
+                &testing::SyntheticInput::Named(testing::Key::Shift, ButtonState::Released),
             ]
         );
     }

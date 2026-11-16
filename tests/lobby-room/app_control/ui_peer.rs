@@ -1,5 +1,5 @@
 use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyTarget, LocatedNode};
-use freenet_libp2p_bevy_plugin::testing::{CursorTarget, NamedKey, PointerSpeed};
+use freenet_libp2p_bevy_plugin::testing::{CursorTarget, Key, PointerSpeed};
 use serde_json::{Value, json};
 
 use super::{DayMillis, Deadlines, Peer, poll_until};
@@ -26,7 +26,7 @@ impl<'a> UiPeer<'a> {
 
     /// # Errors
     /// Returns an error if the key is not delivered in time.
-    pub async fn press_key(&self, key: NamedKey) -> Result<(), String> {
+    pub async fn press_key(&self, key: Key) -> Result<(), String> {
         self.peer
             .call::<Value>("e2e/press_key", json!(key))
             .await

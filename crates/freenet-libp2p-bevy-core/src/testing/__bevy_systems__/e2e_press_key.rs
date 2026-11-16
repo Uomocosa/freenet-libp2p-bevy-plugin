@@ -8,7 +8,7 @@ pub fn e2e_press_key(
     In(params): In<Option<Value>>,
     mut queue: ResMut<testing::SyntheticInputQueue>,
 ) -> BrpResult {
-    let key: testing::NamedKey =
+    let key: testing::Key =
         serde_json::from_value(params.unwrap_or(Value::Null)).map_err(BrpError::internal)?;
     queue.press_named_key(key);
     Ok(Value::Null)
