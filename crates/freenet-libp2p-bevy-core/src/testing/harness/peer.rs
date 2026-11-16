@@ -41,6 +41,8 @@ impl Peer {
 impl Peer {
     pub async fn call<T: DeserializeOwned>(&self, method: &str, params: Value) -> Result<T, String> { self.client.call(method, params).await }
     #[must_use]
+    pub const fn keys(&self, deadlines: testing::harness::Deadlines) -> testing::harness::KeysBuilder<'_> { testing::harness::KeysBuilder::new(&self.client, deadlines) }
+    #[must_use]
     pub fn log_text(&self) -> String { std::fs::read_to_string(&self.log).unwrap_or_default() }
     #[must_use]
     pub fn log_contains(&self, line: &str) -> bool { self.log_text().contains(line) }

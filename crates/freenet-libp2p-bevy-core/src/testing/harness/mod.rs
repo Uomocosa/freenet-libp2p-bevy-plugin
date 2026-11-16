@@ -25,6 +25,9 @@ pub use day_millis::DayMillis;
 mod e2e_display;
 pub use e2e_display::E2EDisplay;
 
+mod keys_builder;
+pub use keys_builder::KeysBuilder;
+
 mod log_file;
 pub use log_file::LogFile;
 
