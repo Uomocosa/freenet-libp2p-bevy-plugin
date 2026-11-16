@@ -5,6 +5,7 @@ pub enum LobbyTarget {
     RoomNameInput,
     CreateRoomButton,
     Room(String),
+    EnterRoomButton(String),
     EscMenuLeaveButton,
     LeaveYesButton,
     LeaveNoButton,

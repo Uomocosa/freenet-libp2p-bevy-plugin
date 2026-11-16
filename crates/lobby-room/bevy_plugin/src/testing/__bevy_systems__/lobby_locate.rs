@@ -27,6 +27,9 @@ pub fn lobby_locate(
             testing::LobbyTarget::Room(name) => {
                 row.room.is_some_and(|room| room.as_str() == name.as_str())
             }
+            testing::LobbyTarget::EnterRoomButton(name) => row
+                .enter_room_button
+                .is_some_and(|button| button.as_str() == name.as_str()),
         })
         .map(|row| testing::LocatedNode {
             centre: *testing::NodeCentre::from_node(row.node, row.transform),
@@ -90,6 +93,23 @@ mod tests {
             })
         );
         assert_eq!(locate(&mut app, json!({ "Room": "alpha" })), None);
+    }
+
+    #[test]
+    fn test_locates_enter_room_button_by_name() {
+        let mut app = App::new();
+        app.world_mut().spawn((
+            placed_node(11.0, 31.0),
+            ui::discovery::EnterRoomButton(discovery::RoomName::from("alpha")),
+        ));
+        assert_eq!(
+            locate(&mut app, json!({ "EnterRoomButton": "alpha" })),
+            Some(testing::LocatedNode {
+                centre: Vec2::new(11.0, 31.0),
+                disabled: false,
+            })
+        );
+        assert_eq!(locate(&mut app, json!({ "EnterRoomButton": "beta" })), None);
     }
 
     #[test]

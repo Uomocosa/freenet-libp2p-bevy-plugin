@@ -122,6 +122,9 @@ impl LobbyPeer {
     async fn attempt_join_room(&self, room: &str) -> Result<u64, String> {
         self.await_room_listed(room).await?;
         self.ui().click(LobbyTarget::Room(room.to_string())).await?;
+        self.ui()
+            .click(LobbyTarget::EnterRoomButton(room.to_string()))
+            .await?;
         let pressed = self.app_press_time("join", room).await?;
         self.wait_until_joined(room, self.deadlines.action())
             .await?;
@@ -252,6 +255,10 @@ impl LobbyPeer {
             return Ok(format!("room {room} is not listed"));
         }
         self.ui().click(LobbyTarget::Room(room.to_string())).await?;
+        let _ = self
+            .ui()
+            .click(LobbyTarget::EnterRoomButton(room.to_string()))
+            .await;
         let outcome = poll_until(
             &format!("{}: join of {room} fails", self.name),
             self.deadlines.scaled(JOIN_FAILURE_BUDGET),

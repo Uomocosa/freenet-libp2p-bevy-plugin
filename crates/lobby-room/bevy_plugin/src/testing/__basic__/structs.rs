@@ -39,6 +39,7 @@ pub struct LocatableNode {
     pub add_friend_button: Has<ui::direct_dial::AddFriendButton>,
     pub friends_drawer_close_button: Has<ui::direct_dial::FriendsDrawerCloseButton>,
     pub room: Option<&'static ui::discovery::RoomButton>,
+    pub enter_room_button: Option<&'static ui::discovery::EnterRoomButton>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

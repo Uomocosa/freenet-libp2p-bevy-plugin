@@ -72,6 +72,7 @@ mod tests {
                 drive_journey
                     .run_if(resource_exists::<JourneyClock>)
                     .before(ui::discovery::bevy_systems::handle_join)
+                    .before(ui::discovery::bevy_systems::lock_room_selection)
                     .before(ui::discovery::bevy_systems::handle_menu_keys)
                     .before(ui::discovery::bevy_systems::request_leave),
                 fake_backend,
@@ -111,6 +112,9 @@ mod tests {
         }
         if frame == CLICK_JOIN_AT {
             click_join(world);
+        }
+        if frame == CLICK_JOIN_AT + 1 {
+            press_marker::<ui::discovery::EnterRoomButton>(world);
         }
         let arrived = frame
             .checked_sub(FIRST_PEER_AT)
@@ -222,7 +226,7 @@ mod tests {
         }
     }
 
-    /// # needed helper: presses the room's real Join button, so the default UI emits the command
+    /// # needed helper: locks the room preview; the next frame presses its Enter button
     fn click_join(world: &mut World) {
         let targets: Vec<Entity> = world
             .query_filtered::<Entity, With<ui::discovery::RoomButton>>()
