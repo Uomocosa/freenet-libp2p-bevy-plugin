@@ -57,7 +57,8 @@ Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
 - `crates/lobby-room/bevy_plugin/` — the lobby-room kit: Freenet lobby discovery, the Freenet client, and the default lobby UI (`LobbyRoomPlugins`, `ui::LobbyRoomUiPlugin`, `discovery::...`). Feature `testing`.
 - `crates/freenet-libp2p-bevy-plugin/` — thin facade (default feature `lobby-room`, re-exported as `lobby_room`) over core and the lobby-room kit.
 - `examples/*/` — runnable apps (`lobby_room`, `starboard`, `shared`, `tools`).
-- `tests/e2e/` — the e2e suite (incl. `tests/e2e/tests/contract_wire.rs`).
+- `tests/lobby-room/` and `tests/starboard/` — the e2e suites
+  (`lobby_room_e2e`, `starboard_e2e`), incl. the `contract_wire` target.
 
 Depend on just `common_types` for the wire types, or on the whole `freenet-libp2p-bevy-plugin` facade for the plugin.
 

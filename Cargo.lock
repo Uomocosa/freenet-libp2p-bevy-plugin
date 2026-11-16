@@ -3765,44 +3765,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
-name = "e2e"
-version = "0.0.11"
-dependencies = [
- "async-trait",
- "bevy",
- "bincode",
- "derive_more",
- "e2e_apps",
- "freenet",
- "freenet-contract-harness",
- "freenet-libp2p-bevy-plugin",
- "freenet-stdlib",
- "lobby_contract",
- "reqwest",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "e2e_apps"
-version = "0.0.11"
-dependencies = [
- "bevy",
- "clap",
- "freenet-libp2p-bevy-plugin",
- "lobby_room",
- "serde",
- "serde_json",
- "starboard",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "ed25519"
 version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6752,6 +6714,28 @@ dependencies = [
  "freenet-libp2p-bevy-plugin",
  "lele-bevy-preview",
  "serde",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "lobby_room_e2e"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "bevy",
+ "bincode",
+ "clap",
+ "freenet-contract-harness",
+ "freenet-libp2p-bevy-plugin",
+ "freenet-stdlib",
+ "lobby_contract",
+ "lobby_room",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -9872,6 +9856,22 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "zstd 0.14.3",
+]
+
+[[package]]
+name = "starboard_e2e"
+version = "0.0.11"
+dependencies = [
+ "bevy",
+ "clap",
+ "freenet-libp2p-bevy-plugin",
+ "lobby_room_e2e",
+ "serde",
+ "serde_json",
+ "starboard",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

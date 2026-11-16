@@ -2,10 +2,11 @@
 
 ## The e2e suite: BRP tests
 
-The e2e suite is the `e2e` test target in `tests/e2e/`. Its tests are the
-`brp_*` files in `tests/e2e/tests/e2e/`. Each one starts real game windows and
-drives them through the Bevy Remote Protocol (BRP), so the test sees what a
-player sees.
+The e2e suite lives in two workspace packages: `tests/lobby-room/`
+(`lobby_room_e2e`) and `tests/starboard/` (`starboard_e2e`). Each package has an
+`e2e` test target whose test files each start real game windows and drive them
+through the Bevy Remote Protocol (BRP), so the test sees what a player sees.
+The lobby package also holds the `freenet_harness` and `contract_wire` targets.
 
 The old script-based scenarios (`starboard_*`, `lobby_room_*`, `friends_reconnect`,
 `direct_dial`, `known_peers`, `freenet_relaunch`, the `e2e-ring*` and
@@ -27,18 +28,18 @@ Networks, chosen with `E2E_NETWORK`:
 ## Run commands
 
 ```bash
-just e2e-ui-no-network              # all brp_* tests on fake, serially
+just e2e-ui-no-network              # all e2e tests on fake, serially
 just e2e-ui-no-network direct_dial  # tests whose name matches a pattern
-just e2e-mainnet                    # all brp_* tests on mainnet, 90 s apart
-just e2e-mainnet brp_direct_dial    # one test on mainnet
-just e2e-loop brp_direct_dial 5 90  # that mainnet run 5 times, 90 s between runs
+just e2e-mainnet                    # all e2e tests on mainnet, 90 s apart
+just e2e-mainnet direct_dial        # one test on mainnet
+just e2e-loop direct_dial 5 90      # that mainnet run 5 times, 90 s between runs
 ```
 
 The raw command behind `e2e-ui-no-network`:
 
 ```bash
 DISPLAY=:99 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json E2E_NETWORK=fake \
-  cargo nextest run -p e2e --test e2e -E 'test(/^brp_/)' --run-ignored all --all-features -j 1
+  cargo nextest run -p lobby_room_e2e -p starboard_e2e --test e2e -E 'test(//) and test(/^[^:]*::[^:]*$/)' --run-ignored all --all-features -j 1
 ```
 
 Tip for a machine with no X server and no root: download Xvfb without installing
@@ -52,5 +53,5 @@ Direct cargo needs `CARGO_TARGET_DIR=$HOME/.cache/cargo-target/freenet-libp2p-be
 
 - `freenet_harness`: CRDT-law checks of the lobby contract (`just freenet-harness`).
 - `contract_wire`: wire-format checks of the contract.
-- `tests/e2e/tests/e2e/{github,local}_checkpoint_board.rs`: checkpoint boards with
+- `tests/lobby-room/{github,local}_checkpoint_board.rs`: checkpoint boards with
   their own unit tests.

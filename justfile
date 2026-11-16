@@ -62,18 +62,20 @@ preview-stability N="5":
 
 # UI layer on the fake network (BRP suite by default): fast, for reviewing the UI.
 # Telegram stays silent. `just e2e-ui-no-network direct_dial` runs one name pattern.
-e2e-ui-no-network TEST="brp_":
+# The `[^:]*::[^:]*` conjunct keeps the e2e test fns (one `mod::fn` level) and
+# leaves the unit tests nested inside the `e2e` binaries to `just test`.
+e2e-ui-no-network TEST="":
     #!/usr/bin/env bash
     set -euo pipefail
     # Headless-safe display defaults (overridable); the e2e peers need X.
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
-    VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/)' --all-features --run-ignored all -- --nocapture
+    VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
 
 # The matching BRP tests on the public network, one at a time with PAUSE seconds
 # between them (the 90 s gap lets the previous test's peers leave the ring).
 # Runs every matching test, then lists the failures and exits 1 if any. Telegram sends as usual.
-e2e-mainnet TEST="brp_" PAUSE="90":
+e2e-mainnet TEST="" PAUSE="90":
     #!/usr/bin/env bash
     set -euo pipefail
     # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
@@ -81,7 +83,7 @@ e2e-mainnet TEST="brp_" PAUSE="90":
     # Headless-safe display defaults (overridable); the e2e peers need X.
     export DISPLAY="${DISPLAY:-:0}"
     export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
-    names="$(cargo nextest list -p e2e --test e2e --all-features --run-ignored all --message-format oneline -E 'test(/{{ TEST }}/)' 2>/dev/null | sed -n 's/^e2e::e2e //p')"
+    names="$(cargo nextest list -p lobby_room_e2e -p starboard_e2e --test e2e --all-features --run-ignored all --message-format oneline -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' 2>/dev/null | sed -n 's/^lobby_room_e2e::e2e //p; s/^starboard_e2e::e2e //p')"
     if [ -z "$names" ]; then
         echo "e2e-mainnet: no test matches '{{ TEST }}'" >&2
         exit 1
@@ -92,7 +94,7 @@ e2e-mainnet TEST="brp_" PAUSE="90":
         if [ "$first" = 0 ]; then sleep {{ PAUSE }}; fi
         first=0
         echo "e2e-mainnet: $name"
-        if ! VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p e2e --no-fail-fast -j 1 --test e2e -E "test(=$name)" --all-features --run-ignored all -- --nocapture; then
+        if ! VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E "test(=$name)" --all-features --run-ignored all -- --nocapture; then
             failed+=("$name")
         fi
     done <<< "$names"
@@ -203,7 +205,7 @@ common-types-lint:
 
 # Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
 freenet-harness:
-    cargo nextest run -p e2e --test freenet_harness --all-features --run-ignored all -- --nocapture
+    cargo nextest run -p lobby_room_e2e --test freenet_harness --all-features --run-ignored all -- --nocapture
 
 setup:
     prek install -t pre-commit -t pre-push

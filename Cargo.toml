@@ -9,8 +9,8 @@ members = [
     "crates/freenet-libp2p-bevy-plugin",
     "examples/lobby_room",
     "examples/starboard",
-    "tests/e2e",
-    "tests/e2e_apps",
+    "tests/lobby-room",
+    "tests/starboard",
 ]
 
 [workspace.package]
