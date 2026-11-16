@@ -1,6 +1,6 @@
 use std::ops::Sub;
 
-use bevy::input::keyboard::{Key, KeyCode, KeyboardInput, NativeKeyCode};
+use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 use bevy::window::{CursorMoved, PrimaryWindow, WindowEvent};
@@ -53,7 +53,7 @@ pub fn drain_synthetic_input(
                 key_code: named.key_code(),
                 logical_key: named.logical_key(),
                 state,
-                text: None,
+                text: named.key_text().map(Into::into),
                 repeat: false,
                 window,
             };
@@ -62,12 +62,12 @@ pub fn drain_synthetic_input(
         }
         testing::SyntheticInput::Key(character, state) => {
             queue.pending.pop_front();
-            let logical = character.to_string();
+            let typed = testing::TypedKey::from(character);
             let event = KeyboardInput {
-                key_code: KeyCode::Unidentified(NativeKeyCode::Unidentified),
-                logical_key: Key::Character(logical.clone().into()),
+                key_code: typed.key_code,
+                logical_key: typed.logical_key,
                 state,
-                text: state.is_pressed().then(|| logical.into()),
+                text: Some(character.to_string().into()),
                 repeat: false,
                 window,
             };
@@ -85,7 +85,7 @@ mod tests {
     use bevy::input::InputPlugin;
     use bevy::input::InputSystems;
     use bevy::input::keyboard::KeyboardInput;
-    use bevy::input::keyboard::{Key, KeyCode};
+    use bevy::input::keyboard::{Key, KeyCode, NativeKeyCode};
     use bevy::input::mouse::MouseButtonInput;
     use bevy::input_focus::{InputDispatchPlugin, InputFocus};
     use bevy::picking::events::{PointerRelease, PointerState};
@@ -116,6 +116,8 @@ mod tests {
 
     #[derive(Debug, Clone, PartialEq)]
     struct KeyStep {
+        key_code: KeyCode,
+        logical_key: Key,
         state: ButtonState,
         text: Option<String>,
     }
@@ -133,12 +135,16 @@ mod tests {
         seen.log
             .extend(buttons.read().map(|event| Step::Button(event.state)));
         seen.keys.extend(keys.read().map(|event| KeyStep {
+            key_code: event.key_code,
+            logical_key: event.logical_key.clone(),
             state: event.state,
             text: event.text.as_ref().map(ToString::to_string),
         }));
         seen.window_keys
             .extend(window_events.read().filter_map(|event| match event {
                 WindowEvent::KeyboardInput(event) => Some(KeyStep {
+                    key_code: event.key_code,
+                    logical_key: event.logical_key.clone(),
                     state: event.state,
                     text: event.text.as_ref().map(ToString::to_string),
                 }),
@@ -231,6 +237,8 @@ mod tests {
             .type_text("a");
         app.update();
         let pressed = KeyStep {
+            key_code: KeyCode::KeyA,
+            logical_key: Key::Character("a".into()),
             state: ButtonState::Pressed,
             text: Some("a".to_string()),
         };
@@ -241,8 +249,10 @@ mod tests {
         );
         app.update();
         let released = KeyStep {
+            key_code: KeyCode::KeyA,
+            logical_key: Key::Character("a".into()),
             state: ButtonState::Released,
-            text: None,
+            text: Some("a".to_string()),
         };
         assert_eq!(
             app.world().resource::<Seen>().keys,
@@ -251,6 +261,147 @@ mod tests {
         assert_eq!(
             app.world().resource::<Seen>().window_keys,
             vec![pressed, released]
+        );
+    }
+
+    #[test]
+    fn test_typed_characters_carry_their_us_physical_key() {
+        let mut app = app_with_window();
+        app.world_mut()
+            .resource_mut::<testing::SyntheticInputQueue>()
+            .type_text("a1-");
+        for _ in 0..8 {
+            app.update();
+        }
+        let physical: Vec<KeyCode> = app
+            .world()
+            .resource::<Seen>()
+            .keys
+            .iter()
+            .map(|step| step.key_code)
+            .collect();
+        assert_eq!(
+            physical,
+            vec![
+                KeyCode::KeyA,
+                KeyCode::KeyA,
+                KeyCode::Digit1,
+                KeyCode::Digit1,
+                KeyCode::Minus,
+                KeyCode::Minus,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_uppercase_rides_in_a_shift_press_and_release() {
+        let mut app = app_with_window();
+        app.world_mut()
+            .resource_mut::<testing::SyntheticInputQueue>()
+            .type_text("B");
+        for _ in 0..6 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().resource::<Seen>().keys,
+            vec![
+                KeyStep {
+                    key_code: KeyCode::ShiftLeft,
+                    logical_key: Key::Shift,
+                    state: ButtonState::Pressed,
+                    text: None,
+                },
+                KeyStep {
+                    key_code: KeyCode::KeyB,
+                    logical_key: Key::Character("B".into()),
+                    state: ButtonState::Pressed,
+                    text: Some("B".to_string()),
+                },
+                KeyStep {
+                    key_code: KeyCode::KeyB,
+                    logical_key: Key::Character("B".into()),
+                    state: ButtonState::Released,
+                    text: Some("B".to_string()),
+                },
+                KeyStep {
+                    key_code: KeyCode::ShiftLeft,
+                    logical_key: Key::Shift,
+                    state: ButtonState::Released,
+                    text: None,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn test_space_reports_the_space_logical_key() {
+        let mut app = app_with_window();
+        app.world_mut()
+            .resource_mut::<testing::SyntheticInputQueue>()
+            .type_text(" ");
+        for _ in 0..4 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().resource::<Seen>().keys,
+            vec![
+                KeyStep {
+                    key_code: KeyCode::Space,
+                    logical_key: Key::Space,
+                    state: ButtonState::Pressed,
+                    text: Some(" ".to_string()),
+                },
+                KeyStep {
+                    key_code: KeyCode::Space,
+                    logical_key: Key::Space,
+                    state: ButtonState::Released,
+                    text: Some(" ".to_string()),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn test_key_release_carries_the_press_text() {
+        let mut app = app_with_window();
+        app.world_mut()
+            .resource_mut::<testing::SyntheticInputQueue>()
+            .type_text("a");
+        for _ in 0..4 {
+            app.update();
+        }
+        let texts: Vec<Option<String>> = app
+            .world()
+            .resource::<Seen>()
+            .keys
+            .iter()
+            .map(|step| step.text.clone())
+            .collect();
+        assert_eq!(texts, vec![Some("a".to_string()), Some("a".to_string())]);
+    }
+
+    #[test]
+    fn test_unmapped_character_keeps_unidentified_key() {
+        let mut app = app_with_window();
+        app.world_mut()
+            .resource_mut::<testing::SyntheticInputQueue>()
+            .type_text("é");
+        for _ in 0..4 {
+            app.update();
+        }
+        let physical: Vec<KeyCode> = app
+            .world()
+            .resource::<Seen>()
+            .keys
+            .iter()
+            .map(|step| step.key_code)
+            .collect();
+        assert_eq!(
+            physical,
+            vec![
+                KeyCode::Unidentified(NativeKeyCode::Unidentified),
+                KeyCode::Unidentified(NativeKeyCode::Unidentified),
+            ]
         );
     }
 
@@ -370,34 +521,81 @@ mod tests {
             testing::NamedKey::Backspace,
             testing::NamedKey::Enter,
             testing::NamedKey::Tab,
+            testing::NamedKey::Escape,
         ] {
             app.world_mut()
                 .resource_mut::<testing::SyntheticInputQueue>()
                 .press_named_key(key);
         }
-        for _ in 0..8 {
+        for _ in 0..10 {
             app.update();
         }
         let expected = [
-            (KeyCode::Backspace, Key::Backspace, ButtonState::Pressed),
-            (KeyCode::Backspace, Key::Backspace, ButtonState::Released),
-            (KeyCode::Enter, Key::Enter, ButtonState::Pressed),
-            (KeyCode::Enter, Key::Enter, ButtonState::Released),
-            (KeyCode::Tab, Key::Tab, ButtonState::Pressed),
-            (KeyCode::Tab, Key::Tab, ButtonState::Released),
+            (
+                KeyCode::Backspace,
+                Key::Backspace,
+                ButtonState::Pressed,
+                Some("\u{8}"),
+            ),
+            (
+                KeyCode::Backspace,
+                Key::Backspace,
+                ButtonState::Released,
+                Some("\u{8}"),
+            ),
+            (KeyCode::Enter, Key::Enter, ButtonState::Pressed, Some("\r")),
+            (
+                KeyCode::Enter,
+                Key::Enter,
+                ButtonState::Released,
+                Some("\r"),
+            ),
+            (KeyCode::Tab, Key::Tab, ButtonState::Pressed, Some("\t")),
+            (KeyCode::Tab, Key::Tab, ButtonState::Released, Some("\t")),
+            (
+                KeyCode::Escape,
+                Key::Escape,
+                ButtonState::Pressed,
+                Some("\u{1b}"),
+            ),
+            (
+                KeyCode::Escape,
+                Key::Escape,
+                ButtonState::Released,
+                Some("\u{1b}"),
+            ),
         ];
         let log = app.world().resource::<KeyLog>();
-        let seen: Vec<(KeyCode, Key, ButtonState)> = log
+        let seen: Vec<(KeyCode, Key, ButtonState, Option<String>)> = log
             .keys
             .iter()
-            .map(|event| (event.key_code, event.logical_key.clone(), event.state))
+            .map(|event| {
+                (
+                    event.key_code,
+                    event.logical_key.clone(),
+                    event.state,
+                    event.text.as_ref().map(ToString::to_string),
+                )
+            })
+            .collect();
+        let expected: Vec<(KeyCode, Key, ButtonState, Option<String>)> = expected
+            .into_iter()
+            .map(|(key_code, logical_key, state, text)| {
+                (key_code, logical_key, state, text.map(str::to_string))
+            })
             .collect();
         assert_eq!(seen, expected);
-        assert!(log.keys.iter().all(|event| event.text.is_none()));
-        let seen_window: Vec<(KeyCode, Key, ButtonState)> = log
+        let seen_window: Vec<(KeyCode, Key, ButtonState, Option<String>)> = log
             .window_keys
             .iter()
-            .map(|event| (event.key_code, event.logical_key.clone(), event.state))
+            .map(|event| {
+                (
+                    event.key_code,
+                    event.logical_key.clone(),
+                    event.state,
+                    event.text.as_ref().map(ToString::to_string),
+                )
+            })
             .collect();
         assert_eq!(seen_window, expected);
     }

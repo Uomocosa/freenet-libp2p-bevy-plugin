@@ -57,6 +57,9 @@ pub use named_key::NamedKey;
 mod synthetic_input_queue;
 pub use synthetic_input_queue::SyntheticInputQueue;
 
+mod typed_key;
+pub use typed_key::TypedKey;
+
 mod node_centre;
 pub use node_centre::NodeCentre;
 

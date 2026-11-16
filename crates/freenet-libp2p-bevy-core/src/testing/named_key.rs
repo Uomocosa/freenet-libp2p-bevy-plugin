@@ -7,6 +7,7 @@ pub enum NamedKey {
     Tab,
     Enter,
     Backspace,
+    ShiftLeft,
 }
 
 impl NamedKey {
@@ -17,6 +18,7 @@ impl NamedKey {
             Self::Tab => KeyCode::Tab,
             Self::Enter => KeyCode::Enter,
             Self::Backspace => KeyCode::Backspace,
+            Self::ShiftLeft => KeyCode::ShiftLeft,
         }
     }
 
@@ -27,6 +29,18 @@ impl NamedKey {
             Self::Tab => Key::Tab,
             Self::Enter => Key::Enter,
             Self::Backspace => Key::Backspace,
+            Self::ShiftLeft => Key::Shift,
+        }
+    }
+
+    #[must_use]
+    pub const fn key_text(self) -> Option<&'static str> {
+        match self {
+            Self::Escape => Some("\u{1b}"),
+            Self::Tab => Some("\t"),
+            Self::Enter => Some("\r"),
+            Self::Backspace => Some("\u{8}"),
+            Self::ShiftLeft => None,
         }
     }
 }
@@ -41,5 +55,12 @@ mod tests {
     fn test_usage() {
         assert_eq!(NamedKey::Escape.key_code(), KeyCode::Escape);
         assert_eq!(NamedKey::Backspace.logical_key(), Key::Backspace);
+        assert_eq!(NamedKey::ShiftLeft.key_code(), KeyCode::ShiftLeft);
+        assert_eq!(NamedKey::ShiftLeft.logical_key(), Key::Shift);
+        assert_eq!(NamedKey::ShiftLeft.key_text(), None);
+        assert_eq!(NamedKey::Tab.key_text(), Some("\t"));
+        assert_eq!(NamedKey::Enter.key_text(), Some("\r"));
+        assert_eq!(NamedKey::Backspace.key_text(), Some("\u{8}"));
+        assert_eq!(NamedKey::Escape.key_text(), Some("\u{1b}"));
     }
 }

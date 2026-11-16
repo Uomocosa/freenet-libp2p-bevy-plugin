@@ -74,6 +74,7 @@ const fn named_key(key: NamedKey) -> Key {
         NamedKey::Enter => Key::Return,
         NamedKey::Backspace => Key::Backspace,
         NamedKey::Escape => Key::Escape,
+        NamedKey::ShiftLeft => Key::Shift,
     }
 }
 
