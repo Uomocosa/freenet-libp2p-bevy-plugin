@@ -1,6 +1,6 @@
 use bevy::prelude::Color;
 
-pub const ROOM_ROW_WIDTH: f32 = 212.0;
+pub const ROOM_ROW_WIDTH: f32 = 232.0;
 pub const ROOM_NAME_WIDTH: f32 = 128.0;
 pub const ROOM_NAME_SCROLL_PER_SEC: f32 = 26.0;
 pub const ROOM_BUBBLE_HAS_SPACE_COLOR: Color = Color::srgb(0.16, 0.44, 0.24);
@@ -54,7 +54,7 @@ pub const PREVIEW_WIDTH: f32 = 320.0;
 pub const PREVIEW_HEIGHT: f32 = 200.0;
 pub const PREVIEW_TOP: f32 = 48.0;
 pub const LOBBY_PANEL_RIGHT: f32 = 12.0;
-pub const LOBBY_PANEL_WIDTH: f32 = 228.0;
+pub const LOBBY_PANEL_WIDTH: f32 = 248.0;
 pub const LOBBY_PANEL_GAP: f32 = 12.0;
 pub const PREVIEW_RIGHT: f32 = LOBBY_PANEL_RIGHT + LOBBY_PANEL_WIDTH + LOBBY_PANEL_GAP;
 pub const DOUBLE_CLICK_SECS: f32 = 0.35;

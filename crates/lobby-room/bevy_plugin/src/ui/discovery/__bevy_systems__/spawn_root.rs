@@ -66,7 +66,7 @@ pub fn spawn_root(mut commands: Commands) {
                     ..default()
                 },
                 BackgroundColor(BUTTON_COLOR),
-                children![Text::new("+ Create New Room")],
+                children![(Text::new("+ Create New Room"), TextLayout::no_wrap())],
             ));
             ui::discovery::bevy_systems::spawn_rooms_header(&mut root.reborrow());
             root.spawn((
