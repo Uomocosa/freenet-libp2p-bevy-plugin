@@ -26,7 +26,7 @@ async fn play_with_synthetic(bin: &Path, display: &str) -> Result<Vec<InputRecor
     let probe = ProbePeer::try_from_launch(bin, display).await?;
     probe.wait_ready().await?;
     probe.clear().await?;
-    SyntheticDriver::new(&probe).play(INPUT_SCRIPT).await?;
+    SyntheticDriver::new(&probe).play(&INPUT_SCRIPT).await?;
     tokio::time::sleep(SETTLE).await;
     let records = probe.records().await?;
     probe.exit().await?;
@@ -40,7 +40,7 @@ async fn play_with_real(bin: &Path, display: &str) -> Result<Vec<InputRecord>, S
     let mut driver = RealDriver::try_from_geometry(display, &geometry)?;
     probe.wait_for_focus().await?;
     probe.clear().await?;
-    driver.play(INPUT_SCRIPT)?;
+    driver.play(&INPUT_SCRIPT)?;
     tokio::time::sleep(SETTLE).await;
     let records = probe.records().await?;
     probe.exit().await?;

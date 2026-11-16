@@ -264,7 +264,7 @@ e2e-mainnet TEST="" PAUSE="90" RUNS="1":
 
 # Input-fidelity e2e: proves the synthetic e2e input writes the same Bevy input
 # messages as real XTest input. Starts its own Xvfb (never :0); prints the diff
-# when the two logs disagree. Expected to fail on known gaps (named-key `text`).
+# when the two logs disagree. Repeat and SameFrame stay synthetic-only (see SYNTHETIC_ONLY_SCRIPT).
 [group('e2e')]
 [doc('Prove synthetic e2e input matches real XTest input.')]
 [linux]

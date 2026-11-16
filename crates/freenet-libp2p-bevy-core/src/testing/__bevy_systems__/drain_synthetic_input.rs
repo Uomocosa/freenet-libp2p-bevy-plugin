@@ -67,11 +67,19 @@ pub fn drain_synthetic_input(
             true
         }
         testing::SyntheticInput::Wait(remaining) => {
-            let elapsed = u64::try_from(delta.as_millis()).unwrap_or(u64::MAX);
-            match (**remaining).checked_sub(elapsed) {
+            let elapsed = u64::try_from(delta.as_nanos()).unwrap_or(u64::MAX);
+            let remaining_nanos = (**remaining).saturating_mul(1_000_000);
+            match remaining_nanos.checked_sub(elapsed) {
                 Some(next) if next > 0 => {
-                    *remaining = testing::Millis::from(next);
-                    false
+                    let next_millis = next
+                        .div_ceil(1_000_000)
+                        .min((**remaining).saturating_sub(1));
+                    if next_millis == 0 {
+                        true
+                    } else {
+                        *remaining = testing::Millis::from(next_millis);
+                        false
+                    }
                 }
                 _ => true,
             }

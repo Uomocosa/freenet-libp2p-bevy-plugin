@@ -7,7 +7,7 @@
 // character to (decision D1).
 
 use enigo::{Button, Coordinate, Direction, Enigo, Keyboard, Mouse, Settings};
-use freenet_libp2p_bevy_core::testing::Key;
+use freenet_libp2p_bevy_core::testing::{Key, KeyStep};
 use input_fidelity_e2e::args::PROBE_WINDOW_TITLE;
 use input_fidelity_e2e::window_geometry::WindowGeometry;
 use x11rb::connection::Connection;
@@ -75,6 +75,9 @@ const fn named_key(key: Key) -> Option<enigo::Key> {
         Key::Backspace => Some(enigo::Key::Backspace),
         Key::Escape => Some(enigo::Key::Escape),
         Key::Shift => Some(enigo::Key::Shift),
+        Key::Ctrl => Some(enigo::Key::Control),
+        Key::Alt => Some(enigo::Key::Alt),
+        Key::Super => Some(enigo::Key::Meta),
         Key::Char(_)
         | Key::Delete
         | Key::Insert
@@ -98,9 +101,6 @@ const fn named_key(key: Key) -> Option<enigo::Key> {
         | Key::F10
         | Key::F11
         | Key::F12
-        | Key::Ctrl
-        | Key::Alt
-        | Key::Super
         | Key::CtrlRight
         | Key::ShiftRight
         | Key::AltRight
@@ -203,21 +203,121 @@ impl RealDriver {
                     let (root_x, root_y) = self.window_to_root(*x, *y)?;
                     self.move_to(root_x, root_y)?;
                 }
-                InputStep::PressKey(key) => {
-                    let pressed = named_key(*key)
-                        .ok_or_else(|| format!("real driver: no enigo key for {key:?}"))?;
-                    self.enigo
-                        .key(pressed, Direction::Click)
-                        .map_err(|error| format!("real driver: tap {key:?}: {error}"))?;
+                InputStep::Keys(step) => self.play_key_step(step)?,
+            }
+        }
+        Ok(())
+    }
+
+    fn play_key_step(&mut self, step: &KeyStep) -> Result<(), String> {
+        match step {
+            KeyStep::Text(text) => {
+                for character in text.chars() {
+                    self.tap_character(character)?;
                 }
-                InputStep::TypeText(text) => {
-                    for character in text.chars() {
-                        self.tap_character(character)?;
-                    }
+            }
+            KeyStep::Tap(key) => {
+                self.press_key(*key)?;
+                self.release_key(*key)?;
+            }
+            KeyStep::Down(key) => self.press_key(*key)?,
+            KeyStep::Up(key) => self.release_key(*key)?,
+            KeyStep::Chord(keys) => {
+                for key in keys {
+                    self.press_key(*key)?;
+                }
+                for key in keys.iter().rev() {
+                    self.release_key(*key)?;
+                }
+            }
+            KeyStep::Repeat { key, count } => {
+                return Err(format!(
+                    "real driver: no XTest expression for {key:?} repeated {count:?}"
+                ));
+            }
+            KeyStep::Wait(millis) => std::thread::sleep(std::time::Duration::from_millis(**millis)),
+            KeyStep::SameFrame(steps) => {
+                for step in steps {
+                    self.play_frame_step(step)?;
                 }
             }
         }
         Ok(())
+    }
+
+    fn play_frame_step(&mut self, step: &KeyStep) -> Result<(), String> {
+        match step {
+            KeyStep::Wait(_) => {
+                return Err(
+                    "real driver: a Wait inside SameFrame has no shared-frame meaning".to_string(),
+                );
+            }
+            KeyStep::SameFrame(steps) => {
+                for step in steps {
+                    self.play_frame_step(step)?;
+                }
+            }
+            _ => self.play_key_step(step)?,
+        }
+        Ok(())
+    }
+
+    fn press_key(&mut self, key: Key) -> Result<(), String> {
+        if let Key::Char(character) = key {
+            self.press_character(character)
+        } else {
+            let pressed =
+                named_key(key).ok_or_else(|| format!("real driver: no enigo key for {key:?}"))?;
+            self.enigo
+                .key(pressed, Direction::Press)
+                .map_err(|error| format!("real driver: press {key:?}: {error}"))
+        }
+    }
+
+    fn release_key(&mut self, key: Key) -> Result<(), String> {
+        if let Key::Char(character) = key {
+            self.release_character(character)
+        } else {
+            let pressed =
+                named_key(key).ok_or_else(|| format!("real driver: no enigo key for {key:?}"))?;
+            self.enigo
+                .key(pressed, Direction::Release)
+                .map_err(|error| format!("real driver: release {key:?}: {error}"))
+        }
+    }
+
+    fn press_character(&mut self, character: char) -> Result<(), String> {
+        if character.is_ascii_uppercase() {
+            self.enigo
+                .raw(SHIFT_KEYCODE, Direction::Press)
+                .map_err(|error| format!("real driver: hold Shift for {character:?}: {error}"))?;
+        }
+        self.enigo
+            .raw(
+                us_keycode(character)
+                    .ok_or_else(|| format!("real driver: no US keycode for {character:?}"))?,
+                Direction::Press,
+            )
+            .map_err(|error| format!("real driver: press {character:?}: {error}"))
+    }
+
+    fn release_character(&mut self, character: char) -> Result<(), String> {
+        let outcome = self
+            .enigo
+            .raw(
+                us_keycode(character)
+                    .ok_or_else(|| format!("real driver: no US keycode for {character:?}"))?,
+                Direction::Release,
+            )
+            .map_err(|error| format!("real driver: release {character:?}: {error}"));
+        if character.is_ascii_uppercase() {
+            self.enigo
+                .raw(SHIFT_KEYCODE, Direction::Release)
+                .map_err(|error| {
+                    format!("real driver: release Shift after {character:?}: {error}")
+                })?;
+        }
+        outcome
     }
 
     fn window_to_root(&self, x: f32, y: f32) -> Result<(i32, i32), String> {
@@ -302,7 +402,7 @@ mod tests {
         let mut driver = RealDriver::try_from_geometry(&display.name, &geometry)?;
         probe.wait_for_focus().await?;
         probe.clear().await?;
-        driver.play(INPUT_SCRIPT)?;
+        driver.play(&INPUT_SCRIPT)?;
         tokio::time::sleep(Duration::from_millis(700)).await;
         let records = probe.records().await?;
         probe.exit().await?;

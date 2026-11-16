@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use freenet_libp2p_bevy_core::testing::harness::Polling;
 use freenet_libp2p_bevy_core::testing::{CursorTarget, PointerSpeed};
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::input_script::CLICK_SPEED;
 use crate::input_step::InputStep;
@@ -43,13 +43,10 @@ impl<'a> SyntheticDriver<'a> {
                         .map_err(|error| format!("synthetic driver: {error}"))?;
                     self.peer.call::<Value>("e2e/move_cursor", params).await?;
                 }
-                InputStep::PressKey(key) => {
-                    self.peer.call::<Value>("e2e/press_key", json!(key)).await?;
-                }
-                InputStep::TypeText(text) => {
-                    self.peer
-                        .call::<Value>("e2e/type_text", json!(text))
-                        .await?;
+                InputStep::Keys(step) => {
+                    let params = serde_json::to_value(std::slice::from_ref(step))
+                        .map_err(|error| format!("synthetic driver: {error}"))?;
+                    self.peer.call::<Value>("e2e/keys", params).await?;
                 }
             }
             self.wait_until_input_idle().await?;
@@ -93,7 +90,7 @@ mod tests {
         let probe = ProbePeer::try_from_launch(Path::new(PROBE_BIN), &display.name).await?;
         probe.wait_ready().await?;
         probe.clear().await?;
-        SyntheticDriver::new(&probe).play(INPUT_SCRIPT).await?;
+        SyntheticDriver::new(&probe).play(&INPUT_SCRIPT).await?;
         let records = probe.records().await?;
         probe.exit().await?;
         if records.is_empty() {
