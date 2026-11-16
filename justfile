@@ -69,6 +69,14 @@ e2e-ui-no-network TEST="":
     set -euo pipefail
     VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
 
+# Input-fidelity e2e: proves the synthetic e2e input writes the same Bevy input
+# messages as real XTest input. Starts its own Xvfb (never :0); prints the diff
+# when the two logs disagree. Expected to fail on known gaps (named-key `text`).
+input-fidelity TEST="synthetic_input_matches_real_os_input":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p input_fidelity_e2e --test e2e --all-features --run-ignored all -j 1 -E 'test(/{{ TEST }}/)' -- --nocapture
+
 # UI layer on the fake network, one recorded video per test sent to Telegram.
 # Needs an Xvfb (E2E_XVFB=/path/to/Xvfb when it is not on PATH) and
 # TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (env or .env).

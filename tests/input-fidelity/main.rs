@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+mod input_fidelity;
 mod input_script;
 mod input_step;
 mod probe;
