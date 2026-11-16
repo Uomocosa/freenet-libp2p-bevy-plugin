@@ -2,18 +2,35 @@ use crate::discovery as core_discovery;
 use crate::ui;
 use bevy::prelude::*;
 
-use ui::discovery::{RoomPreviewPanel, RoomPreviewTitle, SelectedRoom};
+use ui::discovery::{
+    ROOM_BUBBLE_EMPTY_COLOR, ROOM_BUBBLE_FULL_COLOR, ROOM_BUBBLE_HAS_SPACE_COLOR,
+    RoomPreviewOccupancyBubble, RoomPreviewOccupancyText, RoomPreviewPanel, RoomPreviewTitle,
+    SelectedRoom,
+};
+
+type PreviewTitleText<'w, 's> =
+    Single<'w, 's, &'static mut Text, (With<RoomPreviewTitle>, Without<RoomPreviewOccupancyText>)>;
+type PreviewOccupancyText<'w, 's> =
+    Single<'w, 's, &'static mut Text, (With<RoomPreviewOccupancyText>, Without<RoomPreviewTitle>)>;
 
 pub fn refresh_room_preview(
     selection: Res<SelectedRoom>,
     rows: Option<Res<core_discovery::LobbyRows>>,
     panel: Option<Single<&mut Visibility, With<RoomPreviewPanel>>>,
-    title: Option<Single<&mut Text, With<RoomPreviewTitle>>>,
+    title: Option<PreviewTitleText>,
+    occupancy_bubble: Option<Single<&mut BackgroundColor, With<RoomPreviewOccupancyBubble>>>,
+    occupancy_text: Option<PreviewOccupancyText>,
 ) {
     let Some(panel) = panel else {
         return;
     };
     let Some(title) = title else {
+        return;
+    };
+    let Some(occupancy_bubble) = occupancy_bubble else {
+        return;
+    };
+    let Some(occupancy_text) = occupancy_text else {
         return;
     };
     let selection = selection.into_inner();
@@ -27,10 +44,23 @@ pub fn refresh_room_preview(
         return;
     };
     *panel.into_inner() = Visibility::Visible;
-    let text = format!("{}  {}/{}", row.name, row.occupants, row.room_size);
     let mut title = title.into_inner();
-    if title.as_str() != text.as_str() {
-        *title = Text::new(text);
+    if title.as_str() != row.name.as_str() {
+        *title = Text::new(row.name.as_str());
+    }
+    let occupancy = format!("{}/{}", row.occupants, row.room_size);
+    let mut occupancy_text = occupancy_text.into_inner();
+    if occupancy_text.as_str() != occupancy.as_str() {
+        *occupancy_text = Text::new(occupancy);
+    }
+    let color = match row.occupancy {
+        core_discovery::RoomOccupancy::HasSpace => ROOM_BUBBLE_HAS_SPACE_COLOR,
+        core_discovery::RoomOccupancy::Empty => ROOM_BUBBLE_EMPTY_COLOR,
+        core_discovery::RoomOccupancy::Full => ROOM_BUBBLE_FULL_COLOR,
+    };
+    let BackgroundColor(existing) = &mut *occupancy_bubble.into_inner();
+    if *existing != color {
+        *existing = color;
     }
 }
 
@@ -84,6 +114,25 @@ mod tests {
             .to_string()
     }
 
+    fn occupancy_text(app: &mut App) -> String {
+        let mut texts = app
+            .world_mut()
+            .query_filtered::<&Text, With<ui::discovery::RoomPreviewOccupancyText>>();
+        texts
+            .single(app.world())
+            .expect("occupancy text")
+            .as_str()
+            .to_string()
+    }
+
+    fn occupancy_color(app: &mut App) -> Color {
+        let mut bubbles = app
+            .world_mut()
+            .query_filtered::<&BackgroundColor, With<ui::discovery::RoomPreviewOccupancyBubble>>();
+        let BackgroundColor(color) = *bubbles.single(app.world()).expect("occupancy bubble");
+        color
+    }
+
     #[test]
     fn test_usage() {
         let mut app = app_with(
@@ -95,7 +144,12 @@ mod tests {
         );
         app.update();
         assert_eq!(panel_visibility(&mut app), Visibility::Visible);
-        assert_eq!(title_text(&mut app), "alpha  2/8");
+        assert_eq!(title_text(&mut app), "alpha");
+        assert_eq!(occupancy_text(&mut app), "2/8");
+        assert_eq!(
+            occupancy_color(&mut app),
+            ui::discovery::ROOM_BUBBLE_HAS_SPACE_COLOR
+        );
     }
 
     #[test]

@@ -42,7 +42,16 @@ pub struct RoomPreviewPanel;
 pub struct RoomPreviewTitle;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomPreviewOccupancyBubble;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomPreviewOccupancyText;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomPreviewViewport;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomPreviewMemberList;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomPreviewActionSlot;

@@ -2,10 +2,11 @@ use crate::ui;
 use bevy::prelude::*;
 
 use ui::discovery::{
-    BUTTON_LABEL_COLOR, INPUT_COLOR, PANEL_COLOR, PREVIEW_HEIGHT, PREVIEW_MEMBER_GAP,
-    PREVIEW_PADDING, PREVIEW_RIGHT, PREVIEW_ROW_GAP, PREVIEW_TITLE_FONT_SIZE, PREVIEW_TOP,
-    PREVIEW_VIEWPORT_PADDING, PREVIEW_WIDTH, RoomPreviewActionSlot, RoomPreviewPanel,
-    RoomPreviewTitle, RoomPreviewViewport, Screen,
+    BUTTON_LABEL_COLOR, INPUT_COLOR, PANEL_COLOR, PREVIEW_ACTION_INSET, PREVIEW_ACTION_RESERVE,
+    PREVIEW_HEIGHT, PREVIEW_MEMBER_FONT_SIZE, PREVIEW_MEMBER_GAP, PREVIEW_PADDING, PREVIEW_RIGHT,
+    PREVIEW_ROW_GAP, PREVIEW_TITLE_FONT_SIZE, PREVIEW_TOP, PREVIEW_VIEWPORT_PADDING, PREVIEW_WIDTH,
+    RoomPreviewActionSlot, RoomPreviewMemberList, RoomPreviewOccupancyBubble,
+    RoomPreviewOccupancyText, RoomPreviewPanel, RoomPreviewTitle, RoomPreviewViewport, Screen,
 };
 
 pub fn spawn_room_preview(mut commands: Commands) {
@@ -28,38 +29,82 @@ pub fn spawn_room_preview(mut commands: Commands) {
             BackgroundColor(PANEL_COLOR),
         ))
         .with_children(|panel| {
-            panel.spawn((
-                RoomPreviewTitle,
-                Text::new(""),
-                TextFont {
-                    font_size: FontSize::Px(PREVIEW_TITLE_FONT_SIZE),
-                    ..default()
-                },
-                TextColor(BUTTON_LABEL_COLOR),
-            ));
-            panel.spawn((
-                RoomPreviewViewport,
-                Node {
-                    flex_grow: 1.0,
-                    width: Val::Percent(100.0),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(PREVIEW_MEMBER_GAP),
-                    padding: UiRect::all(Val::Px(PREVIEW_VIEWPORT_PADDING)),
-                    overflow: Overflow::clip(),
-                    ..default()
-                },
-                BackgroundColor(INPUT_COLOR),
-            ));
-            panel.spawn((
-                RoomPreviewActionSlot,
-                Node {
-                    width: Val::Percent(100.0),
+            panel
+                .spawn(Node {
                     flex_direction: FlexDirection::Row,
-                    justify_content: JustifyContent::FlexEnd,
                     align_items: AlignItems::Center,
+                    column_gap: Val::Px(8.0),
                     ..default()
-                },
-            ));
+                })
+                .with_children(|title| {
+                    title.spawn((
+                        RoomPreviewTitle,
+                        Text::new(""),
+                        TextFont {
+                            font_size: FontSize::Px(PREVIEW_TITLE_FONT_SIZE),
+                            ..default()
+                        },
+                        TextColor(BUTTON_LABEL_COLOR),
+                    ));
+                    title
+                        .spawn((
+                            RoomPreviewOccupancyBubble,
+                            Node {
+                                padding: UiRect::axes(Val::Px(7.0), Val::Px(2.5)),
+                                border_radius: BorderRadius::MAX,
+                                ..default()
+                            },
+                            BackgroundColor(INPUT_COLOR),
+                        ))
+                        .with_children(|bubble| {
+                            bubble.spawn((
+                                RoomPreviewOccupancyText,
+                                Text::new(""),
+                                TextFont {
+                                    font_size: FontSize::Px(PREVIEW_MEMBER_FONT_SIZE),
+                                    ..default()
+                                },
+                                TextColor(BUTTON_LABEL_COLOR),
+                            ));
+                        });
+                });
+            panel
+                .spawn((
+                    RoomPreviewViewport,
+                    Node {
+                        flex_grow: 1.0,
+                        width: Val::Percent(100.0),
+                        flex_direction: FlexDirection::Column,
+                        padding: UiRect::all(Val::Px(PREVIEW_VIEWPORT_PADDING)),
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    BackgroundColor(INPUT_COLOR),
+                ))
+                .with_children(|viewport| {
+                    viewport.spawn((
+                        RoomPreviewMemberList,
+                        Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Column,
+                            row_gap: Val::Px(PREVIEW_MEMBER_GAP),
+                            padding: UiRect {
+                                bottom: Val::Px(PREVIEW_ACTION_RESERVE),
+                                ..default()
+                            },
+                            ..default()
+                        },
+                    ));
+                    viewport.spawn((
+                        RoomPreviewActionSlot,
+                        Node {
+                            position_type: PositionType::Absolute,
+                            bottom: Val::Px(PREVIEW_ACTION_INSET),
+                            right: Val::Px(PREVIEW_ACTION_INSET),
+                            ..default()
+                        },
+                    ));
+                });
         });
 }
 
@@ -132,6 +177,10 @@ mod tests {
             .world_mut()
             .query_filtered::<(), With<ui::discovery::RoomPreviewActionSlot>>();
         assert_eq!(slots.iter(app.world()).count(), 1);
+        let mut lists = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::RoomPreviewMemberList>>();
+        assert_eq!(lists.iter(app.world()).count(), 1);
     }
 
     #[test]

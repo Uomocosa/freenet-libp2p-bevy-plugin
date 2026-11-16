@@ -7,8 +7,9 @@ use bevy::ui_widgets::Button;
 
 use ui::discovery::{
     BUTTON_LABEL_COLOR, ENTER_BUTTON_COLOR, EnterRoomButton, HOVER_OUTLINE_WIDTH, HoverGlow,
-    PREVIEW_BUTTON_RADIUS, PREVIEW_MEMBER_FONT_SIZE, ROOM_FULL_BUTTON_COLOR,
-    ROOM_FULL_BUTTON_LABEL_COLOR, RoomFullBadge, RoomPreviewActionSlot, SelectedRoom,
+    PREVIEW_BUTTON_FONT_SIZE, PREVIEW_BUTTON_PADDING_H, PREVIEW_BUTTON_PADDING_V,
+    ROOM_FULL_BUTTON_COLOR, ROOM_FULL_BUTTON_LABEL_COLOR, RoomFullBadge, RoomPreviewActionSlot,
+    SelectedRoom,
 };
 
 pub fn rebuild_room_preview_action(
@@ -43,8 +44,11 @@ pub fn rebuild_room_preview_action(
                     RoomFullBadge,
                     InteractionDisabled,
                     Node {
-                        padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
-                        border_radius: BorderRadius::all(Val::Px(PREVIEW_BUTTON_RADIUS)),
+                        padding: UiRect::axes(
+                            Val::Px(PREVIEW_BUTTON_PADDING_H),
+                            Val::Px(PREVIEW_BUTTON_PADDING_V),
+                        ),
+                        border_radius: BorderRadius::MAX,
                         ..default()
                     },
                     BackgroundColor(ROOM_FULL_BUTTON_COLOR),
@@ -53,7 +57,7 @@ pub fn rebuild_room_preview_action(
                     badge.spawn((
                         Text::new("Room is Full"),
                         TextFont {
-                            font_size: FontSize::Px(PREVIEW_MEMBER_FONT_SIZE),
+                            font_size: FontSize::Px(PREVIEW_BUTTON_FONT_SIZE),
                             ..default()
                         },
                         TextColor(ROOM_FULL_BUTTON_LABEL_COLOR),
@@ -68,8 +72,11 @@ pub fn rebuild_room_preview_action(
                     UiTransform::default(),
                     Outline::new(Val::Px(HOVER_OUTLINE_WIDTH), Val::ZERO, Color::NONE),
                     Node {
-                        padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
-                        border_radius: BorderRadius::all(Val::Px(PREVIEW_BUTTON_RADIUS)),
+                        padding: UiRect::axes(
+                            Val::Px(PREVIEW_BUTTON_PADDING_H),
+                            Val::Px(PREVIEW_BUTTON_PADDING_V),
+                        ),
+                        border_radius: BorderRadius::MAX,
                         ..default()
                     },
                     BackgroundColor(ENTER_BUTTON_COLOR),
@@ -78,7 +85,7 @@ pub fn rebuild_room_preview_action(
                     button.spawn((
                         Text::new("Enter"),
                         TextFont {
-                            font_size: FontSize::Px(PREVIEW_MEMBER_FONT_SIZE),
+                            font_size: FontSize::Px(PREVIEW_BUTTON_FONT_SIZE),
                             ..default()
                         },
                         TextColor(BUTTON_LABEL_COLOR),

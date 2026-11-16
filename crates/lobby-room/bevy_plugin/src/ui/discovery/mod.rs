@@ -7,8 +7,9 @@ pub use basic::components::{
     HoverOutlineOnly, JoinErrorDismissButton, JoinErrorRoot, JoiningRoomRoot, LeaveDoor,
     LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble, RoomButton, RoomFriendBadge,
     RoomFullBadge, RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, RoomPreviewActionSlot,
-    RoomPreviewPanel, RoomPreviewTitle, RoomPreviewViewport, RoomSearchIndicator,
-    RoomSearchTooltip, RoomsHeader, Root, SpinnerRing,
+    RoomPreviewMemberList, RoomPreviewOccupancyBubble, RoomPreviewOccupancyText, RoomPreviewPanel,
+    RoomPreviewTitle, RoomPreviewViewport, RoomSearchIndicator, RoomSearchTooltip, RoomsHeader,
+    Root, SpinnerRing,
 };
 pub use basic::constants::*;
 pub use basic::resources::{FriendsPressBeat, JoinError, SelectedRoom};

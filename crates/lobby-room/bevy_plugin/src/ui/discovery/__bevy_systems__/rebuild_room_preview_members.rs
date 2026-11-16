@@ -3,7 +3,7 @@ use crate::ui;
 use bevy::prelude::*;
 
 use ui::discovery::{
-    BUTTON_LABEL_COLOR, CONNECTING_TEXT_COLOR, PREVIEW_MEMBER_FONT_SIZE, RoomPreviewViewport,
+    BUTTON_LABEL_COLOR, CONNECTING_TEXT_COLOR, PREVIEW_MEMBER_FONT_SIZE, RoomPreviewMemberList,
     SelectedRoom,
 };
 
@@ -11,10 +11,10 @@ pub fn rebuild_room_preview_members(
     selection: Res<SelectedRoom>,
     state: Option<Res<core_discovery::state_machine::DiscoveryState>>,
     mut commands: Commands,
-    viewport: Option<Single<Entity, With<RoomPreviewViewport>>>,
+    member_list: Option<Single<Entity, With<RoomPreviewMemberList>>>,
     mut shown: Local<Option<Vec<String>>>,
 ) {
-    let Some(viewport) = viewport else {
+    let Some(member_list) = member_list else {
         return;
     };
     let selection = selection.into_inner();
@@ -42,11 +42,11 @@ pub fn rebuild_room_preview_members(
     }
     *shown = Some(members.clone());
     commands
-        .entity(viewport.into_inner())
+        .entity(member_list.into_inner())
         .despawn_related::<Children>()
-        .with_children(|viewport| {
+        .with_children(|member_list| {
             if members.is_empty() {
-                viewport.spawn((
+                member_list.spawn((
                     Text::new("Empty room"),
                     TextFont {
                         font_size: FontSize::Px(PREVIEW_MEMBER_FONT_SIZE),
@@ -56,7 +56,7 @@ pub fn rebuild_room_preview_members(
                 ));
             }
             for member in &members {
-                viewport.spawn((
+                member_list.spawn((
                     Text::new(member.clone()),
                     TextFont {
                         font_size: FontSize::Px(PREVIEW_MEMBER_FONT_SIZE),
@@ -131,13 +131,13 @@ mod tests {
     fn viewport_texts(app: &mut App) -> Vec<String> {
         let mut viewports = app
             .world_mut()
-            .query_filtered::<Entity, With<ui::discovery::RoomPreviewViewport>>();
-        let viewport = viewports.single(app.world()).expect("viewport");
+            .query_filtered::<Entity, With<ui::discovery::RoomPreviewMemberList>>();
+        let member_list = viewports.single(app.world()).expect("member list");
         let children = app
             .world()
-            .entity(viewport)
+            .entity(member_list)
             .get::<Children>()
-            .expect("viewport children");
+            .expect("member list children");
         children
             .iter()
             .map(|child| {
