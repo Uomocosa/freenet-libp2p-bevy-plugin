@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use freenet_libp2p_bevy_core::testing::harness::{Peer, Polling};
 use input_fidelity_e2e::input_record::InputRecord;
+use input_fidelity_e2e::window_geometry::WindowGeometry;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -59,6 +60,12 @@ impl ProbePeer {
     /// Returns an error if the probe does not answer.
     pub async fn records(&self) -> Result<Vec<InputRecord>, String> {
         self.call("probe/records", Value::Null).await
+    }
+
+    /// # Errors
+    /// Returns an error if the probe does not answer.
+    pub async fn window(&self) -> Result<WindowGeometry, String> {
+        self.call("probe/window", Value::Null).await
     }
 
     /// # Errors
