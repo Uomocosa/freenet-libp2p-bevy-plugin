@@ -1,27 +1,22 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use freenet_libp2p_bevy_plugin::time::UnixTime;
+use std::time::Duration;
 
-use crate::brp::{BrpNetwork, PEER_WINDOWS, StarboardPeer, require_real_network};
+use crate::brp::{BrpNetwork, Network, PEER_WINDOWS, StarboardPeer};
 use crate::common::build_package_bin;
 
 const SETTLE: Duration = Duration::from_secs(5);
 
-fn unix_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
-}
-
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs an X display, the lavapipe ICD and a real network; run with --run-ignored all"]
 async fn brp_starboard_boot_race_heals() -> Result<(), String> {
-    require_real_network("brp_starboard_boot_race_heals")?;
+    Network::from_env().require_real("brp_starboard_boot_race_heals")?;
     let net = BrpNetwork::prepare_with(
         freenet_libp2p_bevy_plugin::testing::Network::from_env(),
         crate::common::LobbySetup::Absent,
     )
     .await?;
     let bin = build_package_bin("e2e_apps", "starboard_e2e", "dev")?;
-    let room = format!("brp-{}", unix_secs());
+    let room = format!("brp-{}", UnixTime::now().as_secs());
     let (creator, joiner) = tokio::try_join!(
         StarboardPeer::launch(&bin, "p1", &net, PEER_WINDOWS[0]),
         StarboardPeer::launch(&bin, "p2", &net, PEER_WINDOWS[1]),

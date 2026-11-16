@@ -2,7 +2,7 @@ use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyTarget, LocatedNode};
 use freenet_libp2p_bevy_plugin::testing::{CursorTarget, NamedKey, PointerSpeed};
 use serde_json::{Value, json};
 
-use super::{Deadlines, Peer, day_millis_now, poll_until};
+use super::{DayMillis, Deadlines, Peer, poll_until};
 
 const CLICK_SPEED: f32 = 1200.0;
 
@@ -79,7 +79,7 @@ impl<'a> UiPeer<'a> {
             y: node.centre.y,
             speed: PointerSpeed(CLICK_SPEED),
         };
-        let pressed = day_millis_now();
+        let pressed = DayMillis::now();
         self.peer
             .call::<Value>(
                 "e2e/click_at",

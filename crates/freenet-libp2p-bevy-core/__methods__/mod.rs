@@ -1,5 +1,11 @@
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod brp_client;
 pub mod chunked_snapshot;
 pub mod connection_kind;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod day_millis;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod deadlines;
 pub mod dial_state;
 #[cfg(feature = "testing")]
 pub mod direct_dial_e2e_methods;
@@ -15,6 +21,8 @@ pub mod game_id;
 pub mod gossipsub_config;
 pub mod libp2p_command;
 pub mod libp2p_events;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod log_file;
 pub mod member_snapshot_fetch_state;
 #[cfg(feature = "testing")]
 pub mod network;
@@ -22,9 +30,13 @@ pub mod network;
 pub mod network_args;
 #[cfg(feature = "testing")]
 pub mod orchestrator_shared;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod peer;
 pub mod peer_book;
 #[cfg(feature = "testing")]
 pub mod peer_message_router;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod polling;
 pub mod replica_slice_content_hash;
 pub mod replica_slice_index;
 pub mod replica_state;
@@ -39,4 +51,8 @@ pub mod sync_state;
 pub mod synthetic_input_queue;
 pub mod topic;
 pub mod transport_mode;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod unix_nanos;
+#[cfg(all(feature = "testing", feature = "e2e-harness"))]
+pub mod window_origin;
 pub mod zone_history_record_kind;

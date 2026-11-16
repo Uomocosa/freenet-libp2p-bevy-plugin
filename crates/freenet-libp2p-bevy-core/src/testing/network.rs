@@ -15,6 +15,18 @@ impl Network {
     pub fn from_env() -> Self {}
 }
 
+impl Network {
+    pub fn require_real(&self, scenario: &str) -> Result<(), String> {
+        if *self == Self::Fake {
+            Err(format!(
+                "{scenario} needs a real network: on fake the example reports ring_peers=1 without a node, so wait-ring-joined proves nothing; run with E2E_NETWORK=mainnet"
+            ))
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Network;
@@ -34,5 +46,11 @@ mod tests {
             Network::from_str("fake", false).expect("fake"),
             Network::Fake
         );
+        if Network::from_env() == Network::Fake {
+            assert!(Network::from_env().require_real("probe").is_err());
+        } else {
+            assert!(Network::from_env().require_real("probe").is_ok());
+        }
+        assert!(Network::Mainnet.require_real("probe").is_ok());
     }
 }

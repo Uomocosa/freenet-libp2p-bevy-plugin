@@ -11,9 +11,6 @@ pub use basic::newtypes::LobbyToken;
 mod check_or_deploy;
 pub use check_or_deploy::check_or_deploy;
 
-mod log_parse;
-pub use log_parse::marker_times;
-
 mod lobby_setup;
 pub use lobby_setup::LobbySetup;
 

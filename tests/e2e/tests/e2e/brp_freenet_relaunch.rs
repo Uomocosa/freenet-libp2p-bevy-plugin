@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::brp::{BrpNetwork, LobbyRoomPeer, PEER_WINDOWS, require_real_network};
+use crate::brp::{BrpNetwork, LobbyRoomPeer, PEER_WINDOWS};
 use crate::common::{LobbySetup, build_package_bin};
 use freenet_libp2p_bevy_plugin::testing::Network;
 
@@ -18,7 +18,7 @@ fn relaunch_gap() -> Duration {
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs an X display, the lavapipe ICD and a real network; run with --run-ignored all"]
 async fn brp_freenet_relaunch() -> Result<(), String> {
-    require_real_network("brp_freenet_relaunch")?;
+    Network::from_env().require_real("brp_freenet_relaunch")?;
     let net = BrpNetwork::prepare_with(Network::from_env(), LobbySetup::Absent).await?;
     let bin = build_package_bin("e2e_apps", "lobby_room_e2e", "dev")?;
     let cold = LobbyRoomPeer::launch(&bin, "relaunch", &net, PEER_WINDOWS[0]).await?;

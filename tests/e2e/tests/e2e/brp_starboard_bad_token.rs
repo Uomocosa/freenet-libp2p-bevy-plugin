@@ -1,15 +1,9 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use freenet_libp2p_bevy_plugin::time::UnixTime;
 
 use crate::brp::{BrpNetwork, PEER_WINDOWS, StarboardPeer};
 use crate::common::build_package_bin;
 
 const BAD_TOKEN: &str = "lobby-e2e/bad-token";
-
-fn unix_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
-}
 
 /// A peer on another lobby, or asking for a room that does not exist, never lists the room:
 /// the join fails as the old `wait-join-failed` step did on a fetched lobby without the room.
@@ -28,7 +22,7 @@ fn expect_never_listed(peer: &str, reason: &str) -> Result<(), String> {
 async fn brp_starboard_bad_token() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
     let bin = build_package_bin("e2e_apps", "starboard_e2e", "dev")?;
-    let room = format!("brp-{}", unix_secs());
+    let room = format!("brp-{}", UnixTime::now().as_secs());
     let creator = StarboardPeer::launch(&bin, "creator", &net, PEER_WINDOWS[0]).await?;
     creator.create_room(&room).await?;
     let watcher = StarboardPeer::launch(&bin, "watcher", &net, PEER_WINDOWS[1]).await?;

@@ -1,4 +1,5 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use freenet_libp2p_bevy_plugin::time::UnixTime;
+use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::testing::Network;
 
@@ -21,18 +22,12 @@ const ERASE_STROKES: &[Stroke] = &[
 const OTHERS_IN_TWO: usize = 1;
 const QUIET: Duration = Duration::from_secs(3);
 
-fn unix_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
-}
-
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn brp_starboard_history_room_gone() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
     let bin = build_package_bin("e2e_apps", "starboard_e2e", "dev")?;
-    let room = format!("brp-{}", unix_secs());
+    let room = format!("brp-{}", UnixTime::now().as_secs());
     let painter = StarboardPeer::launch(&bin, "painter", &net, PEER_WINDOWS[0]).await?;
     painter.create_room(&room).await?;
     painter.wait_until_in_room(net.deadlines().action()).await?;

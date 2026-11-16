@@ -28,7 +28,7 @@ impl StarboardPeer {
         window: (i32, i32),
     ) -> Result<Self, String> {
         let args = net.peer_args(name, window);
-        let peer = Peer::launch(bin, &args).await?;
+        let peer = Peer::try_from_launch(bin, &args).await?;
         Ok(Self {
             lobby: LobbyPeer::new(name, peer, net.deadlines()),
         })
@@ -46,7 +46,7 @@ impl StarboardPeer {
         token: &str,
     ) -> Result<Self, String> {
         let args = net.peer_args_with_token(name, window, token);
-        let peer = Peer::launch(bin, &args).await?;
+        let peer = Peer::try_from_launch(bin, &args).await?;
         Ok(Self {
             lobby: LobbyPeer::new(name, peer, net.deadlines()),
         })

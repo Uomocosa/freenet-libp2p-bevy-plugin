@@ -59,3 +59,6 @@ pub use synthetic_input_queue::SyntheticInputQueue;
 
 mod node_centre;
 pub use node_centre::NodeCentre;
+
+#[cfg(feature = "e2e-harness")]
+pub mod harness;

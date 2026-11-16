@@ -1,8 +1,8 @@
-use std::time::{Duration, UNIX_EPOCH};
+use freenet_libp2p_bevy_plugin::time::UnixTime;
+use std::time::Duration;
 
 use crate::brp::{
-    BrpNetwork, PEER_WINDOWS, StarboardPeer, Stroke, require_real_network,
-    wait_until_any_history_written,
+    BrpNetwork, Network, PEER_WINDOWS, StarboardPeer, Stroke, wait_until_any_history_written,
 };
 use crate::common::build_package_bin;
 
@@ -18,19 +18,13 @@ const QUIET: Duration = Duration::from_secs(3);
 const CONTENT_BUDGET: Duration = Duration::from_secs(120);
 const HISTORY_BUDGET: Duration = Duration::from_secs(120);
 
-fn unix_secs() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
-}
-
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs an X display, the lavapipe ICD and a real network; run with --run-ignored all"]
 async fn brp_starboard_history_restore() -> Result<(), String> {
-    require_real_network("brp_starboard_history_restore")?;
+    Network::from_env().require_real("brp_starboard_history_restore")?;
     let net = BrpNetwork::prepare().await?;
     let bin = build_package_bin("e2e_apps", "starboard_e2e", "dev")?;
-    let room = format!("brp-{}", unix_secs());
+    let room = format!("brp-{}", UnixTime::now().as_secs());
     let painter = StarboardPeer::launch(&bin, "holder1", &net, PEER_WINDOWS[0]).await?;
     painter.create_room(&room).await?;
     painter.wait_until_in_room(net.deadlines().action()).await?;

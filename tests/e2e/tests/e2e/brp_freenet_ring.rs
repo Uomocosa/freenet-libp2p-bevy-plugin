@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::brp::{BrpNetwork, LobbyRoomPeer, PEER_WINDOWS, require_real_network};
+use crate::brp::{BrpNetwork, LobbyRoomPeer, Network, PEER_WINDOWS};
 use crate::common::build_package_bin;
 
 const RING_DEADLINE: Duration = Duration::from_secs(120);
@@ -17,7 +17,7 @@ fn peer_count() -> usize {
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs an X display, the lavapipe ICD and a real network; run with --run-ignored all"]
 async fn brp_freenet_ring() -> Result<(), String> {
-    require_real_network("brp_freenet_ring")?;
+    Network::from_env().require_real("brp_freenet_ring")?;
     let net = BrpNetwork::prepare().await?;
     let bin = build_package_bin("e2e_apps", "lobby_room_e2e", "dev")?;
     let mut peers = Vec::new();

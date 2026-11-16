@@ -1,6 +1,7 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use freenet_libp2p_bevy_plugin::time::UnixTime;
+use std::time::Duration;
 
-use crate::brp::{BrpNetwork, LobbyRoomPeer, PEER_WINDOWS, require_real_network};
+use crate::brp::{BrpNetwork, LobbyRoomPeer, Network, PEER_WINDOWS};
 use crate::common::build_package_bin;
 
 const RING_DEADLINE: Duration = Duration::from_secs(120);
@@ -13,19 +14,13 @@ fn peer_count() -> usize {
         .clamp(2, 5)
 }
 
-fn unix_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
-}
-
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs an X display, the lavapipe ICD and a real network; run with --run-ignored all"]
 async fn brp_lobby_room_discovery() -> Result<(), String> {
-    require_real_network("brp_lobby_room_discovery")?;
+    Network::from_env().require_real("brp_lobby_room_discovery")?;
     let net = BrpNetwork::prepare().await?;
     let bin = build_package_bin("e2e_apps", "lobby_room_e2e", "dev")?;
-    let room = format!("brp-discover-{}", unix_secs());
+    let room = format!("brp-discover-{}", UnixTime::now().as_secs());
     let creator_window = PEER_WINDOWS.first().copied().unwrap_or((0, 0));
     let creator = LobbyRoomPeer::launch(&bin, "p1", &net, creator_window).await?;
     creator.create_room(&room).await?;

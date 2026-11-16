@@ -1,4 +1,5 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use freenet_libp2p_bevy_plugin::time::UnixTime;
+use std::time::Duration;
 
 use crate::brp::{BrpNetwork, PEER_WINDOWS, StarboardPeer, Stroke, expect_canvases_converge};
 use crate::common::build_package_bin;
@@ -23,18 +24,12 @@ const CRASH_AFTER: Duration = Duration::from_secs(5);
 const QUIET: Duration = Duration::from_secs(3);
 const CONVERGE_DEADLINE: Duration = Duration::from_secs(60);
 
-fn unix_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
-}
-
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn brp_starboard_peer_killed() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
     let bin = build_package_bin("e2e_apps", "starboard_e2e", "dev")?;
-    let room = format!("brp-{}", unix_secs());
+    let room = format!("brp-{}", UnixTime::now().as_secs());
     let alice = StarboardPeer::launch(&bin, "painter", &net, PEER_WINDOWS[0]).await?;
     let bob = StarboardPeer::launch(&bin, "helper", &net, PEER_WINDOWS[1]).await?;
     let mut carol = StarboardPeer::launch(&bin, "crasher", &net, PEER_WINDOWS[2]).await?;

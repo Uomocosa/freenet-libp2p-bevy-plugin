@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use freenet_libp2p_bevy_plugin::freenet_node;
 use freenet_libp2p_bevy_plugin::lobby_room::testing::LobbyKit;
 use freenet_libp2p_bevy_plugin::testing::{FakeNetworkServer, Network};
+use freenet_libp2p_bevy_plugin::time::UnixTime;
 
-use super::Deadlines;
+use super::{Deadlines, UnixNanos};
 use crate::common::{LobbySetup, LobbyToken, check_or_deploy};
 
 /// The network one BRP run uses, set up the way the old harness set it up for the same network.
@@ -48,20 +48,20 @@ impl BrpNetwork {
     /// Returns an error if the run directory cannot be made, the fake server cannot start, or
     /// the lobby contract cannot be ensured.
     pub async fn prepare_with(network: Network, setup: LobbySetup) -> Result<Self, String> {
-        let stamp = unix_secs();
+        let stamp = UnixTime::now().as_secs();
         let run_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
             .join(".local-run")
             .join(format!("brp-{stamp}"));
         std::fs::create_dir_all(&run_dir).map_err(|e| format!("run dir: {e}"))?;
-        let deadlines = Deadlines::for_network(network);
+        let deadlines = Deadlines::from(network);
         match network {
             Network::Fake => {
                 let server =
                     FakeNetworkServer::start_with(Box::new(LobbyKit::default())).await?;
                 Ok(Self {
                     network,
-                    token: format!("brp-{}", unix_nanos()),
+                    token: format!("brp-{}", UnixNanos::now()),
                     deadlines,
                     run_dir,
                     orchestrator: Some(server),
@@ -93,7 +93,7 @@ impl BrpNetwork {
             ),
             Network::DirectDial => Ok(Self {
                 network,
-                token: format!("brp-{}", unix_nanos()),
+                token: format!("brp-{}", UnixNanos::now()),
                 deadlines,
                 run_dir,
                 orchestrator: None,
@@ -167,16 +167,4 @@ impl BrpNetwork {
         }
         args
     }
-}
-
-fn unix_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
-}
-
-fn unix_nanos() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_nanos())
 }

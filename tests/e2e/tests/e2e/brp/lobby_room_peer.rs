@@ -22,7 +22,7 @@ impl LobbyRoomPeer {
     ) -> Result<Self, String> {
         let mut args = net.peer_args(name, window);
         args.push("--room-ping".to_string());
-        let peer = Peer::launch(bin, &args).await?;
+        let peer = Peer::try_from_launch(bin, &args).await?;
         Ok(Self {
             lobby: LobbyPeer::new(name, peer, net.deadlines()),
         })
@@ -131,7 +131,7 @@ impl LobbyRoomPeer {
     /// The path of the app's log file, readable until this peer is dropped.
     #[must_use]
     pub fn log_path(&self) -> &Path {
-        self.lobby.peer().log_path()
+        &self.lobby.peer().log
     }
 
     /// # Errors

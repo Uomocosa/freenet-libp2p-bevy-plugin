@@ -3,8 +3,7 @@ use std::time::Duration;
 
 use freenet_libp2p_bevy_plugin::lobby_room::discovery::TICK;
 
-use super::{LobbyRoomPeer, poll_until};
-use crate::common::marker_times;
+use super::{LobbyRoomPeer, LogFile, poll_until};
 
 const MESH_MARKER: &str = "lobby mesh ";
 const CONVERGE_BUDGET_TICKS: u32 = 2;
@@ -18,7 +17,8 @@ const fn converge_budget() -> Duration {
 #[must_use]
 pub fn fully_meshed_at(log: &Path, after_ms: u64, connected: usize) -> Option<u64> {
     let want = format!("connected={connected}");
-    marker_times(log, MESH_MARKER)
+    LogFile::from(log)
+        .marker_times(MESH_MARKER)
         .into_iter()
         .find(|(ms, line)| *ms >= after_ms && line.split_whitespace().any(|token| token == want))
         .map(|(ms, _)| ms)

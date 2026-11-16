@@ -14,7 +14,7 @@ use starboard::starboard::app::StarboardApp;
 use starboard::starboard::room::CursorUpdate;
 
 use e2e_apps::starboard::StarboardE2EMethods;
-use e2e_apps::window_origin::WindowOrigin;
+use freenet_libp2p_bevy_plugin::testing::harness::WindowOrigin;
 
 #[derive(Debug, Parser)]
 #[command(name = "starboard_e2e")]

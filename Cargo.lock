@@ -4317,6 +4317,7 @@ dependencies = [
  "futures-util",
  "lele-bevy-state-machine",
  "libp2p",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",

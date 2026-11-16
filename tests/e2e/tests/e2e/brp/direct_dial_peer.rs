@@ -31,7 +31,7 @@ impl DirectDialPeer {
         window: (i32, i32),
     ) -> Result<Self, String> {
         let args = net.peer_args(name, window);
-        let peer = Peer::launch(bin, &args).await?;
+        let peer = Peer::try_from_launch(bin, &args).await?;
         Ok(Self {
             name: name.to_string(),
             bin: bin.to_path_buf(),
@@ -212,7 +212,7 @@ impl DirectDialPeer {
     /// Returns an error if the app does not start or does not answer over BRP.
     pub async fn relaunch(&mut self) -> Result<(), String> {
         self.earlier_logs.push(self.peer.log_text());
-        self.peer = Peer::launch(&self.bin, &self.args).await?;
+        self.peer = Peer::try_from_launch(&self.bin, &self.args).await?;
         Ok(())
     }
 

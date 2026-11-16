@@ -4,8 +4,7 @@ use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyStatus, LobbyTarget};
 use freenet_libp2p_bevy_plugin::testing::NamedKey;
 use serde_json::Value;
 
-use super::{Deadlines, Peer, UiPeer, poll_until};
-use crate::common::marker_times;
+use super::{Deadlines, LogFile, Peer, UiPeer, poll_until};
 
 const JOIN_FAILURE_BUDGET: Duration = Duration::from_secs(180);
 
@@ -131,7 +130,7 @@ impl LobbyPeer {
         poll_until(
             &format!("{}: app logged `ui {verb} room={room}`", self.name),
             self.deadlines.action(),
-            async || Ok(press_time_in(self.peer.log_path(), verb, room)),
+            async || Ok(press_time_in(&self.peer.log, verb, room)),
             Option::is_some,
         )
         .await?
@@ -353,7 +352,8 @@ fn join_failure(status: &LobbyStatus, room: &str) -> Option<String> {
 
 fn press_time_in(log: &std::path::Path, verb: &str, room: &str) -> Option<u64> {
     let needle = format!("ui {verb} room={room}");
-    marker_times(log, &needle)
+    LogFile::from(log)
+        .marker_times(&needle)
         .into_iter()
         .filter(|(_, line)| press_line_is_for(line, &needle))
         .map(|(ms, _)| ms)

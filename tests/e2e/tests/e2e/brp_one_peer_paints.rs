@@ -1,4 +1,5 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use freenet_libp2p_bevy_plugin::time::UnixTime;
+use std::time::Duration;
 
 use crate::brp::{BrpNetwork, StarboardPeer, Stroke};
 use crate::common::build_package_bin;
@@ -13,18 +14,12 @@ const LINE: Stroke = Stroke(&[
 const CONTENT_DEADLINE: Duration = Duration::from_secs(60);
 const QUIET: Duration = Duration::from_secs(2);
 
-fn unix_secs() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
-}
-
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
 async fn brp_one_peer_paints() -> Result<(), String> {
     let net = BrpNetwork::prepare().await?;
     let bin = build_package_bin("e2e_apps", "starboard_e2e", "dev")?;
-    let room = format!("brp-{}", unix_secs());
+    let room = format!("brp-{}", UnixTime::now().as_secs());
     let alice = StarboardPeer::launch(&bin, "alice", &net, (0, 0)).await?;
     alice.create_room(&room).await?;
     alice.wait_until_in_room(net.deadlines().action()).await?;
