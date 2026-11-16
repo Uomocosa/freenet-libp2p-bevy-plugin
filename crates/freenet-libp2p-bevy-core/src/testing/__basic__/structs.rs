@@ -1,3 +1,4 @@
+use bevy::input::ButtonState;
 use bevy::input::mouse::MouseButton;
 use bevy::math::Vec2;
 use serde::{Deserialize, Serialize};
@@ -51,4 +52,12 @@ pub struct DirectDialStatus {
     pub listen_addrs: Vec<String>,
     pub connected: Vec<String>,
     pub book: Vec<DirectDialBookEntry>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyEvent {
+    pub key: testing::Key,
+    pub state: ButtonState,
+    pub does_repeat: bool,
+    pub does_emit_text: bool,
 }

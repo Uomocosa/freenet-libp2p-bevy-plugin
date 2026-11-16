@@ -41,3 +41,18 @@ pub enum SyntheticInput {
     Key(char, ButtonState),
     Named(testing::Key, ButtonState),
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum KeyStep {
+    Text(String),
+    Tap(testing::Key),
+    Down(testing::Key),
+    Up(testing::Key),
+    Chord(Vec<testing::Key>),
+    Repeat {
+        key: testing::Key,
+        count: testing::RepeatCount,
+    },
+    Wait(testing::Millis),
+    SameFrame(Vec<Self>),
+}

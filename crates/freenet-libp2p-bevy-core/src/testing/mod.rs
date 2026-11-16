@@ -8,12 +8,14 @@ mod basic;
 pub mod traits;
 
 pub use basic::constants::FREENET_NODE_STARTED;
-pub use basic::enums::{FakeWireClientFrame, FakeWireServerFrame, FanOutTarget, SyntheticInput};
+pub use basic::enums::{
+    FakeWireClientFrame, FakeWireServerFrame, FanOutTarget, KeyStep, SyntheticInput,
+};
 pub use basic::messages::E2EExtensionEffect;
-pub use basic::newtypes::{PointerSpeed, TypedText};
+pub use basic::newtypes::{Millis, PointerSpeed, RepeatCount, TypedText};
 pub use basic::structs::{
-    CursorTarget, DirectDialBookEntry, DirectDialStatus, FakeWireHello, FanOut, PointerPath,
-    RoutedEvent,
+    CursorTarget, DirectDialBookEntry, DirectDialStatus, FakeWireHello, FanOut, KeyEvent,
+    PointerPath, RoutedEvent,
 };
 
 mod fake_network_plugin;
@@ -53,6 +55,9 @@ pub use direct_dial_e2e_methods::DirectDialE2EMethods;
 
 mod key;
 pub use key::Key;
+
+mod key_step_error;
+pub use key_step_error::KeyStepError;
 
 mod synthetic_input_queue;
 pub use synthetic_input_queue::SyntheticInputQueue;
