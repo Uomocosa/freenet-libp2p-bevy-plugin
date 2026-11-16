@@ -15,7 +15,7 @@ disabled until it is rebuilt on the BRP harness.
 
 Networks, chosen with `E2E_NETWORK`:
 
-- **fake** (default for `e2e-ui-no-network`): an in-process fake lobby. Fast, for
+- **fake** (default for `e2e`): an in-process fake lobby. Fast, for
   reviewing the UI. Some tests need the real network and refuse fake by design;
   they count as skips.
 - **mainnet** (`e2e-mainnet`): the public Freenet network. This is the real proof.
@@ -28,14 +28,14 @@ Networks, chosen with `E2E_NETWORK`:
 ## Run commands
 
 ```bash
-just e2e-ui-no-network              # all e2e tests on fake, serially
-just e2e-ui-no-network direct_dial  # tests whose name matches a pattern
-just e2e-mainnet                    # all e2e tests on mainnet, 90 s apart
-just e2e-mainnet direct_dial        # one test on mainnet
-just e2e-loop direct_dial 5 90      # that mainnet run 5 times, 90 s between runs
+just e2e                    # all e2e tests on fake, serially
+just e2e direct_dial        # tests whose name matches a pattern
+just e2e-mainnet            # all e2e tests on mainnet, 90 s apart
+just e2e-mainnet direct_dial  # one test on mainnet
+just e2e-mainnet direct_dial 90 5  # that mainnet run 5 times, 90 s between runs
 ```
 
-The raw command behind `e2e-ui-no-network`:
+The raw command behind `e2e`:
 
 ```bash
 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json E2E_NETWORK=fake \
@@ -60,9 +60,9 @@ Tip for a machine with no X server and no root: download Xvfb without installing
 Every e2e test can record its screen and post the video to Telegram:
 
 ```bash
-just e2e-ui-record              # fake network, records and sends every test
-just e2e-ui-record two_peers    # one test
-E2E_RECORD_DRY_RUN=1 just e2e-ui-record   # encode, keep the file, do not send
+just e2e-record              # fake network, records and sends every test
+just e2e-record two_peers    # one test
+E2E_RECORD_DRY_RUN=1 just e2e-record   # encode, keep the file, do not send
 just e2e-mainnet                # records by default (E2E_RECORD=0 turns it off)
 ```
 
@@ -86,6 +86,8 @@ before `Ok(())`.
 
 Direct cargo needs `CARGO_TARGET_DIR=$HOME/.cache/cargo-target/freenet-libp2p-bevy-plugin`
 (jemalloc rejects the space in the default path). `just` sets it for you.
+
+Use `just --list`; raw cargo needs CARGO_TARGET_DIR (space in path), so prefer the recipes (`just t`, `just check-crate`).
 
 ## Other test targets
 

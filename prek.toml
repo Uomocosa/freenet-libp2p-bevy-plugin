@@ -52,30 +52,10 @@ priority = "checks"
 stages = ["pre-commit"]
 
 [[repos.hooks]]
-id = "contract-lint"
-name = "just contract-lint"
+id = "wasm"
+name = "just wasm"
 language = "system"
-entry = "just contract-lint"
-pass_filenames = false
-always_run = true
-priority = "checks"
-stages = ["pre-commit"]
-
-[[repos.hooks]]
-id = "common-types-wasm"
-name = "just common-types-wasm"
-language = "system"
-entry = "just common-types-wasm"
-pass_filenames = false
-always_run = true
-priority = "checks"
-stages = ["pre-commit"]
-
-[[repos.hooks]]
-id = "common-types-lint"
-name = "just common-types-lint"
-language = "system"
-entry = "just common-types-lint"
+entry = "just wasm"
 pass_filenames = false
 always_run = true
 priority = "checks"

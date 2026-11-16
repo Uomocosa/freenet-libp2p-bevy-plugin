@@ -46,7 +46,7 @@ Defaults are tuned for small rooms (≤8 peers): 100 ms heartbeat, `mesh_n_low`
 - `examples/lobby_room/` — the smallest discovery + room-messaging app.
 - `examples/starboard/` — the reference game: a shared 1024×1024 canvas over the
   room API, with a daily shape and colour per peer, presence cursors and
-  anti-entropy repair. Run it with `just run-starboard --username <name>`; see
+  anti-entropy repair. Run it with `just starboard-demo --username <name>`; see
   [`examples/starboard/README.md`](examples/starboard/README.md).
 
 ## Workspace layout
@@ -107,13 +107,15 @@ space-in-path `tikv-jemalloc-sys` workaround), with `jobs = 6`.
 
 ```sh
 just build | just clippy | just fmt | just test | just lint | just bevy-lint
-just run          # lobby_room, detached; args pass through (--ui, …)
-just demo         # lobby_room with the default UI
-just run-starboard --username <name>   # starboard, detached
-just e2e-ui-no-network | just e2e-mainnet | just e2e-loop
+just lobby-room-demo    # detached; defaults --username lele --ui default (args pass through)
+just starboard-demo --username <name>   # detached
+just e2e | just e2e-mainnet | just e2e-record
+just previews [--resend]   # render UI previews; --resend re-sends all to Telegram
 just contract   # build the lobby contract wasm
 just freenet-harness   # freenet contract harness (CRDT laws) against the lobby contract
 just setup      # one-time per clone: install the prek git hooks
 just check      # run the full gate (same as CI)
 just ci
 ```
+
+Use `just --list`; raw cargo needs CARGO_TARGET_DIR (space in path), so prefer the recipes (`just t`, `just check-crate`).

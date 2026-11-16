@@ -9,7 +9,7 @@ See the root [`README.md`](../../README.md) for the plugin API and its defaults.
 ## Run
 
 ```sh
-just run-starboard --username alice
+just starboard-demo --username alice
 ```
 
 The recipe builds the `starboard` example and starts it detached; its log is

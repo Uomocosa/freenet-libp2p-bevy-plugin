@@ -14,10 +14,90 @@ _lavapipe := `ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -n1`
 # detection truthful.
 e2e_log_filter := "warn,starboard=info,discovery=info,lobby_room=info,replica_sync=info,freenet_libp2p_bevy_core::methods::embedded_node=info,freenet_libp2p_bevy_lobby_room::testing::bevy_systems=info,freenet::config=info,freenet::operations::connect=debug,freenet::ring=debug,freenet::operations::get=debug,freenet::operations::put=debug"
 
+[doc('Show this recipe list.')]
+default:
+    @just --list --unsorted
+
+[group('dev')]
+[doc('Build the whole workspace (all targets, all features).')]
 build:
     cargo build --workspace --all-targets --all-features
 
+# PATTERN filters on the full test path; empty matches everything.
+[group('dev')]
+[doc('Run workspace tests matching PATTERN (nextest; empty matches all).')]
+t PATTERN="" *FLAGS:
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features -E 'test(/{{ PATTERN }}/)' {{ FLAGS }}
+
+[group('dev')]
+[doc('Clippy plus lele-lint for one package (e.g. just check-crate starboard).')]
+check-crate CRATE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ CRATE }}" in
+        common_types) dir=crates/common_types ;;
+        lobby_contract) dir=crates/lobby-room/freenet_contract ;;
+        freenet-libp2p-bevy-core) dir=crates/freenet-libp2p-bevy-core ;;
+        freenet-libp2p-bevy-lobby-room) dir=crates/lobby-room/bevy_plugin ;;
+        lobby_room_shared_types) dir=crates/lobby-room/shared_types ;;
+        freenet-libp2p-bevy-plugin) dir=crates/freenet-libp2p-bevy-plugin ;;
+        lobby_room) dir=examples/lobby_room ;;
+        starboard) dir=examples/starboard ;;
+        input_fidelity_e2e) dir=tests/input-fidelity ;;
+        lobby_room_e2e) dir=tests/lobby-room ;;
+        starboard_e2e) dir=tests/starboard ;;
+        *)
+            echo "check-crate: unknown crate '{{ CRATE }}'; known: common_types lobby_contract freenet-libp2p-bevy-core freenet-libp2p-bevy-lobby-room lobby_room_shared_types freenet-libp2p-bevy-plugin lobby_room starboard input_fidelity_e2e lobby_room_e2e starboard_e2e" >&2
+            exit 1
+            ;;
+    esac
+    cargo clippy -p {{ CRATE }} --all-targets --all-features -- -D warnings
+    lele-lint "$dir"
+
+[group('dev')]
+[doc('Check formatting (cargo fmt --all -- --check).')]
+fmt:
+    cargo fmt --all -- --check
+
+[group('dev')]
+[doc('Lint the whole workspace; warnings deny the gate.')]
+clippy:
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+[group('dev')]
+[doc('Run lele-lint over every workspace crate dir.')]
+lint:
+    lele-lint crates/freenet-libp2p-bevy-core
+    lele-lint crates/lobby-room/bevy_plugin
+    lele-lint crates/freenet-libp2p-bevy-plugin
+    lele-lint crates/lobby-room/freenet_contract
+    lele-lint crates/lobby-room/shared_types
+    lele-lint crates/common_types
+
+[group('dev')]
+[doc('Run lele-bevy-lint over the Bevy crates.')]
+bevy-lint:
+    lele-bevy-lint crates/freenet-libp2p-bevy-core
+    lele-bevy-lint crates/lobby-room/bevy_plugin
+    lele-bevy-lint crates/freenet-libp2p-bevy-plugin
+
+# Regenerate the __methods__ indexes after adding or removing #[atomic_delegates] shells.
+[group('dev')]
+[doc('Regenerate __methods__ indexes after adding/removing atomic shells.')]
+sync-methods:
+    lele-lint --sync-methods crates/freenet-libp2p-bevy-core
+    lele-lint --sync-methods crates/lobby-room/bevy_plugin
+    lele-lint --sync-methods crates/lobby-room/freenet_contract
+    lele-lint --sync-methods crates/lobby-room/shared_types
+
+[group('gate')]
+[doc('Run the full workspace test suite (nextest, lavapipe ICD).')]
+test:
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features
+
 # every feature combination users can pick must compile
+[group('gate')]
+[doc('Check every feature combination users can pick.')]
 features:
     cargo check -p freenet-libp2p-bevy-core --no-default-features
     cargo check -p freenet-libp2p-bevy-core --no-default-features --features testing
@@ -30,50 +110,56 @@ features:
     cargo check -p freenet-libp2p-bevy-plugin
     cargo check --workspace --all-targets --all-features
 
-clippy:
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+[group('gate')]
+[doc('Check the wasm32 targets (common_types, lobby_room_shared_types).')]
+wasm:
+    cargo check -p common_types --target wasm32-unknown-unknown
+    cargo check -p lobby_room_shared_types --target wasm32-unknown-unknown
 
-fmt:
-    cargo fmt --all -- --check
+[group('gate')]
+[doc('Run the full prek gate on all files (same as CI).')]
+check:
+    prek run --all-files
 
-test:
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features
+[group('gate')]
+[doc('Full gate: build, features, check.')]
+ci: build features check
 
-# Re-send every UI preview to Telegram, ignoring the change gate.
-resend-all-previews:
-    LELE_PREVIEW_RESEND_ALL=1 VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features -E 'test(/_preview$/)'
+[group('gate')]
+[doc('Install the prek git hooks (one-time per clone).')]
+setup:
+    prek install -t pre-commit -t pre-push
 
 # UI layer on the fake network (BRP suite by default): fast, for reviewing the UI.
-# Telegram stays silent. `just e2e-ui-no-network direct_dial` runs one name pattern.
+# Telegram stays silent. `just e2e direct_dial` runs one name pattern.
 # The `[^:]*::[^:]*` conjunct keeps the e2e test fns (one `mod::fn` level) and
 # leaves the unit tests nested inside the `e2e` binaries to `just test`.
-e2e-ui-no-network TEST="":
+[group('e2e')]
+[doc('Run e2e BRP tests on the fake network (optional name pattern).')]
+e2e TEST="":
     #!/usr/bin/env bash
     set -euo pipefail
     VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
 
-# Input-fidelity e2e: proves the synthetic e2e input writes the same Bevy input
-# messages as real XTest input. Starts its own Xvfb (never :0); prints the diff
-# when the two logs disagree. Expected to fail on known gaps (named-key `text`).
-input-fidelity TEST="synthetic_input_matches_real_os_input":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p input_fidelity_e2e --test e2e --all-features --run-ignored all -j 1 -E 'test(/{{ TEST }}/)' -- --nocapture
-
 # UI layer on the fake network, one recorded video per test sent to Telegram.
 # Needs an Xvfb (E2E_XVFB=/path/to/Xvfb when it is not on PATH) and
 # TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (env or .env).
-# Encode without sending: E2E_RECORD_DRY_RUN=1 just e2e-ui-record
-e2e-ui-record TEST="":
+# Encode without sending: E2E_RECORD_DRY_RUN=1 just e2e-record
+[group('e2e')]
+[doc('Run e2e BRP tests on fake, recording one video per test.')]
+e2e-record TEST="":
     #!/usr/bin/env bash
     set -euo pipefail
     E2E_RECORD=1 VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=fake cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E 'test(/{{ TEST }}/) and test(/^[^:]*::[^:]*$/)' --all-features --run-ignored all -- --nocapture
 
 # The matching BRP tests on the public network, one at a time with PAUSE seconds
 # between them (the 90 s gap lets the previous test's peers leave the ring).
-# Runs every matching test, then lists the failures and exits 1 if any.
+# Repeats the whole selection RUNS times with PAUSE between runs (never before
+# the first); counts how many runs had failures and exits 1 if any did.
 # Records every test and sends its video to Telegram unless E2E_RECORD=0 / E2E_RECORD_DRY_RUN=1.
-e2e-mainnet TEST="" PAUSE="90":
+[group('e2e')]
+[doc('Run e2e BRP tests on mainnet, RUNS times, PAUSE s apart.')]
+e2e-mainnet TEST="" PAUSE="90" RUNS="1":
     #!/usr/bin/env bash
     set -euo pipefail
     # LOBBY_RUST_LOG default is loop-only; an exported value still wins.
@@ -84,86 +170,85 @@ e2e-mainnet TEST="" PAUSE="90":
         echo "e2e-mainnet: no test matches '{{ TEST }}'" >&2
         exit 1
     fi
-    first=1
-    failed=()
-    while IFS= read -r name; do
-        if [ "$first" = 0 ]; then sleep {{ PAUSE }}; fi
-        first=0
-        echo "e2e-mainnet: $name"
-        if ! VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E "test(=$name)" --all-features --run-ignored all -- --nocapture; then
-            failed+=("$name")
-        fi
-    done <<< "$names"
-    if [ "${#failed[@]}" -gt 0 ]; then
-        echo "e2e-mainnet: ${#failed[@]} failed:" >&2
-        printf '  %s\n' "${failed[@]}" >&2
-        exit 1
-    fi
-    echo "e2e-mainnet: all passed"
-
-# Run `just e2e-mainnet TEST` RUNS times, PAUSE seconds between runs (never before the first).
-e2e-loop TEST RUNS="5" PAUSE="90":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    bad=0
+    bad_runs=0
     for run in $(seq 1 {{ RUNS }}); do
         if [ "$run" -gt 1 ]; then sleep {{ PAUSE }}; fi
-        echo "e2e-loop: run $run of {{ RUNS }}"
-        if ! just e2e-mainnet "{{ TEST }}"; then bad=$((bad + 1)); fi
+        echo "e2e-mainnet: run $run of {{ RUNS }}"
+        first=1
+        failed=()
+        while IFS= read -r name; do
+            if [ "$first" = 0 ]; then sleep {{ PAUSE }}; fi
+            first=0
+            echo "e2e-mainnet: $name"
+            if ! VK_ICD_FILENAMES={{ _lavapipe }} E2E_NETWORK=mainnet cargo nextest run -p lobby_room_e2e -p starboard_e2e --no-fail-fast -j 1 --test e2e -E "test(=$name)" --all-features --run-ignored all -- --nocapture; then
+                failed+=("$name")
+            fi
+        done <<< "$names"
+        if [ "${#failed[@]}" -gt 0 ]; then
+            echo "e2e-mainnet: run $run: ${#failed[@]} failed:" >&2
+            printf '  %s\n' "${failed[@]}" >&2
+            bad_runs=$((bad_runs + 1))
+        else
+            echo "e2e-mainnet: run $run passed"
+        fi
     done
-    echo "e2e-loop: $bad of {{ RUNS }} runs had failures"
-    [ "$bad" = 0 ]
+    echo "e2e-mainnet: $bad_runs of {{ RUNS }} runs had failures"
+    [ "$bad_runs" = 0 ]
 
-# Run the starboard example detached (no terminal tie-up; only the app window).
-# Extra args: --username, --token, --transport.
-run-starboard *ARGS:
+# Input-fidelity e2e: proves the synthetic e2e input writes the same Bevy input
+# messages as real XTest input. Starts its own Xvfb (never :0); prints the diff
+# when the two logs disagree. Expected to fail on known gaps (named-key `text`).
+[group('e2e')]
+[doc('Prove synthetic e2e input matches real XTest input.')]
+input-fidelity TEST="synthetic_input_matches_real_os_input":
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build -p starboard
-    mkdir -p .local-run
-    log=.local-run/starboard.log
-    setsid "$CARGO_TARGET_DIR/debug/starboard" {{ ARGS }} >"$log" 2>&1 &
-    echo "starboard running detached — log: $log"
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run -p input_fidelity_e2e --test e2e --all-features --run-ignored all -j 1 -E 'test(/{{ TEST }}/)' -- --nocapture
 
-# Run the lobby_room example detached (no terminal tie-up; only the app window).
-# Extra args toggle ui/script/transport, e.g. `just run --ui custom --script "create:room-1, stay"`.
-run *ARGS:
+# Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
+[group('e2e')]
+[doc('Run the contract CRDT-law suite against the lobby contract.')]
+freenet-harness:
+    cargo nextest run -p lobby_room_e2e --test freenet_harness --all-features --run-ignored all -- --nocapture
+
+[group('demo')]
+[doc('Run the lobby_room example detached (defaults: --username lele --ui default).')]
+lobby-room-demo *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build -p lobby_room
+    if [ -n "{{ ARGS }}" ]; then just _detached lobby_room {{ ARGS }}; else just _detached lobby_room --username lele --ui default; fi
+
+[group('demo')]
+[doc('Run the starboard example detached (default: --username lele).')]
+starboard-demo *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -n "{{ ARGS }}" ]; then just _detached starboard {{ ARGS }}; else just _detached starboard --username lele; fi
+
+[private]
+_detached BIN *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build -p {{ BIN }}
     mkdir -p .local-run
-    log=.local-run/lobby-room.log
-    setsid "$CARGO_TARGET_DIR/debug/lobby_room" {{ ARGS }} >"$log" 2>&1 &
-    echo "lobby_room running detached — log: $log"
+    log=".local-run/{{ BIN }}.log"
+    setsid "$CARGO_TARGET_DIR/debug/{{ BIN }}" {{ ARGS }} >"$log" 2>&1 &
+    echo "{{ BIN }} running detached - log: $log"
 
-# Run the lobby_room example with the defaults (username lele, plugin default UI).
-demo:
-    just run --username lele --ui default
-
-new-game-id:
-    cargo run -p freenet-libp2p-bevy-core --bin new-game-id
-
-lint:
-    lele-lint crates/freenet-libp2p-bevy-core
-    lele-lint crates/lobby-room/bevy_plugin
-    lele-lint crates/freenet-libp2p-bevy-plugin
-
-bevy-lint:
-    lele-bevy-lint crates/freenet-libp2p-bevy-core
-    lele-bevy-lint crates/lobby-room/bevy_plugin
-    lele-bevy-lint crates/freenet-libp2p-bevy-plugin
-
-# Regenerate the __methods__ indexes after adding or removing #[atomic_delegates] shells.
-sync-methods:
-    lele-lint --sync-methods crates/freenet-libp2p-bevy-core
-    lele-lint --sync-methods crates/lobby-room/bevy_plugin
-    lele-lint --sync-methods crates/lobby-room/freenet_contract
-    lele-lint --sync-methods crates/lobby-room/shared_types
+[group('previews')]
+[doc('Render UI previews; pass --resend to re-send every preview to Telegram.')]
+previews *FLAGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ " {{ FLAGS }} " == *" --resend "* ]]; then export LELE_PREVIEW_RESEND_ALL=1; fi
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features -E 'test(/_preview$/)'
 
 # The only way to rebuild the lobby contract wasm. build.rs was removed because it
 # inherited RUSTC_WORKSPACE_WRAPPER=clippy-driver from `cargo clippy`, which rebuilt
 # the same source to different bytes. This recipe clears the wrappers so the output
 # is repeatable, then copies the result over the canonical committed file.
+[group('tools')]
+[doc('Rebuild the lobby contract wasm (repeatable bytes) and refresh the committed file.')]
 contract:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -172,31 +257,7 @@ contract:
     wc -c crates/lobby-room/freenet_contract/lobby_contract.wasm
     sha256sum crates/lobby-room/freenet_contract/lobby_contract.wasm
 
-# The lobby contract is a workspace member: `just fmt` (`cargo fmt --all`) and
-# `just clippy` (`--workspace --all-targets --all-features`) already cover it.
-# Only the per-crate lele-lint stays here.
-contract-lint:
-    lele-lint crates/lobby-room/freenet_contract
-    lele-lint crates/lobby-room/shared_types
-
-# common_types is a workspace member too: `just fmt`, `just clippy` and
-# `just test` (`--workspace --all-targets --all-features`) already cover it.
-# Only the per-crate lele-lint and the wasm check stay here.
-common-types-wasm:
-    cargo check -p common_types --target wasm32-unknown-unknown
-    cargo check -p lobby_room_shared_types --target wasm32-unknown-unknown
-
-common-types-lint:
-    lele-lint crates/common_types
-
-# Contract CRDT-law suite (freenet-contract-harness) against the lobby contract.
-freenet-harness:
-    cargo nextest run -p lobby_room_e2e --test freenet_harness --all-features --run-ignored all -- --nocapture
-
-setup:
-    prek install -t pre-commit -t pre-push
-
-check:
-    prek run --all-files
-
-ci: build features check
+[group('tools')]
+[doc('Print a fresh game id (lobby/token namespace).')]
+new-game-id:
+    cargo run -p freenet-libp2p-bevy-core --bin new-game-id
