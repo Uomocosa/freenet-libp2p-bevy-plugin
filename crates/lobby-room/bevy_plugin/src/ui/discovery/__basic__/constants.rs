@@ -48,6 +48,7 @@ pub const CARET_SELECTION_COLOR: Color = Color::srgba(0.38, 0.65, 0.98, 0.45);
 pub const ROOM_SEARCH_LABEL_FONT_SIZE: f32 = 12.0;
 pub const ROOM_SEARCH_SPINNER_SIZE: f32 = 12.0;
 pub const ROOM_SEARCH_TOOLTIP_FONT_SIZE: f32 = 10.0;
+pub const ROOM_SEARCH_TOOLTIP_Z: i32 = 50;
 pub const ROOM_SEARCH_TOOLTIP_BG_COLOR: Color = Color::srgb(0.18, 0.07, 0.21);
 
 pub const SPINNER_SIZE: f32 = 48.0;

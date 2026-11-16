@@ -4,8 +4,8 @@ use bevy::prelude::*;
 
 use ui::discovery::{
     ACCENT_COLOR, CONNECTING_TEXT_COLOR, ROOM_SEARCH_LABEL_FONT_SIZE, ROOM_SEARCH_SPINNER_SIZE,
-    ROOM_SEARCH_TOOLTIP_BG_COLOR, ROOM_SEARCH_TOOLTIP_FONT_SIZE, RoomSearchIndicator,
-    RoomSearchTooltip, RoomsHeader, SPINNER_TRACK_COLOR, SpinnerRing,
+    ROOM_SEARCH_TOOLTIP_BG_COLOR, ROOM_SEARCH_TOOLTIP_FONT_SIZE, ROOM_SEARCH_TOOLTIP_Z,
+    RoomSearchIndicator, RoomSearchTooltip, RoomsHeader, SPINNER_TRACK_COLOR, SpinnerRing,
 };
 
 pub fn spawn_rooms_header(root: &mut ChildSpawnerCommands) {
@@ -56,6 +56,7 @@ pub fn spawn_rooms_header(root: &mut ChildSpawnerCommands) {
                 indicator.spawn((
                     RoomSearchTooltip,
                     Visibility::Hidden,
+                    GlobalZIndex(ROOM_SEARCH_TOOLTIP_Z),
                     Node {
                         position_type: PositionType::Absolute,
                         top: Val::Px(18.0),
@@ -65,7 +66,7 @@ pub fn spawn_rooms_header(root: &mut ChildSpawnerCommands) {
                         ..default()
                     },
                     BackgroundColor(ROOM_SEARCH_TOOLTIP_BG_COLOR),
-                    Text::new("Searching for more rooms…"),
+                    Text::new("Searching for more rooms..."),
                     TextFont {
                         font_size: FontSize::Px(ROOM_SEARCH_TOOLTIP_FONT_SIZE),
                         ..default()
@@ -107,13 +108,17 @@ mod tests {
             .world_mut()
             .query_filtered::<Entity, With<ui::discovery::RoomSearchIndicator>>();
         let indicator = indicators.single(app.world()).expect("search indicator");
-        let tooltip = app
+        let mut tooltips = app
             .world_mut()
-            .query_filtered::<&Visibility, With<ui::discovery::RoomSearchTooltip>>()
-            .single(app.world())
-            .copied()
-            .expect("search tooltip");
-        assert_eq!(tooltip, Visibility::Hidden);
+            .query_filtered::<Entity, With<ui::discovery::RoomSearchTooltip>>();
+        let tooltip = tooltips.single(app.world()).expect("search tooltip");
+        let tooltip_visibility = *app
+            .world()
+            .get::<Visibility>(tooltip)
+            .expect("tooltip visibility");
+        assert_eq!(tooltip_visibility, Visibility::Hidden);
+        let GlobalZIndex(tooltip_z) = *app.world().get::<GlobalZIndex>(tooltip).expect("tooltip z");
+        assert_eq!(tooltip_z, ui::discovery::ROOM_SEARCH_TOOLTIP_Z);
         assert_eq!(
             app.world()
                 .entity(indicator)

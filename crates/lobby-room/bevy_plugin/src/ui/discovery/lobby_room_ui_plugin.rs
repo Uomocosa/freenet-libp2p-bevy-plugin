@@ -109,7 +109,13 @@ mod tests {
     fn preview_build(app: &mut App) {
         app.add_message::<core_discovery::Command>();
         app.insert_resource(preview_snapshot());
+        app.init_resource::<core_discovery::LobbyRows>();
         app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.add_systems(
+            Update,
+            core_discovery::bevy_systems::rebuild_lobby_rows
+                .before(ui::discovery::bevy_systems::rebuild_room_list),
+        );
         app.add_systems(
             Update,
             pin_hover.before(ui::discovery::bevy_systems::animate_hover),
