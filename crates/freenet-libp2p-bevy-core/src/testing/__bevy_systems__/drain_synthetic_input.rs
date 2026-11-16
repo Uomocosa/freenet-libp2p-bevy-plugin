@@ -9,7 +9,7 @@ use crate::testing;
 
 pub fn drain_synthetic_input(
     time: Res<Time>,
-    mut queue: ResMut<testing::SyntheticInputQueue>,
+    queue: ResMut<testing::SyntheticInputQueue>,
     window: Single<Entity, With<PrimaryWindow>>,
     mut cursor_moved: MessageWriter<CursorMoved>,
     mut window_events: MessageWriter<WindowEvent>,
@@ -17,18 +17,17 @@ pub fn drain_synthetic_input(
     mut keys: MessageWriter<KeyboardInput>,
 ) {
     let window = window.into_inner();
-    let delta_secs = time.into_inner().delta_secs();
-    let Some(input) = queue.pending.front().copied() else {
+    let delta = time.into_inner().delta();
+    let delta_secs = delta.as_secs_f32();
+    let queue = queue.into_inner();
+    let Some(input) = queue.pending.front_mut() else {
         return;
     };
-    match input {
+    let does_finish = match input {
         testing::SyntheticInput::Glide { from, to, speed } => {
-            let current = queue.cursor.unwrap_or(from);
-            let next = current.move_towards(to, *speed * delta_secs);
+            let current = queue.cursor.unwrap_or(*from);
+            let next = current.move_towards(*to, **speed * delta_secs);
             queue.cursor = Some(next);
-            if next == to {
-                queue.pending.pop_front();
-            }
             let event = CursorMoved {
                 window,
                 position: next,
@@ -36,44 +35,50 @@ pub fn drain_synthetic_input(
             };
             cursor_moved.write(event.clone());
             window_events.write(WindowEvent::CursorMoved(event));
+            next == *to
         }
         testing::SyntheticInput::Button(button, state) => {
-            queue.pending.pop_front();
             let event = MouseButtonInput {
-                button,
-                state,
+                button: *button,
+                state: *state,
                 window,
             };
             buttons.write(event);
             window_events.write(WindowEvent::MouseButtonInput(event));
+            true
         }
-        testing::SyntheticInput::Named(named, state) => {
-            queue.pending.pop_front();
-            let event = KeyboardInput {
-                key_code: named.key_code(),
-                logical_key: named.logical_key(),
-                state,
-                text: named.text().map(Into::into),
-                repeat: false,
-                window,
-            };
-            keys.write(event.clone());
-            window_events.write(WindowEvent::KeyboardInput(event));
+        testing::SyntheticInput::Keys(events) => {
+            for event in events.iter() {
+                let pressed = KeyboardInput {
+                    key_code: event.key.key_code(),
+                    logical_key: event.key.logical_key(),
+                    state: event.state,
+                    text: if event.does_emit_text {
+                        event.key.text().map(Into::into)
+                    } else {
+                        None
+                    },
+                    repeat: event.does_repeat,
+                    window,
+                };
+                keys.write(pressed.clone());
+                window_events.write(WindowEvent::KeyboardInput(pressed));
+            }
+            true
         }
-        testing::SyntheticInput::Key(character, state) => {
-            queue.pending.pop_front();
-            let typed = testing::TypedKey::from(character);
-            let event = KeyboardInput {
-                key_code: typed.key_code,
-                logical_key: typed.logical_key,
-                state,
-                text: Some(character.to_string().into()),
-                repeat: false,
-                window,
-            };
-            keys.write(event.clone());
-            window_events.write(WindowEvent::KeyboardInput(event));
+        testing::SyntheticInput::Wait(remaining) => {
+            let elapsed = u64::try_from(delta.as_millis()).unwrap_or(u64::MAX);
+            match (**remaining).checked_sub(elapsed) {
+                Some(next) if next > 0 => {
+                    *remaining = testing::Millis::from(next);
+                    false
+                }
+                _ => true,
+            }
         }
+    };
+    if does_finish {
+        queue.pending.pop_front();
     }
 }
 

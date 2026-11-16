@@ -26,9 +26,19 @@ impl SyntheticInputQueue {
 
     pub fn press_named_key(&mut self, key: testing::Key) {
         self.pending
-            .push_back(testing::SyntheticInput::Named(key, ButtonState::Pressed));
+            .push_back(testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                key,
+                state: ButtonState::Pressed,
+                does_repeat: false,
+                does_emit_text: true,
+            }]));
         self.pending
-            .push_back(testing::SyntheticInput::Named(key, ButtonState::Released));
+            .push_back(testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                key,
+                state: ButtonState::Released,
+                does_repeat: false,
+                does_emit_text: true,
+            }]));
     }
 
     pub fn click_at(&mut self, target: Vec2, speed: testing::PointerSpeed) {

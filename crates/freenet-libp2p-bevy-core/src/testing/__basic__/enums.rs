@@ -30,7 +30,7 @@ pub enum FanOutTarget {
     Game,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SyntheticInput {
     Glide {
         from: Vec2,
@@ -38,8 +38,8 @@ pub enum SyntheticInput {
         speed: testing::PointerSpeed,
     },
     Button(MouseButton, ButtonState),
-    Key(char, ButtonState),
-    Named(testing::Key, ButtonState),
+    Keys(Vec<testing::KeyEvent>),
+    Wait(testing::Millis),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

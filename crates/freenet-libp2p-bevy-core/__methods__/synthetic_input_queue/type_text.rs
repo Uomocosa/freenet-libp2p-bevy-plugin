@@ -4,25 +4,42 @@ use crate::testing;
 
 pub fn type_text(queue: &mut testing::SyntheticInputQueue, text: &str) {
     for character in text.chars() {
-        if testing::TypedKey::from(character).needs_shift {
-            queue.pending.push_back(testing::SyntheticInput::Named(
-                testing::Key::Shift,
-                ButtonState::Pressed,
-            ));
+        let key = testing::Key::Char(character);
+        if key.needs_shift() {
+            queue
+                .pending
+                .push_back(testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                    key: testing::Key::Shift,
+                    state: ButtonState::Pressed,
+                    does_repeat: false,
+                    does_emit_text: false,
+                }]));
         }
-        queue.pending.push_back(testing::SyntheticInput::Key(
-            character,
-            ButtonState::Pressed,
-        ));
-        queue.pending.push_back(testing::SyntheticInput::Key(
-            character,
-            ButtonState::Released,
-        ));
-        if testing::TypedKey::from(character).needs_shift {
-            queue.pending.push_back(testing::SyntheticInput::Named(
-                testing::Key::Shift,
-                ButtonState::Released,
-            ));
+        queue
+            .pending
+            .push_back(testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                key,
+                state: ButtonState::Pressed,
+                does_repeat: false,
+                does_emit_text: true,
+            }]));
+        queue
+            .pending
+            .push_back(testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                key,
+                state: ButtonState::Released,
+                does_repeat: false,
+                does_emit_text: true,
+            }]));
+        if key.needs_shift() {
+            queue
+                .pending
+                .push_back(testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                    key: testing::Key::Shift,
+                    state: ButtonState::Released,
+                    does_repeat: false,
+                    does_emit_text: false,
+                }]));
         }
     }
 }
@@ -47,10 +64,30 @@ mod tests {
         assert_eq!(
             queue.pending.iter().collect::<Vec<_>>(),
             vec![
-                &testing::SyntheticInput::Named(testing::Key::Shift, ButtonState::Pressed),
-                &testing::SyntheticInput::Key('B', ButtonState::Pressed),
-                &testing::SyntheticInput::Key('B', ButtonState::Released),
-                &testing::SyntheticInput::Named(testing::Key::Shift, ButtonState::Released),
+                &testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                    key: testing::Key::Shift,
+                    state: ButtonState::Pressed,
+                    does_repeat: false,
+                    does_emit_text: false,
+                }]),
+                &testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                    key: testing::Key::Char('B'),
+                    state: ButtonState::Pressed,
+                    does_repeat: false,
+                    does_emit_text: true,
+                }]),
+                &testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                    key: testing::Key::Char('B'),
+                    state: ButtonState::Released,
+                    does_repeat: false,
+                    does_emit_text: true,
+                }]),
+                &testing::SyntheticInput::Keys(vec![testing::KeyEvent {
+                    key: testing::Key::Shift,
+                    state: ButtonState::Released,
+                    does_repeat: false,
+                    does_emit_text: false,
+                }]),
             ]
         );
     }
