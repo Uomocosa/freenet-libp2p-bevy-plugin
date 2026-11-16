@@ -15,6 +15,8 @@ pub fn ffmpeg_arguments(capture: &testing::harness::ScreenCapture, clip: &Path) 
             testing::harness::E2E_RECORDING_FPS,
             "-video_size",
             testing::harness::E2E_CAPTURE_SIZE,
+            "-draw_mouse",
+            "0",
             "-i",
             capture.as_str(),
         ]
@@ -68,6 +70,16 @@ mod tests {
                     .iter()
                     .any(|argument| argument == testing::harness::E2E_CAPTURE_SIZE)
             );
+            let draw_mouse = arguments
+                .iter()
+                .position(|argument| argument == "-draw_mouse")
+                .expect("x11grab input hides the cursor");
+            assert_eq!(arguments.get(draw_mouse + 1), Some(&"0".to_string()));
+            let input = arguments
+                .iter()
+                .position(|argument| argument == "-i")
+                .expect("x11grab input has a display");
+            assert!(draw_mouse < input);
         }
     }
 }
