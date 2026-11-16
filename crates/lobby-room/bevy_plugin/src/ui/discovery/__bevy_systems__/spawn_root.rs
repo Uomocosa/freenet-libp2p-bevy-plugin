@@ -6,28 +6,29 @@ use bevy::text::{EditableText, TextCursorStyle};
 use bevy::ui::InteractionDisabled;
 use bevy::ui_widgets::{Button, TextInput};
 
-use ui::discovery::{BUTTON_COLOR, CARET_COLOR, CARET_SELECTION_COLOR, INPUT_COLOR, PANEL_COLOR};
 use ui::discovery::{
-    CreateRoomButton, HOVER_OUTLINE_WIDTH, HoverGlow, HoverOutlineOnly, RoomList, RoomNameInput,
-    Root, Screen,
+    BUTTON_COLOR, CARET_COLOR, CARET_SELECTION_COLOR, CreateRoomButton, HOVER_OUTLINE_WIDTH,
+    HoverGlow, HoverOutlineOnly, INPUT_COLOR, PANEL_COLOR, RoomList, RoomNameInput, Root, Screen,
 };
 
 pub fn spawn_root(mut commands: Commands) {
-    commands.spawn((
-        Root,
-        DespawnOnExit(Screen::Lobby),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(48.0),
-            right: Val::Px(12.0),
-            flex_direction: FlexDirection::Column,
-            row_gap: Val::Px(8.0),
-            padding: UiRect::all(Val::Px(8.0)),
-            ..default()
-        },
-        BackgroundColor(PANEL_COLOR),
-        children![
-            (
+    commands
+        .spawn((
+            Root,
+            DespawnOnExit(Screen::Lobby),
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(48.0),
+                right: Val::Px(12.0),
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(8.0),
+                padding: UiRect::all(Val::Px(8.0)),
+                ..default()
+            },
+            BackgroundColor(PANEL_COLOR),
+        ))
+        .with_children(|root| {
+            root.spawn((
                 RoomNameInput,
                 EditableText::new(""),
                 TextInput,
@@ -50,8 +51,8 @@ pub fn spawn_root(mut commands: Commands) {
                     ..default()
                 },
                 BackgroundColor(INPUT_COLOR),
-            ),
-            (
+            ));
+            root.spawn((
                 CreateRoomButton,
                 Button,
                 InteractionDisabled,
@@ -64,17 +65,17 @@ pub fn spawn_root(mut commands: Commands) {
                 },
                 BackgroundColor(BUTTON_COLOR),
                 children![Text::new("+ Create New Room")],
-            ),
-            (
+            ));
+            ui::discovery::bevy_systems::spawn_rooms_header(&mut root.reborrow());
+            root.spawn((
                 RoomList,
                 Node {
                     flex_direction: FlexDirection::Column,
                     row_gap: Val::Px(4.0),
                     ..default()
                 },
-            ),
-        ],
-    ));
+            ));
+        });
 }
 
 #[cfg(test)]
@@ -102,6 +103,21 @@ mod tests {
             .world_mut()
             .query_filtered::<(), With<ui::discovery::RoomNameInput>>();
         assert_eq!(inputs.iter(app.world()).count(), 1);
+        let mut headers = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::RoomsHeader>>();
+        assert_eq!(headers.iter(app.world()).count(), 1);
+        let mut indicators = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::RoomSearchIndicator>>();
+        assert_eq!(indicators.iter(app.world()).count(), 1);
+        let mut tooltips = app
+            .world_mut()
+            .query_filtered::<&Visibility, With<ui::discovery::RoomSearchTooltip>>();
+        assert_eq!(
+            *tooltips.single(app.world()).expect("search tooltip"),
+            Visibility::Hidden
+        );
     }
 
     fn preview_build(app: &mut App) {

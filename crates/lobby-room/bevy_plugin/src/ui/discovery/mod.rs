@@ -6,7 +6,8 @@ pub use basic::components::{
     EscMenuFriendsButton, EscMenuLeaveButton, EscMenuResumeButton, HoverGlow, HoverOutlineOnly,
     IsCurrentRoom, JoinErrorDismissButton, JoinErrorRoot, JoiningRoomRoot, LeaveDoor,
     LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble, RoomButton, RoomFriendBadge,
-    RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, Root, SpinnerRing,
+    RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, RoomSearchIndicator,
+    RoomSearchTooltip, RoomsHeader, Root, SpinnerRing,
 };
 pub use basic::constants::*;
 pub use basic::resources::{FriendsPressBeat, JoinError};

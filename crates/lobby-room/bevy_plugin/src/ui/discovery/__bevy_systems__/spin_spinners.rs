@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use ui::discovery::SPIN_TURNS_PER_SEC;
 use ui::discovery::SpinnerRing;
 
-pub fn spin_connecting(time: Res<Time>, mut rings: Query<&mut UiTransform, With<SpinnerRing>>) {
+pub fn spin_spinners(time: Res<Time>, mut rings: Query<&mut UiTransform, With<SpinnerRing>>) {
     let angle = time.into_inner().elapsed_secs() * SPIN_TURNS_PER_SEC * TAU;
     for mut transform in &mut rings {
         transform.rotation = Rot2::radians(angle);
@@ -19,7 +19,7 @@ mod tests {
     use bevy::prelude::*;
     use bevy::time::TimeUpdateStrategy;
 
-    use super::spin_connecting;
+    use super::spin_spinners;
 
     #[test]
     fn test_usage() {
@@ -32,7 +32,7 @@ mod tests {
             .world_mut()
             .spawn((ui::discovery::SpinnerRing, UiTransform::default()))
             .id();
-        app.add_systems(Update, spin_connecting);
+        app.add_systems(Update, spin_spinners);
         app.update();
         app.update();
         let rotation = app.world().get::<UiTransform>(ring).expect("ring").rotation;

@@ -66,6 +66,15 @@ pub struct ConnectingRoot;
 pub struct SpinnerRing;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomsHeader;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomSearchIndicator;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomSearchTooltip;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
 pub struct JoiningRoomRoot;
 
 #[derive(Component, Debug, Default, Clone, Copy)]

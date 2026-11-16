@@ -46,7 +46,12 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                 systems::animate_hover,
                 systems::animate_esc_menu,
                 systems::refresh_menu_leave_button,
-                systems::spin_connecting.run_if(in_state(Screen::Connecting)),
+                systems::spin_spinners.run_if(|screen: Option<Res<State<Screen>>>| {
+                    screen.is_some_and(|screen| {
+                        matches!(*screen.get(), Screen::Connecting | Screen::Lobby)
+                    })
+                }),
+                systems::show_room_search_tooltip.run_if(in_state(Screen::Lobby)),
                 systems::dismiss_join_failed.run_if(in_state(Screen::JoinFailed)),
                 (
                     (
@@ -109,6 +114,10 @@ mod tests {
             Update,
             pin_hover.before(ui::discovery::bevy_systems::animate_hover),
         );
+        app.add_systems(
+            Update,
+            pin_rooms_header_hover.before(ui::discovery::bevy_systems::show_room_search_tooltip),
+        );
     }
 
     fn preview_snapshot() -> DiscoveryState {
@@ -165,6 +174,29 @@ mod tests {
         }
     }
 
+    #[derive(Component)]
+    struct PinRoomsHeaderHover;
+
+    fn pin_rooms_header_hover(
+        mut commands: Commands,
+        pinned: Query<Entity, With<PinRoomsHeaderHover>>,
+    ) {
+        for entity in &pinned {
+            commands.entity(entity).insert(Hovered(true));
+        }
+    }
+
+    fn hover_rooms_header(world: &mut World) {
+        let mut indicators =
+            world.query_filtered::<Entity, With<ui::discovery::RoomSearchIndicator>>();
+        let indicators: Vec<Entity> = indicators.iter(world).collect();
+        for entity in indicators {
+            world
+                .entity_mut(entity)
+                .insert((Hovered(true), PinRoomsHeaderHover));
+        }
+    }
+
     #[test]
     fn test_usage() {
         let mut app = App::new();
@@ -197,6 +229,10 @@ mod tests {
                 lele_bevy_preview::scene::State {
                     label: String::from("all hovered"),
                     apply: hover_all,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("rooms header hovered"),
+                    apply: hover_rooms_header,
                 },
             ],
             timeline: None,
