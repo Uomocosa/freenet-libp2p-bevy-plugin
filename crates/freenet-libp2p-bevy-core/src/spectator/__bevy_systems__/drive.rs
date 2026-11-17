@@ -34,13 +34,10 @@ pub fn drive<S: replica_sync::traits::ReplicatedState>(
         for output in machine.update(input, now) {
             match output {
                 SpectateOutput::Subscribe(topic) => {
-                    if let Some(zone) = machine.zone.clone() {
-                        bootstrap.reset();
-                        commands.insert_resource(spectator::Spectated {
-                            zone,
-                            state: S::default(),
-                            freshness: spectator::SpectateFreshness::Bootstrapping,
-                        });
+                    if let Some(zone) = machine.zone.clone()
+                        && topic == identity::Topic::from_replica_sync(game, &zone)
+                    {
+                        bootstrap.reset_for_spectated::<S>(&mut commands, zone);
                     }
                     network.write(Libp2pCommand::Subscribe { topic });
                 }

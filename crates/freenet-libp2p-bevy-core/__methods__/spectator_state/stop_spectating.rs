@@ -26,6 +26,11 @@ pub fn stop_spectating<Op, Snap>(
     outputs.push(spectator::state_machine::SpectateOutput::Unsubscribe(
         identity::Topic::from_replica_sync(&state.game, &zone),
     ));
+    if state.my_zone.as_ref() != Some(&zone) {
+        outputs.push(spectator::state_machine::SpectateOutput::Unsubscribe(
+            identity::Topic::from_zone(&state.game, &zone),
+        ));
+    }
     outputs.push(spectator::state_machine::SpectateOutput::Clear);
     outputs
 }
@@ -73,6 +78,10 @@ mod tests {
                         &identity::ZoneName::from("zone"),
                     )
                 ),
+                spectator::state_machine::SpectateOutput::Unsubscribe(identity::Topic::from_zone(
+                    &identity::GameId::from("game"),
+                    &identity::ZoneName::from("zone"),
+                )),
                 spectator::state_machine::SpectateOutput::Clear,
             ]
         );
@@ -93,6 +102,21 @@ mod tests {
     }
 
     #[test]
+    fn stopping_in_my_own_zone_keeps_that_zone_topic_subscribed() {
+        let mut state = spectating_state();
+        state.my_zone = Some(identity::ZoneName::from("zone"));
+        let outputs = stop_spectating(&mut state, time::UnixTime::from_secs(50));
+        let zone_topic =
+            spectator::state_machine::SpectateOutput::Unsubscribe(identity::Topic::from_zone(
+                &identity::GameId::from("game"),
+                &identity::ZoneName::from("zone"),
+            ));
+        assert!(!outputs.contains(&zone_topic));
+        assert!(outputs.contains(&spectator::state_machine::SpectateOutput::Clear));
+        assert_eq!(state.zone, None);
+    }
+
+    #[test]
     fn stopping_without_a_known_id_skips_the_lease_but_still_clears() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
@@ -109,6 +133,10 @@ mod tests {
                         &identity::ZoneName::from("zone"),
                     )
                 ),
+                spectator::state_machine::SpectateOutput::Unsubscribe(identity::Topic::from_zone(
+                    &identity::GameId::from("game"),
+                    &identity::ZoneName::from("zone"),
+                )),
                 spectator::state_machine::SpectateOutput::Clear,
             ]
         );
