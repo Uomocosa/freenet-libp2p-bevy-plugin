@@ -1,21 +1,27 @@
-use std::collections::BTreeMap;
-
-use crate::identity;
 use crate::p2p;
 
 pub fn track_zone_command<Payload: p2p::traits::Message>(
     task: &p2p::SwarmTaskOverride<Payload>,
     command: &p2p::Libp2pCommand,
-    game: &identity::GameId,
-    zones_by_topic: &mut BTreeMap<identity::Topic, identity::ZoneName>,
+    subscriptions: &mut p2p::swarm_loop::ZoneSubscriptions,
 ) {
     let _ = task.orchestrator_port;
     match command {
         p2p::Libp2pCommand::SubscribeZone { zone } => {
-            zones_by_topic.insert(identity::Topic::from_zone(game, zone), zone.clone());
+            let topic = subscriptions.zone_topic(zone);
+            subscriptions.register(&topic, zone.clone());
         }
         p2p::Libp2pCommand::UnsubscribeZone { zone } => {
-            zones_by_topic.remove(&identity::Topic::from_zone(game, zone));
+            let topic = subscriptions.zone_topic(zone);
+            subscriptions.unregister(&topic);
+        }
+        p2p::Libp2pCommand::WatchZone { zone } => {
+            let topic = subscriptions.zone_topic(zone);
+            subscriptions.watch(&topic, zone.clone());
+        }
+        p2p::Libp2pCommand::UnwatchZone { zone } => {
+            let topic = subscriptions.zone_topic(zone);
+            subscriptions.unwatch(&topic, zone);
         }
         _ => {}
     }
@@ -23,32 +29,102 @@ pub fn track_zone_command<Payload: p2p::traits::Message>(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::track_zone_command;
     use crate::identity;
     use crate::p2p;
 
-    #[test]
-    fn test_usage() {
-        let task = p2p::SwarmTaskOverride::<u8> {
+    fn task() -> p2p::SwarmTaskOverride<u8> {
+        p2p::SwarmTaskOverride::<u8> {
             orchestrator_port: 1,
             peer: identity::Peer {
                 id: identity::PeerId::from("peer"),
                 addrs: Vec::new(),
             },
             marker: std::marker::PhantomData,
-        };
-        let mut zones = BTreeMap::new();
-        let game = identity::GameId::from("game");
+        }
+    }
+
+    fn subscriptions() -> p2p::swarm_loop::ZoneSubscriptions {
+        p2p::swarm_loop::ZoneSubscriptions::new(identity::GameId::from("game"))
+    }
+
+    fn topic(subscriptions: &p2p::swarm_loop::ZoneSubscriptions) -> libp2p::gossipsub::IdentTopic {
+        libp2p::gossipsub::IdentTopic::new(
+            identity::Topic::from_zone(&subscriptions.game, &identity::ZoneName::from("zone-a"))
+                .as_str(),
+        )
+    }
+
+    #[test]
+    fn test_usage() {
+        let task = task();
+        let mut subscriptions = subscriptions();
+        let zone = identity::ZoneName::from("zone-a");
         track_zone_command(
             &task,
-            &p2p::Libp2pCommand::SubscribeZone {
-                zone: identity::ZoneName::from("zone-a"),
-            },
-            &game,
-            &mut zones,
+            &p2p::Libp2pCommand::SubscribeZone { zone: zone.clone() },
+            &mut subscriptions,
         );
-        assert_eq!(zones.len(), 1);
+        assert_eq!(
+            subscriptions.zone(&topic(&subscriptions).hash()),
+            Some(&zone)
+        );
+        assert_eq!(subscriptions.joined, identity::Zone::Restricted(zone));
+    }
+
+    #[test]
+    fn watching_registers_the_zone_topic_without_joining() {
+        let task = task();
+        let mut subscriptions = subscriptions();
+        let zone = identity::ZoneName::from("zone-a");
+        let command = p2p::Libp2pCommand::WatchZone { zone: zone.clone() };
+        track_zone_command(&task, &command, &mut subscriptions);
+        assert_eq!(
+            subscriptions.zone(&topic(&subscriptions).hash()),
+            Some(&zone)
+        );
+        assert_eq!(subscriptions.joined, identity::Zone::Global);
+        let command = p2p::Libp2pCommand::UnwatchZone { zone };
+        track_zone_command(&task, &command, &mut subscriptions);
+        assert_eq!(subscriptions.zone(&topic(&subscriptions).hash()), None);
+    }
+
+    #[test]
+    fn unwatching_a_joined_zone_keeps_the_zone_topic() {
+        let task = task();
+        let mut subscriptions = subscriptions();
+        let zone = identity::ZoneName::from("zone-a");
+        let join = p2p::Libp2pCommand::SubscribeZone { zone: zone.clone() };
+        track_zone_command(&task, &join, &mut subscriptions);
+        let watch = p2p::Libp2pCommand::WatchZone { zone: zone.clone() };
+        track_zone_command(&task, &watch, &mut subscriptions);
+        let unwatch = p2p::Libp2pCommand::UnwatchZone { zone: zone.clone() };
+        track_zone_command(&task, &unwatch, &mut subscriptions);
+        assert_eq!(
+            subscriptions.zone(&topic(&subscriptions).hash()),
+            Some(&zone)
+        );
+        assert_eq!(subscriptions.joined, identity::Zone::Restricted(zone));
+    }
+
+    #[test]
+    fn leaving_a_watched_zone_keeps_the_zone_topic() {
+        let task = task();
+        let mut subscriptions = subscriptions();
+        let zone = identity::ZoneName::from("zone-a");
+        let watch = p2p::Libp2pCommand::WatchZone { zone: zone.clone() };
+        track_zone_command(&task, &watch, &mut subscriptions);
+        let join = p2p::Libp2pCommand::SubscribeZone { zone: zone.clone() };
+        track_zone_command(&task, &join, &mut subscriptions);
+        let leave = p2p::Libp2pCommand::UnsubscribeZone { zone: zone.clone() };
+        track_zone_command(&task, &leave, &mut subscriptions);
+        assert_eq!(
+            subscriptions.zone(&topic(&subscriptions).hash()),
+            Some(&zone)
+        );
+        assert_eq!(subscriptions.joined, identity::Zone::Global);
+        let unwatch = p2p::Libp2pCommand::UnwatchZone { zone };
+        track_zone_command(&task, &unwatch, &mut subscriptions);
+        assert_eq!(subscriptions.zone(&topic(&subscriptions).hash()), None);
     }
 }

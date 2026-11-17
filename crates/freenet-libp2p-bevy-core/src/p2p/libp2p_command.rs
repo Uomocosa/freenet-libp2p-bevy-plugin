@@ -40,6 +40,12 @@ pub enum Libp2pCommand {
     UnsubscribeZone {
         zone: identity::ZoneName,
     },
+    WatchZone {
+        zone: identity::ZoneName,
+    },
+    UnwatchZone {
+        zone: identity::ZoneName,
+    },
     FetchSnapshot {
         peer_id: identity::PeerId,
         zone: identity::ZoneName,

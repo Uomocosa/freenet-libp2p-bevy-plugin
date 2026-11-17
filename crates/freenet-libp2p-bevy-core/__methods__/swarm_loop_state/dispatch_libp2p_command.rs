@@ -55,6 +55,12 @@ pub fn dispatch_libp2p_command<Payload: p2p::traits::Message>(
         p2p::Libp2pCommand::UnsubscribeZone { zone } => {
             state.unsubscribe_zone(&zone);
         }
+        p2p::Libp2pCommand::WatchZone { zone } => {
+            state.watch_zone(zone);
+        }
+        p2p::Libp2pCommand::UnwatchZone { zone } => {
+            state.unwatch_zone(&zone);
+        }
         p2p::Libp2pCommand::FetchSnapshot {
             peer_id,
             zone,

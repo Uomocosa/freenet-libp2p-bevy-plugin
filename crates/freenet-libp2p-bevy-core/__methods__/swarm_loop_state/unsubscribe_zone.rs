@@ -9,8 +9,10 @@ pub fn unsubscribe_zone<Payload: p2p::traits::Message>(
     let topic = gossipsub::IdentTopic::new(
         identity::Topic::from_zone(&state.subscriptions.game, zone).as_str(),
     );
-    let _ = state.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
     state.subscriptions.unregister(&topic);
+    if state.subscriptions.zone(&topic.hash()).is_none() {
+        let _ = state.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
+    }
     tracing::info!(target: "p2p", zone = %zone.as_str(), "p2p zone unsubscribed");
 }
 

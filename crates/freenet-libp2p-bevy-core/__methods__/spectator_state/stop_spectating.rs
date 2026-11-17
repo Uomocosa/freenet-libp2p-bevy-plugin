@@ -26,11 +26,7 @@ pub fn stop_spectating<Op, Snap>(
     outputs.push(spectator::state_machine::SpectateOutput::Unsubscribe(
         identity::Topic::from_replica_sync(&state.game, &zone),
     ));
-    if state.my_zone.as_ref() != Some(&zone) {
-        outputs.push(spectator::state_machine::SpectateOutput::Unsubscribe(
-            identity::Topic::from_zone(&state.game, &zone),
-        ));
-    }
+    outputs.push(spectator::state_machine::SpectateOutput::UnwatchZone(zone));
     outputs.push(spectator::state_machine::SpectateOutput::Clear);
     outputs
 }
@@ -78,9 +74,8 @@ mod tests {
                         &identity::ZoneName::from("zone"),
                     )
                 ),
-                spectator::state_machine::SpectateOutput::Unsubscribe(identity::Topic::from_zone(
-                    &identity::GameId::from("game"),
-                    &identity::ZoneName::from("zone"),
+                spectator::state_machine::SpectateOutput::UnwatchZone(identity::ZoneName::from(
+                    "zone"
                 )),
                 spectator::state_machine::SpectateOutput::Clear,
             ]
@@ -102,16 +97,13 @@ mod tests {
     }
 
     #[test]
-    fn stopping_in_my_own_zone_keeps_that_zone_topic_subscribed() {
+    fn stopping_in_my_own_zone_still_unwatches_the_zone_topic() {
         let mut state = spectating_state();
         state.my_zone = Some(identity::ZoneName::from("zone"));
         let outputs = stop_spectating(&mut state, time::UnixTime::from_secs(50));
-        let zone_topic =
-            spectator::state_machine::SpectateOutput::Unsubscribe(identity::Topic::from_zone(
-                &identity::GameId::from("game"),
-                &identity::ZoneName::from("zone"),
-            ));
-        assert!(!outputs.contains(&zone_topic));
+        let unwatch =
+            spectator::state_machine::SpectateOutput::UnwatchZone(identity::ZoneName::from("zone"));
+        assert!(outputs.contains(&unwatch));
         assert!(outputs.contains(&spectator::state_machine::SpectateOutput::Clear));
         assert_eq!(state.zone, None);
     }
@@ -133,9 +125,8 @@ mod tests {
                         &identity::ZoneName::from("zone"),
                     )
                 ),
-                spectator::state_machine::SpectateOutput::Unsubscribe(identity::Topic::from_zone(
-                    &identity::GameId::from("game"),
-                    &identity::ZoneName::from("zone"),
+                spectator::state_machine::SpectateOutput::UnwatchZone(identity::ZoneName::from(
+                    "zone"
                 )),
                 spectator::state_machine::SpectateOutput::Clear,
             ]

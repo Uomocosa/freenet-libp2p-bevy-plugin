@@ -42,6 +42,8 @@ pub enum SpectateInput<Op, Snap> {
 pub enum SpectateOutput<Op, Snap> {
     Subscribe(identity::Topic),
     Unsubscribe(identity::Topic),
+    WatchZone(identity::ZoneName),
+    UnwatchZone(identity::ZoneName),
     GetHistoryRecord(p2p::ZoneHistoryRecordKind),
     RequestSlice {
         from: identity::PeerId,

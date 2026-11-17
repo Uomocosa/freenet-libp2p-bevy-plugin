@@ -1,17 +1,17 @@
-use std::collections::BTreeMap;
+use libp2p::gossipsub;
 
-use crate::identity;
 use crate::p2p;
 
 pub fn handle_server_event<Payload: p2p::traits::Message>(
     task: &p2p::SwarmTaskOverride<Payload>,
-    zones_by_topic: &BTreeMap<identity::Topic, identity::ZoneName>,
+    subscriptions: &p2p::swarm_loop::ZoneSubscriptions,
     event: p2p::Libp2pEvent,
     events: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
 ) {
     let _ = task.orchestrator_port;
     if let p2p::Libp2pEvent::Gossip { topic, from, data } = event {
-        if let Some(zone) = zones_by_topic.get(&topic) {
+        let hash = gossipsub::IdentTopic::new(topic.as_str()).hash();
+        if let Some(zone) = subscriptions.zone(&hash) {
             match bincode::deserialize::<Payload>(&data) {
                 Ok(payload) => {
                     events
@@ -46,8 +46,6 @@ pub fn handle_server_event<Payload: p2p::traits::Message>(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::handle_server_event;
     use crate::identity;
     use crate::p2p;
@@ -65,7 +63,7 @@ mod tests {
         let (event_tx, _event_rx) = tokio::sync::mpsc::unbounded_channel();
         handle_server_event(
             &task,
-            &BTreeMap::new(),
+            &p2p::swarm_loop::ZoneSubscriptions::new(identity::GameId::from("game")),
             p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("peer")),
             &event_tx,
         );

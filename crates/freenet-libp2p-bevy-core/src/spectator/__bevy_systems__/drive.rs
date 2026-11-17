@@ -20,7 +20,6 @@ pub fn drive<S: replica_sync::traits::ReplicatedState>(
 ) {
     use p2p::Libp2pCommand;
     use spectator::state_machine::SpectateOutput;
-
     let game = game.into_inner();
     let now = time::UnixTime::now();
     let players: Vec<identity::PeerId> = players
@@ -29,8 +28,7 @@ pub fn drive<S: replica_sync::traits::ReplicatedState>(
         .map(|(peer, _, _)| (**peer).clone())
         .collect();
     inputs.push(spectator::state_machine::SpectateInput::Players(players));
-    let queued = std::mem::take(&mut **inputs);
-    for input in queued {
+    for input in std::mem::take(&mut **inputs) {
         for output in machine.update(input, now) {
             match output {
                 SpectateOutput::Subscribe(topic) => {
@@ -44,6 +42,10 @@ pub fn drive<S: replica_sync::traits::ReplicatedState>(
                 SpectateOutput::Unsubscribe(topic) => {
                     network.write(Libp2pCommand::Unsubscribe { topic });
                 }
+                #[rustfmt::skip]
+                SpectateOutput::WatchZone(zone) => { network.write(Libp2pCommand::WatchZone { zone }); }
+                #[rustfmt::skip]
+                SpectateOutput::UnwatchZone(zone) => { network.write(Libp2pCommand::UnwatchZone { zone }); }
                 SpectateOutput::GetHistoryRecord(id) => {
                     network.write(Libp2pCommand::GetHistoryRecord { id });
                 }

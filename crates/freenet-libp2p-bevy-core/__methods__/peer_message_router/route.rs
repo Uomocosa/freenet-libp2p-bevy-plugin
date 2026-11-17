@@ -15,7 +15,9 @@ pub fn route(
         command @ (p2p::Libp2pCommand::Subscribe { .. }
         | p2p::Libp2pCommand::Unsubscribe { .. }
         | p2p::Libp2pCommand::SubscribeZone { .. }
-        | p2p::Libp2pCommand::UnsubscribeZone { .. }) => {
+        | p2p::Libp2pCommand::UnsubscribeZone { .. }
+        | p2p::Libp2pCommand::WatchZone { .. }
+        | p2p::Libp2pCommand::UnwatchZone { .. }) => {
             router.update_peer_subscriptions(from, command)
         }
         command @ (p2p::Libp2pCommand::PutHistoryRecord { .. }

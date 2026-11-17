@@ -91,6 +91,8 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
     }
     pub fn subscribe_zone(&mut self, zone: identity::ZoneName) {}
     pub fn unsubscribe_zone(&mut self, zone: &identity::ZoneName) {}
+    pub fn watch_zone(&mut self, zone: identity::ZoneName) {}
+    pub fn unwatch_zone(&mut self, zone: &identity::ZoneName) {}
     pub fn dial_mdns_peers(&mut self, peers: Vec<(libp2p::PeerId, libp2p::Multiaddr)>) {}
     pub fn dispatch_libp2p_command(&mut self, command: p2p::Libp2pCommand) {}
     pub fn handle_gossipsub(&mut self, gossip_event: gossipsub::Event) {}

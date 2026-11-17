@@ -23,8 +23,8 @@ pub fn start_spectating<Op, Snap>(
     outputs.push(spectator::state_machine::SpectateOutput::Subscribe(
         identity::Topic::from_replica_sync(&state.game, zone),
     ));
-    outputs.push(spectator::state_machine::SpectateOutput::Subscribe(
-        identity::Topic::from_zone(&state.game, zone),
+    outputs.push(spectator::state_machine::SpectateOutput::WatchZone(
+        zone.clone(),
     ));
     outputs.push(spectator::state_machine::SpectateOutput::GetHistoryRecord(
         p2p::ZoneHistoryRecordKind::Manifest(history_prefix),
@@ -62,13 +62,13 @@ mod tests {
             outputs.as_slice(),
             [
                 spectator::state_machine::SpectateOutput::Subscribe(replica_sync_topic),
-                spectator::state_machine::SpectateOutput::Subscribe(zone_topic),
+                spectator::state_machine::SpectateOutput::WatchZone(watched),
                 spectator::state_machine::SpectateOutput::GetHistoryRecord(
                     p2p::ZoneHistoryRecordKind::Manifest(_)
                 ),
                 spectator::state_machine::SpectateOutput::PublishLease { .. },
             ] if *replica_sync_topic == identity::Topic::from_replica_sync(&identity::GameId::from("game"), &zone)
-                && *zone_topic == identity::Topic::from_zone(&identity::GameId::from("game"), &zone)
+                && *watched == zone
         ));
         assert_eq!(
             state.phase,
@@ -87,7 +87,7 @@ mod tests {
             outputs.as_slice(),
             [
                 spectator::state_machine::SpectateOutput::Subscribe(_),
-                spectator::state_machine::SpectateOutput::Subscribe(_),
+                spectator::state_machine::SpectateOutput::WatchZone(_),
                 spectator::state_machine::SpectateOutput::GetHistoryRecord(_),
             ]
         ));

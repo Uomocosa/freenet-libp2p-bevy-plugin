@@ -251,6 +251,61 @@ fn wait_for_live_op(player: &mut App, spectator: &mut App) -> bool {
     false
 }
 
+fn publish_zone_message(app: &App, topic: &identity::Topic, data: &[u8]) {
+    let _ = app
+        .world()
+        .resource::<p2p::Libp2pCommandSender>()
+        .send(p2p::Libp2pCommand::Publish {
+            topic: topic.clone(),
+            data: data.to_vec(),
+        });
+}
+
+fn zone_message_count(app: &App, zone: &identity::ZoneName) -> usize {
+    app.world()
+        .resource::<p2p::PendingEvents<u8>>()
+        .iter()
+        .filter(|event| matches!(event, p2p::Event::ZoneMessage { zone: got, .. } if got == zone))
+        .count()
+}
+
+fn wait_for_zone_message(
+    player: &mut App,
+    spectator: &mut App,
+    zone: &identity::ZoneName,
+    topic: &identity::Topic,
+    data: &[u8],
+) -> bool {
+    for round in 0..MAX_ROUNDS {
+        if round % 25 == 0 {
+            publish_zone_message(player, topic, data);
+        }
+        player.update();
+        spectator.update();
+        if zone_message_count(spectator, zone) > 0 {
+            return true;
+        }
+        std::thread::sleep(SETTLE);
+    }
+    false
+}
+
+fn wait_for_spectated_removed(player: &mut App, spectator: &mut App) -> bool {
+    for _ in 0..MAX_ROUNDS {
+        player.update();
+        spectator.update();
+        if spectator
+            .world()
+            .get_resource::<spectator::Spectated<Map>>()
+            .is_none()
+        {
+            return true;
+        }
+        std::thread::sleep(SETTLE);
+    }
+    false
+}
+
 fn wait_for_count(player: &mut App, spectator: &mut App, expected: usize) -> bool {
     for _ in 0..MAX_ROUNDS {
         player.update();
@@ -375,5 +430,74 @@ async fn two_spectators_on_one_zone_are_counted_separately() {
     assert!(
         wait_for_two_counts(&mut player, &mut first, &mut second, 1),
         "the player never dropped the stopped spectator"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_non_member_spectator_receives_zone_messages_until_stop() {
+    let prepared = prepare();
+    assert!(prepared.is_some(), "the two peers never prepared");
+    let Some((mut player, mut spectator, zone, prefix)) = prepared else {
+        return;
+    };
+    let game = identity::GameId::from("game-spectator");
+    let topic = identity::Topic::from_zone(&game, &zone);
+    let Ok(data) = bincode::serialize(&42u8) else {
+        return;
+    };
+    let mut player_events = player
+        .world()
+        .resource::<p2p::Libp2pEventChannel>()
+        .subscribe();
+    assert!(
+        wait_for_history(&mut player, &mut player_events, &prefix),
+        "the player never wrote its history"
+    );
+    spectator
+        .world_mut()
+        .write_message(spectator::SpectateCommand::Start {
+            zone: zone.clone(),
+            history_prefix: prefix,
+        });
+    assert!(
+        wait_for_bootstrap(&mut player, &mut spectator),
+        "the spectator never bootstrapped from the zone history"
+    );
+    assert!(
+        wait_for_zone_message(&mut player, &mut spectator, &zone, &topic, &data),
+        "the spectator never saw a zone message on the watched topic"
+    );
+    spectator
+        .world_mut()
+        .write_message(spectator::SpectateCommand::Stop);
+    assert!(
+        wait_for_spectated_removed(&mut player, &mut spectator),
+        "Stop never removed Spectated"
+    );
+    for _ in 0..100 {
+        player.update();
+        spectator.update();
+        std::thread::sleep(SETTLE);
+    }
+    spectator
+        .world_mut()
+        .resource_mut::<p2p::PendingEvents<u8>>()
+        .take_all();
+    let mut kept_receiving = false;
+    for round in 0..200 {
+        if round % 25 == 0 {
+            publish_zone_message(&player, &topic, &data);
+        }
+        player.update();
+        spectator.update();
+        if zone_message_count(&spectator, &zone) > 0 {
+            kept_receiving = true;
+            break;
+        }
+        std::thread::sleep(SETTLE);
+    }
+    assert!(
+        !kept_receiving,
+        "the spectator kept receiving zone messages after Stop"
     );
 }

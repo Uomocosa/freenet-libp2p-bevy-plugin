@@ -1,20 +1,16 @@
-use std::collections::BTreeMap;
-
-use crate::identity;
 use crate::p2p;
 use crate::testing;
 
 pub fn command_frame<Payload: p2p::traits::Message>(
     task: &p2p::SwarmTaskOverride<Payload>,
-    game: &identity::GameId,
-    zones_by_topic: &mut BTreeMap<identity::Topic, identity::ZoneName>,
+    subscriptions: &mut p2p::swarm_loop::ZoneSubscriptions,
     events: &tokio::sync::mpsc::UnboundedSender<p2p::Event<Payload>>,
     cmd: p2p::Command<Payload>,
 ) -> Option<testing::FakeWireClientFrame> {
     let _ = task.orchestrator_port;
     match cmd {
         p2p::Command::Net(command) => {
-            task.track_zone_command(&command, game, zones_by_topic);
+            task.track_zone_command(&command, subscriptions);
             Some(testing::FakeWireClientFrame::Libp2pCommand(command))
         }
         p2p::Command::PublishInJoinedZone { payload } => {
@@ -52,8 +48,6 @@ pub fn command_frame<Payload: p2p::traits::Message>(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::command_frame;
     use crate::identity;
     use crate::p2p;
@@ -71,8 +65,7 @@ mod tests {
         let (event_tx, _event_rx) = tokio::sync::mpsc::unbounded_channel();
         let frame = command_frame(
             &task,
-            &identity::GameId::from("game"),
-            &mut BTreeMap::new(),
+            &mut p2p::swarm_loop::ZoneSubscriptions::new(identity::GameId::from("game")),
             &event_tx,
             p2p::Command::PublishInJoinedZone { payload: 7u8 },
         );

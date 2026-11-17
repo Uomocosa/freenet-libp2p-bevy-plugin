@@ -22,6 +22,7 @@ pub fn remove_peer(
     }
     router.subscribed_topics.remove(peer);
     router.joined_zones.remove(peer);
+    router.watched_zones.remove(peer);
     router
         .pending_snapshot_replies
         .retain(|_, requester| requester != peer);
