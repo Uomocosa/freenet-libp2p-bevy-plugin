@@ -36,7 +36,8 @@ mod tests {
     use bevy::camera::visibility::RenderLayers;
     use bevy::prelude::*;
     use freenet_libp2p_bevy_plugin::identity;
-    use freenet_libp2p_bevy_plugin::lobby_room::{peek, spectator};
+    use freenet_libp2p_bevy_plugin::lobby_room::{discovery, peek, spectator};
+    use freenet_libp2p_bevy_plugin::time;
 
     use super::sync_preview_board;
     use crate::starboard;
@@ -327,7 +328,41 @@ mod tests {
         ));
     }
 
+    fn preview_state() -> discovery::state_machine::DiscoveryState {
+        let mut members = discovery::Members::new();
+        for peer in ["peer-a", "peer-b"] {
+            members.insert(
+                identity::PeerId::from(peer),
+                discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: identity::PeerId::from(peer),
+                        addrs: Vec::new(),
+                    },
+                    updated_at: time::UnixTime::EPOCH,
+                    display_name: Some(identity::Username::from(peer)),
+                    membership: discovery::RoomMembership::Occupant,
+                },
+            );
+        }
+        let lobby = discovery::Lobby::from([(
+            discovery::RoomName::from("alpha"),
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::EPOCH,
+                members,
+            },
+        )]);
+        freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
+            identity::PeerId::from("me"),
+        )
+        .with_lobby(lobby)
+        .build()
+    }
+
     fn preview_build(app: &mut App) {
+        app.insert_resource(preview_state());
+        app.init_resource::<starboard::preview::PreviewCursors>()
+            .init_resource::<starboard::room::RoomBrushes>();
         app.add_systems(Startup, spawn_viewport);
         app.add_systems(
             Update,
@@ -335,6 +370,7 @@ mod tests {
                 starboard::preview::bevy_systems::sync_preview_camera,
                 sync_preview_board,
                 starboard::preview::bevy_systems::paint_preview_board,
+                starboard::preview::bevy_systems::draw_preview_remote_cursors,
             )
                 .chain(),
         );
@@ -367,6 +403,23 @@ mod tests {
 
     const fn preview_noop(_world: &mut World) {}
 
+    fn show_remote_cursor(world: &mut World) {
+        world
+            .resource_mut::<starboard::preview::PreviewCursors>()
+            .insert(
+                identity::PeerId::from("peer-a"),
+                starboard::room::CursorUpdate {
+                    cell: starboard::canvas::CellPos { x: 700, y: 500 },
+                    size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
+                },
+            );
+    }
+
+    fn show_spectated_board_with_cursor(world: &mut World) {
+        show_spectated_board(world);
+        show_remote_cursor(world);
+    }
+
     fn config() -> lele_bevy_preview::preview::Config {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::preview::Config {
@@ -388,6 +441,10 @@ mod tests {
                 lele_bevy_preview::scene::State {
                     label: String::from("hovered room board"),
                     apply: show_spectated_board,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("hovered room board with a remote cursor"),
+                    apply: show_spectated_board_with_cursor,
                 },
             ],
             timeline: None,

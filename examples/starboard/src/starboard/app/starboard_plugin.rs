@@ -28,6 +28,7 @@ impl Plugin for StarboardPlugin {
             .init_resource::<replica_sync::PendingOps<starboard::canvas::Canvas>>()
             .init_resource::<room::RoomBrushes>()
             .init_resource::<room::RemoteCursors>()
+            .init_resource::<preview::PreviewCursors>()
             .init_resource::<ui::roster::MemberIcons>()
             .insert_resource(room::BrushRefreshTimer(Timer::from_seconds(
                 room::BRUSH_REFRESH_SECONDS,
@@ -65,6 +66,7 @@ impl Plugin for StarboardPlugin {
                     preview::bevy_systems::sync_preview_camera,
                     preview::bevy_systems::sync_preview_board,
                     preview::bevy_systems::paint_preview_board,
+                    preview::bevy_systems::draw_preview_remote_cursors,
                 )
                     .chain()
                     .after(replica_sync::ReplicaSyncSet::Drive),

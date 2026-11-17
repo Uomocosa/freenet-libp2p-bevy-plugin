@@ -1,3 +1,4 @@
+use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
@@ -10,16 +11,7 @@ pub fn draw_remote_cursors(
     view: Res<starboard::render::CanvasView>,
     cursors: Res<starboard::room::RemoteCursors>,
     brushes: Res<starboard::room::RoomBrushes>,
-    mut sprites: Query<
-        (
-            Entity,
-            &starboard::render::Owner,
-            &mut starboard::render::CursorBrush,
-            &mut Sprite,
-            &mut Transform,
-        ),
-        With<starboard::render::Cursor>,
-    >,
+    mut sprites: starboard::render::CursorSprites,
 ) {
     let view = view.into_inner();
     let cursors = cursors.into_inner();
@@ -27,57 +19,17 @@ pub fn draw_remote_cursors(
     let Ok(window) = windows.single() else {
         return;
     };
-    let window_size = window.size();
-    for (entity, owner, mut cursor_brush, mut sprite, mut transform) in &mut sprites {
-        let starboard::render::Owner::Peer(peer) = owner else {
-            continue;
-        };
-        let Some(cursor) = cursors.get(peer) else {
-            commands.entity(entity).despawn();
-            continue;
-        };
-        let Some(brush) = brushes.get(peer).copied() else {
-            continue;
-        };
-        let radius = starboard::canvas::brush_radius(cursor.size_index);
-        let outline_side = radius.saturating_mul(2).saturating_add(1);
-        let wanted = u32::from(outline_side);
-        let size_matches = images
-            .get(&sprite.image)
-            .is_some_and(|image| image.texture_descriptor.size.width == wanted);
-        let is_brush_changed = cursor_brush.0 != brush;
-        if (!size_matches || is_brush_changed)
-            && let Some(mut image) = images.get_mut(&sprite.image)
-        {
-            starboard::render::replace_pixels(&mut image, brush.cursor_image(radius));
-            cursor_brush.0 = brush;
-        }
-        sprite.custom_size = Some(Vec2::splat(f32::from(outline_side) * view.scale));
-        transform.translation = starboard::render::cell_center(cursor.cell, view, window_size);
-    }
-    for (peer, cursor) in cursors.iter() {
-        let wanted_owner = starboard::render::Owner::Peer(peer.clone());
-        if sprites.iter().any(|(_, owner, ..)| *owner == wanted_owner) {
-            continue;
-        }
-        let Some(brush) = brushes.get(peer).copied() else {
-            continue;
-        };
-        let radius = starboard::canvas::brush_radius(cursor.size_index);
-        let starboard::render::BrushImage { side, pixels } = brush.cursor_image(radius);
-        let image = images.add(starboard::render::square_image(side, pixels));
-        commands
-            .spawn((
-                starboard::render::Cursor,
-                wanted_owner,
-                starboard::render::CursorBrush(brush),
-                Sprite::from_image(image),
-                Transform::default(),
-            ))
-            .with_child(starboard::render::cursor_label(
-                starboard::render::LABEL_COLOR,
-            ));
-    }
+    starboard::render::bevy_systems::draw_cursor_sprites(
+        &mut commands,
+        &mut images,
+        &mut sprites,
+        cursors,
+        brushes,
+        view,
+        window.size(),
+        starboard::render::CursorPlacement::InRoom,
+        &RenderLayers::default(),
+    );
 }
 
 #[cfg(test)]

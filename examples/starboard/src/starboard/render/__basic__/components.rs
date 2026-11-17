@@ -1,6 +1,7 @@
 use crate::starboard;
 
 use bevy::prelude::Component;
+use derive_more::Deref;
 
 #[derive(Component)]
 pub struct BoardSprite;
@@ -11,10 +12,16 @@ pub struct BoardBorderSprite;
 #[derive(Component)]
 pub struct Cursor;
 
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CursorPlacement {
+    InRoom,
+    Preview,
+}
+
 #[derive(Component)]
 pub struct CursorOutline;
 
-#[derive(Component)]
+#[derive(Component, Deref)]
 pub struct CursorBrush(pub starboard::identity::DailyBrush);
 
 #[derive(Component)]

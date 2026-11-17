@@ -16,10 +16,12 @@ mod replace_pixels;
 mod solid_brush_image;
 mod square_image;
 
+#[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;
 
 pub use basic::components::{
     BoardBorderSprite, BoardSprite, Cursor, CursorBrush, CursorLabel, CursorOutline,
+    CursorPlacement,
 };
 pub use basic::constants::{
     BOARD_BORDER_COLOR, BOARD_BORDER_PX, BOARD_CHECKER_RGBA, CHECKER_CELLS, LABEL_BACKGROUND,
@@ -27,6 +29,7 @@ pub use basic::constants::{
     OWN_LABEL_COLOR, OWN_OUTLINE_PX, OWN_OUTLINE_RGBA, OWN_PREVIEW_ALPHA, PREVIEW_FILL_ALPHA,
 };
 pub use basic::structs::BrushImage;
+pub use basic::type_aliases::CursorSprites;
 pub use blend_cell_rgba::blend_cell_rgba;
 pub use brush_image::brush_image;
 pub use brush_outline::BrushOutline;
