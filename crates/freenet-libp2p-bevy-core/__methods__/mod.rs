@@ -54,6 +54,7 @@ pub mod runner_config;
 #[cfg(all(feature = "testing", feature = "e2e-harness"))]
 pub mod screen_capture;
 pub mod short_peer_id;
+pub mod spectator_state;
 pub mod swarm_channels;
 pub mod swarm_loop_state;
 #[cfg(feature = "testing")]

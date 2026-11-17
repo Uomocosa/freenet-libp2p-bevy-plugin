@@ -10,6 +10,7 @@ pub mod peers;
 pub mod plugin;
 pub mod presence;
 pub mod replica_sync;
+pub mod spectator;
 #[cfg(feature = "testing")]
 pub mod testing;
 pub mod time;
