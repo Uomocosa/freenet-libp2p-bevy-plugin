@@ -12,7 +12,7 @@ pub struct StarboardPlugin;
 
 impl Plugin for StarboardPlugin {
     fn build(&self, app: &mut App) {
-        use starboard::{input, render, room};
+        use starboard::{input, preview, render, room};
         app.add_message::<CursorMoved>();
         app.add_message::<CursorLeft>();
         let in_room =
@@ -58,6 +58,16 @@ impl Plugin for StarboardPlugin {
                     render::bevy_systems::draw_cursor_labels,
                 )
                     .chain(),
+            )
+            .add_systems(
+                Update,
+                (
+                    preview::bevy_systems::sync_preview_camera,
+                    preview::bevy_systems::sync_preview_board,
+                    preview::bevy_systems::paint_preview_board,
+                )
+                    .chain()
+                    .after(replica_sync::ReplicaSyncSet::Drive),
             );
     }
 }

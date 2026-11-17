@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use bevy::prelude::*;
 use bevy::window::Window;
-use freenet_libp2p_bevy_plugin::lobby_room::{LobbyRoomPlugins, discovery};
+use freenet_libp2p_bevy_plugin::lobby_room::{LobbyRoomPlugins, discovery, peek};
 use freenet_libp2p_bevy_plugin::p2p::{MdnsMode, TransportMode};
 use freenet_libp2p_bevy_plugin::{direct_dial, identity, plugin, replica_sync};
 
@@ -56,6 +56,7 @@ impl Plugin for StarboardApp {
             replica_sync::SyncPlugin::<Canvas>::new(self.game.clone())
                 .with_history_config(Some(self.history)),
         );
+        app.add_plugins(peek::RoomPeekPlugin::<Canvas>::new(self.game.clone()));
         app.add_plugins(StarboardPlugin);
     }
 }
