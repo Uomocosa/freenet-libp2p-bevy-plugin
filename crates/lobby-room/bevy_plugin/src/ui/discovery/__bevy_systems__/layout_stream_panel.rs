@@ -2,32 +2,26 @@ use crate::ui;
 use bevy::prelude::*;
 
 use ui::discovery::{
-    PREVIEW_TOP, RoomPreviewPanel, RoomStreamPanel, STREAM_BOTTOM, STREAM_LEFT,
-    STREAM_PREVIEW_BOTTOM, STREAM_RADIUS, STREAM_RIGHT, STREAM_TOP, StreamDisplay, StreamedRoom,
+    RoomPreviewPanel, RoomStreamPanel, STREAM_BOTTOM, STREAM_FRAME_PADDING, STREAM_LEFT,
+    STREAM_RADIUS, STREAM_RIGHT, STREAM_TOP, StreamDisplay,
 };
 
 type StreamPanelNode<'w, 's> =
     Single<'w, 's, &'static mut Node, (With<RoomStreamPanel>, Without<RoomPreviewPanel>)>;
-type PreviewPanelParts<'w, 's> = Single<
-    'w,
-    's,
-    (&'static mut Node, &'static mut Visibility),
-    (With<RoomPreviewPanel>, Without<RoomStreamPanel>),
->;
+type PreviewVisibility<'w, 's> =
+    Single<'w, 's, &'static mut Visibility, (With<RoomPreviewPanel>, Without<RoomStreamPanel>)>;
 
 pub fn layout_stream_panel(
-    streamed: Res<StreamedRoom>,
     display: Res<StreamDisplay>,
     panel: Option<StreamPanelNode>,
-    preview: Option<PreviewPanelParts>,
+    preview: Option<PreviewVisibility>,
 ) {
     let display = display.into_inner();
-    let streamed = streamed.into_inner();
     let is_fullscreen = *display == StreamDisplay::Fullscreen;
     if let Some(panel) = panel {
         let mut node = panel.into_inner();
-        let (top, left, right, bottom, radius) = if is_fullscreen {
-            (0.0, 0.0, 0.0, 0.0, 0.0)
+        let (top, left, right, bottom, radius, padding) = if is_fullscreen {
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         } else {
             (
                 STREAM_TOP,
@@ -35,6 +29,7 @@ pub fn layout_stream_panel(
                 STREAM_RIGHT,
                 STREAM_BOTTOM,
                 STREAM_RADIUS,
+                STREAM_FRAME_PADDING,
             )
         };
         if node.top != Val::Px(top) {
@@ -53,23 +48,16 @@ pub fn layout_stream_panel(
         if node.border_radius != wanted_radius {
             node.border_radius = wanted_radius;
         }
+        let wanted_padding = UiRect::all(Val::Px(padding));
+        if node.padding != wanted_padding {
+            node.padding = wanted_padding;
+        }
     }
-    if let Some(preview) = preview {
-        let (mut node, mut visibility) = preview.into_inner();
-        if is_fullscreen {
-            *visibility = Visibility::Hidden;
-        }
-        let (top, bottom) = if (**streamed).is_some() {
-            (Val::Auto, Val::Px(STREAM_PREVIEW_BOTTOM))
-        } else {
-            (Val::Px(PREVIEW_TOP), Val::Auto)
-        };
-        if node.top != top {
-            node.top = top;
-        }
-        if node.bottom != bottom {
-            node.bottom = bottom;
-        }
+    let Some(preview) = preview else {
+        return;
+    };
+    if is_fullscreen {
+        *preview.into_inner() = Visibility::Hidden;
     }
 }
 
@@ -113,41 +101,24 @@ mod tests {
         app.world().get::<Node>(panel).expect("panel node").clone()
     }
 
-    fn preview_node(app: &App, preview: Entity) -> (Node, Visibility) {
-        (
-            app.world()
-                .get::<Node>(preview)
-                .expect("preview node")
-                .clone(),
-            *app.world()
-                .get::<Visibility>(preview)
-                .expect("preview visibility"),
-        )
+    fn preview_visibility(app: &App, preview: Entity) -> Visibility {
+        *app.world()
+            .get::<Visibility>(preview)
+            .expect("preview visibility")
     }
 
     #[test]
     fn test_usage() {
-        let (mut app, panel, preview) =
+        let (mut app, panel, _preview) =
             app_with(Some("alpha"), ui::discovery::StreamDisplay::Panel);
         app.update();
         let node = panel_node(&app, panel);
         assert_eq!(node.top, Val::Px(ui::discovery::STREAM_TOP));
         assert_eq!(node.right, Val::Px(ui::discovery::STREAM_RIGHT));
-        let (preview, _visibility) = preview_node(&app, preview);
-        assert_eq!(preview.top, Val::Auto);
         assert_eq!(
-            preview.bottom,
-            Val::Px(ui::discovery::STREAM_PREVIEW_BOTTOM)
+            node.padding,
+            UiRect::all(Val::Px(ui::discovery::STREAM_FRAME_PADDING))
         );
-    }
-
-    #[test]
-    fn without_a_stream_the_preview_returns_to_the_top() {
-        let (mut app, _panel, preview) = app_with(None, ui::discovery::StreamDisplay::Panel);
-        app.update();
-        let (preview, _visibility) = preview_node(&app, preview);
-        assert_eq!(preview.top, Val::Px(ui::discovery::PREVIEW_TOP));
-        assert_eq!(preview.bottom, Val::Auto);
     }
 
     #[test]
@@ -163,8 +134,8 @@ mod tests {
         assert_eq!(node.left, Val::Px(0.0));
         assert_eq!(node.right, Val::Px(0.0));
         assert_eq!(node.bottom, Val::Px(0.0));
-        let (_preview, visibility) = preview_node(&app, preview);
-        assert_eq!(visibility, Visibility::Hidden);
+        assert_eq!(node.padding, UiRect::ZERO);
+        assert_eq!(preview_visibility(&app, preview), Visibility::Hidden);
     }
 }
 
@@ -185,6 +156,28 @@ mod png_tests {
         }
     }
 
+    fn spawn_list(mut commands: Commands) {
+        commands
+            .spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(48.0),
+                    right: Val::Px(ui::discovery::LOBBY_PANEL_RIGHT),
+                    width: Val::Px(ui::discovery::LOBBY_PANEL_WIDTH),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(4.0),
+                    padding: UiRect::all(Val::Px(8.0)),
+                    ..default()
+                },
+                BackgroundColor(ui::discovery::PANEL_COLOR),
+            ))
+            .with_children(|list| {
+                for name in ["alpha", "beta", "gamma"] {
+                    ui::discovery::bevy_systems::spawn_room_row(list, &row(name));
+                }
+            });
+    }
+
     fn preview_build(app: &mut App) {
         app.insert_resource(ui::discovery::StreamDisplay::default());
         app.insert_resource(ui::discovery::StreamedRoom(Some(
@@ -193,12 +186,17 @@ mod png_tests {
         app.insert_resource(ui::discovery::SelectedRoom(Some(
             core_discovery::RoomName::from("beta"),
         )));
-        app.insert_resource(core_discovery::LobbyRows(vec![row("alpha"), row("beta")]));
+        app.insert_resource(core_discovery::LobbyRows(vec![
+            row("alpha"),
+            row("beta"),
+            row("gamma"),
+        ]));
         app.add_systems(
             Startup,
             (
                 ui::discovery::bevy_systems::spawn_room_stream,
                 ui::discovery::bevy_systems::spawn_room_preview,
+                spawn_list,
             ),
         );
         app.add_systems(
@@ -207,6 +205,7 @@ mod png_tests {
                 ui::discovery::bevy_systems::refresh_room_preview,
                 ui::discovery::bevy_systems::refresh_room_stream,
                 layout_stream_panel,
+                ui::discovery::bevy_systems::place_room_preview,
             )
                 .chain(),
         );

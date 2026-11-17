@@ -11,6 +11,7 @@ use ui::discovery::{
 pub fn spawn_stream_header(panel: &mut ChildSpawnerCommands) {
     panel
         .spawn((
+            ui::discovery::RoomStreamHeader,
             Node {
                 position_type: PositionType::Absolute,
                 top: Val::Px(STREAM_HEADER_INSET),

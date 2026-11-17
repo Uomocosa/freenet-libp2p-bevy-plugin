@@ -5,17 +5,29 @@ use crate::replica_sync;
 use crate::spectator;
 use crate::ui;
 
-use ui::discovery::{RoomPreviewPlaceholder, RoomPreviewViewport};
+use ui::discovery::{RoomPreviewImage, RoomPreviewPlaceholder};
+
+type PreviewImageNode<'w, 's> = Single<
+    'w,
+    's,
+    (&'static mut ImageNode, &'static mut Visibility),
+    (With<RoomPreviewImage>, Without<RoomPreviewPlaceholder>),
+>;
+type PreviewPlaceholderVisibility<'w, 's> = Single<
+    'w,
+    's,
+    &'static mut Visibility,
+    (With<RoomPreviewPlaceholder>, Without<RoomPreviewImage>),
+>;
 
 pub fn show_preview_image<S: replica_sync::traits::ReplicatedState>(
-    mut commands: Commands,
     spectated: Query<&spectator::Spectated<S>>,
     target: Option<Res<peek::RoomPreviewTarget>>,
-    viewport: Option<Single<Entity, With<RoomPreviewViewport>>>,
-    placeholder: Option<Single<&mut Visibility, With<RoomPreviewPlaceholder>>>,
+    image: Option<PreviewImageNode>,
+    placeholder: Option<PreviewPlaceholderVisibility>,
     mut shown_image: Local<Option<Handle<Image>>>,
 ) {
-    let Some(viewport) = viewport else {
+    let Some(image) = image else {
         return;
     };
     let spectated = spectated
@@ -47,15 +59,16 @@ pub fn show_preview_image<S: replica_sync::traits::ReplicatedState>(
     if *shown_image == wanted_image {
         return;
     }
-    let entity = viewport.into_inner();
-    if let Some(image) = wanted_image.as_ref() {
-        commands
-            .entity(entity)
-            .insert(ImageNode::new(image.clone()));
+    (*shown_image).clone_from(&wanted_image);
+    let (mut image_node, mut visibility) = image.into_inner();
+    if let Some(handle) = wanted_image.as_ref() {
+        if image_node.image != *handle {
+            image_node.image = handle.clone();
+        }
+        *visibility = Visibility::Visible;
     } else {
-        commands.entity(entity).remove::<ImageNode>();
+        *visibility = Visibility::Hidden;
     }
-    *shown_image = wanted_image;
 }
 
 #[cfg(test)]
@@ -112,28 +125,39 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.init_resource::<Assets<Image>>();
-        let viewport = app
+        let image = app
             .world_mut()
-            .spawn((ui::discovery::RoomPreviewViewport, Node::default()))
+            .spawn((
+                ui::discovery::RoomPreviewImage,
+                ImageNode::default(),
+                Visibility::Hidden,
+                Node::default(),
+            ))
             .id();
         let placeholder = app
             .world_mut()
             .spawn((
                 ui::discovery::RoomPreviewPlaceholder,
                 Node::default(),
-                ChildOf(viewport),
+                Visibility::Inherited,
             ))
             .id();
-        let image = app
+        let handle = app
             .world_mut()
             .resource_mut::<Assets<Image>>()
             .add(preview_image());
         app.insert_resource(peek::RoomPreviewTarget {
             zone: identity::ZoneName::from("alpha"),
-            image,
+            image: handle,
         });
         app.add_systems(Update, show_preview_image::<State>);
-        (app, viewport, placeholder)
+        (app, image, placeholder)
+    }
+
+    fn image_visibility(app: &App, image: Entity) -> Visibility {
+        *app.world()
+            .get::<Visibility>(image)
+            .expect("image visibility")
     }
 
     fn spectate(app: &mut App, freshness: spectator::SpectateFreshness) {
@@ -163,10 +187,10 @@ mod tests {
 
     #[test]
     fn test_usage() {
-        let (mut app, viewport, placeholder) = app();
+        let (mut app, image, placeholder) = app();
         spectate(&mut app, spectator::SpectateFreshness::Live);
         app.update();
-        assert!(app.world().get::<ImageNode>(viewport).is_some());
+        assert_eq!(image_visibility(&app, image), Visibility::Visible);
         assert_eq!(
             placeholder_visibility(&app, placeholder),
             Visibility::Hidden
@@ -175,10 +199,10 @@ mod tests {
 
     #[test]
     fn a_bootstrapping_preview_keeps_the_placeholder() {
-        let (mut app, viewport, placeholder) = app();
+        let (mut app, image, placeholder) = app();
         spectate(&mut app, spectator::SpectateFreshness::Bootstrapping);
         app.update();
-        assert!(app.world().get::<ImageNode>(viewport).is_none());
+        assert_eq!(image_visibility(&app, image), Visibility::Hidden);
         assert_eq!(
             placeholder_visibility(&app, placeholder),
             Visibility::Inherited
@@ -187,20 +211,20 @@ mod tests {
 
     #[test]
     fn a_repairing_preview_keeps_showing_the_image() {
-        let (mut app, viewport, _placeholder) = app();
+        let (mut app, image, _placeholder) = app();
         spectate(&mut app, spectator::SpectateFreshness::Repairing);
         app.update();
-        assert!(app.world().get::<ImageNode>(viewport).is_some());
+        assert_eq!(image_visibility(&app, image), Visibility::Visible);
     }
 
     #[test]
     fn leaving_the_spectated_state_restores_the_placeholder() {
-        let (mut app, viewport, placeholder) = app();
+        let (mut app, image, placeholder) = app();
         spectate(&mut app, spectator::SpectateFreshness::Live);
         app.update();
         despawn_spectated(&mut app);
         app.update();
-        assert!(app.world().get::<ImageNode>(viewport).is_none());
+        assert_eq!(image_visibility(&app, image), Visibility::Hidden);
         assert_eq!(
             placeholder_visibility(&app, placeholder),
             Visibility::Inherited

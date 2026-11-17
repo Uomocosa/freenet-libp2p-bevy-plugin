@@ -11,9 +11,11 @@ pub fn fit_stream_image(
         return;
     };
     let viewport = viewport.into_inner();
+    let padding = viewport.padding();
+    let scale = viewport.inverse_scale_factor();
     let panel = Vec2::new(
-        viewport.size().x * viewport.inverse_scale_factor(),
-        viewport.size().y * viewport.inverse_scale_factor(),
+        (viewport.size().x - padding.min_inset.x - padding.max_inset.x) * scale,
+        (viewport.size().y - padding.min_inset.y - padding.max_inset.y) * scale,
     );
     if panel.x <= 0.0 || panel.y <= 0.0 {
         return;
@@ -100,6 +102,38 @@ mod tests {
         let (mut app, image) = app_with(Vec2::ZERO);
         app.update();
         assert_eq!(size(&app, image), (0.0, 0.0));
+    }
+
+    #[test]
+    fn the_padding_is_excluded_from_the_fitted_area() {
+        let mut app = App::new();
+        app.world_mut().spawn((
+            ui::discovery::RoomStreamViewport,
+            ComputedNode {
+                size: Vec2::new(640.0, 400.0),
+                padding: bevy::sprite::BorderRect {
+                    min_inset: Vec2::new(12.0, 64.0),
+                    max_inset: Vec2::new(12.0, 12.0),
+                },
+                ..ComputedNode::default()
+            },
+        ));
+        let image = app
+            .world_mut()
+            .spawn((
+                ui::discovery::RoomStreamImage,
+                Node {
+                    width: Val::Px(0.0),
+                    height: Val::Px(0.0),
+                    ..default()
+                },
+            ))
+            .id();
+        app.add_systems(Update, fit_stream_image);
+        app.update();
+        let (width, height) = size(&app, image);
+        assert!((width - 518.4).abs() < 0.01);
+        assert!((height - 324.0).abs() < f32::EPSILON);
     }
 }
 

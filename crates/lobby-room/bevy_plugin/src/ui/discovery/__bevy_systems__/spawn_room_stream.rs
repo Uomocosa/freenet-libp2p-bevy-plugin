@@ -2,10 +2,11 @@ use crate::ui;
 use bevy::prelude::*;
 
 use ui::discovery::{
-    ACCENT_COLOR, PANEL_COLOR, RoomStreamImage, RoomStreamPanel, RoomStreamPlaceholder,
-    RoomStreamViewport, SPINNER_TRACK_COLOR, STREAM_BOTTOM, STREAM_LEFT,
+    ACCENT_COLOR, INPUT_COLOR, PANEL_COLOR, RoomStreamImage, RoomStreamPanel,
+    RoomStreamPlaceholder, RoomStreamViewport, SPINNER_TRACK_COLOR, STREAM_BOTTOM,
+    STREAM_FRAME_PADDING, STREAM_IMAGE_PADDING, STREAM_IMAGE_TOP_INSET, STREAM_LEFT,
     STREAM_PLACEHOLDER_SPINNER_SIZE, STREAM_PLACEHOLDER_SPINNER_WIDTH, STREAM_RADIUS, STREAM_RIGHT,
-    STREAM_TOP, STREAM_Z, Screen, SpinnerRing,
+    STREAM_TOP, STREAM_VIEWPORT_RADIUS, STREAM_Z, Screen, SpinnerRing,
 };
 
 pub fn spawn_room_stream(mut commands: Commands) {
@@ -21,6 +22,7 @@ pub fn spawn_room_stream(mut commands: Commands) {
                 left: Val::Px(STREAM_LEFT),
                 right: Val::Px(STREAM_RIGHT),
                 bottom: Val::Px(STREAM_BOTTOM),
+                padding: UiRect::all(Val::Px(STREAM_FRAME_PADDING)),
                 border_radius: BorderRadius::all(Val::Px(STREAM_RADIUS)),
                 overflow: Overflow::clip(),
                 ..default()
@@ -36,11 +38,17 @@ pub fn spawn_room_stream(mut commands: Commands) {
                         height: Val::Percent(100.0),
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
-                        border_radius: BorderRadius::all(Val::Px(STREAM_RADIUS)),
+                        padding: UiRect {
+                            top: Val::Px(STREAM_IMAGE_TOP_INSET),
+                            left: Val::Px(STREAM_IMAGE_PADDING),
+                            right: Val::Px(STREAM_IMAGE_PADDING),
+                            bottom: Val::Px(STREAM_IMAGE_PADDING),
+                        },
+                        border_radius: BorderRadius::all(Val::Px(STREAM_VIEWPORT_RADIUS)),
                         overflow: Overflow::clip(),
                         ..default()
                     },
-                    BackgroundColor(PANEL_COLOR),
+                    BackgroundColor(INPUT_COLOR),
                 ))
                 .with_children(|viewport| {
                     viewport.spawn((

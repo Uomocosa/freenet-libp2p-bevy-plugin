@@ -45,7 +45,13 @@ pub struct RoomPreviewViewport;
 pub struct RoomPreviewPlaceholder;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomPreviewImage;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomStreamPanel;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamHeader;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomStreamViewport;

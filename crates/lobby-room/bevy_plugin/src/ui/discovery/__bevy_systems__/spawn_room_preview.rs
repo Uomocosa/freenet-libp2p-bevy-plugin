@@ -5,8 +5,8 @@ use ui::discovery::{
     ACCENT_COLOR, INPUT_COLOR, PANEL_COLOR, PREVIEW_FRAME_COLOR, PREVIEW_FRAME_WIDTH,
     PREVIEW_HEIGHT, PREVIEW_INNER_RADIUS, PREVIEW_PADDING, PREVIEW_PLACEHOLDER_SPINNER_SIZE,
     PREVIEW_PLACEHOLDER_SPINNER_WIDTH, PREVIEW_RADIUS, PREVIEW_RIGHT, PREVIEW_TOP, PREVIEW_WIDTH,
-    PREVIEW_Z, RoomPreviewPanel, RoomPreviewPlaceholder, RoomPreviewViewport, SPINNER_TRACK_COLOR,
-    Screen, SpinnerRing,
+    PREVIEW_Z, RoomPreviewImage, RoomPreviewPanel, RoomPreviewPlaceholder, RoomPreviewViewport,
+    SPINNER_TRACK_COLOR, Screen, SpinnerRing,
 };
 
 pub fn spawn_room_preview(mut commands: Commands) {
@@ -47,8 +47,27 @@ pub fn spawn_room_preview(mut commands: Commands) {
                     BackgroundColor(INPUT_COLOR),
                 ))
                 .with_children(|viewport| {
+                    viewport.spawn((
+                        RoomPreviewImage,
+                        ImageNode::default(),
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                    ));
                     viewport
-                        .spawn((RoomPreviewPlaceholder, Node::default()))
+                        .spawn((
+                            RoomPreviewPlaceholder,
+                            Node {
+                                position_type: PositionType::Absolute,
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                        ))
                         .with_children(|placeholder| {
                             placeholder.spawn((
                                 SpinnerRing,
@@ -116,6 +135,10 @@ mod tests {
         assert_eq!(node.width, Val::Px(ui::discovery::PREVIEW_WIDTH));
         assert_eq!(node.height, Val::Px(ui::discovery::PREVIEW_HEIGHT));
         assert_ne!(node.border_radius, BorderRadius::ZERO);
+        let mut images = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::RoomPreviewImage>>();
+        assert_eq!(images.iter(app.world()).count(), 1);
         let mut placeholders = app
             .world_mut()
             .query_filtered::<(), With<ui::discovery::RoomPreviewPlaceholder>>();

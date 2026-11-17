@@ -83,6 +83,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                         systems::refresh_room_stream,
                         systems::rebuild_room_stream_action,
                         systems::layout_stream_panel,
+                        systems::place_room_preview,
                         systems::fit_stream_image,
                     )
                         .chain(),
@@ -236,11 +237,11 @@ mod tests {
         );
     }
 
-    fn preview_build(app: &mut App) {
+    fn preview_build_with(app: &mut App, rows: core_discovery::LobbyRows) {
         app.init_resource::<Assets<Image>>();
         app.add_message::<core_discovery::Command>();
         app.insert_resource(preview_snapshot());
-        app.insert_resource(preview_rows());
+        app.insert_resource(rows);
         app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
         app.add_systems(
             Update,
@@ -259,6 +260,14 @@ mod tests {
                 ui::discovery::bevy_systems::show_stream_image::<PreviewState>,
             ),
         );
+    }
+
+    fn preview_build(app: &mut App) {
+        preview_build_with(app, preview_rows());
+    }
+
+    fn long_preview_build(app: &mut App) {
+        preview_build_with(app, preview_rows_long());
     }
 
     fn preview_rows() -> core_discovery::LobbyRows {
@@ -288,6 +297,28 @@ mod tests {
                 friends: 0,
             },
         ])
+    }
+
+    fn preview_rows_long() -> core_discovery::LobbyRows {
+        let mut rows = vec![core_discovery::LobbyRow {
+            name: core_discovery::RoomName::from("alpha"),
+            occupants: 1,
+            room_size: core_discovery::RoomSize::try_from(16)
+                .expect("fixture room size is non-zero"),
+            occupancy: core_discovery::RoomOccupancy::HasSpace,
+            friends: 0,
+        }];
+        for index in 2..=12_u8 {
+            rows.push(core_discovery::LobbyRow {
+                name: core_discovery::RoomName::from(format!("room-{index:02}").as_str()),
+                occupants: usize::from(index),
+                room_size: core_discovery::RoomSize::try_from(16)
+                    .expect("fixture room size is non-zero"),
+                occupancy: core_discovery::RoomOccupancy::HasSpace,
+                friends: 0,
+            });
+        }
+        core_discovery::LobbyRows(rows)
     }
 
     fn preview_snapshot() -> DiscoveryState {
@@ -455,6 +486,28 @@ mod tests {
         });
     }
 
+    fn long_top_row(world: &mut World) {
+        clear_preview_targets(world);
+        select_room_value(world, "alpha");
+    }
+
+    fn long_bottom_row(world: &mut World) {
+        clear_preview_targets(world);
+        select_room_value(world, "room-10");
+    }
+
+    fn long_top_row_with_stream(world: &mut World) {
+        clear_preview_targets(world);
+        show_stream(world, "room-09");
+        select_room_value(world, "alpha");
+    }
+
+    fn long_bottom_row_with_stream(world: &mut World) {
+        clear_preview_targets(world);
+        show_stream(world, "alpha");
+        select_room_value(world, "room-10");
+    }
+
     #[test]
     fn test_usage() {
         let mut app = App::new();
@@ -582,6 +635,40 @@ mod tests {
                 lele_bevy_preview::scene::State {
                     label: String::from("stream placeholder"),
                     apply: stream_placeholder,
+                },
+            ],
+            timeline: None,
+        }
+        .run(&lele_bevy_preview::preview::Config {
+            out_dir: out,
+            ..Default::default()
+        })
+        .expect("preview");
+    }
+
+    #[test]
+    fn long_room_list_ui_scene_preview() {
+        let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
+        lele_bevy_preview::scene::Scene {
+            name: String::from("long_room_list"),
+            kind: lele_bevy_preview::scene::Kind::Plugin,
+            build: long_preview_build,
+            states: vec![
+                lele_bevy_preview::scene::State {
+                    label: String::from("preview at the top row"),
+                    apply: long_top_row,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("preview at the last row"),
+                    apply: long_bottom_row,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("stream with preview at the top row"),
+                    apply: long_top_row_with_stream,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("stream with preview at the last row"),
+                    apply: long_bottom_row_with_stream,
                 },
             ],
             timeline: None,
