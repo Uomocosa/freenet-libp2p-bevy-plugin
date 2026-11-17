@@ -10,5 +10,8 @@ pub use canvas_status::CanvasStatus;
 mod preview_status;
 pub use preview_status::PreviewStatus;
 
+mod stream_status;
+pub use stream_status::StreamStatus;
+
 mod starboard_e2e_methods;
 pub use starboard_e2e_methods::StarboardE2EMethods;

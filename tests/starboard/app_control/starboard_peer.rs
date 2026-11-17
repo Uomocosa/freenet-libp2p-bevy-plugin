@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use crate::e2e_starboard::{CanvasStatus, PreviewStatus};
+use crate::e2e_starboard::{CanvasStatus, PreviewStatus, StreamStatus};
 use bevy::input::mouse::MouseButton;
 use bevy::math::Vec2;
 use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyTarget, LocatedNode};
@@ -227,8 +227,22 @@ impl StarboardPeer {
     /// # Errors
     /// Returns an error if the room is not listed or the pointer move is not delivered.
     pub async fn hover_room(&self, room: &str) -> Result<(), String> {
+        let node = self.locate_room(room).await?;
+        self.move_pointer(node.centre).await
+    }
+
+    /// Clicks the lobby's room button once, which streams `room` (a double click would join it).
+    ///
+    /// # Errors
+    /// Returns an error if the room is not listed or the click is not delivered.
+    pub async fn click_room(&self, room: &str) -> Result<(), String> {
+        let node = self.locate_room(room).await?;
+        self.click_pointer(node.centre).await
+    }
+
+    async fn locate_room(&self, room: &str) -> Result<LocatedNode, String> {
         let target = LobbyTarget::Room(room.to_string());
-        let node = poll_until(
+        poll_until(
             &format!("{}: room {room} on screen", self.name()),
             self.lobby.deadlines().action(),
             async || {
@@ -240,8 +254,28 @@ impl StarboardPeer {
             Option::is_some,
         )
         .await?
-        .ok_or_else(|| format!("{}: room {room} not on screen", self.name()))?;
-        self.move_pointer(node.centre).await
+        .ok_or_else(|| format!("{}: room {room} not on screen", self.name()))
+    }
+
+    /// Clicks the stream panel's close control, which clears the streamed room.
+    ///
+    /// # Errors
+    /// Returns an error if the close control never shows up or the click is not delivered.
+    pub async fn close_stream(&self) -> Result<(), String> {
+        let centre = poll_until(
+            &format!("{}: stream close on screen", self.name()),
+            self.lobby.deadlines().action(),
+            async || {
+                self.lobby
+                    .peer()
+                    .call::<Option<Vec2>>("starboard/stream_close_centre", Value::Null)
+                    .await
+            },
+            Option::is_some,
+        )
+        .await?
+        .ok_or_else(|| format!("{}: stream close not on screen", self.name()))?;
+        self.click_pointer(centre).await
     }
 
     /// Moves the pointer to the window's top-left corner, away from every room button.
@@ -294,6 +328,28 @@ impl StarboardPeer {
         Ok(())
     }
 
+    async fn click_pointer(&self, point: Vec2) -> Result<(), String> {
+        let peer = self.lobby.peer();
+        let cursor = CursorTarget {
+            x: point.x,
+            y: point.y,
+            speed: PointerSpeed(HAND_SPEED),
+        };
+        peer.call::<Value>(
+            "e2e/click_at",
+            serde_json::to_value(cursor).map_err(|error| error.to_string())?,
+        )
+        .await?;
+        poll_until(
+            &format!("{}: click delivered", self.name()),
+            self.lobby.deadlines().action(),
+            async || peer.call::<bool>("e2e/input_idle", Value::Null).await,
+            |idle| *idle,
+        )
+        .await?;
+        Ok(())
+    }
+
     /// # Errors
     /// Returns an error if the room preview never shows `room` with its image.
     pub async fn wait_until_preview_shows_room(
@@ -334,6 +390,49 @@ impl StarboardPeer {
         self.lobby
             .peer()
             .call("starboard/preview_status", Value::Null)
+            .await
+    }
+
+    /// # Errors
+    /// Returns an error if the stream never shows `room` with its image.
+    pub async fn wait_until_stream_shows_room(
+        &self,
+        room: &str,
+        deadline: Duration,
+    ) -> Result<StreamStatus, String> {
+        let wanted = room.to_string();
+        let outcome = poll_until(
+            &format!("{}: stream shows {room}", self.name()),
+            deadline,
+            async || self.stream_status().await,
+            |status| status.is_showing_room(&wanted),
+        )
+        .await;
+        outcome.map_err(|error| self.lobby.peer().explain(&error))
+    }
+
+    /// # Errors
+    /// Returns an error if the stream is still showing a room at `deadline`.
+    pub async fn wait_until_stream_cleared(
+        &self,
+        deadline: Duration,
+    ) -> Result<StreamStatus, String> {
+        let outcome = poll_until(
+            &format!("{}: stream cleared", self.name()),
+            deadline,
+            async || self.stream_status().await,
+            |status| status.streamed_room.is_none() && !status.has_stream_image,
+        )
+        .await;
+        outcome.map_err(|error| self.lobby.peer().explain(&error))
+    }
+
+    /// # Errors
+    /// Returns an error if the request fails.
+    pub async fn stream_status(&self) -> Result<StreamStatus, String> {
+        self.lobby
+            .peer()
+            .call("starboard/stream_status", Value::Null)
             .await
     }
 

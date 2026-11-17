@@ -17,3 +17,4 @@ mod room_auto_deletion;
 mod room_preview;
 mod simultaneous_paint;
 mod starboard_e2e;
+mod zone_stream_and_preview;

@@ -8,7 +8,7 @@ pub struct StarboardE2EMethods;
 
 impl E2EMethods for StarboardE2EMethods {
     #[rustfmt::skip]
-    fn register(&self, remote: RemotePlugin) -> RemotePlugin { remote.with_method_main("starboard/status", bevy_systems::starboard_status).with_method_main("starboard/board_to_window", bevy_systems::starboard_board_to_window).with_method_main("starboard/cell_painted", bevy_systems::starboard_cell_painted).with_method_main("starboard/preview_status", bevy_systems::starboard_preview_status) }
+    fn register(&self, remote: RemotePlugin) -> RemotePlugin { remote.with_method_main("starboard/status", bevy_systems::starboard_status).with_method_main("starboard/board_to_window", bevy_systems::starboard_board_to_window).with_method_main("starboard/cell_painted", bevy_systems::starboard_cell_painted).with_method_main("starboard/preview_status", bevy_systems::starboard_preview_status).with_method_main("starboard/stream_status", bevy_systems::starboard_stream_status).with_method_main("starboard/stream_close_centre", bevy_systems::starboard_stream_close_centre) }
 
     fn build(&self, app: &mut App) {
         app.init_resource::<CanvasHashWatch>()
@@ -36,6 +36,8 @@ mod tests {
         assert!(methods.get("starboard/board_to_window").is_some());
         assert!(methods.get("starboard/cell_painted").is_some());
         assert!(methods.get("starboard/preview_status").is_some());
+        assert!(methods.get("starboard/stream_status").is_some());
+        assert!(methods.get("starboard/stream_close_centre").is_some());
         assert!(app.world().contains_resource::<CanvasHashWatch>());
     }
 }

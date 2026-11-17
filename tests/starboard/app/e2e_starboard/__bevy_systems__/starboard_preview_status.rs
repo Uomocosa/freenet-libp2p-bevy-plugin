@@ -11,10 +11,10 @@ pub fn starboard_preview_status(
     spectated: Query<&spectator::Spectated<starboard::starboard::canvas::Canvas>>,
     preview_cursors: Option<Res<starboard::starboard::preview::SlotCursors>>,
     target: Option<Res<peek::RoomPreviewTarget>>,
-    viewports: Query<&ImageNode, With<ui::discovery::RoomPreviewViewport>>,
+    images: Query<&ImageNode, With<ui::discovery::RoomPreviewImage>>,
 ) -> BrpResult {
     let has_preview_image =
-        target.is_some_and(|target| viewports.iter().any(|node| node.image == target.image));
+        target.is_some_and(|target| images.iter().any(|node| node.image == target.image));
     let selection = selection.map(Res::into_inner);
     let spectated = spectated
         .iter()
@@ -130,7 +130,7 @@ mod tests {
             freenet_libp2p_bevy_plugin::lobby_room::discovery::RoomName::from("alpha"),
         )));
         app.world_mut()
-            .spawn((ui::discovery::RoomPreviewViewport, ImageNode::new(image)));
+            .spawn((ui::discovery::RoomPreviewImage, ImageNode::new(image)));
 
         let status = status(&mut app).expect("preview status");
         assert!(status.is_showing_room("alpha"));
