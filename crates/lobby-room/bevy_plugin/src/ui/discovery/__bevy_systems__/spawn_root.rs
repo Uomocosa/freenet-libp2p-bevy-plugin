@@ -43,10 +43,6 @@ pub fn spawn_root(mut commands: Commands) {
                     selection_radius: 0.0,
                 },
                 Hovered::default(),
-                HoverGlow::default(),
-                UiTransform::default(),
-                Outline::new(Val::Px(HOVER_OUTLINE_WIDTH), Val::ZERO, Color::NONE),
-                HoverOutlineOnly,
                 Node {
                     min_width: Val::Px(200.0),
                     padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
@@ -61,6 +57,7 @@ pub fn spawn_root(mut commands: Commands) {
                 HoverGlow::default(),
                 UiTransform::default(),
                 Outline::new(Val::Px(HOVER_OUTLINE_WIDTH), Val::ZERO, Color::NONE),
+                HoverOutlineOnly,
                 Node {
                     padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
                     ..default()
@@ -119,6 +116,35 @@ mod tests {
         assert_eq!(
             *tooltips.single(app.world()).expect("search tooltip"),
             Visibility::Hidden
+        );
+    }
+
+    #[test]
+    fn the_search_input_has_no_hover_glow_and_the_create_button_does() {
+        let mut app = App::new();
+        app.add_systems(Startup, spawn_root);
+        app.update();
+        let input = app
+            .world_mut()
+            .query_filtered::<Entity, With<ui::discovery::RoomNameInput>>()
+            .single(app.world())
+            .expect("one room name input");
+        assert!(app.world().get::<ui::discovery::HoverGlow>(input).is_none());
+        assert!(app.world().get::<Outline>(input).is_none());
+        let button = app
+            .world_mut()
+            .query_filtered::<Entity, With<ui::discovery::CreateRoomButton>>()
+            .single(app.world())
+            .expect("one create button");
+        assert!(
+            app.world()
+                .get::<ui::discovery::HoverGlow>(button)
+                .is_some()
+        );
+        assert!(
+            app.world()
+                .get::<ui::discovery::HoverOutlineOnly>(button)
+                .is_some()
         );
     }
 

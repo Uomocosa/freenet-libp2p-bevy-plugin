@@ -2,16 +2,16 @@
 mod basic;
 
 pub use basic::components::{
-    ConnectingRoot, CreateRoomButton, DoorLabel, DoorOpening, DoorPanel, EnterRoomButton, EscMenu,
-    EscMenuBackdrop, EscMenuFriendsButton, EscMenuLeaveButton, EscMenuResumeButton, HoverGlow,
-    HoverOutlineOnly, JoinErrorDismissButton, JoinErrorRoot, JoiningRoomRoot, LeaveDoor,
-    LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble, RoomButton, RoomFriendBadge,
-    RoomFullBadge, RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, RoomPreviewImage,
-    RoomPreviewPanel, RoomPreviewPlaceholder, RoomPreviewViewport, RoomSearchIndicator,
-    RoomSearchTooltip, RoomStreamActionSlot, RoomStreamCloseButton, RoomStreamFullscreenButton,
-    RoomStreamHeader, RoomStreamImage, RoomStreamName, RoomStreamOccupancyBubble,
-    RoomStreamOccupancyText, RoomStreamPanel, RoomStreamPlaceholder, RoomStreamViewport,
-    RoomsHeader, Root, SpinnerRing,
+    ConnectingRoot, CreateRoomButton, CreateShake, DoorLabel, DoorOpening, DoorPanel,
+    EnterRoomButton, EscMenu, EscMenuBackdrop, EscMenuFriendsButton, EscMenuLeaveButton,
+    EscMenuResumeButton, HoverGlow, HoverOutlineOnly, JoinErrorDismissButton, JoinErrorRoot,
+    JoiningRoomRoot, LeaveDoor, LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble,
+    RoomButton, RoomFriendBadge, RoomFullBadge, RoomList, RoomNameClip, RoomNameInput,
+    RoomNameScroller, RoomPreviewImage, RoomPreviewPanel, RoomPreviewPlaceholder,
+    RoomPreviewViewport, RoomSearchIndicator, RoomSearchTooltip, RoomStreamActionSlot,
+    RoomStreamCloseButton, RoomStreamFullscreenButton, RoomStreamHeader, RoomStreamImage,
+    RoomStreamName, RoomStreamOccupancyBubble, RoomStreamOccupancyText, RoomStreamPanel,
+    RoomStreamPlaceholder, RoomStreamViewport, RoomsHeader, Root, SpinnerRing,
 };
 pub use basic::constants::*;
 pub use basic::messages::CloseStream;

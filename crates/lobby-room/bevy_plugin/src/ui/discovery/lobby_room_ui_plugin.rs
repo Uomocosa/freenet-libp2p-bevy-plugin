@@ -53,6 +53,11 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                 )
                     .chain(),
                 systems::animate_hover,
+                systems::animate_create_press
+                    .after(systems::animate_hover)
+                    .after(systems::gate_create),
+                systems::start_create_shake,
+                systems::show_text_cursor_on_room_name_input.run_if(in_state(Screen::Lobby)),
                 systems::animate_esc_menu,
                 systems::refresh_menu_leave_button,
                 systems::spin_spinners.run_if(|screen: Option<Res<State<Screen>>>| {

@@ -40,6 +40,10 @@ pub const MENU_FRIENDS_BEAT_SECS: f32 = 0.12;
 pub const HOVER_PER_SEC: f32 = 8.0;
 pub const HOVER_SCALE: f32 = 1.04;
 pub const HOVER_OUTLINE_WIDTH: f32 = 2.0;
+pub const CREATE_PRESS_SCALE: f32 = 0.94;
+pub const CREATE_SHAKE_SECS: f32 = 0.25;
+pub const CREATE_SHAKE_PX: f32 = 4.0;
+pub const CREATE_SHAKE_TURNS: f32 = 2.0;
 pub const CARET_COLOR: Color = Color::srgb(0.92, 0.94, 0.98);
 pub const CARET_SELECTION_COLOR: Color = Color::srgba(0.38, 0.65, 0.98, 0.45);
 
