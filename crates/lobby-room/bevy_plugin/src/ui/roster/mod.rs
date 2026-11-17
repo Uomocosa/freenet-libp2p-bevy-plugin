@@ -3,7 +3,7 @@ mod basic;
 
 pub use basic::components::{
     RosterBubble, RosterCount, RosterCountTooltip, RosterDot, RosterDotTooltip, RosterList,
-    RosterPill, RosterRow,
+    RosterPill, RosterRow, SpectatorCountText, SpectatorPill, SpectatorPillTooltip,
 };
 pub use basic::constants::*;
 pub use basic::resources::MemberIcons;

@@ -18,6 +18,8 @@ impl bevy::prelude::Plugin for UiPlugin {
                 systems::refresh_roster_status,
                 systems::refresh_roster_tooltips_text,
                 systems::refresh_roster_tooltip,
+                systems::refresh_spectator_pill,
+                systems::refresh_spectator_tooltip,
                 systems::toggle_roster_list,
                 systems::refresh_roster_list,
             )

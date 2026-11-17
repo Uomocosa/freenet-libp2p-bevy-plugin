@@ -23,3 +23,12 @@ pub struct RosterList;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RosterRow;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct SpectatorPill;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct SpectatorCountText;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct SpectatorPillTooltip;

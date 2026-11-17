@@ -7,93 +7,95 @@ use ui::roster::{
     ROSTER_BUBBLE_LEFT, ROSTER_BUBBLE_ROOM_BAR_CLEARANCE, ROSTER_BUBBLE_Z, ROSTER_COUNT_FONT_SIZE,
     ROSTER_DISCONNECTED_COLOR, ROSTER_DOT_SIZE, ROSTER_LABEL_COLOR, ROSTER_LIST_WIDTH,
     ROSTER_TOOLTIP_FONT_SIZE, ROSTER_TOOLTIP_TEXT_COLOR, RosterBubble, RosterCount,
-    RosterCountTooltip, RosterDot, RosterDotTooltip, RosterList, RosterPill,
+    RosterCountTooltip, RosterDot, RosterDotTooltip, RosterList, RosterPill, SpectatorPillTooltip,
 };
 
 pub fn spawn_roster_bubble(mut commands: Commands) {
-    let tooltip_node = Node {
-        position_type: PositionType::Absolute,
-        top: Val::Px(32.0),
-        left: Val::Px(0.0),
-        padding: UiRect::all(Val::Px(6.0)),
-        border_radius: BorderRadius::all(Val::Px(6.0)),
-        ..default()
+    let tooltip = |text: &str| {
+        (
+            Visibility::Hidden,
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(32.0),
+                left: Val::Px(0.0),
+                padding: UiRect::all(Val::Px(6.0)),
+                border_radius: BorderRadius::all(Val::Px(6.0)),
+                ..default()
+            },
+            Text::new(text),
+            TextFont {
+                font_size: FontSize::Px(ROSTER_TOOLTIP_FONT_SIZE),
+                ..default()
+            },
+            TextColor(ROSTER_TOOLTIP_TEXT_COLOR),
+            BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
+        )
     };
-    let tooltip_font = TextFont {
-        font_size: FontSize::Px(ROSTER_TOOLTIP_FONT_SIZE),
-        ..default()
-    };
-    let tooltip_text_color = TextColor(ROSTER_TOOLTIP_TEXT_COLOR);
-    let tooltip_background = BackgroundColor(ui::constants::DRAWER_PANEL_COLOR);
-    commands.spawn((
-        RosterBubble,
-        GlobalZIndex(ROSTER_BUBBLE_Z),
-        Visibility::Hidden,
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(ROSTER_BUBBLE_ROOM_BAR_CLEARANCE),
-            left: Val::Px(ROSTER_BUBBLE_LEFT),
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::FlexStart,
-            row_gap: Val::Px(6.0),
-            ..default()
-        },
-        children![
-            (
-                RosterPill,
-                Button,
-                Hovered::default(),
-                Node {
+    commands
+        .spawn((
+            RosterBubble,
+            GlobalZIndex(ROSTER_BUBBLE_Z),
+            Visibility::Hidden,
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(ROSTER_BUBBLE_ROOM_BAR_CLEARANCE),
+                left: Val::Px(ROSTER_BUBBLE_LEFT),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::FlexStart,
+                row_gap: Val::Px(6.0),
+                ..default()
+            },
+        ))
+        .with_children(|bubble| {
+            bubble
+                .spawn((Node {
                     align_items: AlignItems::Center,
-                    column_gap: Val::Px(7.0),
-                    padding: UiRect::axes(Val::Px(10.0), Val::Px(5.0)),
-                    border_radius: BorderRadius::MAX,
+                    column_gap: Val::Px(6.0),
                     ..default()
-                },
-                BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
-                children![
-                    (
-                        RosterDot,
+                },))
+                .with_children(|row| {
+                    row.spawn((
+                        RosterPill,
+                        Button,
                         Hovered::default(),
                         Node {
-                            width: Val::Px(ROSTER_DOT_SIZE),
-                            height: Val::Px(ROSTER_DOT_SIZE),
+                            align_items: AlignItems::Center,
+                            column_gap: Val::Px(7.0),
+                            padding: UiRect::axes(Val::Px(10.0), Val::Px(5.0)),
                             border_radius: BorderRadius::MAX,
                             ..default()
                         },
-                        BackgroundColor(ROSTER_DISCONNECTED_COLOR),
-                    ),
-                    (
-                        RosterCount,
-                        Hovered::default(),
-                        Text::new(""),
-                        TextFont {
-                            font_size: FontSize::Px(ROSTER_COUNT_FONT_SIZE),
-                            ..default()
-                        },
-                        TextColor(ROSTER_LABEL_COLOR),
-                    ),
-                ],
-            ),
-            (
-                RosterDotTooltip,
-                Visibility::Hidden,
-                tooltip_node.clone(),
-                Text::new("Disconnected"),
-                tooltip_font.clone(),
-                tooltip_text_color,
-                tooltip_background,
-            ),
-            (
-                RosterCountTooltip,
-                Visibility::Hidden,
-                tooltip_node,
-                Text::new("Peers in the room: 0/0"),
-                tooltip_font,
-                TextColor(ROSTER_TOOLTIP_TEXT_COLOR),
-                BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
-            ),
-            (
+                        BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
+                    ))
+                    .with_children(|pill| {
+                        pill.spawn((
+                            RosterDot,
+                            Hovered::default(),
+                            Node {
+                                width: Val::Px(ROSTER_DOT_SIZE),
+                                height: Val::Px(ROSTER_DOT_SIZE),
+                                border_radius: BorderRadius::MAX,
+                                ..default()
+                            },
+                            BackgroundColor(ROSTER_DISCONNECTED_COLOR),
+                        ));
+                        pill.spawn((
+                            RosterCount,
+                            Hovered::default(),
+                            Text::new(""),
+                            TextFont {
+                                font_size: FontSize::Px(ROSTER_COUNT_FONT_SIZE),
+                                ..default()
+                            },
+                            TextColor(ROSTER_LABEL_COLOR),
+                        ));
+                    });
+                    ui::roster::bevy_systems::spawn_spectator_pill(row);
+                });
+            bubble.spawn((RosterDotTooltip, tooltip("Disconnected")));
+            bubble.spawn((RosterCountTooltip, tooltip("Peers in the room: 0/0")));
+            bubble.spawn((SpectatorPillTooltip, tooltip("0 players watching")));
+            bubble.spawn((
                 RosterList,
                 Visibility::Hidden,
                 Node {
@@ -105,15 +107,15 @@ pub fn spawn_roster_bubble(mut commands: Commands) {
                     ..default()
                 },
                 BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
-            ),
-        ],
-    ));
+            ));
+        });
 }
 
 #[cfg(test)]
 mod tests {
     use super::spawn_roster_bubble;
     use crate::discovery as core_discovery;
+    use crate::spectator;
     use crate::ui;
     use bevy::prelude::*;
 
@@ -142,6 +144,18 @@ mod tests {
             .world_mut()
             .query_filtered::<(), With<ui::roster::RosterList>>();
         assert_eq!(lists.iter(app.world()).count(), 1);
+        let mut spectator_pills = app
+            .world_mut()
+            .query_filtered::<(), With<ui::roster::SpectatorPill>>();
+        assert_eq!(spectator_pills.iter(app.world()).count(), 1);
+        let mut spectator_counts = app
+            .world_mut()
+            .query_filtered::<(), With<ui::roster::SpectatorCountText>>();
+        assert_eq!(spectator_counts.iter(app.world()).count(), 1);
+        let mut spectator_tips = app
+            .world_mut()
+            .query_filtered::<(), With<ui::roster::SpectatorPillTooltip>>();
+        assert_eq!(spectator_tips.iter(app.world()).count(), 1);
     }
 
     fn spawn_mock_screen(mut commands: Commands) {
@@ -183,8 +197,16 @@ mod tests {
 
     fn preview_build(app: &mut App) {
         app.insert_resource(preview_roster());
+        app.insert_resource(spectator::SpectatorCount(2));
         app.add_systems(Startup, (spawn_mock_screen, super::spawn_roster_bubble));
-        app.add_systems(Update, ui::roster::bevy_systems::refresh_roster_status);
+        app.add_systems(
+            Update,
+            (
+                ui::roster::bevy_systems::refresh_roster_status,
+                ui::roster::bevy_systems::refresh_spectator_pill,
+                ui::roster::bevy_systems::refresh_spectator_tooltip,
+            ),
+        );
     }
 
     const fn preview_noop(_world: &mut World) {}
