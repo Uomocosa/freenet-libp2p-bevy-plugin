@@ -11,6 +11,7 @@ pub fn watch_selected_room(
 ) {
     let selection = selection.into_inner();
     let Some(room) = selection.room.clone() else {
+        *watched_room = None;
         return;
     };
     if watched_room.as_ref() == Some(&room) {
@@ -70,7 +71,7 @@ mod tests {
     }
 
     #[test]
-    fn clearing_the_preview_keeps_the_last_watched_room() {
+    fn re_selecting_after_clearing_emits_a_new_watch() {
         let mut app = app();
         select(&mut app, Some("alpha"));
         app.update();
@@ -80,7 +81,8 @@ mod tests {
         let _ = sent(&mut app);
         select(&mut app, Some("alpha"));
         app.update();
-        assert_eq!(sent(&mut app), Vec::new());
+        let room = core_discovery::RoomName::from("alpha");
+        assert_eq!(sent(&mut app), vec![core_discovery::Command::Watch(room)]);
     }
 
     #[test]
