@@ -18,6 +18,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
         app.init_resource::<ui::discovery::FriendsPressBeat>();
         app.init_resource::<ui::discovery::SelectedRoom>();
         app.init_resource::<ui::discovery::StreamedRoom>();
+        app.init_resource::<ui::discovery::StreamDisplay>();
         app.add_message::<ui::discovery::CloseStream>();
         app.init_resource::<ButtonInput<KeyCode>>();
         app.add_message::<core_discovery::Event>();
@@ -28,6 +29,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
             OnEnter(Screen::Lobby),
             (systems::reset_room_selection, systems::spawn_room_preview),
         );
+        app.add_systems(OnEnter(Screen::Lobby), systems::spawn_room_stream);
         app.add_systems(OnEnter(Screen::JoiningRoom), systems::spawn_joining_room);
         app.add_systems(OnEnter(Screen::JoinFailed), systems::spawn_join_failed);
         app.add_systems(OnEnter(Screen::InRoom), systems::spawn_leave_door);
@@ -66,6 +68,8 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                     systems::handle_create,
                     (
                         systems::handle_join,
+                        systems::close_stream_on_press,
+                        systems::toggle_stream_fullscreen_on_press,
                         systems::drop_stale_room_selection,
                         systems::drop_stale_streamed_room,
                         systems::track_room_preview,
@@ -76,8 +80,10 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                         systems::clear_stream_on_close_request,
                         systems::highlight_selected_room.after(systems::animate_hover),
                         systems::refresh_room_preview,
-                        systems::rebuild_room_preview_members,
-                        systems::rebuild_room_preview_action,
+                        systems::refresh_room_stream,
+                        systems::rebuild_room_stream_action,
+                        systems::layout_stream_panel,
+                        systems::fit_stream_image,
                     )
                         .chain(),
                 )
@@ -102,6 +108,9 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
 mod tests {
     use crate::discovery as core_discovery;
     use crate::freenet;
+    use crate::peek;
+    use crate::replica_sync;
+    use crate::spectator;
     use crate::testing;
     use crate::ui;
     use std::time::Duration;
@@ -123,10 +132,137 @@ mod tests {
     use core_discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_core::time;
 
+    #[derive(Default, Resource)]
+    struct PreviewState;
+
+    impl replica_sync::traits::ReplicatedState for PreviewState {
+        type Op = u8;
+        type Snapshot = u8;
+
+        fn apply(&mut self, _meta: replica_sync::OpMeta, _op: &Self::Op) {}
+
+        fn snapshot(&self) -> Self::Snapshot {
+            0
+        }
+
+        fn merge(&mut self, _snapshot: Self::Snapshot) {}
+
+        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
+            Vec::new()
+        }
+
+        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
+            0
+        }
+    }
+
+    fn test_pattern_image() -> Image {
+        let palette: [[u8; 4]; 6] = [
+            [38, 70, 96, 255],
+            [52, 92, 122, 255],
+            [66, 114, 148, 255],
+            [82, 138, 176, 255],
+            [38, 70, 96, 255],
+            [24, 48, 68, 255],
+        ];
+        let row: Vec<u8> = palette.concat().into_iter().cycle().take(640).collect();
+        let data: Vec<u8> = row.iter().copied().cycle().take(64_000).collect();
+        Image::new(
+            bevy::render::render_resource::Extent3d {
+                width: 160,
+                height: 100,
+                depth_or_array_layers: 1,
+            },
+            bevy::render::render_resource::TextureDimension::D2,
+            data,
+            bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+            bevy::asset::RenderAssetUsages::default(),
+        )
+    }
+
+    fn clear_preview_targets(world: &mut World) {
+        let mut query = world.query_filtered::<Entity, With<spectator::Spectated<PreviewState>>>();
+        let entities: Vec<Entity> = query.iter(world).collect();
+        for entity in entities {
+            world.despawn(entity);
+        }
+        world.remove_resource::<peek::RoomPreviewTarget>();
+        world.remove_resource::<peek::RoomStreamTarget>();
+        **world.resource_mut::<ui::discovery::SelectedRoom>() = None;
+        **world.resource_mut::<ui::discovery::StreamedRoom>() = None;
+        *world.resource_mut::<ui::discovery::StreamDisplay>() = ui::discovery::StreamDisplay::Panel;
+    }
+
+    fn spectate_zone(
+        world: &mut World,
+        slot: spectator::SpectateSlot,
+        room: &str,
+        freshness: spectator::SpectateFreshness,
+    ) {
+        let image = world
+            .resource_mut::<Assets<Image>>()
+            .add(test_pattern_image());
+        let zone = identity::ZoneName::from(room);
+        match slot {
+            spectator::SpectateSlot::Preview => {
+                world.insert_resource(peek::RoomPreviewTarget {
+                    zone: zone.clone(),
+                    image,
+                });
+            }
+            spectator::SpectateSlot::Stream => {
+                world.insert_resource(peek::RoomStreamTarget {
+                    zone: zone.clone(),
+                    image,
+                });
+            }
+        }
+        world.spawn(spectator::Spectated::<PreviewState> {
+            slot,
+            zone,
+            state: PreviewState,
+            freshness,
+        });
+    }
+
+    fn show_stream(world: &mut World, room: &str) {
+        **world.resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from(room));
+        spectate_zone(
+            world,
+            spectator::SpectateSlot::Stream,
+            room,
+            spectator::SpectateFreshness::Live,
+        );
+    }
+
     fn preview_build(app: &mut App) {
+        app.init_resource::<Assets<Image>>();
         app.add_message::<core_discovery::Command>();
         app.insert_resource(preview_snapshot());
-        app.insert_resource(core_discovery::LobbyRows(vec![
+        app.insert_resource(preview_rows());
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.add_systems(
+            Update,
+            pin_hover
+                .before(ui::discovery::bevy_systems::track_room_preview)
+                .before(ui::discovery::bevy_systems::animate_hover),
+        );
+        app.add_systems(
+            Update,
+            pin_rooms_header_hover.before(ui::discovery::bevy_systems::show_room_search_tooltip),
+        );
+        app.add_systems(
+            Update,
+            (
+                ui::discovery::bevy_systems::show_preview_image::<PreviewState>,
+                ui::discovery::bevy_systems::show_stream_image::<PreviewState>,
+            ),
+        );
+    }
+
+    fn preview_rows() -> core_discovery::LobbyRows {
+        core_discovery::LobbyRows(vec![
             core_discovery::LobbyRow {
                 name: core_discovery::RoomName::from("alpha"),
                 occupants: 2,
@@ -151,16 +287,7 @@ mod tests {
                 occupancy: core_discovery::RoomOccupancy::Full,
                 friends: 0,
             },
-        ]));
-        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
-        app.add_systems(
-            Update,
-            pin_hover.before(ui::discovery::bevy_systems::animate_hover),
-        );
-        app.add_systems(
-            Update,
-            pin_rooms_header_hover.before(ui::discovery::bevy_systems::show_room_search_tooltip),
-        );
+        ])
     }
 
     fn preview_snapshot() -> DiscoveryState {
@@ -261,9 +388,28 @@ mod tests {
         }
     }
 
+    fn hover_row(world: &mut World, room: &str) {
+        let mut rows = world.query::<(Entity, &ui::discovery::RoomButton)>();
+        let targets: Vec<Entity> = rows
+            .iter(world)
+            .filter(|(_entity, button)| button.as_str() == room)
+            .map(|(entity, _button)| entity)
+            .collect();
+        for entity in targets {
+            world.entity_mut(entity).insert((Hovered(true), PinHover));
+        }
+    }
+
     fn select_room_value(world: &mut World, room: &str) {
         **world.resource_mut::<ui::discovery::SelectedRoom>() =
             Some(core_discovery::RoomName::from(room));
+        hover_row(world, room);
+        spectate_zone(
+            world,
+            spectator::SpectateSlot::Preview,
+            room,
+            spectator::SpectateFreshness::Live,
+        );
     }
 
     fn select_room(world: &mut World) {
@@ -272,6 +418,41 @@ mod tests {
 
     fn select_full_room(world: &mut World) {
         select_room_value(world, "gamma");
+    }
+
+    fn stream_only(world: &mut World) {
+        clear_preview_targets(world);
+        show_stream(world, "alpha");
+    }
+
+    fn stream_and_preview(world: &mut World) {
+        clear_preview_targets(world);
+        show_stream(world, "alpha");
+        select_room_value(world, "beta");
+    }
+
+    fn stream_fullscreen(world: &mut World) {
+        clear_preview_targets(world);
+        show_stream(world, "alpha");
+        *world.resource_mut::<ui::discovery::StreamDisplay>() =
+            ui::discovery::StreamDisplay::Fullscreen;
+    }
+
+    fn stream_room_full(world: &mut World) {
+        clear_preview_targets(world);
+        show_stream(world, "gamma");
+    }
+
+    fn stream_placeholder(world: &mut World) {
+        clear_preview_targets(world);
+        **world.resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
+        world.spawn(spectator::Spectated::<PreviewState> {
+            slot: spectator::SpectateSlot::Stream,
+            zone: identity::ZoneName::from("alpha"),
+            state: PreviewState,
+            freshness: spectator::SpectateFreshness::Bootstrapping,
+        });
     }
 
     #[test]
@@ -289,6 +470,69 @@ mod tests {
             .world_mut()
             .query_filtered::<(), With<ui::discovery::CreateRoomButton>>();
         assert_eq!(buttons.iter(app.world()).count(), 1);
+    }
+
+    fn count<C: Component>(app: &mut App) -> usize {
+        let mut query = app.world_mut().query_filtered::<(), With<C>>();
+        query.iter(app.world()).count()
+    }
+
+    fn preview_visibility(app: &mut App) -> Visibility {
+        let mut panels = app
+            .world_mut()
+            .query_filtered::<&Visibility, With<ui::discovery::RoomPreviewPanel>>();
+        *panels.single(app.world()).expect("preview panel")
+    }
+
+    #[test]
+    fn the_lobby_spawns_one_preview_and_one_stream_panel() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(preview_snapshot());
+        app.insert_resource(preview_rows());
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.add_systems(
+            Update,
+            pin_hover
+                .before(ui::discovery::bevy_systems::track_room_preview)
+                .before(ui::discovery::bevy_systems::animate_hover),
+        );
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        assert_eq!(count::<ui::discovery::RoomPreviewPanel>(&mut app), 1);
+        assert_eq!(count::<ui::discovery::RoomStreamPanel>(&mut app), 1);
+        assert_eq!(preview_visibility(&mut app), Visibility::Hidden);
+        let mut rows = app
+            .world_mut()
+            .query::<(Entity, &ui::discovery::RoomButton)>();
+        let row = rows
+            .iter(app.world())
+            .find(|(_entity, button)| button.as_str() == "alpha")
+            .map(|(entity, _button)| entity)
+            .expect("the alpha room row");
+        app.world_mut()
+            .entity_mut(row)
+            .insert((Hovered(true), PinHover));
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::SelectedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
+        for _ in 0..3 {
+            app.update();
+        }
+        assert_eq!(
+            (**app.world().resource::<ui::discovery::SelectedRoom>()).clone(),
+            Some(core_discovery::RoomName::from("alpha")),
+            "the pinned hover keeps the selection"
+        );
+        assert_eq!(
+            preview_visibility(&mut app),
+            Visibility::Visible,
+            "the hovered room shows its preview card"
+        );
     }
 
     #[test]
@@ -318,6 +562,26 @@ mod tests {
                 lele_bevy_preview::scene::State {
                     label: String::from("full room selected"),
                     apply: select_full_room,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("stream only"),
+                    apply: stream_only,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("stream and preview of beta"),
+                    apply: stream_and_preview,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("stream fullscreen"),
+                    apply: stream_fullscreen,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("stream room full"),
+                    apply: stream_room_full,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("stream placeholder"),
+                    apply: stream_placeholder,
                 },
             ],
             timeline: None,

@@ -5,14 +5,14 @@ use crate::replica_sync;
 use crate::spectator;
 use crate::ui;
 
-use ui::discovery::{RoomPreviewMemberList, RoomPreviewViewport};
+use ui::discovery::{RoomPreviewPlaceholder, RoomPreviewViewport};
 
 pub fn show_preview_image<S: replica_sync::traits::ReplicatedState>(
     mut commands: Commands,
     spectated: Query<&spectator::Spectated<S>>,
     target: Option<Res<peek::RoomPreviewTarget>>,
     viewport: Option<Single<Entity, With<RoomPreviewViewport>>>,
-    member_list: Option<Single<&mut Visibility, With<RoomPreviewMemberList>>>,
+    placeholder: Option<Single<&mut Visibility, With<RoomPreviewPlaceholder>>>,
     mut shown_image: Local<Option<Handle<Image>>>,
 ) {
     let Some(viewport) = viewport else {
@@ -33,8 +33,8 @@ pub fn show_preview_image<S: replica_sync::traits::ReplicatedState>(
     } else {
         None
     };
-    if let Some(member_list) = member_list {
-        let mut visibility = member_list.into_inner();
+    if let Some(placeholder) = placeholder {
+        let mut visibility = placeholder.into_inner();
         let wanted_visibility = if is_showing_image {
             Visibility::Hidden
         } else {
@@ -60,8 +60,6 @@ pub fn show_preview_image<S: replica_sync::traits::ReplicatedState>(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use bevy::prelude::*;
 
     use super::show_preview_image;
@@ -70,7 +68,6 @@ mod tests {
     use crate::peek;
     use crate::replica_sync;
     use crate::spectator;
-    use crate::time;
     use crate::ui;
 
     #[derive(Default, Resource)]
@@ -119,10 +116,10 @@ mod tests {
             .world_mut()
             .spawn((ui::discovery::RoomPreviewViewport, Node::default()))
             .id();
-        let member_list = app
+        let placeholder = app
             .world_mut()
             .spawn((
-                ui::discovery::RoomPreviewMemberList,
+                ui::discovery::RoomPreviewPlaceholder,
                 Node::default(),
                 ChildOf(viewport),
             ))
@@ -136,7 +133,7 @@ mod tests {
             image,
         });
         app.add_systems(Update, show_preview_image::<State>);
-        (app, viewport, member_list)
+        (app, viewport, placeholder)
     }
 
     fn spectate(app: &mut App, freshness: spectator::SpectateFreshness) {
@@ -158,80 +155,56 @@ mod tests {
         }
     }
 
-    fn member_visibility(app: &App, member_list: Entity) -> Visibility {
+    fn placeholder_visibility(app: &App, placeholder: Entity) -> Visibility {
         *app.world()
-            .get::<Visibility>(member_list)
+            .get::<Visibility>(placeholder)
             .expect("member list visibility")
     }
 
     #[test]
     fn test_usage() {
-        let (mut app, viewport, member_list) = app();
+        let (mut app, viewport, placeholder) = app();
         spectate(&mut app, spectator::SpectateFreshness::Live);
         app.update();
         assert!(app.world().get::<ImageNode>(viewport).is_some());
-        assert_eq!(member_visibility(&app, member_list), Visibility::Hidden);
+        assert_eq!(
+            placeholder_visibility(&app, placeholder),
+            Visibility::Hidden
+        );
     }
 
     #[test]
-    fn a_bootstrapping_preview_keeps_the_member_list() {
-        let (mut app, viewport, member_list) = app();
+    fn a_bootstrapping_preview_keeps_the_placeholder() {
+        let (mut app, viewport, placeholder) = app();
         spectate(&mut app, spectator::SpectateFreshness::Bootstrapping);
         app.update();
         assert!(app.world().get::<ImageNode>(viewport).is_none());
-        assert_eq!(member_visibility(&app, member_list), Visibility::Inherited);
+        assert_eq!(
+            placeholder_visibility(&app, placeholder),
+            Visibility::Inherited
+        );
     }
 
     #[test]
     fn a_repairing_preview_keeps_showing_the_image() {
-        let (mut app, viewport, _member_list) = app();
+        let (mut app, viewport, _placeholder) = app();
         spectate(&mut app, spectator::SpectateFreshness::Repairing);
         app.update();
         assert!(app.world().get::<ImageNode>(viewport).is_some());
     }
 
     #[test]
-    fn leaving_the_spectated_state_restores_the_member_list() {
-        let (mut app, viewport, member_list) = app();
+    fn leaving_the_spectated_state_restores_the_placeholder() {
+        let (mut app, viewport, placeholder) = app();
         spectate(&mut app, spectator::SpectateFreshness::Live);
         app.update();
         despawn_spectated(&mut app);
         app.update();
         assert!(app.world().get::<ImageNode>(viewport).is_none());
-        assert_eq!(member_visibility(&app, member_list), Visibility::Inherited);
-    }
-
-    fn preview_discovery_state() -> core_discovery::state_machine::DiscoveryState {
-        let mut state = core_discovery::state_machine::DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        let members = ["alice", "bob"]
-            .iter()
-            .map(|name| {
-                (
-                    identity::PeerId::from(*name),
-                    core_discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from(*name),
-                            addrs: Vec::new(),
-                        },
-                        display_name: Some(identity::Username::from(*name)),
-                        updated_at: time::UnixTime::EPOCH,
-                        membership: core_discovery::RoomMembership::Occupant,
-                    },
-                )
-            })
-            .collect::<BTreeMap<_, _>>();
-        state.lobby.insert(
-            core_discovery::RoomName::from("alpha"),
-            core_discovery::Room {
-                room_size: core_discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members,
-            },
+        assert_eq!(
+            placeholder_visibility(&app, placeholder),
+            Visibility::Inherited
         );
-        state
     }
 
     fn preview_build(app: &mut App) {
@@ -242,16 +215,15 @@ mod tests {
             occupancy: core_discovery::RoomOccupancy::HasSpace,
             friends: 1,
         }]));
+        app.insert_resource(ui::discovery::StreamedRoom::default());
         app.insert_resource(ui::discovery::SelectedRoom(Some(
             core_discovery::RoomName::from("alpha"),
         )));
-        app.insert_resource(preview_discovery_state());
         app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_preview);
         app.add_systems(
             Update,
             (
                 ui::discovery::bevy_systems::refresh_room_preview,
-                ui::discovery::bevy_systems::rebuild_room_preview_members,
                 show_preview_image::<State>,
             ),
         );
@@ -283,7 +255,7 @@ mod tests {
             build: preview_build,
             states: vec![
                 lele_bevy_preview::scene::State {
-                    label: String::from("member list"),
+                    label: String::from("placeholder"),
                     apply: preview_noop,
                 },
                 lele_bevy_preview::scene::State {

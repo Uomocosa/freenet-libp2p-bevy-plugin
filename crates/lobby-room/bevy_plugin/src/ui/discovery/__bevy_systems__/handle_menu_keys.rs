@@ -3,13 +3,16 @@ use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 use bevy::ui::Pressed;
 
-use ui::discovery::{EscMenuFriendsButton, EscMenuState, FriendsPressBeat, LeaveDialog};
+use ui::discovery::{
+    EscMenuFriendsButton, EscMenuState, FriendsPressBeat, LeaveDialog, StreamDisplay,
+};
 
 pub fn handle_menu_keys(
     keys: Option<Res<ButtonInput<KeyCode>>>,
     mut menu: ResMut<EscMenuState>,
     mut beat: ResMut<FriendsPressBeat>,
     mut drawer: Option<ResMut<ui::direct_dial::FriendsDrawerState>>,
+    mut display: Option<ResMut<StreamDisplay>>,
     dialog: Option<Res<State<LeaveDialog>>>,
     next_dialog: Option<ResMut<NextState<LeaveDialog>>>,
     friends: Query<Entity, With<EscMenuFriendsButton>>,
@@ -21,9 +24,16 @@ pub fn handle_menu_keys(
     let keys = keys.into_inner();
     if keys.just_pressed(KeyCode::Escape) {
         **beat = 0.0;
+        let is_fullscreen = display
+            .as_deref()
+            .is_some_and(|display| *display == StreamDisplay::Fullscreen);
         let is_drawer_open = drawer.as_deref().is_some_and(|drawer| **drawer);
         let is_dialog_open = dialog.is_some_and(|dialog| **dialog == LeaveDialog::Open);
-        if is_drawer_open {
+        if is_fullscreen {
+            if let Some(display) = display.as_deref_mut() {
+                display.show_panel();
+            }
+        } else if is_drawer_open {
             if let Some(drawer) = drawer.as_deref_mut() {
                 drawer.close();
             }
@@ -69,6 +79,7 @@ mod tests {
         app.add_plugins(InputPlugin);
         app.init_resource::<EscMenuState>();
         app.init_resource::<ui::discovery::FriendsPressBeat>();
+        app.init_resource::<ui::discovery::StreamDisplay>();
         app.add_systems(Update, handle_menu_keys);
         app
     }
@@ -180,6 +191,26 @@ mod tests {
         }
         assert!(!is_menu_open(&app));
         assert!(is_drawer_open(&app));
+    }
+
+    #[test]
+    fn escape_leaves_fullscreen_and_does_not_open_the_menu() {
+        let mut app = app_with(false, None);
+        *app.world_mut()
+            .resource_mut::<ui::discovery::StreamDisplay>() =
+            ui::discovery::StreamDisplay::Fullscreen;
+        press(&mut app, KeyCode::Escape);
+        assert_eq!(
+            *app.world().resource::<ui::discovery::StreamDisplay>(),
+            ui::discovery::StreamDisplay::Panel,
+            "Esc exits the stream fullscreen"
+        );
+        assert!(
+            !is_menu_open(&app),
+            "the fullscreen Esc never opens the menu"
+        );
+        press(&mut app, KeyCode::Escape);
+        assert!(is_menu_open(&app), "the next Esc opens the menu");
     }
 
     #[test]

@@ -6,10 +6,11 @@ pub use basic::components::{
     EscMenuBackdrop, EscMenuFriendsButton, EscMenuLeaveButton, EscMenuResumeButton, HoverGlow,
     HoverOutlineOnly, JoinErrorDismissButton, JoinErrorRoot, JoiningRoomRoot, LeaveDoor,
     LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble, RoomButton, RoomFriendBadge,
-    RoomFullBadge, RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, RoomPreviewActionSlot,
-    RoomPreviewMemberList, RoomPreviewOccupancyBubble, RoomPreviewOccupancyText, RoomPreviewPanel,
-    RoomPreviewTitle, RoomPreviewViewport, RoomSearchIndicator, RoomSearchTooltip, RoomsHeader,
-    Root, SpinnerRing,
+    RoomFullBadge, RoomList, RoomNameClip, RoomNameInput, RoomNameScroller, RoomPreviewPanel,
+    RoomPreviewPlaceholder, RoomPreviewViewport, RoomSearchIndicator, RoomSearchTooltip,
+    RoomStreamActionSlot, RoomStreamCloseButton, RoomStreamFullscreenButton, RoomStreamImage,
+    RoomStreamName, RoomStreamOccupancyBubble, RoomStreamOccupancyText, RoomStreamPanel,
+    RoomStreamPlaceholder, RoomStreamViewport, RoomsHeader, Root, SpinnerRing,
 };
 pub use basic::constants::*;
 pub use basic::messages::CloseStream;
@@ -19,6 +20,8 @@ mod esc_menu_panel;
 pub use esc_menu_panel::EscMenuPanel;
 mod esc_menu_state;
 pub use esc_menu_state::EscMenuState;
+mod stream_display;
+pub use stream_display::StreamDisplay;
 
 #[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;

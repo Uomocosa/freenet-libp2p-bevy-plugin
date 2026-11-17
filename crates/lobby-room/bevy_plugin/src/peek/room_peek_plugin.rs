@@ -43,6 +43,7 @@ impl<S: replica_sync::traits::ReplicatedState> bevy::prelude::Plugin for RoomPee
                 peek::bevy_systems::sync_preview_target::<S>,
                 peek::bevy_systems::sync_stream_target::<S>,
                 ui::discovery::bevy_systems::show_preview_image::<S>,
+                ui::discovery::bevy_systems::show_stream_image::<S>,
             )
                 .chain()
                 .after(replica_sync::ReplicaSyncSet::Drive),

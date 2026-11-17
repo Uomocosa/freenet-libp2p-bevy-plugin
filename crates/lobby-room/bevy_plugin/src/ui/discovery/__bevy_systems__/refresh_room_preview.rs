@@ -2,64 +2,32 @@ use crate::discovery as core_discovery;
 use crate::ui;
 use bevy::prelude::*;
 
-use ui::discovery::{
-    ROOM_BUBBLE_EMPTY_COLOR, ROOM_BUBBLE_FULL_COLOR, ROOM_BUBBLE_HAS_SPACE_COLOR,
-    RoomPreviewOccupancyBubble, RoomPreviewOccupancyText, RoomPreviewPanel, RoomPreviewTitle,
-    SelectedRoom,
-};
-
-type PreviewTitleText<'w, 's> =
-    Single<'w, 's, &'static mut Text, (With<RoomPreviewTitle>, Without<RoomPreviewOccupancyText>)>;
-type PreviewOccupancyText<'w, 's> =
-    Single<'w, 's, &'static mut Text, (With<RoomPreviewOccupancyText>, Without<RoomPreviewTitle>)>;
+use ui::discovery::{RoomPreviewPanel, SelectedRoom, StreamedRoom};
 
 pub fn refresh_room_preview(
     selection: Res<SelectedRoom>,
+    streamed: Res<StreamedRoom>,
     rows: Option<Res<core_discovery::LobbyRows>>,
     panel: Option<Single<&mut Visibility, With<RoomPreviewPanel>>>,
-    title: Option<PreviewTitleText>,
-    occupancy_bubble: Option<Single<&mut BackgroundColor, With<RoomPreviewOccupancyBubble>>>,
-    occupancy_text: Option<PreviewOccupancyText>,
 ) {
     let Some(panel) = panel else {
         return;
     };
-    let Some(title) = title else {
-        return;
-    };
-    let Some(occupancy_bubble) = occupancy_bubble else {
-        return;
-    };
-    let Some(occupancy_text) = occupancy_text else {
-        return;
-    };
     let selection = selection.into_inner();
+    let streamed = streamed.into_inner();
     let rows = rows.map(Res::into_inner);
-    let row = (**selection)
+    let is_previewed = (**selection)
         .as_ref()
-        .and_then(|name| rows?.iter().find(|row| row.name == *name));
-    let Some(row) = row else {
-        *panel.into_inner() = Visibility::Hidden;
-        return;
+        .filter(|name| (**streamed).as_ref() != Some(*name))
+        .is_some_and(|name| rows.is_some_and(|rows| rows.iter().any(|row| row.name == *name)));
+    let wanted = if is_previewed {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
     };
-    *panel.into_inner() = Visibility::Visible;
-    let mut title = title.into_inner();
-    if title.as_str() != row.name.as_str() {
-        *title = Text::new(row.name.as_str());
-    }
-    let occupancy = format!("{}/{}", row.occupants, row.room_size);
-    let mut occupancy_text = occupancy_text.into_inner();
-    if occupancy_text.as_str() != occupancy.as_str() {
-        *occupancy_text = Text::new(occupancy);
-    }
-    let color = match row.occupancy {
-        core_discovery::RoomOccupancy::HasSpace => ROOM_BUBBLE_HAS_SPACE_COLOR,
-        core_discovery::RoomOccupancy::Empty => ROOM_BUBBLE_EMPTY_COLOR,
-        core_discovery::RoomOccupancy::Full => ROOM_BUBBLE_FULL_COLOR,
-    };
-    let BackgroundColor(existing) = &mut *occupancy_bubble.into_inner();
-    if *existing != color {
-        *existing = color;
+    let mut panel = panel.into_inner();
+    if *panel != wanted {
+        *panel = wanted;
     }
 }
 
@@ -83,11 +51,13 @@ mod tests {
 
     fn app_with(
         selection: ui::discovery::SelectedRoom,
+        streamed: ui::discovery::StreamedRoom,
         rows: Vec<core_discovery::LobbyRow>,
     ) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(selection);
+        app.insert_resource(streamed);
         app.insert_resource(core_discovery::LobbyRows(rows));
         app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_preview);
         app.update();
@@ -102,56 +72,22 @@ mod tests {
         *panels.single(app.world()).expect("preview panel")
     }
 
-    fn title_text(app: &mut App) -> String {
-        let mut titles = app
-            .world_mut()
-            .query_filtered::<&Text, With<ui::discovery::RoomPreviewTitle>>();
-        titles
-            .single(app.world())
-            .expect("preview title")
-            .as_str()
-            .to_string()
-    }
-
-    fn occupancy_text(app: &mut App) -> String {
-        let mut texts = app
-            .world_mut()
-            .query_filtered::<&Text, With<ui::discovery::RoomPreviewOccupancyText>>();
-        texts
-            .single(app.world())
-            .expect("occupancy text")
-            .as_str()
-            .to_string()
-    }
-
-    fn occupancy_color(app: &mut App) -> Color {
-        let mut bubbles = app
-            .world_mut()
-            .query_filtered::<&BackgroundColor, With<ui::discovery::RoomPreviewOccupancyBubble>>();
-        let BackgroundColor(color) = *bubbles.single(app.world()).expect("occupancy bubble");
-        color
-    }
-
     #[test]
     fn test_usage() {
         let mut app = app_with(
             ui::discovery::SelectedRoom(Some(core_discovery::RoomName::from("alpha"))),
+            ui::discovery::StreamedRoom::default(),
             vec![row("alpha", 2)],
         );
         app.update();
         assert_eq!(panel_visibility(&mut app), Visibility::Visible);
-        assert_eq!(title_text(&mut app), "alpha");
-        assert_eq!(occupancy_text(&mut app), "2/8");
-        assert_eq!(
-            occupancy_color(&mut app),
-            ui::discovery::ROOM_BUBBLE_HAS_SPACE_COLOR
-        );
     }
 
     #[test]
     fn an_empty_selection_hides_the_panel() {
         let mut app = app_with(
             ui::discovery::SelectedRoom::default(),
+            ui::discovery::StreamedRoom::default(),
             vec![row("alpha", 2)],
         );
         app.update();
@@ -162,7 +98,19 @@ mod tests {
     fn a_selection_missing_from_the_rows_hides_the_panel() {
         let mut app = app_with(
             ui::discovery::SelectedRoom(Some(core_discovery::RoomName::from("alpha"))),
+            ui::discovery::StreamedRoom::default(),
             vec![row("beta", 0)],
+        );
+        app.update();
+        assert_eq!(panel_visibility(&mut app), Visibility::Hidden);
+    }
+
+    #[test]
+    fn the_streamed_room_gets_no_preview_card() {
+        let mut app = app_with(
+            ui::discovery::SelectedRoom(Some(core_discovery::RoomName::from("alpha"))),
+            ui::discovery::StreamedRoom(Some(core_discovery::RoomName::from("alpha"))),
+            vec![row("alpha", 2)],
         );
         app.update();
         assert_eq!(panel_visibility(&mut app), Visibility::Hidden);
@@ -173,6 +121,7 @@ mod tests {
             row("alpha", 2),
             row("gamma", 4),
         ]));
+        app.insert_resource(ui::discovery::StreamedRoom::default());
         app.insert_resource(ui::discovery::SelectedRoom(Some(
             core_discovery::RoomName::from("alpha"),
         )));
@@ -202,11 +151,11 @@ mod tests {
             build: preview_build,
             states: vec![
                 lele_bevy_preview::scene::State {
-                    label: String::from("alpha selected"),
+                    label: String::from("alpha hovered"),
                     apply: select_alpha,
                 },
                 lele_bevy_preview::scene::State {
-                    label: String::from("gamma selected"),
+                    label: String::from("gamma hovered"),
                     apply: select_gamma,
                 },
             ],

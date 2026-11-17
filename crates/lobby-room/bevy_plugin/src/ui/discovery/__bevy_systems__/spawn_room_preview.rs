@@ -2,11 +2,11 @@ use crate::ui;
 use bevy::prelude::*;
 
 use ui::discovery::{
-    BUTTON_LABEL_COLOR, INPUT_COLOR, PANEL_COLOR, PREVIEW_ACTION_INSET, PREVIEW_ACTION_RESERVE,
-    PREVIEW_HEIGHT, PREVIEW_MEMBER_FONT_SIZE, PREVIEW_MEMBER_GAP, PREVIEW_PADDING, PREVIEW_RIGHT,
-    PREVIEW_ROW_GAP, PREVIEW_TITLE_FONT_SIZE, PREVIEW_TOP, PREVIEW_VIEWPORT_PADDING, PREVIEW_WIDTH,
-    RoomPreviewActionSlot, RoomPreviewMemberList, RoomPreviewOccupancyBubble,
-    RoomPreviewOccupancyText, RoomPreviewPanel, RoomPreviewTitle, RoomPreviewViewport, Screen,
+    ACCENT_COLOR, INPUT_COLOR, PANEL_COLOR, PREVIEW_FRAME_COLOR, PREVIEW_FRAME_WIDTH,
+    PREVIEW_HEIGHT, PREVIEW_INNER_RADIUS, PREVIEW_PADDING, PREVIEW_PLACEHOLDER_SPINNER_SIZE,
+    PREVIEW_PLACEHOLDER_SPINNER_WIDTH, PREVIEW_RADIUS, PREVIEW_RIGHT, PREVIEW_TOP, PREVIEW_WIDTH,
+    PREVIEW_Z, RoomPreviewPanel, RoomPreviewPlaceholder, RoomPreviewViewport, SPINNER_TRACK_COLOR,
+    Screen, SpinnerRing,
 };
 
 pub fn spawn_room_preview(mut commands: Commands) {
@@ -14,6 +14,7 @@ pub fn spawn_room_preview(mut commands: Commands) {
         .spawn((
             RoomPreviewPanel,
             DespawnOnExit(Screen::Lobby),
+            GlobalZIndex(PREVIEW_Z),
             Visibility::Hidden,
             Node {
                 position_type: PositionType::Absolute,
@@ -21,89 +22,50 @@ pub fn spawn_room_preview(mut commands: Commands) {
                 right: Val::Px(PREVIEW_RIGHT),
                 width: Val::Px(PREVIEW_WIDTH),
                 height: Val::Px(PREVIEW_HEIGHT),
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(PREVIEW_ROW_GAP),
                 padding: UiRect::all(Val::Px(PREVIEW_PADDING)),
+                border: UiRect::all(Val::Px(PREVIEW_FRAME_WIDTH)),
+                border_radius: BorderRadius::all(Val::Px(PREVIEW_RADIUS)),
+                overflow: Overflow::clip(),
                 ..default()
             },
             BackgroundColor(PANEL_COLOR),
+            BorderColor::all(PREVIEW_FRAME_COLOR),
         ))
         .with_children(|panel| {
-            panel
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    ..default()
-                })
-                .with_children(|title| {
-                    title.spawn((
-                        RoomPreviewTitle,
-                        Text::new(""),
-                        TextFont {
-                            font_size: FontSize::Px(PREVIEW_TITLE_FONT_SIZE),
-                            ..default()
-                        },
-                        TextColor(BUTTON_LABEL_COLOR),
-                    ));
-                    title
-                        .spawn((
-                            RoomPreviewOccupancyBubble,
-                            Node {
-                                padding: UiRect::axes(Val::Px(7.0), Val::Px(2.5)),
-                                border_radius: BorderRadius::MAX,
-                                ..default()
-                            },
-                            BackgroundColor(INPUT_COLOR),
-                        ))
-                        .with_children(|bubble| {
-                            bubble.spawn((
-                                RoomPreviewOccupancyText,
-                                Text::new(""),
-                                TextFont {
-                                    font_size: FontSize::Px(PREVIEW_MEMBER_FONT_SIZE),
-                                    ..default()
-                                },
-                                TextColor(BUTTON_LABEL_COLOR),
-                            ));
-                        });
-                });
             panel
                 .spawn((
                     RoomPreviewViewport,
                     Node {
                         flex_grow: 1.0,
                         width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Column,
-                        padding: UiRect::all(Val::Px(PREVIEW_VIEWPORT_PADDING)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        border_radius: BorderRadius::all(Val::Px(PREVIEW_INNER_RADIUS)),
                         overflow: Overflow::clip(),
                         ..default()
                     },
                     BackgroundColor(INPUT_COLOR),
                 ))
                 .with_children(|viewport| {
-                    viewport.spawn((
-                        RoomPreviewMemberList,
-                        Node {
-                            width: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Column,
-                            row_gap: Val::Px(PREVIEW_MEMBER_GAP),
-                            padding: UiRect {
-                                bottom: Val::Px(PREVIEW_ACTION_RESERVE),
-                                ..default()
-                            },
-                            ..default()
-                        },
-                    ));
-                    viewport.spawn((
-                        RoomPreviewActionSlot,
-                        Node {
-                            position_type: PositionType::Absolute,
-                            bottom: Val::Px(PREVIEW_ACTION_INSET),
-                            right: Val::Px(PREVIEW_ACTION_INSET),
-                            ..default()
-                        },
-                    ));
+                    viewport
+                        .spawn((RoomPreviewPlaceholder, Node::default()))
+                        .with_children(|placeholder| {
+                            placeholder.spawn((
+                                SpinnerRing,
+                                Node {
+                                    width: Val::Px(PREVIEW_PLACEHOLDER_SPINNER_SIZE),
+                                    height: Val::Px(PREVIEW_PLACEHOLDER_SPINNER_SIZE),
+                                    border: UiRect::all(Val::Px(PREVIEW_PLACEHOLDER_SPINNER_WIDTH)),
+                                    border_radius: BorderRadius::MAX,
+                                    ..default()
+                                },
+                                BorderColor {
+                                    top: ACCENT_COLOR,
+                                    ..BorderColor::all(SPINNER_TRACK_COLOR)
+                                },
+                                UiTransform::default(),
+                            ));
+                        });
                 });
         });
 }
@@ -116,38 +78,24 @@ mod tests {
 
     use super::spawn_room_preview;
 
-    fn preview_row(
-        name: &str,
-        occupants: usize,
-        occupancy: core_discovery::RoomOccupancy,
-    ) -> core_discovery::LobbyRow {
+    fn preview_row(name: &str, occupants: usize) -> core_discovery::LobbyRow {
         core_discovery::LobbyRow {
             name: core_discovery::RoomName::from(name),
             occupants,
             room_size: core_discovery::RoomSize::try_from(8).expect("8"),
-            occupancy,
+            occupancy: core_discovery::RoomOccupancy::HasSpace,
             friends: 0,
         }
     }
 
     fn preview_build(app: &mut App) {
-        app.insert_resource(core_discovery::LobbyRows(vec![preview_row(
-            "alpha",
-            2,
-            core_discovery::RoomOccupancy::HasSpace,
-        )]));
+        app.insert_resource(core_discovery::LobbyRows(vec![preview_row("alpha", 2)]));
+        app.insert_resource(ui::discovery::StreamedRoom::default());
         app.insert_resource(ui::discovery::SelectedRoom(Some(
             core_discovery::RoomName::from("alpha"),
         )));
         app.add_systems(Startup, spawn_room_preview);
-        app.add_systems(
-            Update,
-            (
-                ui::discovery::bevy_systems::refresh_room_preview,
-                ui::discovery::bevy_systems::rebuild_room_preview_members,
-                ui::discovery::bevy_systems::rebuild_room_preview_action,
-            ),
-        );
+        app.add_systems(Update, ui::discovery::bevy_systems::refresh_room_preview);
     }
 
     fn select_alpha(world: &mut World) {
@@ -167,18 +115,34 @@ mod tests {
         assert_eq!(*visibility, Visibility::Hidden);
         assert_eq!(node.width, Val::Px(ui::discovery::PREVIEW_WIDTH));
         assert_eq!(node.height, Val::Px(ui::discovery::PREVIEW_HEIGHT));
-        let mut viewports = app
+        assert_ne!(node.border_radius, BorderRadius::ZERO);
+        let mut placeholders = app
             .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomPreviewViewport>>();
-        assert_eq!(viewports.iter(app.world()).count(), 1);
-        let mut slots = app
+            .query_filtered::<(), With<ui::discovery::RoomPreviewPlaceholder>>();
+        assert_eq!(placeholders.iter(app.world()).count(), 1);
+        let mut rings = app
             .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomPreviewActionSlot>>();
-        assert_eq!(slots.iter(app.world()).count(), 1);
-        let mut lists = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomPreviewMemberList>>();
-        assert_eq!(lists.iter(app.world()).count(), 1);
+            .query_filtered::<(), With<ui::discovery::SpinnerRing>>();
+        assert_eq!(rings.iter(app.world()).count(), 1);
+    }
+
+    #[test]
+    fn the_preview_has_no_member_names() {
+        let mut app = App::new();
+        app.insert_resource(core_discovery::LobbyRows(vec![preview_row("alpha", 2)]));
+        app.insert_resource(ui::discovery::StreamedRoom::default());
+        app.insert_resource(ui::discovery::SelectedRoom(Some(
+            core_discovery::RoomName::from("alpha"),
+        )));
+        app.add_systems(Startup, spawn_room_preview);
+        app.add_systems(Update, ui::discovery::bevy_systems::refresh_room_preview);
+        app.update();
+        let mut texts = app.world_mut().query::<&Text>();
+        assert_eq!(
+            texts.iter(app.world()).count(),
+            0,
+            "the preview is image-only and never prints a member name"
+        );
     }
 
     #[test]
@@ -189,7 +153,7 @@ mod tests {
             kind: lele_bevy_preview::scene::Kind::Plugin,
             build: preview_build,
             states: vec![lele_bevy_preview::scene::State {
-                label: String::from("room selected"),
+                label: String::from("hovering alpha"),
                 apply: select_alpha,
             }],
             timeline: None,

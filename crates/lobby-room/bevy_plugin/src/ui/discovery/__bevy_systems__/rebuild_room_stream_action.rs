@@ -8,22 +8,22 @@ use bevy::ui_widgets::Button;
 use ui::discovery::{
     BUTTON_LABEL_COLOR, ENTER_BUTTON_COLOR, EnterRoomButton, HOVER_OUTLINE_WIDTH, HoverGlow,
     PREVIEW_BUTTON_FONT_SIZE, PREVIEW_BUTTON_PADDING_H, PREVIEW_BUTTON_PADDING_V,
-    ROOM_FULL_BUTTON_COLOR, ROOM_FULL_BUTTON_LABEL_COLOR, RoomFullBadge, RoomPreviewActionSlot,
-    SelectedRoom,
+    ROOM_FULL_BUTTON_COLOR, ROOM_FULL_BUTTON_LABEL_COLOR, RoomFullBadge, RoomStreamActionSlot,
+    StreamedRoom,
 };
 
-pub fn rebuild_room_preview_action(
-    selection: Res<SelectedRoom>,
+pub fn rebuild_room_stream_action(
+    streamed: Res<StreamedRoom>,
     rows: Option<Res<core_discovery::LobbyRows>>,
     mut commands: Commands,
-    action_slot: Option<Single<Entity, With<RoomPreviewActionSlot>>>,
-    mut shown: Local<Option<bool>>,
+    action_slot: Option<Single<Entity, With<RoomStreamActionSlot>>>,
+    mut shown: Local<Option<(core_discovery::RoomName, bool)>>,
 ) {
     let Some(action_slot) = action_slot else {
         return;
     };
-    let selection = selection.into_inner();
-    let Some(name) = (**selection).clone() else {
+    let streamed = streamed.into_inner();
+    let Some(name) = (**streamed).clone() else {
         return;
     };
     let rows = rows.map(Res::into_inner);
@@ -31,10 +31,11 @@ pub fn rebuild_room_preview_action(
         return;
     };
     let is_full = row.occupancy == core_discovery::RoomOccupancy::Full;
-    if *shown == Some(is_full) {
+    let wanted = (name.clone(), is_full);
+    if shown.as_ref() == Some(&wanted) {
         return;
     }
-    *shown = Some(is_full);
+    *shown = Some(wanted);
     commands
         .entity(action_slot.into_inner())
         .despawn_related::<Children>()
@@ -55,7 +56,7 @@ pub fn rebuild_room_preview_action(
                 ))
                 .with_children(|badge| {
                     badge.spawn((
-                        Text::new("Room is Full"),
+                        Text::new("Room full"),
                         TextFont {
                             font_size: FontSize::Px(PREVIEW_BUTTON_FONT_SIZE),
                             ..default()
@@ -83,7 +84,7 @@ pub fn rebuild_room_preview_action(
                 ))
                 .with_children(|button| {
                     button.spawn((
-                        Text::new("Enter"),
+                        Text::new("Join"),
                         TextFont {
                             font_size: FontSize::Px(PREVIEW_BUTTON_FONT_SIZE),
                             ..default()
@@ -100,8 +101,9 @@ mod tests {
     use crate::discovery as core_discovery;
     use crate::ui;
     use bevy::prelude::*;
+    use bevy::ui::Pressed;
 
-    use super::rebuild_room_preview_action;
+    use super::rebuild_room_stream_action;
 
     fn row(name: &str, occupancy: core_discovery::RoomOccupancy) -> core_discovery::LobbyRow {
         core_discovery::LobbyRow {
@@ -116,13 +118,13 @@ mod tests {
     fn app_with(room: &str, rows: Vec<core_discovery::LobbyRow>) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(ui::discovery::SelectedRoom(Some(
+        app.insert_resource(ui::discovery::StreamedRoom(Some(
             core_discovery::RoomName::from(room),
         )));
         app.insert_resource(core_discovery::LobbyRows(rows));
-        app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_preview);
+        app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_stream);
         app.update();
-        app.add_systems(Update, rebuild_room_preview_action);
+        app.add_systems(Update, rebuild_room_stream_action);
         app
     }
 
@@ -143,7 +145,7 @@ mod tests {
     }
 
     #[test]
-    fn a_full_room_shows_the_full_badge_and_no_enter_button() {
+    fn a_full_streamed_room_shows_the_full_badge_and_no_join_button() {
         let mut app = app_with(
             "gamma",
             vec![row("gamma", core_discovery::RoomOccupancy::Full)],
@@ -153,52 +155,98 @@ mod tests {
         assert_eq!(count::<ui::discovery::EnterRoomButton>(&mut app), 0);
     }
 
+    #[test]
+    fn the_join_button_joins_the_streamed_room() {
+        let mut app = app_with(
+            "alpha",
+            vec![row("alpha", core_discovery::RoomOccupancy::HasSpace)],
+        );
+        app.add_message::<core_discovery::Command>();
+        app.add_systems(
+            Update,
+            ui::discovery::bevy_systems::handle_join.after(rebuild_room_stream_action),
+        );
+        app.update();
+        let mut buttons = app
+            .world_mut()
+            .query_filtered::<Entity, With<ui::discovery::EnterRoomButton>>();
+        let button = buttons.single(app.world()).expect("join button");
+        app.world_mut().entity_mut(button).insert(Pressed);
+        app.update();
+        let messages = app.world().resource::<Messages<core_discovery::Command>>();
+        let mut cursor = messages.get_cursor();
+        assert_eq!(
+            cursor.read(messages).cloned().collect::<Vec<_>>(),
+            vec![core_discovery::Command::Join(
+                core_discovery::RoomName::from("alpha")
+            )]
+        );
+    }
+}
+
+#[cfg(test)]
+mod png_tests {
+    use super::rebuild_room_stream_action;
+    use crate::discovery as core_discovery;
+    use crate::ui;
+    use bevy::prelude::*;
+
+    fn row(name: &str, occupancy: core_discovery::RoomOccupancy) -> core_discovery::LobbyRow {
+        core_discovery::LobbyRow {
+            name: core_discovery::RoomName::from(name),
+            occupants: 0,
+            room_size: core_discovery::RoomSize::try_from(4).expect("4"),
+            occupancy,
+            friends: 0,
+        }
+    }
+
     fn preview_build(app: &mut App) {
+        app.insert_resource(ui::discovery::StreamDisplay::default());
+        app.insert_resource(ui::discovery::StreamedRoom(Some(
+            core_discovery::RoomName::from("alpha"),
+        )));
         app.insert_resource(core_discovery::LobbyRows(vec![
             row("alpha", core_discovery::RoomOccupancy::HasSpace),
             row("gamma", core_discovery::RoomOccupancy::Full),
         ]));
-        app.insert_resource(ui::discovery::SelectedRoom(Some(
-            core_discovery::RoomName::from("alpha"),
-        )));
-        app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_preview);
+        app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_stream);
         app.add_systems(
             Update,
             (
-                ui::discovery::bevy_systems::refresh_room_preview,
-                ui::discovery::bevy_systems::rebuild_room_preview_action,
-            ),
+                ui::discovery::bevy_systems::refresh_room_stream,
+                ui::discovery::bevy_systems::layout_stream_panel,
+                rebuild_room_stream_action,
+            )
+                .chain(),
         );
     }
 
-    fn select_room(world: &mut World, room: &str) {
-        **world.resource_mut::<ui::discovery::SelectedRoom>() =
-            Some(core_discovery::RoomName::from(room));
+    fn stream_alpha(world: &mut World) {
+        **world.resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
     }
 
-    fn select_alpha(world: &mut World) {
-        select_room(world, "alpha");
-    }
-
-    fn select_gamma(world: &mut World) {
-        select_room(world, "gamma");
+    fn stream_gamma(world: &mut World) {
+        **world.resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from("gamma"));
     }
 
     #[test]
-    fn rebuild_room_preview_action_ui_png_preview() {
+    fn rebuild_room_stream_action_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
-            name: String::from("rebuild_room_preview_action"),
+            name: String::from("rebuild_room_stream_action"),
             kind: lele_bevy_preview::scene::Kind::Plugin,
             build: preview_build,
             states: vec![
                 lele_bevy_preview::scene::State {
-                    label: String::from("enter button"),
-                    apply: select_alpha,
+                    label: String::from("join button"),
+                    apply: stream_alpha,
                 },
                 lele_bevy_preview::scene::State {
-                    label: String::from("room is full"),
-                    apply: select_gamma,
+                    label: String::from("room full"),
+                    apply: stream_gamma,
                 },
             ],
             timeline: None,

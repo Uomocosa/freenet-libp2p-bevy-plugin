@@ -39,22 +39,40 @@ pub struct RoomFullBadge;
 pub struct RoomPreviewPanel;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
-pub struct RoomPreviewTitle;
-
-#[derive(Component, Debug, Default, Clone, Copy)]
-pub struct RoomPreviewOccupancyBubble;
-
-#[derive(Component, Debug, Default, Clone, Copy)]
-pub struct RoomPreviewOccupancyText;
-
-#[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomPreviewViewport;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
-pub struct RoomPreviewMemberList;
+pub struct RoomPreviewPlaceholder;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
-pub struct RoomPreviewActionSlot;
+pub struct RoomStreamPanel;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamViewport;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamImage;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamPlaceholder;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamName;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamOccupancyBubble;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamOccupancyText;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamActionSlot;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamFullscreenButton;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomStreamCloseButton;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct LeaveDoorRoot;
