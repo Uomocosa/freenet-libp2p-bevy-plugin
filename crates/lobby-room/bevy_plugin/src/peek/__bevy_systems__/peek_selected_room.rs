@@ -49,10 +49,10 @@ pub fn peek_selected_room(
     let history_prefix = p2p::HistoryKeyPrefix::new(game, room, room_record.created_at);
     *started_room = Some(room.clone());
     if let Some(mut network) = network
-        && let Some(member) = room_record
-            .members
-            .values()
-            .find(|member| !member.peer.addrs.is_empty())
+        && let Some(member) = peek::bevy_systems::rendezvous_preview_dial::rendezvous_preview_dial(
+            Some(&state.me.id),
+            room_record.members.values(),
+        )
     {
         network.write(p2p::Libp2pCommand::Dial(member.peer.clone()));
     }

@@ -1,4 +1,5 @@
 pub mod peek_selected_room;
+pub mod rendezvous_preview_dial;
 pub mod sync_preview_target;
 
 pub use peek_selected_room::peek_selected_room;
