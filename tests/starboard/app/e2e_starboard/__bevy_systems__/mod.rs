@@ -7,5 +7,8 @@ pub use starboard_board_to_window::starboard_board_to_window;
 mod starboard_cell_painted;
 pub use starboard_cell_painted::starboard_cell_painted;
 
+mod starboard_preview_status;
+pub use starboard_preview_status::starboard_preview_status;
+
 mod starboard_status;
 pub use starboard_status::starboard_status;

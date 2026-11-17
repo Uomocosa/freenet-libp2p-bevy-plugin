@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::remote::{BrpError, BrpResult};
+use freenet_libp2p_bevy_plugin::lobby_room::spectator;
 use serde_json::Value;
 
 use crate::e2e_starboard::{CanvasHashWatch, CanvasStatus};
@@ -9,6 +10,7 @@ pub fn starboard_status(
     canvas: Res<starboard::starboard::canvas::Canvas>,
     watch: Res<CanvasHashWatch>,
     time: Res<Time>,
+    count: Option<Res<spectator::SpectatorCount>>,
 ) -> BrpResult {
     let canvas = canvas.into_inner();
     let watch = watch.into_inner();
@@ -18,6 +20,7 @@ pub fn starboard_status(
         painted_tiles: canvas.tiles.iter().filter(|tile| tile.is_some()).count(),
         stable_for_ms: u64::try_from(time.elapsed().saturating_sub(watch.changed_at).as_millis())
             .unwrap_or(u64::MAX),
+        spectators: count.map_or(0, |count| **count),
     };
     serde_json::to_value(status).map_err(BrpError::internal)
 }
@@ -52,5 +55,6 @@ mod tests {
         assert_eq!(status.hash, 9);
         assert_eq!(status.painted_tiles, 0);
         assert_eq!(status.stable_for_ms, 500);
+        assert_eq!(status.spectators, 0);
     }
 }

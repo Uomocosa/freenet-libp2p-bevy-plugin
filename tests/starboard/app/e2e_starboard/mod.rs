@@ -7,5 +7,8 @@ pub use canvas_hash_watch::CanvasHashWatch;
 mod canvas_status;
 pub use canvas_status::CanvasStatus;
 
+mod preview_status;
+pub use preview_status::PreviewStatus;
+
 mod starboard_e2e_methods;
 pub use starboard_e2e_methods::StarboardE2EMethods;

@@ -14,5 +14,6 @@ mod leave_rejoin;
 mod one_peer_paints;
 mod peer_killed;
 mod room_auto_deletion;
+mod room_preview;
 mod simultaneous_paint;
 mod starboard_e2e;

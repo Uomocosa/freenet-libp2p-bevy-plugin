@@ -1,10 +1,11 @@
 use std::path::Path;
 use std::time::Duration;
 
-use crate::e2e_starboard::CanvasStatus;
+use crate::e2e_starboard::{CanvasStatus, PreviewStatus};
 use bevy::input::mouse::MouseButton;
 use bevy::math::Vec2;
-use freenet_libp2p_bevy_plugin::testing::{PointerPath, PointerSpeed};
+use freenet_libp2p_bevy_plugin::lobby_room::testing::{LobbyTarget, LocatedNode};
+use freenet_libp2p_bevy_plugin::testing::{CursorTarget, PointerPath, PointerSpeed};
 use serde_json::{Value, json};
 
 use super::{BrpNetwork, LobbyPeer, Peer, Stroke, poll_until};
@@ -218,6 +219,139 @@ impl StarboardPeer {
 
     fn name(&self) -> &str {
         self.lobby.name()
+    }
+
+    /// Moves the pointer onto the lobby's room button and leaves it there, so the 300 ms hover
+    /// preview selects `room` without joining it.
+    ///
+    /// # Errors
+    /// Returns an error if the room is not listed or the pointer move is not delivered.
+    pub async fn hover_room(&self, room: &str) -> Result<(), String> {
+        let target = LobbyTarget::Room(room.to_string());
+        let node = poll_until(
+            &format!("{}: room {room} on screen", self.name()),
+            self.lobby.deadlines().action(),
+            async || {
+                self.lobby
+                    .peer()
+                    .call::<Option<LocatedNode>>("lobby/locate", json!(target.clone()))
+                    .await
+            },
+            Option::is_some,
+        )
+        .await?
+        .ok_or_else(|| format!("{}: room {room} not on screen", self.name()))?;
+        self.move_pointer(node.centre).await
+    }
+
+    /// Moves the pointer to the window's top-left corner, away from every room button.
+    ///
+    /// # Errors
+    /// Returns an error if the pointer move is not delivered.
+    pub async fn unhover(&self) -> Result<(), String> {
+        self.move_pointer(Vec2::new(2.0, 2.0)).await
+    }
+
+    async fn move_pointer(&self, point: Vec2) -> Result<(), String> {
+        let peer = self.lobby.peer();
+        let cursor = CursorTarget {
+            x: point.x,
+            y: point.y,
+            speed: PointerSpeed(HAND_SPEED),
+        };
+        peer.call::<Value>(
+            "e2e/move_cursor",
+            serde_json::to_value(cursor).map_err(|error| error.to_string())?,
+        )
+        .await?;
+        poll_until(
+            &format!("{}: pointer delivered", self.name()),
+            self.lobby.deadlines().action(),
+            async || peer.call::<bool>("e2e/input_idle", Value::Null).await,
+            |idle| *idle,
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// # Errors
+    /// Returns an error if the room preview never shows `room` with its image.
+    pub async fn wait_until_preview_shows_room(
+        &self,
+        room: &str,
+        deadline: Duration,
+    ) -> Result<PreviewStatus, String> {
+        let wanted = room.to_string();
+        let outcome = poll_until(
+            &format!("{}: preview shows {room}", self.name()),
+            deadline,
+            async || self.preview_status().await,
+            |status| status.is_showing_room(&wanted),
+        )
+        .await;
+        outcome.map_err(|error| self.lobby.peer().explain(&error))
+    }
+
+    /// # Errors
+    /// Returns an error if the preview is still selected or showing an image at `deadline`.
+    pub async fn wait_until_preview_cleared(
+        &self,
+        deadline: Duration,
+    ) -> Result<PreviewStatus, String> {
+        let outcome = poll_until(
+            &format!("{}: preview cleared", self.name()),
+            deadline,
+            async || self.preview_status().await,
+            |status| status.selected_room.is_none() && !status.has_preview_image,
+        )
+        .await;
+        outcome.map_err(|error| self.lobby.peer().explain(&error))
+    }
+
+    /// # Errors
+    /// Returns an error if the request fails.
+    pub async fn preview_status(&self) -> Result<PreviewStatus, String> {
+        self.lobby
+            .peer()
+            .call("starboard/preview_status", Value::Null)
+            .await
+    }
+
+    /// Polls until the in-room spectator count reaches `at_least`.
+    ///
+    /// # Errors
+    /// Returns an error if the count never reaches `at_least` before `deadline`.
+    pub async fn wait_until_spectators(
+        &self,
+        at_least: usize,
+        deadline: Duration,
+    ) -> Result<CanvasStatus, String> {
+        let outcome = poll_until(
+            &format!("{}: {at_least} spectators", self.name()),
+            deadline,
+            async || self.canvas_status().await,
+            |status| status.spectators >= at_least,
+        )
+        .await;
+        outcome.map_err(|error| self.lobby.peer().explain(&error))
+    }
+
+    /// Polls until the in-room spectator count returns to zero.
+    ///
+    /// # Errors
+    /// Returns an error if the count never returns to zero before `deadline`.
+    pub async fn wait_until_spectators_leave(
+        &self,
+        deadline: Duration,
+    ) -> Result<CanvasStatus, String> {
+        let outcome = poll_until(
+            &format!("{}: spectators left", self.name()),
+            deadline,
+            async || self.canvas_status().await,
+            |status| status.spectators == 0,
+        )
+        .await;
+        outcome.map_err(|error| self.lobby.peer().explain(&error))
     }
 
     /// # Errors
