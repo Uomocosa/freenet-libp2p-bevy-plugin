@@ -64,7 +64,7 @@ mod tests {
         let mut app = App::new();
         app.add_systems(Startup, |mut commands: Commands| {
             commands
-                .spawn_empty()
+                .spawn(Node::default())
                 .with_children(|icon| spawn_fullscreen_corners(&mut icon.reborrow()));
         });
         app.update();
