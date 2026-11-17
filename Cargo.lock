@@ -2761,7 +2761,7 @@ dependencies = [
 
 [[package]]
 name = "common_types"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "atomic-delegate-macros",
  "bevy_ecs",
@@ -4284,7 +4284,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-core"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4314,7 +4314,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-lobby-room"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "atomic-delegate-macros",
  "bevy",
@@ -4340,7 +4340,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-plugin"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "freenet-libp2p-bevy-core",
  "freenet-libp2p-bevy-lobby-room",
@@ -5697,7 +5697,7 @@ dependencies = [
 
 [[package]]
 name = "input_fidelity_e2e"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "bevy",
  "clap",
@@ -6728,7 +6728,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "lobby_contract"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "atomic-delegate-macros",
  "bincode",
@@ -6743,7 +6743,7 @@ dependencies = [
 
 [[package]]
 name = "lobby_room"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "bevy",
  "clap",
@@ -6759,7 +6759,7 @@ dependencies = [
 
 [[package]]
 name = "lobby_room_e2e"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "async-trait",
  "bevy",
@@ -6781,7 +6781,7 @@ dependencies = [
 
 [[package]]
 name = "lobby_room_shared_types"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "atomic-delegate-macros",
  "bevy_reflect",
@@ -9878,7 +9878,7 @@ dependencies = [
 
 [[package]]
 name = "starboard"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "bevy",
  "bincode",
@@ -9898,7 +9898,7 @@ dependencies = [
 
 [[package]]
 name = "starboard_e2e"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "bevy",
  "clap",

@@ -33,7 +33,7 @@ blake3.workspace = true
 clap = { version = "=4.6.7", features = ["derive"] }
 derive_more = { workspace = true, features = ["deref", "deref_mut", "from"] }
 freenet-libp2p-bevy-plugin = { path = "../../crates/freenet-libp2p-bevy-plugin" }
-lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.17" }
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.18" }
 libp2p = { version = "=0.57.1", features = ["tokio", "quic", "tcp", "noise", "yamux", "dns", "identify", "ping", "relay", "dcutr", "request-response", "kad", "gossipsub", "mdns", "macros"] }
 serde.workspace = true
 tokio = { version = "=1.54.1", features = ["rt", "sync", "macros", "rt-multi-thread", "time", "io-util"] }
