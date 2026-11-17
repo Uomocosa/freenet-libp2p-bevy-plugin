@@ -39,10 +39,7 @@ impl<S: replica_sync::traits::ReplicatedState> bevy::prelude::Plugin for Spectat
         app.insert_resource(spectator::SpectatorGame(self.game.clone()));
         app.insert_resource(spectator::SpectatorEvents(Mutex::new(libp2p_events)));
         app.insert_resource(spectator::SpectatorMachine(
-            spectator::state_machine::SpectatorState::<S::Op, Vec<u8>>::new(
-                self.game.clone(),
-                identity::PeerId::from(""),
-            ),
+            spectator::state_machine::SpectatorState::<S::Op, Vec<u8>>::new(self.game.clone()),
         ));
         app.insert_resource(spectator::SpectatorInputs::<S::Op, Vec<u8>>(Vec::new()));
         app.init_resource::<spectator::HistoryBootstrap<Vec<u8>>>();
@@ -50,6 +47,7 @@ impl<S: replica_sync::traits::ReplicatedState> bevy::prelude::Plugin for Spectat
         app.add_systems(
             Update,
             (
+                spectator::bevy_systems::sync_local_peer::<S>,
                 spectator::bevy_systems::route_spectate_commands::<S>,
                 spectator::bevy_systems::route_topic_messages::<S>,
                 spectator::bevy_systems::count_spectators::<S>,

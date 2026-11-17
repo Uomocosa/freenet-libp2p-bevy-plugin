@@ -27,7 +27,6 @@ mod tests {
     fn test_usage() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
-            identity::PeerId::from("me"),
         );
         assert!(!has_seen_meta(&state, meta(1)));
         state.applied_metas.push(meta(1));
@@ -38,7 +37,6 @@ mod tests {
     fn a_buffered_op_counts_as_seen() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
-            identity::PeerId::from("me"),
         );
         state.buffered_ops.push((meta(3), 4_u8));
         assert!(has_seen_meta(&state, meta(3)));

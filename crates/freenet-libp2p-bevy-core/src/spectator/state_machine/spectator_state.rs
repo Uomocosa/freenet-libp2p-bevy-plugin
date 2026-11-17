@@ -12,7 +12,7 @@ use crate::time;
 
 pub struct SpectatorState<Op, Snap> {
     pub game: identity::GameId,
-    pub me: identity::PeerId,
+    pub me: Option<identity::PeerId>,
     pub zone: Option<identity::ZoneName>,
     pub my_zone: Option<identity::ZoneName>,
     pub phase: spectator::state_machine::SpectatePhase,
@@ -29,10 +29,10 @@ pub struct SpectatorState<Op, Snap> {
 
 impl<Op, Snap> SpectatorState<Op, Snap> {
     #[must_use]
-    pub const fn new(game: identity::GameId, me: identity::PeerId) -> Self {
+    pub const fn new(game: identity::GameId) -> Self {
         Self {
             game,
-            me,
+            me: None,
             zone: None,
             my_zone: None,
             phase: spectator::state_machine::SpectatePhase::Idle,
@@ -74,6 +74,9 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
             }
             spectator::state_machine::SpectateInput::Players(players) => {
                 self.handle_players(players)
+            }
+            spectator::state_machine::SpectateInput::LocalPeer(peer) => {
+                self.handle_local_peer(peer, now)
             }
             spectator::state_machine::SpectateInput::MyZone(zone) => self.handle_my_zone(zone),
             spectator::state_machine::SpectateInput::Lease {
@@ -169,6 +172,12 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
         now: time::UnixTime,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     }
+    pub(crate) fn handle_local_peer(
+        &mut self,
+        peer: Option<identity::PeerId>,
+        now: time::UnixTime,
+    ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
+    }
     pub(crate) fn handle_my_zone(
         &mut self,
         zone: Option<identity::ZoneName>,
@@ -231,7 +240,6 @@ mod tests {
     fn test_usage() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
-            identity::PeerId::from("me"),
         );
         let outputs = state.update(
             spectator::state_machine::SpectateInput::Tick,
@@ -242,10 +250,9 @@ mod tests {
     }
 
     fn spectating_state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        let mut state = spectator::state_machine::SpectatorState::new(
-            identity::GameId::from("game"),
-            identity::PeerId::from("me"),
-        );
+        let mut state =
+            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
+        state.me = Some(identity::PeerId::from("me"));
         state.update(
             spectator::state_machine::SpectateInput::Command(
                 spectator::state_machine::SpectateCommand::Start {

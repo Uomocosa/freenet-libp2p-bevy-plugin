@@ -8,11 +8,14 @@ pub fn publish_lease<Op, Snap>(
     let Some(zone) = state.zone.clone() else {
         return Vec::new();
     };
+    let Some(me) = state.me.clone() else {
+        return Vec::new();
+    };
     let until = state.lease_until(now);
     state.next_lease_at = state.next_lease_after(now);
     vec![spectator::state_machine::SpectateOutput::PublishLease {
         zone,
-        spectator: state.me.clone(),
+        spectator: me,
         until,
     }]
 }
@@ -25,10 +28,9 @@ mod tests {
     use crate::time;
 
     fn state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        let mut state = spectator::state_machine::SpectatorState::new(
-            identity::GameId::from("game"),
-            identity::PeerId::from("me"),
-        );
+        let mut state =
+            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
+        state.me = Some(identity::PeerId::from("me"));
         state.zone = Some(identity::ZoneName::from("zone"));
         state
     }
@@ -63,11 +65,24 @@ mod tests {
     fn an_idle_state_publishes_no_lease() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
-            identity::PeerId::from("me"),
         );
+        state.me = Some(identity::PeerId::from("me"));
         assert_eq!(
             publish_lease(&mut state, time::UnixTime::from_secs(1)),
             Vec::new()
         );
+    }
+
+    #[test]
+    fn no_lease_is_published_before_the_local_id_is_known() {
+        let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
+            identity::GameId::from("game"),
+        );
+        state.zone = Some(identity::ZoneName::from("zone"));
+        assert_eq!(
+            publish_lease(&mut state, time::UnixTime::from_secs(1)),
+            Vec::new()
+        );
+        assert_eq!(state.next_lease_at, time::UnixTime::EPOCH);
     }
 }

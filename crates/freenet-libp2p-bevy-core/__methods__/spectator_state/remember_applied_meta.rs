@@ -26,7 +26,6 @@ mod tests {
     fn test_usage() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
-            identity::PeerId::from("me"),
         );
         remember_applied_meta(&mut state, meta(1));
         assert_eq!(state.applied_metas, vec![meta(1)]);
@@ -36,7 +35,6 @@ mod tests {
     fn the_oldest_meta_is_forgotten_beyond_the_window() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
-            identity::PeerId::from("me"),
         );
         let cap = u32::try_from(spectator::state_machine::MAX_APPLIED_METAS).expect("cap");
         for lamport in 0..=cap {

@@ -28,6 +28,7 @@ pub enum SpectateInput<Op, Snap> {
         snapshot: Snap,
     },
     Players(Vec<identity::PeerId>),
+    LocalPeer(Option<identity::PeerId>),
     MyZone(Option<identity::ZoneName>),
     Lease {
         zone: identity::ZoneName,

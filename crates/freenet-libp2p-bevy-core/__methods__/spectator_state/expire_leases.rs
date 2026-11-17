@@ -22,10 +22,7 @@ mod tests {
     use crate::time;
 
     fn state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        spectator::state_machine::SpectatorState::new(
-            identity::GameId::from("game"),
-            identity::PeerId::from("me"),
-        )
+        spectator::state_machine::SpectatorState::new(identity::GameId::from("game"))
     }
 
     #[test]

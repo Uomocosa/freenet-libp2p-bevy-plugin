@@ -8,20 +8,25 @@ use crate::spectator;
 pub fn route_topic_messages<S: replica_sync::traits::ReplicatedState>(
     game: Res<spectator::SpectatorGame>,
     events: Res<spectator::SpectatorEvents>,
-    mut machine: ResMut<spectator::SpectatorMachine<S::Op, Vec<u8>>>,
+    machine: Res<spectator::SpectatorMachine<S::Op, Vec<u8>>>,
     mut bootstrap: ResMut<spectator::HistoryBootstrap<Vec<u8>>>,
     mut inputs: ResMut<spectator::SpectatorInputs<S::Op, Vec<u8>>>,
     spectated: Option<Res<spectator::Spectated<S>>>,
     mut network: MessageWriter<p2p::Libp2pCommand>,
 ) {
     let game = game.into_inner();
+    let machine = machine.into_inner();
     let Ok(mut receiver) = events.into_inner().lock() else {
         return;
     };
     let spectated = spectated.map(Res::into_inner);
     while let Ok(event) = receiver.try_recv() {
         match event {
-            p2p::Libp2pEvent::Ready(peer) => machine.me = peer.id,
+            p2p::Libp2pEvent::Ready(peer) => {
+                inputs.push(spectator::state_machine::SpectateInput::LocalPeer(Some(
+                    peer.id,
+                )));
+            }
             p2p::Libp2pEvent::Gossip { topic, from, data } => {
                 let Ok(message) =
                     bincode::deserialize::<replica_sync::ReplicaSyncTopicMessage<S::Op>>(&data)

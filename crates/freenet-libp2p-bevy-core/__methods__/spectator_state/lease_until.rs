@@ -23,7 +23,6 @@ mod tests {
     fn test_usage() {
         let state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
-            identity::PeerId::from("me"),
         );
         assert_eq!(
             lease_until(&state, time::UnixTime::from_secs(10)),

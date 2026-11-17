@@ -169,7 +169,11 @@ fn prepare() -> Option<(App, App, identity::ZoneName, p2p::HistoryKeyPrefix)> {
     let mut player = node(&game, history);
     let mut spectator = node(&game, None);
     let player_peer = dialable(&wait_ready(&mut player)?);
-    let spectator_peer = dialable(&wait_ready(&mut spectator)?);
+    let spectator_raw = wait_ready(&mut spectator)?;
+    let spectator_peer = dialable(&spectator_raw);
+    spectator
+        .world_mut()
+        .spawn((peers::Peer::from(spectator_raw.id), peers::Me));
     if !connect_and_seed_kad(&mut spectator, &player_peer) {
         return None;
     }
@@ -259,6 +263,24 @@ fn wait_for_count(player: &mut App, spectator: &mut App, expected: usize) -> boo
     false
 }
 
+fn wait_for_two_counts(
+    player: &mut App,
+    first: &mut App,
+    second: &mut App,
+    expected: usize,
+) -> bool {
+    for _ in 0..MAX_ROUNDS {
+        player.update();
+        first.update();
+        second.update();
+        if **player.world().resource::<spectator::SpectatorCount>() == expected {
+            return true;
+        }
+        std::thread::sleep(SETTLE);
+    }
+    false
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_spectator_sees_live_ops_and_the_count_round_trips() {
     let prepared = prepare();
@@ -305,5 +327,53 @@ async fn a_spectator_sees_live_ops_and_the_count_round_trips() {
             .get_resource::<spectator::Spectated<Map>>()
             .is_none(),
         "Stop must remove Spectated"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn two_spectators_on_one_zone_are_counted_separately() {
+    let prepared = prepare();
+    assert!(prepared.is_some(), "the two peers never prepared");
+    let Some((mut player, mut first, zone, prefix)) = prepared else {
+        return;
+    };
+    let game = identity::GameId::from("game-spectator");
+    let mut second = node(&game, None);
+    let second_raw = wait_ready(&mut second).expect("the second spectator never became ready");
+    let second_peer = dialable(&second_raw);
+    let player_peer = ready(&player).expect("the player never became ready");
+    assert!(
+        connect_and_seed_kad(&mut second, &dialable(&player_peer)),
+        "the second spectator never connected"
+    );
+    let _ = player
+        .world()
+        .resource::<p2p::Libp2pCommandSender>()
+        .send(p2p::Libp2pCommand::AddKadPeer(second_peer));
+    second
+        .world_mut()
+        .spawn((peers::Peer::from(second_raw.id), peers::Me));
+    first
+        .world_mut()
+        .write_message(spectator::SpectateCommand::Start {
+            zone: zone.clone(),
+            history_prefix: prefix.clone(),
+        });
+    second
+        .world_mut()
+        .write_message(spectator::SpectateCommand::Start {
+            zone,
+            history_prefix: prefix,
+        });
+    assert!(
+        wait_for_two_counts(&mut player, &mut first, &mut second, 2),
+        "the player never counted both spectators"
+    );
+    first
+        .world_mut()
+        .write_message(spectator::SpectateCommand::Stop);
+    assert!(
+        wait_for_two_counts(&mut player, &mut first, &mut second, 1),
+        "the player never dropped the stopped spectator"
     );
 }

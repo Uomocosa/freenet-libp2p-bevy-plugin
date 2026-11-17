@@ -36,10 +36,8 @@ mod tests {
     }
 
     fn state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        let mut state = spectator::state_machine::SpectatorState::new(
-            identity::GameId::from("game"),
-            identity::PeerId::from("me"),
-        );
+        let mut state =
+            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
         state.zone = Some(identity::ZoneName::from("zone"));
         state
     }

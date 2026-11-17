@@ -9,25 +9,25 @@ pub fn stop_spectating<Op, Snap>(
     let Some(zone) = state.zone.take() else {
         return Vec::new();
     };
-    let lease = spectator::state_machine::SpectateOutput::PublishLease {
-        zone: zone.clone(),
-        spectator: state.me.clone(),
-        until: now,
-    };
+    let mut outputs = Vec::new();
+    if let Some(me) = state.me.clone() {
+        outputs.push(spectator::state_machine::SpectateOutput::PublishLease {
+            zone: zone.clone(),
+            spectator: me,
+            until: now,
+        });
+    }
     state.phase = spectator::state_machine::SpectatePhase::Idle;
     state.buffered_ops.clear();
     state.applied_metas.clear();
     state.last_slice_request_at.clear();
     state.pending_slice_requests.clear();
     state.next_lease_at = time::UnixTime::EPOCH;
-    vec![
-        lease,
-        spectator::state_machine::SpectateOutput::Unsubscribe(identity::Topic::from_replica_sync(
-            &state.game,
-            &zone,
-        )),
-        spectator::state_machine::SpectateOutput::Clear,
-    ]
+    outputs.push(spectator::state_machine::SpectateOutput::Unsubscribe(
+        identity::Topic::from_replica_sync(&state.game, &zone),
+    ));
+    outputs.push(spectator::state_machine::SpectateOutput::Clear);
+    outputs
 }
 
 #[cfg(test)]
@@ -39,10 +39,9 @@ mod tests {
     use crate::time;
 
     fn spectating_state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        let mut state = spectator::state_machine::SpectatorState::new(
-            identity::GameId::from("game"),
-            identity::PeerId::from("me"),
-        );
+        let mut state =
+            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
+        state.me = Some(identity::PeerId::from("me"));
         state.zone = Some(identity::ZoneName::from("zone"));
         state.phase = spectator::state_machine::SpectatePhase::Live;
         state.buffered_ops.push((
@@ -86,11 +85,33 @@ mod tests {
     fn stopping_while_idle_does_nothing() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
-            identity::PeerId::from("me"),
         );
         assert_eq!(
             stop_spectating(&mut state, time::UnixTime::from_secs(1)),
             Vec::new()
         );
+    }
+
+    #[test]
+    fn stopping_without_a_known_id_skips_the_lease_but_still_clears() {
+        let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
+            identity::GameId::from("game"),
+        );
+        state.zone = Some(identity::ZoneName::from("zone"));
+        state.phase = spectator::state_machine::SpectatePhase::Live;
+        let outputs = stop_spectating(&mut state, time::UnixTime::from_secs(50));
+        assert_eq!(
+            outputs,
+            vec![
+                spectator::state_machine::SpectateOutput::Unsubscribe(
+                    identity::Topic::from_replica_sync(
+                        &identity::GameId::from("game"),
+                        &identity::ZoneName::from("zone"),
+                    )
+                ),
+                spectator::state_machine::SpectateOutput::Clear,
+            ]
+        );
+        assert_eq!(state.zone, None);
     }
 }

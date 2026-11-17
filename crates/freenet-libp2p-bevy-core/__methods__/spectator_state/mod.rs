@@ -1,6 +1,7 @@
 mod expire_leases;
 mod expire_slice_requests;
 mod handle_lease;
+mod handle_local_peer;
 mod handle_my_zone;
 mod handle_remote_op;
 mod handle_remote_slice_content_hashes;
@@ -15,6 +16,7 @@ mod stop_spectating;
 pub use expire_leases::expire_leases;
 pub use expire_slice_requests::expire_slice_requests;
 pub use handle_lease::handle_lease;
+pub use handle_local_peer::handle_local_peer;
 pub use handle_my_zone::handle_my_zone;
 pub use handle_remote_op::handle_remote_op;
 pub use handle_remote_slice_content_hashes::handle_remote_slice_content_hashes;

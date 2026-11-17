@@ -24,7 +24,6 @@ mod tests {
     fn test_usage() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
-            identity::PeerId::from("me"),
         );
         assert_eq!(handle_tick(&mut state, time::UnixTime::EPOCH), Vec::new());
     }

@@ -39,10 +39,10 @@ mod tests {
     use crate::time;
 
     fn state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        spectator::state_machine::SpectatorState::new(
-            identity::GameId::from("game"),
-            identity::PeerId::from("me"),
-        )
+        let mut state =
+            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
+        state.me = Some(identity::PeerId::from("me"));
+        state
     }
 
     fn prefix() -> p2p::HistoryKeyPrefix {
@@ -70,6 +70,25 @@ mod tests {
             spectator::state_machine::SpectatePhase::FetchingSnapshot
         );
         assert_eq!(state.zone, Some(zone));
+    }
+
+    #[test]
+    fn starting_without_a_known_id_subscribes_but_publishes_no_lease() {
+        let mut state: spectator::state_machine::SpectatorState<u8, Vec<u8>> =
+            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
+        let zone = identity::ZoneName::from("zone");
+        let outputs = start_spectating(&mut state, &zone, prefix(), time::UnixTime::from_secs(100));
+        assert!(matches!(
+            outputs.as_slice(),
+            [
+                spectator::state_machine::SpectateOutput::Subscribe(_),
+                spectator::state_machine::SpectateOutput::GetHistoryRecord(_),
+            ]
+        ));
+        assert_eq!(
+            state.phase,
+            spectator::state_machine::SpectatePhase::FetchingSnapshot
+        );
     }
 
     #[test]

@@ -9,3 +9,6 @@ pub use route_spectate_commands::route_spectate_commands;
 
 mod route_topic_messages;
 pub use route_topic_messages::route_topic_messages;
+
+mod sync_local_peer;
+pub use sync_local_peer::sync_local_peer;
