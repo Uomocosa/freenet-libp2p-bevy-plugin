@@ -252,6 +252,26 @@ impl StarboardPeer {
         self.move_pointer(Vec2::new(2.0, 2.0)).await
     }
 
+    /// Moves the in-room pointer onto `cell` and leaves it there, so the peer publishes its
+    /// cursor without painting.
+    ///
+    /// # Errors
+    /// Returns an error if the cell cannot be mapped or the pointer move is not delivered.
+    pub async fn move_cursor_to_cell(&self, cell: (f32, f32)) -> Result<(), String> {
+        let points: Vec<Vec2> = self
+            .lobby
+            .peer()
+            .call("starboard/board_to_window", json!([cell]))
+            .await?;
+        let Some(point) = points.first().copied() else {
+            return Err(format!(
+                "{}: no window point for cell {cell:?}",
+                self.name()
+            ));
+        };
+        self.move_pointer(point).await
+    }
+
     async fn move_pointer(&self, point: Vec2) -> Result<(), String> {
         let peer = self.lobby.peer();
         let cursor = CursorTarget {

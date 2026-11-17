@@ -5,6 +5,7 @@ pub struct PreviewStatus {
     pub selected_room: Option<String>,
     pub freshness: Option<String>,
     pub painted_tiles: usize,
+    pub remote_cursors: usize,
     pub has_preview_image: bool,
 }
 
@@ -27,6 +28,7 @@ mod tests {
             selected_room: Some(String::from("alpha")),
             freshness: Some(String::from("Live")),
             painted_tiles: 3,
+            remote_cursors: 1,
             has_preview_image: true,
         }
     }

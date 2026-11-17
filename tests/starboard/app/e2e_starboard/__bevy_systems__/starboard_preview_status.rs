@@ -9,6 +9,7 @@ pub fn starboard_preview_status(
     In(_params): In<Option<Value>>,
     selection: Option<Res<ui::discovery::SelectedRoom>>,
     spectated: Option<Res<spectator::Spectated<starboard::starboard::canvas::Canvas>>>,
+    preview_cursors: Option<Res<starboard::starboard::preview::PreviewCursors>>,
     target: Option<Res<peek::RoomPreviewTarget>>,
     viewports: Query<&ImageNode, With<ui::discovery::RoomPreviewViewport>>,
 ) -> BrpResult {
@@ -29,6 +30,7 @@ pub fn starboard_preview_status(
                 .filter(|tile| tile.is_some())
                 .count()
         }),
+        remote_cursors: preview_cursors.map_or(0, |cursors| cursors.len()),
         has_preview_image,
     };
     serde_json::to_value(status).map_err(BrpError::internal)
@@ -69,6 +71,7 @@ mod tests {
                 selected_room: None,
                 freshness: None,
                 painted_tiles: 0,
+                remote_cursors: 0,
                 has_preview_image: false,
             })
         );

@@ -11,6 +11,7 @@ pub fn starboard_status(
     watch: Res<CanvasHashWatch>,
     time: Res<Time>,
     count: Option<Res<spectator::SpectatorCount>>,
+    cursor: Option<Res<starboard::starboard::input::CursorCell>>,
 ) -> BrpResult {
     let canvas = canvas.into_inner();
     let watch = watch.into_inner();
@@ -21,6 +22,7 @@ pub fn starboard_status(
         stable_for_ms: u64::try_from(time.elapsed().saturating_sub(watch.changed_at).as_millis())
             .unwrap_or(u64::MAX),
         spectators: count.map_or(0, |count| **count),
+        own_cursor: cursor.and_then(|cursor| **cursor),
     };
     serde_json::to_value(status).map_err(BrpError::internal)
 }
@@ -56,5 +58,6 @@ mod tests {
         assert_eq!(status.painted_tiles, 0);
         assert_eq!(status.stable_for_ms, 500);
         assert_eq!(status.spectators, 0);
+        assert_eq!(status.own_cursor, None);
     }
 }

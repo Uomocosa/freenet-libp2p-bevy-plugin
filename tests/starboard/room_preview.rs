@@ -13,6 +13,7 @@ const QUIET: Duration = Duration::from_secs(3);
 const HISTORY_BUDGET: Duration = Duration::from_secs(120);
 const PREVIEW_BUDGET: Duration = Duration::from_secs(60);
 const LEASE_BUDGET: Duration = Duration::from_secs(60);
+const CURSOR_BUDGET: Duration = Duration::from_secs(60);
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs an X display and the lavapipe ICD; run with --run-ignored all"]
@@ -48,6 +49,32 @@ async fn starboard_room_preview() -> Result<(), String> {
             "painter: {} spectators, not 1",
             observed.spectators
         ));
+    }
+
+    let started = std::time::Instant::now();
+    let mut nudge = 0_u32;
+    loop {
+        nudge = nudge.wrapping_add(1);
+        painter
+            .move_cursor_to_cell(if nudge.is_multiple_of(2) {
+                (500.0, 500.0)
+            } else {
+                (520.0, 520.0)
+            })
+            .await?;
+        let status = watcher.preview_status().await?;
+        if status.remote_cursors >= 1 {
+            break;
+        }
+        if started.elapsed() > net.deadlines.scaled(CURSOR_BUDGET) {
+            let painter_status = painter.canvas_status().await?;
+            return Err(format!(
+                "watcher: no preview cursor after {}s; painter own_cursor {:?}\n--- painter ---\n{}",
+                started.elapsed().as_secs(),
+                painter_status.own_cursor,
+                painter.describe().await
+            ));
+        }
     }
 
     watcher.unhover().await?;
