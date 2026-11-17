@@ -1,5 +1,5 @@
 use bevy::prelude::Color;
-use freenet_libp2p_bevy_plugin::lobby_room::spectator;
+use freenet_libp2p_bevy_plugin::lobby_room::{spectator, ui};
 
 use crate::starboard;
 
@@ -15,9 +15,9 @@ pub const PREVIEW_CAMERA_ORDER: isize = -1;
 /// the 200 px short side of the 320 x 200 `RoomPreviewTarget` image.
 pub const PREVIEW_BOARD_SIDE: f32 = 200.0;
 
-/// Backdrop of the preview target. The viewport is its own screen, so it keeps a
-/// fixed dark backdrop instead of inheriting the window's `ClearColor`.
-pub const PREVIEW_BACKDROP_COLOR: Color = Color::srgb(0.02, 0.02, 0.03);
+/// Backdrop of the preview target: the lobby viewport's own dark colour, so the
+/// letterbox around the board matches the panel the image sits in.
+pub const PREVIEW_BACKDROP_COLOR: Color = ui::discovery::INPUT_COLOR;
 
 /// Render layer of the streamed zone, separate from both the room and the
 /// preview, so three cameras can each draw their own board.
@@ -32,8 +32,8 @@ pub const STREAM_CAMERA_ORDER: isize = -2;
 /// in-room board is fitted to the window.
 pub const STREAM_BOARD_SIDE: f32 = 800.0;
 
-/// Backdrop of the stream target, matching the preview's fixed dark screen.
-pub const STREAM_BACKDROP_COLOR: Color = Color::srgb(0.02, 0.02, 0.03);
+/// Backdrop of the stream target: the same lobby viewport colour as the preview.
+pub const STREAM_BACKDROP_COLOR: Color = ui::discovery::INPUT_COLOR;
 
 pub const PREVIEW_SLOT: starboard::preview::SlotRenderConfig =
     starboard::preview::SlotRenderConfig {
