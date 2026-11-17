@@ -16,7 +16,7 @@ pub fn peek_selected_room(
     mut started_room: Local<Option<discovery::RoomName>>,
     mut cleared_for_secs: Local<Option<f32>>,
     mut spectate: MessageWriter<spectator::SpectateCommand>,
-    mut network: MessageWriter<p2p::Libp2pCommand>,
+    network: Option<MessageWriter<p2p::Libp2pCommand>>,
 ) {
     let Some(selection) = selection else {
         return;
@@ -48,10 +48,11 @@ pub fn peek_selected_room(
     };
     let history_prefix = p2p::HistoryKeyPrefix::new(game, room, room_record.created_at);
     *started_room = Some(room.clone());
-    if let Some(member) = room_record
-        .members
-        .values()
-        .find(|member| !member.peer.addrs.is_empty())
+    if let Some(mut network) = network
+        && let Some(member) = room_record
+            .members
+            .values()
+            .find(|member| !member.peer.addrs.is_empty())
     {
         network.write(p2p::Libp2pCommand::Dial(member.peer.clone()));
     }
@@ -179,6 +180,16 @@ mod tests {
             drained_network(&mut app),
             vec![p2p::Libp2pCommand::Dial(member.peer)]
         );
+    }
+
+    #[test]
+    fn selecting_without_a_p2p_channel_still_starts_the_preview() {
+        let mut app = app_with(&[("alpha", 10)]);
+        app.world_mut()
+            .remove_resource::<Messages<p2p::Libp2pCommand>>();
+        select(&mut app, Some("alpha"));
+        app.update();
+        assert_eq!(sent(&mut app), vec![start_for("alpha", 10)]);
     }
 
     #[test]
