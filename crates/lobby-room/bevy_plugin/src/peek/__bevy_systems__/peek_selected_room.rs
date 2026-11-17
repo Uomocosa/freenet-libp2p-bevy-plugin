@@ -16,6 +16,7 @@ pub fn peek_selected_room(
     mut started_room: Local<Option<discovery::RoomName>>,
     mut cleared_for_secs: Local<Option<f32>>,
     mut spectate: MessageWriter<spectator::SpectateCommand>,
+    mut network: MessageWriter<p2p::Libp2pCommand>,
 ) {
     let Some(selection) = selection else {
         return;
@@ -47,6 +48,13 @@ pub fn peek_selected_room(
     };
     let history_prefix = p2p::HistoryKeyPrefix::new(game, room, room_record.created_at);
     *started_room = Some(room.clone());
+    if let Some(member) = room_record
+        .members
+        .values()
+        .find(|member| !member.peer.addrs.is_empty())
+    {
+        network.write(p2p::Libp2pCommand::Dial(member.peer.clone()));
+    }
     spectate.write(spectator::SpectateCommand::Start {
         zone: (**room).clone(),
         history_prefix,
@@ -99,6 +107,7 @@ mod tests {
             50,
         )));
         app.add_message::<spectator::SpectateCommand>();
+        app.add_message::<p2p::Libp2pCommand>();
         app.insert_resource(ui::discovery::SelectedRoom::default());
         app.insert_resource(lobby_state(rooms));
         app.insert_resource(peek::RoomPeekGame(game()));
@@ -119,6 +128,13 @@ mod tests {
             .collect()
     }
 
+    fn drained_network(app: &mut App) -> Vec<p2p::Libp2pCommand> {
+        app.world_mut()
+            .resource_mut::<Messages<p2p::Libp2pCommand>>()
+            .drain()
+            .collect()
+    }
+
     fn start_for(room: &str, created_at: u64) -> spectator::SpectateCommand {
         let room = discovery::RoomName::from(room);
         let prefix =
@@ -135,6 +151,34 @@ mod tests {
         select(&mut app, Some("alpha"));
         app.update();
         assert_eq!(sent(&mut app), vec![start_for("alpha", 10)]);
+    }
+
+    #[test]
+    fn starting_a_preview_dials_a_room_member_that_has_an_address() {
+        let mut app = app_with(&[("alpha", 10)]);
+        let member = discovery::RoomMember {
+            peer: identity::Peer {
+                id: identity::PeerId::from("member"),
+                addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/4001")],
+            },
+            display_name: None,
+            updated_at: time::UnixTime::EPOCH,
+            membership: discovery::RoomMembership::Occupant,
+        };
+        app.world_mut()
+            .resource_mut::<discovery::state_machine::DiscoveryState>()
+            .lobby
+            .get_mut(&discovery::RoomName::from("alpha"))
+            .expect("alpha room")
+            .members
+            .insert(member.peer.id.clone(), member.clone());
+        select(&mut app, Some("alpha"));
+        app.update();
+        let _ = sent(&mut app);
+        assert_eq!(
+            drained_network(&mut app),
+            vec![p2p::Libp2pCommand::Dial(member.peer)]
+        );
     }
 
     #[test]
