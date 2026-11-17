@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use libp2p::gossipsub;
 
@@ -8,7 +8,7 @@ pub struct ZoneSubscriptions {
     pub game: identity::GameId,
     pub by_topic: HashMap<gossipsub::TopicHash, identity::ZoneName>,
     pub joined: identity::Zone,
-    pub watched: HashSet<identity::ZoneName>,
+    pub watched: HashMap<identity::ZoneName, u32>,
 }
 
 impl ZoneSubscriptions {
@@ -17,7 +17,7 @@ impl ZoneSubscriptions {
             game,
             by_topic: HashMap::new(),
             joined: identity::Zone::Global,
-            watched: HashSet::new(),
+            watched: HashMap::new(),
         }
     }
 }
@@ -34,19 +34,23 @@ impl ZoneSubscriptions {
         if self.joined.restricted() == Some(&zone) {
             self.joined = identity::Zone::Global;
         }
-        if !self.watched.contains(&zone) {
+        if !self.watched.contains_key(&zone) {
             self.by_topic.remove(&topic.hash());
         }
     }
     pub fn watch(&mut self, topic: &gossipsub::IdentTopic, zone: identity::ZoneName) {
         self.by_topic.insert(topic.hash(), zone.clone());
-        self.watched.insert(zone);
+        let watchers = self.watched.entry(zone).or_insert(0);
+        *watchers = watchers.saturating_add(1);
     }
-    pub fn unwatch(&mut self, topic: &gossipsub::IdentTopic, zone: &identity::ZoneName) {
-        self.watched.remove(zone);
-        if self.joined.restricted() != Some(zone) {
-            self.by_topic.remove(&topic.hash());
+    pub fn unwatch(&mut self, topic: &gossipsub::IdentTopic, zone: &identity::ZoneName) -> bool {
+        let Some(remaining) = self.remaining_watchers_after_unwatch(zone) else {
+            return false;
+        };
+        if remaining == 0 {
+            self.release_unwatched_zone(topic, zone);
         }
+        remaining == 0
     }
 }
 
@@ -57,6 +61,27 @@ impl ZoneSubscriptions {
     }
     pub fn zone_topic(&self, zone: &identity::ZoneName) -> gossipsub::IdentTopic {
         gossipsub::IdentTopic::new(identity::Topic::from_zone(&self.game, zone).as_str())
+    }
+}
+
+impl ZoneSubscriptions {
+    pub(crate) fn remaining_watchers_after_unwatch(
+        &mut self,
+        zone: &identity::ZoneName,
+    ) -> Option<u32> {
+        let watchers = self.watched.get_mut(zone)?;
+        *watchers = watchers.saturating_sub(1);
+        Some(*watchers)
+    }
+    pub(crate) fn release_unwatched_zone(
+        &mut self,
+        topic: &gossipsub::IdentTopic,
+        zone: &identity::ZoneName,
+    ) {
+        self.watched.remove(zone);
+        if self.joined.restricted() != Some(zone) {
+            self.by_topic.remove(&topic.hash());
+        }
     }
 }
 
@@ -96,6 +121,48 @@ mod tests {
         assert_eq!(zones.zone(&topic.hash()), Some(&zone));
         assert_eq!(zones.joined, identity::Zone::Global);
         zones.unwatch(&topic, &zone);
+        assert_eq!(zones.zone(&topic.hash()), None);
+        assert_eq!(zones.joined, identity::Zone::Global);
+    }
+
+    #[test]
+    fn a_second_watch_keeps_the_zone_after_one_unwatch() {
+        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
+        let zone = identity::ZoneName::from("zone-a");
+        let topic = zone_topic(&zones.game, &zone);
+        zones.watch(&topic, zone.clone());
+        zones.watch(&topic, zone.clone());
+        assert!(!zones.unwatch(&topic, &zone));
+        assert_eq!(zones.zone(&topic.hash()), Some(&zone));
+        assert!(zones.unwatch(&topic, &zone));
+        assert_eq!(zones.zone(&topic.hash()), None);
+        assert!(!zones.watched.contains_key(&zone));
+    }
+
+    #[test]
+    fn unwatching_an_unknown_zone_changes_nothing() {
+        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
+        let zone = identity::ZoneName::from("zone-a");
+        let topic = zone_topic(&zones.game, &zone);
+        assert!(!zones.unwatch(&topic, &zone));
+        assert_eq!(zones.zone(&topic.hash()), None);
+        assert!(zones.watched.is_empty());
+    }
+
+    #[test]
+    fn a_second_watch_keeps_a_joined_zone_after_one_unwatch() {
+        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
+        let zone = identity::ZoneName::from("zone-a");
+        let topic = zone_topic(&zones.game, &zone);
+        zones.watch(&topic, zone.clone());
+        zones.watch(&topic, zone.clone());
+        zones.register(&topic, zone.clone());
+        assert!(!zones.unwatch(&topic, &zone));
+        assert_eq!(zones.zone(&topic.hash()), Some(&zone));
+        assert!(zones.unwatch(&topic, &zone));
+        assert_eq!(zones.zone(&topic.hash()), Some(&zone));
+        assert_eq!(zones.joined, identity::Zone::Restricted(zone));
+        zones.unregister(&topic);
         assert_eq!(zones.zone(&topic.hash()), None);
         assert_eq!(zones.joined, identity::Zone::Global);
     }

@@ -9,8 +9,8 @@ pub fn unwatch_zone<Payload: p2p::traits::Message>(
     let topic = gossipsub::IdentTopic::new(
         identity::Topic::from_zone(&state.subscriptions.game, zone).as_str(),
     );
-    state.subscriptions.unwatch(&topic, zone);
-    if state.subscriptions.zone(&topic.hash()).is_none() {
+    let did_last_watcher_leave = state.subscriptions.unwatch(&topic, zone);
+    if did_last_watcher_leave && state.subscriptions.zone(&topic.hash()).is_none() {
         let _ = state.swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
     }
     tracing::info!(target: "p2p", zone = %zone.as_str(), "p2p zone unwatched");
@@ -33,5 +33,32 @@ mod tests {
             identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
         );
         assert_eq!(state.subscriptions.zone(&topic.hash()), None);
+    }
+
+    #[tokio::test]
+    async fn a_second_watcher_keeps_the_zone_topic() {
+        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let zone = identity::ZoneName::from("zone-a");
+        let topic = libp2p::gossipsub::IdentTopic::new(
+            identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
+        );
+        state.watch_zone(zone.clone());
+        state.watch_zone(zone.clone());
+        unwatch_zone(&mut state, &zone);
+        assert_eq!(state.subscriptions.zone(&topic.hash()), Some(&zone));
+        unwatch_zone(&mut state, &zone);
+        assert_eq!(state.subscriptions.zone(&topic.hash()), None);
+    }
+
+    #[tokio::test]
+    async fn unwatching_an_unknown_zone_keeps_the_topic_gone() {
+        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let zone = identity::ZoneName::from("zone-a");
+        let topic = libp2p::gossipsub::IdentTopic::new(
+            identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
+        );
+        unwatch_zone(&mut state, &zone);
+        assert_eq!(state.subscriptions.zone(&topic.hash()), None);
+        assert!(state.subscriptions.watched.is_empty());
     }
 }

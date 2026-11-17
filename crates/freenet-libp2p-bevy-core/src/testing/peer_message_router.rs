@@ -12,7 +12,7 @@ pub struct PeerMessageRouter {
     pub(crate) connected_peers: BTreeMap<identity::PeerId, BTreeSet<identity::PeerId>>,
     pub(crate) subscribed_topics: BTreeMap<identity::PeerId, BTreeSet<identity::Topic>>,
     pub(crate) joined_zones: BTreeMap<identity::PeerId, identity::ZoneName>,
-    pub(crate) watched_zones: BTreeMap<identity::PeerId, BTreeSet<identity::ZoneName>>,
+    pub(crate) watched_zones: BTreeMap<identity::PeerId, BTreeMap<identity::ZoneName, u32>>,
     pub(crate) history_values: BTreeMap<Vec<u8>, Vec<u8>>,
     pub(crate) history_kinds: BTreeMap<Vec<u8>, p2p::ZoneHistoryRecordKind>,
     pub(crate) pending_snapshot_replies: BTreeMap<p2p::ReplyId, identity::PeerId>,
