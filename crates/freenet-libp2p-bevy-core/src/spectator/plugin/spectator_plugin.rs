@@ -38,7 +38,7 @@ impl<S: replica_sync::traits::ReplicatedState> bevy::prelude::Plugin for Spectat
         app.add_message::<spectator::SpectateCommand>();
         app.insert_resource(spectator::SpectatorGame(self.game.clone()));
         app.insert_resource(spectator::SpectatorEvents(Mutex::new(libp2p_events)));
-        app.insert_resource(spectator::SpectatorMachine(
+        app.insert_resource(spectator::Machine(
             spectator::state_machine::SpectatorState::<S::Op, Vec<u8>>::new(self.game.clone()),
         ));
         app.insert_resource(spectator::SpectatorInputs::<S::Op, Vec<u8>>(Vec::new()));
@@ -111,7 +111,7 @@ mod tests {
         app.update();
         assert!(
             app.world()
-                .get_resource::<spectator::SpectatorMachine<u8, Vec<u8>>>()
+                .get_resource::<spectator::Machine<u8, Vec<u8>>>()
                 .is_some()
         );
         assert!(

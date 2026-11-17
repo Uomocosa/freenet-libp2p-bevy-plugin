@@ -8,7 +8,7 @@ use crate::spectator;
 pub fn route_topic_messages<S: replica_sync::traits::ReplicatedState>(
     game: Res<spectator::SpectatorGame>,
     events: Res<spectator::SpectatorEvents>,
-    machine: Res<spectator::SpectatorMachine<S::Op, Vec<u8>>>,
+    machine: Res<spectator::Machine<S::Op, Vec<u8>>>,
     mut bootstrap: ResMut<spectator::HistoryBootstrap<Vec<u8>>>,
     mut inputs: ResMut<spectator::SpectatorInputs<S::Op, Vec<u8>>>,
     spectated: Option<Res<spectator::Spectated<S>>>,

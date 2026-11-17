@@ -5,7 +5,7 @@ use crate::replica_sync;
 use crate::spectator;
 
 pub fn sync_local_peer<S: replica_sync::traits::ReplicatedState>(
-    machine: Res<spectator::SpectatorMachine<S::Op, Vec<u8>>>,
+    machine: Res<spectator::Machine<S::Op, Vec<u8>>>,
     mut inputs: ResMut<spectator::SpectatorInputs<S::Op, Vec<u8>>>,
     me: Query<&peers::Peer, With<peers::Me>>,
 ) {

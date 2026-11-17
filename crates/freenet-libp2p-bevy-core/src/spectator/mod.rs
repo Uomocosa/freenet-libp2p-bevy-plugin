@@ -3,7 +3,7 @@ mod basic;
 
 pub use basic::enums::{BootstrapOutcome, SpectateFreshness};
 pub use basic::resources::{
-    Spectated, SpectatorCount, SpectatorEvents, SpectatorGame, SpectatorInputs, SpectatorMachine,
+    Spectated, SpectatorCount, SpectatorEvents, SpectatorGame, SpectatorInputs,
 };
 
 mod history_bootstrap;
@@ -11,6 +11,9 @@ pub use history_bootstrap::HistoryBootstrap;
 
 mod plugin;
 pub use plugin::SpectatorPlugin;
+
+mod machine;
+pub use machine::Machine;
 
 pub mod state_machine;
 pub use state_machine::SpectateCommand;

@@ -32,6 +32,7 @@ pub mod libp2p_events;
 pub mod local_checkpoint_board;
 #[cfg(all(feature = "testing", feature = "e2e-harness"))]
 pub mod log_file;
+pub mod machine;
 pub mod member_snapshot_fetch_state;
 #[cfg(feature = "testing")]
 pub mod network;
