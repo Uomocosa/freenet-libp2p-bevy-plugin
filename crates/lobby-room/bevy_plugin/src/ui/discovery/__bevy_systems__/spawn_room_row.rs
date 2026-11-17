@@ -59,18 +59,19 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
             room.spawn((
                 RoomBubble,
                 Node {
-                    padding: UiRect {
-                        left: Val::Px(7.0),
-                        right: Val::Px(14.0),
-                        top: Val::Px(2.5),
-                        bottom: Val::Px(2.5),
-                    },
+                    flex_direction: FlexDirection::Row,
+                    padding: UiRect::axes(Val::Px(7.0), Val::Px(2.5)),
+                    column_gap: Val::Px(4.0),
+                    align_items: AlignItems::Center,
                     border_radius: BorderRadius::MAX,
                     ..default()
                 },
                 BackgroundColor(bubble_color),
             ))
             .with_children(|bubble| {
+                if row.friends > 0 {
+                    ui::discovery::bevy_systems::spawn_friend_segment(bubble, row.friends);
+                }
                 bubble.spawn((
                     Text::new(format!("{}/{}", row.occupants, row.room_size)),
                     TextFont {
@@ -79,9 +80,6 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
                     },
                     TextColor(BUTTON_LABEL_COLOR),
                 ));
-                if row.friends > 0 {
-                    ui::discovery::bevy_systems::spawn_friend_badge(bubble, row.friends);
-                }
             });
         });
 }
@@ -109,17 +107,42 @@ mod tests {
         assert_eq!(rows.iter(app.world()).count(), 1);
     }
 
-    fn sample_row() -> core_discovery::LobbyRow {
+    fn row_fixture(
+        name: &str,
+        occupants: usize,
+        room_size: u16,
+        occupancy: core_discovery::RoomOccupancy,
+        friends: usize,
+    ) -> core_discovery::LobbyRow {
         core_discovery::LobbyRow {
-            name: core_discovery::RoomName::from("alpha"),
-            occupants: 3,
-            room_size: core_discovery::RoomSize::try_from(8).expect("8"),
-            occupancy: core_discovery::RoomOccupancy::HasSpace,
-            friends: 2,
+            name: core_discovery::RoomName::from(name),
+            occupants,
+            room_size: core_discovery::RoomSize::try_from(room_size).expect("room size"),
+            occupancy,
+            friends,
         }
     }
 
-    fn spawn_room_with_row(mut commands: Commands) {
+    fn sample_row() -> core_discovery::LobbyRow {
+        row_fixture("alpha", 3, 8, core_discovery::RoomOccupancy::HasSpace, 2)
+    }
+
+    fn preview_rows() -> Vec<core_discovery::LobbyRow> {
+        vec![
+            row_fixture("alpha", 2, 8, core_discovery::RoomOccupancy::HasSpace, 3),
+            row_fixture("beta", 0, 4, core_discovery::RoomOccupancy::Empty, 0),
+            row_fixture("gamma", 4, 4, core_discovery::RoomOccupancy::Full, 2),
+            row_fixture(
+                "a very long room name",
+                1,
+                8,
+                core_discovery::RoomOccupancy::HasSpace,
+                5,
+            ),
+        ]
+    }
+
+    fn spawn_room_rows(mut commands: Commands) {
         let root = commands
             .spawn(lele_bevy_preview::scene::Scene::centered_root())
             .id();
@@ -134,7 +157,9 @@ mod tests {
             ))
             .id();
         commands.entity(list).with_children(|rooms| {
-            spawn_room_row(&mut rooms.reborrow(), &sample_row());
+            for row in preview_rows() {
+                spawn_room_row(&mut rooms.reborrow(), &row);
+            }
         });
     }
 
@@ -148,7 +173,7 @@ mod tests {
             kind: lele_bevy_preview::scene::Kind::System,
             build: preview_build,
             states: vec![lele_bevy_preview::scene::State {
-                label: String::from("row with friends"),
+                label: String::from("friends · no friends · full room"),
                 apply: preview_noop,
             }],
             timeline: None,
@@ -161,7 +186,7 @@ mod tests {
     }
 
     fn preview_build(app: &mut App) {
-        app.add_systems(Startup, spawn_room_with_row);
+        app.add_systems(Startup, spawn_room_rows);
         app.add_systems(
             PostStartup,
             lele_bevy_preview::scene::bevy_systems::center_roots,

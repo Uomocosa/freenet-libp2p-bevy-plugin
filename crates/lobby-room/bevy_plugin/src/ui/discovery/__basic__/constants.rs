@@ -7,7 +7,9 @@ pub const ROOM_BUBBLE_HAS_SPACE_COLOR: Color = Color::srgb(0.16, 0.44, 0.24);
 pub const ROOM_BUBBLE_EMPTY_COLOR: Color = Color::srgb(0.30, 0.31, 0.35);
 pub const ROOM_BUBBLE_FULL_COLOR: Color = Color::srgb(0.58, 0.20, 0.20);
 pub const FRIEND_BADGE_COLOR: Color = Color::srgb(0.35, 0.80, 0.44);
-pub const FRIEND_BADGE_BG_COLOR: Color = Color::srgb(0.09, 0.12, 0.10);
+pub const FRIEND_DIVIDER_WIDTH: f32 = 1.0;
+pub const FRIEND_DIVIDER_HEIGHT: f32 = 10.0;
+pub const FRIEND_DIVIDER_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.60);
 
 pub const PANEL_COLOR: Color = Color::srgb(0.30, 0.12, 0.34);
 pub const BUTTON_COLOR: Color = Color::srgb(0.20, 0.24, 0.32);

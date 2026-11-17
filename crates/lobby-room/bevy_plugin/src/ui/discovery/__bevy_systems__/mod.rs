@@ -39,7 +39,7 @@ pub mod show_text_cursor_on_room_name_input;
 pub mod spawn_close_bars;
 pub mod spawn_connecting;
 pub mod spawn_esc_menu;
-pub mod spawn_friend_badge;
+pub mod spawn_friend_segment;
 pub mod spawn_fullscreen_corners;
 pub mod spawn_join_failed;
 pub mod spawn_joining_room;
@@ -101,7 +101,7 @@ pub use show_text_cursor_on_room_name_input::show_text_cursor_on_room_name_input
 pub use spawn_close_bars::spawn_close_bars;
 pub use spawn_connecting::spawn_connecting;
 pub use spawn_esc_menu::spawn_esc_menu;
-pub use spawn_friend_badge::spawn_friend_badge;
+pub use spawn_friend_segment::spawn_friend_segment;
 pub use spawn_fullscreen_corners::spawn_fullscreen_corners;
 pub use spawn_join_failed::spawn_join_failed;
 pub use spawn_joining_room::spawn_joining_room;

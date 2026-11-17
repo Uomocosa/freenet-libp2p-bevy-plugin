@@ -141,7 +141,7 @@ mod tests {
                 let bubble_text = child_with::<Text>(app.world_mut(), bubble);
                 let bubble_text = text_of(app.world_mut(), bubble_text);
                 let badge_entity =
-                    child_marked::<ui::discovery::RoomFriendBadge>(app.world_mut(), bubble);
+                    child_marked::<ui::discovery::RoomFriendSegment>(app.world_mut(), bubble);
                 let badge = badge_entity.map(|badge| {
                     let badge_text = child_with::<Text>(app.world_mut(), badge);
                     text_of(app.world_mut(), badge_text)

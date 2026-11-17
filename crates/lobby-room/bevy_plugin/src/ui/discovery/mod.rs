@@ -6,7 +6,7 @@ pub use basic::components::{
     EnterRoomButton, EscMenu, EscMenuBackdrop, EscMenuFriendsButton, EscMenuLeaveButton,
     EscMenuResumeButton, HoverGlow, HoverOutlineOnly, JoinErrorDismissButton, JoinErrorRoot,
     JoiningRoomRoot, LeaveDoor, LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble,
-    RoomButton, RoomFriendBadge, RoomFullBadge, RoomList, RoomNameClip, RoomNameInput,
+    RoomButton, RoomFriendSegment, RoomFullBadge, RoomList, RoomNameClip, RoomNameInput,
     RoomNameScroller, RoomPreviewImage, RoomPreviewPanel, RoomPreviewPlaceholder,
     RoomPreviewViewport, RoomSearchIndicator, RoomSearchTooltip, RoomStreamActionSlot,
     RoomStreamCloseButton, RoomStreamFullscreenButton, RoomStreamHeader, RoomStreamImage,

@@ -24,7 +24,7 @@ pub struct RoomNameScroller;
 pub struct RoomBubble;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
-pub struct RoomFriendBadge;
+pub struct RoomFriendSegment;
 
 #[derive(Component, Debug, Clone, PartialEq, Eq, Deref)]
 pub struct RoomButton(pub core_discovery::RoomName);
