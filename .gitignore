@@ -11,3 +11,4 @@
 ui_preview/
 *.sync-conflict-*
 .review-history
+__ui_sketch__/
