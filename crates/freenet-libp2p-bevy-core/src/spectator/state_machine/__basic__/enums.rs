@@ -28,6 +28,7 @@ pub enum SpectateInput<Op, Snap> {
         snapshot: Snap,
     },
     Players(Vec<identity::PeerId>),
+    MyZone(Option<identity::ZoneName>),
     Lease {
         zone: identity::ZoneName,
         spectator: identity::PeerId,
@@ -57,6 +58,7 @@ pub enum SpectateOutput<Op, Snap> {
         op: Op,
     },
     Clear,
+    RepairFinished,
     SpectatorCountChanged(usize),
 }
 

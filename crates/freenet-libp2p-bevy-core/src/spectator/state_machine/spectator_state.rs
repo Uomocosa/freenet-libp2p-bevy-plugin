@@ -14,6 +14,7 @@ pub struct SpectatorState<Op, Snap> {
     pub game: identity::GameId,
     pub me: identity::PeerId,
     pub zone: Option<identity::ZoneName>,
+    pub my_zone: Option<identity::ZoneName>,
     pub phase: spectator::state_machine::SpectatePhase,
     pub buffered_ops: Vec<(replica_sync::OpMeta, Op)>,
     pub applied_metas: Vec<replica_sync::OpMeta>,
@@ -22,6 +23,7 @@ pub struct SpectatorState<Op, Snap> {
     pub next_lease_at: time::UnixTime,
     pub last_reported_count: usize,
     pub last_slice_request_at: BTreeMap<identity::PeerId, time::UnixTime>,
+    pub pending_slice_requests: BTreeMap<replica_sync::ReplicaSliceIndex, time::UnixTime>,
     pub _snap: PhantomData<Snap>,
 }
 
@@ -32,6 +34,7 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
             game,
             me,
             zone: None,
+            my_zone: None,
             phase: spectator::state_machine::SpectatePhase::Idle,
             buffered_ops: Vec::new(),
             applied_metas: Vec::new(),
@@ -40,6 +43,7 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
             next_lease_at: time::UnixTime::EPOCH,
             last_reported_count: 0,
             last_slice_request_at: BTreeMap::new(),
+            pending_slice_requests: BTreeMap::new(),
             _snap: PhantomData,
         }
     }
@@ -65,12 +69,13 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
                 local,
                 remote,
             } => self.handle_remote_slice_content_hashes(&from, &zone, &local, &remote, now),
-            spectator::state_machine::SpectateInput::SliceReceived { snapshot, .. } => {
-                self.handle_slice_received(snapshot)
+            spectator::state_machine::SpectateInput::SliceReceived { index, snapshot } => {
+                self.handle_slice_received(index, snapshot)
             }
             spectator::state_machine::SpectateInput::Players(players) => {
                 self.handle_players(players)
             }
+            spectator::state_machine::SpectateInput::MyZone(zone) => self.handle_my_zone(zone),
             spectator::state_machine::SpectateInput::Lease {
                 zone,
                 spectator,
@@ -103,24 +108,15 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
     }
 
     pub(crate) fn handle_slice_received(
-        &self,
+        &mut self,
+        index: replica_sync::ReplicaSliceIndex,
         snapshot: Snap,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
+        self.pending_slice_requests.remove(&index);
         if self.phase != spectator::state_machine::SpectatePhase::Live {
             return Vec::new();
         }
         vec![spectator::state_machine::SpectateOutput::Merge(snapshot)]
-    }
-
-    pub(crate) fn handle_tick(
-        &mut self,
-        now: time::UnixTime,
-    ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
-        let mut outputs = self.expire_leases(now);
-        if self.zone.is_some() && now >= self.next_lease_at {
-            outputs.extend(self.publish_lease(now));
-        }
-        outputs
     }
 
     pub(crate) fn handle_topic(
@@ -160,6 +156,11 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
         now: time::UnixTime,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     }
+    pub(crate) fn expire_slice_requests(
+        &mut self,
+        now: time::UnixTime,
+    ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
+    }
     pub(crate) fn handle_lease(
         &mut self,
         zone: &identity::ZoneName,
@@ -168,11 +169,21 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
         now: time::UnixTime,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     }
+    pub(crate) fn handle_my_zone(
+        &mut self,
+        zone: Option<identity::ZoneName>,
+    ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
+    }
     pub(crate) fn handle_remote_op(
         &mut self,
         zone: &identity::ZoneName,
         meta: replica_sync::OpMeta,
         op: Op,
+    ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
+    }
+    pub(crate) fn handle_tick(
+        &mut self,
+        now: time::UnixTime,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     }
     pub(crate) fn handle_remote_slice_content_hashes(
@@ -212,6 +223,7 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
 mod tests {
     use crate::identity;
     use crate::p2p;
+    use crate::replica_sync;
     use crate::spectator;
     use crate::time;
 
@@ -312,5 +324,23 @@ mod tests {
         );
         assert_eq!(lease_outputs(&outputs), vec![now]);
         assert_eq!(state.phase, spectator::state_machine::SpectatePhase::Idle);
+    }
+
+    #[test]
+    fn a_received_slice_frees_its_pending_request() {
+        let mut state = spectating_state();
+        state.phase = spectator::state_machine::SpectatePhase::Live;
+        let index = replica_sync::ReplicaSliceIndex(1);
+        state
+            .pending_slice_requests
+            .insert(index, time::UnixTime::EPOCH);
+        state.update(
+            spectator::state_machine::SpectateInput::SliceReceived {
+                index,
+                snapshot: Vec::new(),
+            },
+            time::UnixTime::EPOCH,
+        );
+        assert!(state.pending_slice_requests.is_empty());
     }
 }

@@ -19,6 +19,7 @@ pub fn start_spectating<Op, Snap>(
     state.buffered_ops.clear();
     state.applied_metas.clear();
     state.last_slice_request_at.clear();
+    state.pending_slice_requests.clear();
     outputs.push(spectator::state_machine::SpectateOutput::Subscribe(
         identity::Topic::from_replica_sync(&state.game, zone),
     ));

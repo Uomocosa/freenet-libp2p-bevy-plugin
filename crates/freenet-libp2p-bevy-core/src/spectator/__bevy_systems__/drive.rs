@@ -108,6 +108,11 @@ pub fn drive<S: replica_sync::traits::ReplicatedState>(
                     commands.remove_resource::<spectator::Spectated<S>>();
                     bootstrap.reset();
                 }
+                SpectateOutput::RepairFinished => {
+                    if let Some(spectated) = spectated.as_mut() {
+                        spectated.freshness = spectator::SpectateFreshness::Live;
+                    }
+                }
                 SpectateOutput::SpectatorCountChanged(spectators) => {
                     **count = spectators;
                 }

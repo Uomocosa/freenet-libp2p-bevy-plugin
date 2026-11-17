@@ -18,6 +18,7 @@ pub fn stop_spectating<Op, Snap>(
     state.buffered_ops.clear();
     state.applied_metas.clear();
     state.last_slice_request_at.clear();
+    state.pending_slice_requests.clear();
     state.next_lease_at = time::UnixTime::EPOCH;
     vec![
         lease,

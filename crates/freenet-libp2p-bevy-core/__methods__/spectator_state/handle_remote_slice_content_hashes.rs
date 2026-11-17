@@ -37,6 +37,11 @@ pub fn handle_remote_slice_content_hashes<Op, Snap>(
         return Vec::new();
     }
     state.last_slice_request_at.insert(from.clone(), now);
+    for request in &requests {
+        if let spectator::state_machine::SpectateOutput::RequestSlice { index, .. } = request {
+            state.pending_slice_requests.insert(*index, now);
+        }
+    }
     requests
 }
 
@@ -100,6 +105,12 @@ mod tests {
                 from: identity::PeerId::from("holder"),
                 index: replica_sync::ReplicaSliceIndex(1),
             }
+        );
+        assert_eq!(
+            state
+                .pending_slice_requests
+                .get(&replica_sync::ReplicaSliceIndex(1)),
+            Some(&time::UnixTime::from_secs(1))
         );
     }
 

@@ -9,7 +9,7 @@ pub fn handle_lease<Op, Snap>(
     until: time::UnixTime,
     now: time::UnixTime,
 ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
-    if state.zone.as_ref().is_some_and(|current| current != zone) {
+    if state.my_zone.as_ref() != Some(zone) {
         return Vec::new();
     }
     if until <= now {
@@ -28,10 +28,12 @@ mod tests {
     use crate::time;
 
     fn state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        spectator::state_machine::SpectatorState::new(
+        let mut state = spectator::state_machine::SpectatorState::new(
             identity::GameId::from("game"),
             identity::PeerId::from("me"),
-        )
+        );
+        state.my_zone = Some(identity::ZoneName::from("zone"));
+        state
     }
 
     #[test]
@@ -67,18 +69,30 @@ mod tests {
     }
 
     #[test]
-    fn a_lease_for_another_zone_is_ignored_while_spectating() {
+    fn a_lease_for_another_zone_is_ignored_while_spectating_zone_x_and_playing_in_zone_y() {
         let mut state = state();
-        state.zone = Some(identity::ZoneName::from("zone"));
+        state.zone = Some(identity::ZoneName::from("spectated"));
+        state.my_zone = Some(identity::ZoneName::from("home"));
         let outputs = handle_lease(
             &mut state,
-            &identity::ZoneName::from("other"),
+            &identity::ZoneName::from("foreign"),
             &identity::PeerId::from("a"),
             time::UnixTime::from_secs(10),
             time::UnixTime::from_secs(1),
         );
         assert_eq!(outputs, Vec::new());
         assert!(state.leases.is_empty());
+        let counted = handle_lease(
+            &mut state,
+            &identity::ZoneName::from("home"),
+            &identity::PeerId::from("a"),
+            time::UnixTime::from_secs(10),
+            time::UnixTime::from_secs(1),
+        );
+        assert_eq!(
+            counted,
+            vec![spectator::state_machine::SpectateOutput::SpectatorCountChanged(1)]
+        );
     }
 
     #[test]
