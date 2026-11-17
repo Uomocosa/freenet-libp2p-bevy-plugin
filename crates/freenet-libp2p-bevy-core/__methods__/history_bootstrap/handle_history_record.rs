@@ -71,6 +71,7 @@ mod tests {
     use crate::spectator;
 
     fn split(
+        name: &str,
         payload: &[u8],
     ) -> (
         p2p::HistoryManifest,
@@ -78,7 +79,7 @@ mod tests {
         Vec<Vec<u8>>,
         Vec<u8>,
     ) {
-        let prefix = p2p::HistoryKeyPrefix::from("prefix");
+        let prefix = p2p::HistoryKeyPrefix::from(name);
         let split = p2p::ChunkedSnapshot::try_from_payload(payload, 1).expect("split");
         let chunks = split.chunks.clone();
         (split.manifest, prefix, chunks, payload.to_vec())
@@ -88,7 +89,7 @@ mod tests {
     fn test_usage() {
         let mut bootstrap = spectator::HistoryBootstrap::<Vec<u8>>::default();
         let payload = vec![7_u8, 8, 9];
-        let (manifest, prefix, chunks, expected) = split(&payload);
+        let (manifest, prefix, chunks, expected) = split("prefix", &payload);
         let manifest_bytes = bincode::serialize(&manifest).expect("manifest");
         assert!(matches!(
             handle_history_record(
@@ -120,8 +121,8 @@ mod tests {
     #[test]
     fn two_zones_bootstrap_side_by_side() {
         let mut bootstrap = spectator::HistoryBootstrap::<Vec<u8>>::default();
-        let (first_manifest, first_prefix, first_chunks, first_payload) = split(&[1_u8]);
-        let (second_manifest, second_prefix, second_chunks, _) = split(&[2_u8]);
+        let (first_manifest, first_prefix, first_chunks, first_payload) = split("first", &[1_u8]);
+        let (second_manifest, second_prefix, second_chunks, _) = split("second", &[2_u8]);
         for (prefix, manifest) in [
             (first_prefix.clone(), &first_manifest),
             (second_prefix.clone(), &second_manifest),
