@@ -17,6 +17,8 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
         app.init_resource::<EscMenuState>();
         app.init_resource::<ui::discovery::FriendsPressBeat>();
         app.init_resource::<ui::discovery::SelectedRoom>();
+        app.init_resource::<ui::discovery::StreamedRoom>();
+        app.add_message::<ui::discovery::CloseStream>();
         app.init_resource::<ButtonInput<KeyCode>>();
         app.add_message::<core_discovery::Event>();
         app.add_message::<replica_sync::JoinFailure>();
@@ -62,13 +64,16 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                     (systems::rebuild_room_list, systems::scroll_room_names).chain(),
                     systems::gate_create,
                     systems::handle_create,
-                    systems::handle_join,
                     (
+                        systems::handle_join,
                         systems::drop_stale_room_selection,
+                        systems::drop_stale_streamed_room,
                         systems::track_room_preview,
+                        systems::start_stream_on_click,
                         systems::watch_selected_room,
-                        systems::lock_room_selection,
                         systems::enter_on_double_click,
+                        systems::clear_stream_on_room_entry,
+                        systems::clear_stream_on_close_request,
                         systems::highlight_selected_room.after(systems::animate_hover),
                         systems::refresh_room_preview,
                         systems::rebuild_room_preview_members,
@@ -256,18 +261,17 @@ mod tests {
         }
     }
 
-    fn lock_room_preview(world: &mut World, room: &str) {
-        let mut selection = world.resource_mut::<ui::discovery::SelectedRoom>();
-        selection.room = Some(core_discovery::RoomName::from(room));
-        selection.is_locked = true;
+    fn select_room_value(world: &mut World, room: &str) {
+        **world.resource_mut::<ui::discovery::SelectedRoom>() =
+            Some(core_discovery::RoomName::from(room));
     }
 
     fn select_room(world: &mut World) {
-        lock_room_preview(world, "alpha");
+        select_room_value(world, "alpha");
     }
 
     fn select_full_room(world: &mut World) {
-        lock_room_preview(world, "gamma");
+        select_room_value(world, "gamma");
     }
 
     #[test]
@@ -308,7 +312,7 @@ mod tests {
                     apply: hover_rooms_header,
                 },
                 lele_bevy_preview::scene::State {
-                    label: String::from("room selected"),
+                    label: String::from("room hovered"),
                     apply: select_room,
                 },
                 lele_bevy_preview::scene::State {

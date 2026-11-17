@@ -72,7 +72,7 @@ mod tests {
                 drive_journey
                     .run_if(resource_exists::<JourneyClock>)
                     .before(ui::discovery::bevy_systems::handle_join)
-                    .before(ui::discovery::bevy_systems::lock_room_selection)
+                    .before(ui::discovery::bevy_systems::start_stream_on_click)
                     .before(ui::discovery::bevy_systems::handle_menu_keys)
                     .before(ui::discovery::bevy_systems::request_leave),
                 fake_backend,

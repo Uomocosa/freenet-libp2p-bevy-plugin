@@ -136,10 +136,9 @@ mod tests {
             2,
             core_discovery::RoomOccupancy::HasSpace,
         )]));
-        app.insert_resource(ui::discovery::SelectedRoom {
-            room: Some(core_discovery::RoomName::from("alpha")),
-            is_locked: true,
-        });
+        app.insert_resource(ui::discovery::SelectedRoom(Some(
+            core_discovery::RoomName::from("alpha"),
+        )));
         app.add_systems(Startup, spawn_room_preview);
         app.add_systems(
             Update,
@@ -152,9 +151,8 @@ mod tests {
     }
 
     fn select_alpha(world: &mut World) {
-        let mut selection = world.resource_mut::<ui::discovery::SelectedRoom>();
-        selection.room = Some(core_discovery::RoomName::from("alpha"));
-        selection.is_locked = true;
+        **world.resource_mut::<ui::discovery::SelectedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
     }
 
     #[test]

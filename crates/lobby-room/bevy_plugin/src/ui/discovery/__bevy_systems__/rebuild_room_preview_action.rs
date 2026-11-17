@@ -23,7 +23,7 @@ pub fn rebuild_room_preview_action(
         return;
     };
     let selection = selection.into_inner();
-    let Some(name) = selection.room.clone() else {
+    let Some(name) = (**selection).clone() else {
         return;
     };
     let rows = rows.map(Res::into_inner);
@@ -116,10 +116,9 @@ mod tests {
     fn app_with(room: &str, rows: Vec<core_discovery::LobbyRow>) -> App {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(ui::discovery::SelectedRoom {
-            room: Some(core_discovery::RoomName::from(room)),
-            is_locked: true,
-        });
+        app.insert_resource(ui::discovery::SelectedRoom(Some(
+            core_discovery::RoomName::from(room),
+        )));
         app.insert_resource(core_discovery::LobbyRows(rows));
         app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_preview);
         app.update();
@@ -159,10 +158,9 @@ mod tests {
             row("alpha", core_discovery::RoomOccupancy::HasSpace),
             row("gamma", core_discovery::RoomOccupancy::Full),
         ]));
-        app.insert_resource(ui::discovery::SelectedRoom {
-            room: Some(core_discovery::RoomName::from("alpha")),
-            is_locked: true,
-        });
+        app.insert_resource(ui::discovery::SelectedRoom(Some(
+            core_discovery::RoomName::from("alpha"),
+        )));
         app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_preview);
         app.add_systems(
             Update,
@@ -174,9 +172,8 @@ mod tests {
     }
 
     fn select_room(world: &mut World, room: &str) {
-        let mut selection = world.resource_mut::<ui::discovery::SelectedRoom>();
-        selection.room = Some(core_discovery::RoomName::from(room));
-        selection.is_locked = true;
+        **world.resource_mut::<ui::discovery::SelectedRoom>() =
+            Some(core_discovery::RoomName::from(room));
     }
 
     fn select_alpha(world: &mut World) {

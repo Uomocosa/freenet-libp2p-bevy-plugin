@@ -31,12 +31,17 @@ impl<S: replica_sync::traits::ReplicatedState> bevy::prelude::Plugin for RoomPee
         app.add_plugins(spectator::SpectatorPlugin::<S>::new(self.game.clone()));
         app.add_systems(
             Update,
-            peek::bevy_systems::peek_selected_room.before(replica_sync::ReplicaSyncSet::Drive),
+            (
+                peek::bevy_systems::peek_selected_room,
+                peek::bevy_systems::stream_streamed_room,
+            )
+                .before(replica_sync::ReplicaSyncSet::Drive),
         );
         app.add_systems(
             Update,
             (
                 peek::bevy_systems::sync_preview_target::<S>,
+                peek::bevy_systems::sync_stream_target::<S>,
                 ui::discovery::bevy_systems::show_preview_image::<S>,
             )
                 .chain()

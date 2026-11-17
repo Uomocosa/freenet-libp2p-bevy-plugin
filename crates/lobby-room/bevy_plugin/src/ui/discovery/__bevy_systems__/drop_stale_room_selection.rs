@@ -8,14 +8,13 @@ pub fn drop_stale_room_selection(
     rows: Option<Res<core_discovery::LobbyRows>>,
     mut selection: ResMut<SelectedRoom>,
 ) {
-    let Some(room) = selection.room.clone() else {
+    let Some(room) = (**selection).clone() else {
         return;
     };
     let rows = rows.map(Res::into_inner);
     let is_present = rows.is_some_and(|rows| rows.iter().any(|row| row.name == room));
     if !is_present {
-        selection.room = None;
-        selection.is_locked = false;
+        **selection = None;
     }
 }
 
@@ -40,12 +39,15 @@ mod tests {
     fn app_with(room: Option<&str>, rows: Vec<core_discovery::LobbyRow>) -> App {
         let mut app = App::new();
         app.insert_resource(core_discovery::LobbyRows(rows));
-        let mut selection = ui::discovery::SelectedRoom::default();
-        selection.room = room.map(core_discovery::RoomName::from);
-        selection.is_locked = selection.room.is_some();
-        app.insert_resource(selection);
+        app.insert_resource(ui::discovery::SelectedRoom(
+            room.map(core_discovery::RoomName::from),
+        ));
         app.add_systems(Update, drop_stale_room_selection);
         app
+    }
+
+    fn selected(app: &App) -> Option<core_discovery::RoomName> {
+        (**app.world().resource::<ui::discovery::SelectedRoom>()).clone()
     }
 
     #[test]
@@ -53,17 +55,15 @@ mod tests {
         let mut app = app_with(Some("alpha"), vec![row("alpha")]);
         app.update();
         assert_eq!(
-            app.world().resource::<ui::discovery::SelectedRoom>().room,
+            selected(&app),
             Some(core_discovery::RoomName::from("alpha"))
         );
     }
 
     #[test]
-    fn a_selection_whose_room_vanishes_is_cleared_and_unlocked() {
+    fn a_selection_whose_room_vanishes_is_cleared() {
         let mut app = app_with(Some("alpha"), vec![row("beta")]);
         app.update();
-        let selection = app.world().resource::<ui::discovery::SelectedRoom>();
-        assert_eq!(selection.room, None);
-        assert!(!selection.is_locked);
+        assert_eq!(selected(&app), None);
     }
 }

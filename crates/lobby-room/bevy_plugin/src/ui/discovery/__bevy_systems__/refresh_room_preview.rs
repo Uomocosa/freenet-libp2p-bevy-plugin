@@ -35,8 +35,7 @@ pub fn refresh_room_preview(
     };
     let selection = selection.into_inner();
     let rows = rows.map(Res::into_inner);
-    let row = selection
-        .room
+    let row = (**selection)
         .as_ref()
         .and_then(|name| rows?.iter().find(|row| row.name == *name));
     let Some(row) = row else {
@@ -136,10 +135,7 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut app = app_with(
-            ui::discovery::SelectedRoom {
-                room: Some(core_discovery::RoomName::from("alpha")),
-                is_locked: true,
-            },
+            ui::discovery::SelectedRoom(Some(core_discovery::RoomName::from("alpha"))),
             vec![row("alpha", 2)],
         );
         app.update();
@@ -165,10 +161,7 @@ mod tests {
     #[test]
     fn a_selection_missing_from_the_rows_hides_the_panel() {
         let mut app = app_with(
-            ui::discovery::SelectedRoom {
-                room: Some(core_discovery::RoomName::from("alpha")),
-                is_locked: true,
-            },
+            ui::discovery::SelectedRoom(Some(core_discovery::RoomName::from("alpha"))),
             vec![row("beta", 0)],
         );
         app.update();
@@ -180,18 +173,16 @@ mod tests {
             row("alpha", 2),
             row("gamma", 4),
         ]));
-        app.insert_resource(ui::discovery::SelectedRoom {
-            room: Some(core_discovery::RoomName::from("alpha")),
-            is_locked: true,
-        });
+        app.insert_resource(ui::discovery::SelectedRoom(Some(
+            core_discovery::RoomName::from("alpha"),
+        )));
         app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_preview);
         app.add_systems(Update, refresh_room_preview);
     }
 
     fn select_room(world: &mut World, room: &str) {
-        let mut selection = world.resource_mut::<ui::discovery::SelectedRoom>();
-        selection.room = Some(core_discovery::RoomName::from(room));
-        selection.is_locked = true;
+        **world.resource_mut::<ui::discovery::SelectedRoom>() =
+            Some(core_discovery::RoomName::from(room));
     }
 
     fn select_alpha(world: &mut World) {

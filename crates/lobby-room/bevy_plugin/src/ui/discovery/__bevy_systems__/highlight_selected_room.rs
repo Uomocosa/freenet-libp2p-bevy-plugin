@@ -3,34 +3,35 @@ use bevy::prelude::*;
 
 use ui::basic;
 use ui::discovery::{
-    HOVER_OUTLINE_WIDTH, RoomButton, SELECTED_ROOM_LOCKED_BG_COLOR,
-    SELECTED_ROOM_LOCKED_OUTLINE_COLOR, SELECTED_ROOM_LOCKED_OUTLINE_WIDTH,
-    SELECTED_ROOM_PREVIEW_OUTLINE_COLOR, SelectedRoom,
+    HOVER_OUTLINE_WIDTH, RoomButton, SELECTED_ROOM_PREVIEW_OUTLINE_COLOR, STREAMED_ROOM_BG_COLOR,
+    STREAMED_ROOM_OUTLINE_COLOR, STREAMED_ROOM_OUTLINE_WIDTH, SelectedRoom, StreamedRoom,
 };
 
 pub fn highlight_selected_room(
     selection: Res<SelectedRoom>,
+    streamed: Res<StreamedRoom>,
     mut rows: Query<(&RoomButton, &mut Outline, &mut BackgroundColor)>,
 ) {
     let selection = selection.into_inner();
+    let streamed = streamed.into_inner();
+    let selected_room = (**selection).as_ref();
+    let streamed_room = (**streamed).as_ref();
     for (button, mut outline, mut background) in &mut rows {
-        let is_selected = selection.room.as_ref() == Some(&**button);
-        let is_locked = is_selected && selection.is_locked;
-        outline.width = Val::Px(if is_locked {
-            SELECTED_ROOM_LOCKED_OUTLINE_WIDTH
+        let is_selected = selected_room == Some(&**button);
+        let is_streamed = streamed_room == Some(&**button);
+        outline.width = Val::Px(if is_streamed {
+            STREAMED_ROOM_OUTLINE_WIDTH
         } else {
             HOVER_OUTLINE_WIDTH
         });
-        if is_selected {
-            outline.color = if is_locked {
-                SELECTED_ROOM_LOCKED_OUTLINE_COLOR
-            } else {
-                SELECTED_ROOM_PREVIEW_OUTLINE_COLOR
-            };
+        if is_streamed {
+            outline.color = STREAMED_ROOM_OUTLINE_COLOR;
+        } else if is_selected {
+            outline.color = SELECTED_ROOM_PREVIEW_OUTLINE_COLOR;
         }
         let BackgroundColor(existing) = &mut *background;
-        let background_color = if is_locked {
-            SELECTED_ROOM_LOCKED_BG_COLOR
+        let background_color = if is_streamed {
+            STREAMED_ROOM_BG_COLOR
         } else {
             basic::constants::ROOM_COLOR
         };
@@ -48,10 +49,14 @@ mod tests {
 
     use super::highlight_selected_room;
 
-    fn app_with(selection: ui::discovery::SelectedRoom) -> (App, Entity, Entity) {
+    fn app_with(
+        selection: ui::discovery::SelectedRoom,
+        streamed: ui::discovery::StreamedRoom,
+    ) -> (App, Entity, Entity) {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(selection);
+        app.insert_resource(streamed);
         let outline = || {
             Outline::new(
                 Val::Px(ui::discovery::HOVER_OUTLINE_WIDTH),
@@ -96,29 +101,31 @@ mod tests {
         (outline.width, outline.color, *background)
     }
 
-    fn selected(room: &str, is_locked: bool) -> ui::discovery::SelectedRoom {
-        ui::discovery::SelectedRoom {
-            room: Some(core_discovery::RoomName::from(room)),
-            is_locked,
-        }
+    fn selected(room: &str) -> ui::discovery::SelectedRoom {
+        ui::discovery::SelectedRoom(Some(core_discovery::RoomName::from(room)))
+    }
+
+    fn streamed(room: &str) -> ui::discovery::StreamedRoom {
+        ui::discovery::StreamedRoom(Some(core_discovery::RoomName::from(room)))
+    }
+
+    fn nothing_streamed() -> ui::discovery::StreamedRoom {
+        ui::discovery::StreamedRoom::default()
     }
 
     #[test]
     fn test_usage() {
-        let (mut app, alpha, _beta) = app_with(selected("alpha", true));
+        let (mut app, alpha, _beta) = app_with(selected("alpha"), streamed("alpha"));
         app.update();
         let (width, color, background) = parts(app.world(), alpha);
-        assert_eq!(
-            width,
-            Val::Px(ui::discovery::SELECTED_ROOM_LOCKED_OUTLINE_WIDTH)
-        );
-        assert_eq!(color, ui::discovery::SELECTED_ROOM_LOCKED_OUTLINE_COLOR);
-        assert_eq!(background, ui::discovery::SELECTED_ROOM_LOCKED_BG_COLOR);
+        assert_eq!(width, Val::Px(ui::discovery::STREAMED_ROOM_OUTLINE_WIDTH));
+        assert_eq!(color, ui::discovery::STREAMED_ROOM_OUTLINE_COLOR);
+        assert_eq!(background, ui::discovery::STREAMED_ROOM_BG_COLOR);
     }
 
     #[test]
     fn a_hover_preview_row_gets_the_soft_outline_without_a_background_tint() {
-        let (mut app, alpha, _beta) = app_with(selected("alpha", false));
+        let (mut app, alpha, _beta) = app_with(selected("alpha"), nothing_streamed());
         app.update();
         let (width, color, background) = parts(app.world(), alpha);
         assert_eq!(width, Val::Px(ui::discovery::HOVER_OUTLINE_WIDTH));
@@ -128,18 +135,25 @@ mod tests {
 
     #[test]
     fn the_previous_row_returns_to_its_plain_look() {
-        let (mut app, alpha, beta) = app_with(selected("beta", true));
+        let (mut app, alpha, beta) = app_with(selected("beta"), streamed("beta"));
         app.update();
         let (width, _color, background) = parts(app.world(), beta);
-        assert_eq!(
-            width,
-            Val::Px(ui::discovery::SELECTED_ROOM_LOCKED_OUTLINE_WIDTH)
-        );
-        assert_eq!(background, ui::discovery::SELECTED_ROOM_LOCKED_BG_COLOR);
+        assert_eq!(width, Val::Px(ui::discovery::STREAMED_ROOM_OUTLINE_WIDTH));
+        assert_eq!(background, ui::discovery::STREAMED_ROOM_BG_COLOR);
         let (alpha_width, alpha_color, alpha_background) = parts(app.world(), alpha);
         assert_eq!(alpha_width, Val::Px(ui::discovery::HOVER_OUTLINE_WIDTH));
         assert_eq!(alpha_color.alpha(), 0.0);
         assert_eq!(alpha_background, ui::basic::constants::ROOM_COLOR);
+    }
+
+    #[test]
+    fn a_hovered_room_keeps_the_soft_look_while_another_room_streams() {
+        let (mut app, alpha, _beta) = app_with(selected("alpha"), streamed("beta"));
+        app.update();
+        let (width, color, background) = parts(app.world(), alpha);
+        assert_eq!(width, Val::Px(ui::discovery::HOVER_OUTLINE_WIDTH));
+        assert_eq!(color, ui::discovery::SELECTED_ROOM_PREVIEW_OUTLINE_COLOR);
+        assert_eq!(background, ui::basic::constants::ROOM_COLOR);
     }
 
     fn preview_row(name: &str) -> core_discovery::LobbyRow {
@@ -174,6 +188,7 @@ mod tests {
 
     fn preview_build(app: &mut App) {
         app.insert_resource(ui::discovery::SelectedRoom::default());
+        app.insert_resource(ui::discovery::StreamedRoom::default());
         app.add_systems(Startup, spawn_rows);
         app.add_systems(
             Update,
@@ -186,14 +201,13 @@ mod tests {
     }
 
     fn select_alpha(world: &mut World) {
-        world.resource_mut::<ui::discovery::SelectedRoom>().room =
+        **world.resource_mut::<ui::discovery::SelectedRoom>() =
             Some(core_discovery::RoomName::from("alpha"));
     }
 
-    fn lock_alpha(world: &mut World) {
-        let mut selection = world.resource_mut::<ui::discovery::SelectedRoom>();
-        selection.room = Some(core_discovery::RoomName::from("alpha"));
-        selection.is_locked = true;
+    fn stream_alpha(world: &mut World) {
+        **world.resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
     }
 
     #[test]
@@ -209,8 +223,8 @@ mod tests {
                     apply: select_alpha,
                 },
                 lele_bevy_preview::scene::State {
-                    label: String::from("locked selection"),
-                    apply: lock_alpha,
+                    label: String::from("streamed room"),
+                    apply: stream_alpha,
                 },
             ],
             timeline: None,

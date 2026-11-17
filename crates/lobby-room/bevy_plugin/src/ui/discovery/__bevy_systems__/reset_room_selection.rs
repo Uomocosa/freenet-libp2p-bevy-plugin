@@ -18,14 +18,12 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        app.insert_resource(ui::discovery::SelectedRoom {
-            room: Some(core_discovery::RoomName::from("alpha")),
-            is_locked: true,
-        });
+        app.insert_resource(ui::discovery::SelectedRoom(Some(
+            core_discovery::RoomName::from("alpha"),
+        )));
         app.add_systems(Update, reset_room_selection);
         app.update();
         let selection = app.world().resource::<ui::discovery::SelectedRoom>();
-        assert_eq!(selection.room, None);
-        assert!(!selection.is_locked);
+        assert_eq!(**selection, None);
     }
 }

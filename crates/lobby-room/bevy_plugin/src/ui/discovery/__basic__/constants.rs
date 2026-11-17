@@ -73,9 +73,9 @@ pub const ENTER_BUTTON_COLOR: Color = Color::srgb(0.16, 0.52, 0.28);
 pub const ROOM_FULL_BUTTON_COLOR: Color = Color::srgb(0.30, 0.31, 0.35);
 pub const ROOM_FULL_BUTTON_LABEL_COLOR: Color = Color::srgb(0.70, 0.71, 0.74);
 pub const SELECTED_ROOM_PREVIEW_OUTLINE_COLOR: Color = Color::srgba(0.38, 0.65, 0.98, 0.55);
-pub const SELECTED_ROOM_LOCKED_OUTLINE_COLOR: Color = ACCENT_COLOR;
-pub const SELECTED_ROOM_LOCKED_OUTLINE_WIDTH: f32 = 3.0;
-pub const SELECTED_ROOM_LOCKED_BG_COLOR: Color = Color::srgb(0.18, 0.38, 0.50);
+pub const STREAMED_ROOM_OUTLINE_COLOR: Color = ACCENT_COLOR;
+pub const STREAMED_ROOM_OUTLINE_WIDTH: f32 = 3.0;
+pub const STREAMED_ROOM_BG_COLOR: Color = Color::srgb(0.18, 0.38, 0.50);
 
 pub const SPINNER_SIZE: f32 = 48.0;
 pub const SPIN_TURNS_PER_SEC: f32 = 1.0;

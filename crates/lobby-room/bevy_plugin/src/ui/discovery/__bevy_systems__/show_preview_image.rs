@@ -242,10 +242,9 @@ mod tests {
             occupancy: core_discovery::RoomOccupancy::HasSpace,
             friends: 1,
         }]));
-        app.insert_resource(ui::discovery::SelectedRoom {
-            room: Some(core_discovery::RoomName::from("alpha")),
-            is_locked: true,
-        });
+        app.insert_resource(ui::discovery::SelectedRoom(Some(
+            core_discovery::RoomName::from("alpha"),
+        )));
         app.insert_resource(preview_discovery_state());
         app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_preview);
         app.add_systems(

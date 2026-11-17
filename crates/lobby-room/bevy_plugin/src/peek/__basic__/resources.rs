@@ -12,4 +12,10 @@ pub struct RoomPreviewTarget {
     pub image: Handle<Image>,
 }
 
+#[derive(Resource, Debug, Clone)]
+pub struct RoomStreamTarget {
+    pub zone: identity::ZoneName,
+    pub image: Handle<Image>,
+}
+
 // no test_usage necessary

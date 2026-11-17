@@ -6,10 +6,11 @@ use crate::peek;
 use crate::spectator;
 use crate::ui;
 
-use ui::discovery::SelectedRoom;
+use ui::discovery::{SelectedRoom, StreamedRoom};
 
 pub fn peek_selected_room(
     selection: Option<Res<SelectedRoom>>,
+    streamed: Option<Res<StreamedRoom>>,
     discovery: Option<Res<discovery::state_machine::DiscoveryState>>,
     game: Option<Res<peek::RoomPeekGame>>,
     time: Res<Time>,
@@ -21,7 +22,13 @@ pub fn peek_selected_room(
     let Some(selection) = selection else {
         return;
     };
-    let Some(room) = selection.room.as_ref() else {
+    let streamed_room = streamed
+        .map(Res::into_inner)
+        .and_then(|streamed| (**streamed).clone());
+    let preview_room = (**selection)
+        .clone()
+        .filter(|room| streamed_room.as_ref() != Some(room));
+    let Some(room) = preview_room else {
         if started_room.is_none() {
             return;
         }
@@ -38,17 +45,17 @@ pub fn peek_selected_room(
         return;
     };
     *cleared_for_secs = None;
-    if started_room.as_ref() == Some(room) {
+    if started_room.as_ref() == Some(&room) {
         return;
     }
     let (Some(state), Some(game)) = (discovery.map(Res::into_inner), game.map(Res::into_inner))
     else {
         return;
     };
-    let Some(room_record) = state.lobby.get(room) else {
+    let Some(room_record) = state.lobby.get(&room) else {
         return;
     };
-    let history_prefix = p2p::HistoryKeyPrefix::new(game, room, room_record.created_at);
+    let history_prefix = p2p::HistoryKeyPrefix::new(game, &room, room_record.created_at);
     *started_room = Some(room.clone());
     if let Some(mut network) = network
         && let Some(member) = peek::bevy_systems::rendezvous_preview_dial::rendezvous_preview_dial(
@@ -60,7 +67,7 @@ pub fn peek_selected_room(
     }
     spectate.write(spectator::SpectateCommand::Start {
         slot: spectator::SpectateSlot::Preview,
-        zone: (**room).clone(),
+        zone: (*room).clone(),
         history_prefix,
     });
 }
@@ -113,6 +120,7 @@ mod tests {
         app.add_message::<spectator::SpectateCommand>();
         app.add_message::<p2p::Libp2pCommand>();
         app.insert_resource(ui::discovery::SelectedRoom::default());
+        app.insert_resource(ui::discovery::StreamedRoom::default());
         app.insert_resource(lobby_state(rooms));
         app.insert_resource(peek::RoomPeekGame(game()));
         app.add_systems(Update, peek_selected_room);
@@ -120,9 +128,15 @@ mod tests {
     }
 
     fn select(app: &mut App, room: Option<&str>) {
-        app.world_mut()
-            .resource_mut::<ui::discovery::SelectedRoom>()
-            .room = room.map(discovery::RoomName::from);
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::SelectedRoom>() = room.map(discovery::RoomName::from);
+    }
+
+    fn stream(app: &mut App, room: Option<&str>) {
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::StreamedRoom>() = room.map(discovery::RoomName::from);
     }
 
     fn sent(app: &mut App) -> Vec<spectator::SpectateCommand> {
@@ -260,5 +274,43 @@ mod tests {
         select(&mut app, Some("missing"));
         app.update();
         assert_eq!(sent(&mut app), Vec::new());
+    }
+
+    #[test]
+    fn the_streamed_room_gets_no_preview() {
+        let mut app = app_with(&[("alpha", 10)]);
+        stream(&mut app, Some("alpha"));
+        select(&mut app, Some("alpha"));
+        app.update();
+        assert_eq!(sent(&mut app), Vec::new());
+    }
+
+    #[test]
+    fn hovering_the_streamed_room_stops_an_earlier_preview_after_the_linger() {
+        let mut app = app_with(&[("alpha", 10)]);
+        select(&mut app, Some("alpha"));
+        app.update();
+        let _ = sent(&mut app);
+        stream(&mut app, Some("alpha"));
+        for _ in 0..19 {
+            app.update();
+        }
+        assert_eq!(sent(&mut app), Vec::new(), "still inside the linger");
+        app.update();
+        assert_eq!(
+            sent(&mut app),
+            vec![spectator::SpectateCommand::Stop {
+                slot: spectator::SpectateSlot::Preview,
+            }]
+        );
+    }
+
+    #[test]
+    fn hovering_another_room_while_streaming_previews_only_that_room() {
+        let mut app = app_with(&[("alpha", 10), ("beta", 20)]);
+        stream(&mut app, Some("alpha"));
+        select(&mut app, Some("beta"));
+        app.update();
+        assert_eq!(sent(&mut app), vec![start_for("beta", 20)]);
     }
 }

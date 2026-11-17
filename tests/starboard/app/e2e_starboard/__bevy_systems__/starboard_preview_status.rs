@@ -21,7 +21,7 @@ pub fn starboard_preview_status(
         .find(|spectated| spectated.slot == spectator::SpectateSlot::Preview);
     let status = PreviewStatus {
         selected_room: selection
-            .and_then(|selection| selection.room.as_ref())
+            .and_then(|selection| (**selection).as_ref())
             .map(ToString::to_string),
         freshness: spectated.map(|spectated| format!("{:?}", spectated.freshness)),
         painted_tiles: spectated.map_or(0, |spectated| {
@@ -120,10 +120,9 @@ mod tests {
             zone,
             image: image.clone(),
         });
-        app.insert_resource(ui::discovery::SelectedRoom {
-            room: Some(freenet_libp2p_bevy_plugin::lobby_room::discovery::RoomName::from("alpha")),
-            is_locked: false,
-        });
+        app.insert_resource(ui::discovery::SelectedRoom(Some(
+            freenet_libp2p_bevy_plugin::lobby_room::discovery::RoomName::from("alpha"),
+        )));
         app.world_mut()
             .spawn((ui::discovery::RoomPreviewViewport, ImageNode::new(image)));
 

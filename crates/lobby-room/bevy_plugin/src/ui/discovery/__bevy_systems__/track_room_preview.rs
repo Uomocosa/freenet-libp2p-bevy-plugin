@@ -23,15 +23,12 @@ pub fn track_room_preview(
     } else if hovered_room.is_some() {
         *hovered_secs += delta_secs;
     }
-    if selection.is_locked {
-        return;
-    }
     let Some(room) = hovered_room.as_ref() else {
-        selection.room = None;
+        **selection = None;
         return;
     };
     if *hovered_secs >= PREVIEW_HOVER_DELAY_SECS {
-        selection.room = Some(room.clone());
+        **selection = Some(room.clone());
     }
 }
 
@@ -64,10 +61,7 @@ mod tests {
     }
 
     fn selected(app: &App) -> Option<core_discovery::RoomName> {
-        app.world()
-            .resource::<ui::discovery::SelectedRoom>()
-            .room
-            .clone()
+        (**app.world().resource::<ui::discovery::SelectedRoom>()).clone()
     }
 
     #[test]
@@ -108,28 +102,31 @@ mod tests {
     }
 
     #[test]
-    fn hovering_out_without_a_lock_clears_the_preview() {
+    fn hovering_out_clears_the_preview() {
         let mut app = app_with(None);
-        app.world_mut()
-            .resource_mut::<ui::discovery::SelectedRoom>()
-            .room = Some(core_discovery::RoomName::from("alpha"));
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::SelectedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
         app.update();
         assert_eq!(selected(&app), None);
     }
 
     #[test]
-    fn a_locked_selection_ignores_hovering_other_rooms() {
+    fn hovering_a_room_replaces_the_previous_hover() {
         let mut app = app_with(Some("alpha"));
         {
-            let mut selection = app
+            **app
                 .world_mut()
-                .resource_mut::<ui::discovery::SelectedRoom>();
-            selection.room = Some(core_discovery::RoomName::from("beta"));
-            selection.is_locked = true;
+                .resource_mut::<ui::discovery::SelectedRoom>() =
+                Some(core_discovery::RoomName::from("beta"));
         }
         for _ in 0..10 {
             app.update();
         }
-        assert_eq!(selected(&app), Some(core_discovery::RoomName::from("beta")));
+        assert_eq!(
+            selected(&app),
+            Some(core_discovery::RoomName::from("alpha"))
+        );
     }
 }
