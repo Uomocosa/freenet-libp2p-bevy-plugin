@@ -23,6 +23,7 @@ pub mod game_id;
 #[cfg(all(feature = "testing", feature = "e2e-harness"))]
 pub mod git_hub_checkpoint_board;
 pub mod gossipsub_config;
+pub mod history_bootstrap;
 #[cfg(all(feature = "testing", feature = "e2e-harness"))]
 pub mod keys_builder;
 pub mod libp2p_command;

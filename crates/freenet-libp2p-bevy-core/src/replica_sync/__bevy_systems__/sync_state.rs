@@ -61,6 +61,13 @@ impl<Op> SyncState<Op> {
         replica: &Replica,
     ) -> Option<replica_sync::state_machine::Input<Replica::Op>> {
     }
+    pub(crate) fn topic_message_to_input<Replica: replica_sync::traits::ReplicatedState>(
+        message: replica_sync::ReplicaSyncTopicMessage<Replica::Op>,
+        from: &identity::PeerId,
+        clock: &mut replica_sync::LamportClock,
+        replica: &Replica,
+    ) -> Option<replica_sync::state_machine::Input<Replica::Op>> {
+    }
 }
 
 #[cfg(test)]

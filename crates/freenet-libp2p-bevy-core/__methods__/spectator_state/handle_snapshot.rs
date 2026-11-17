@@ -14,7 +14,7 @@ pub fn handle_snapshot<Op, Snap>(
     let buffered = std::mem::take(&mut state.buffered_ops);
     let mut outputs = vec![spectator::state_machine::SpectateOutput::Merge(snapshot)];
     for (meta, op) in buffered {
-        state.applied_metas.push(meta);
+        state.remember_applied_meta(meta);
         outputs.push(spectator::state_machine::SpectateOutput::Apply { meta, op });
     }
     outputs

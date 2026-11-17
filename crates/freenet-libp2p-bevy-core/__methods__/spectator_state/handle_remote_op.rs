@@ -13,7 +13,7 @@ pub fn handle_remote_op<Op, Snap>(
     }
     match state.phase {
         spectator::state_machine::SpectatePhase::Live => {
-            state.applied_metas.push(meta);
+            state.remember_applied_meta(meta);
             vec![spectator::state_machine::SpectateOutput::Apply { meta, op }]
         }
         spectator::state_machine::SpectatePhase::FetchingSnapshot => {

@@ -131,7 +131,8 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
             replica_sync::ReplicaSyncTopicMessage::ApplyThisOp { zone, meta, op } => {
                 self.handle_remote_op(&zone, meta, op)
             }
-            replica_sync::ReplicaSyncTopicMessage::CompareSliceContentHashes { .. } => Vec::new(),
+            replica_sync::ReplicaSyncTopicMessage::CompareSliceContentHashes { .. }
+            | replica_sync::ReplicaSyncTopicMessage::SpectatorLease { .. } => Vec::new(),
         }
     }
 
@@ -153,6 +154,7 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
 impl<Op, Snap> SpectatorState<Op, Snap> {
     pub(crate) fn has_seen_meta(&self, meta: replica_sync::OpMeta) -> bool {}
     pub(crate) fn lease_until(&self, now: time::UnixTime) -> time::UnixTime {}
+    pub(crate) fn remember_applied_meta(&mut self, meta: replica_sync::OpMeta) {}
     pub(crate) fn expire_leases(
         &mut self,
         now: time::UnixTime,

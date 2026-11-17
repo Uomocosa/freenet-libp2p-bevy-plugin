@@ -9,8 +9,12 @@ pub fn handle_lease<Op, Snap>(
     until: time::UnixTime,
     now: time::UnixTime,
 ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
-    if until <= now || state.zone.as_ref().is_some_and(|current| current != zone) {
+    if state.zone.as_ref().is_some_and(|current| current != zone) {
         return Vec::new();
+    }
+    if until <= now {
+        state.leases.remove(spectator);
+        return state.expire_leases(now);
     }
     state.leases.insert(spectator.clone(), until);
     state.expire_leases(now)
@@ -74,6 +78,32 @@ mod tests {
             time::UnixTime::from_secs(1),
         );
         assert_eq!(outputs, Vec::new());
+        assert!(state.leases.is_empty());
+    }
+
+    #[test]
+    fn an_expired_lease_for_a_known_spectator_removes_it() {
+        let mut state = state();
+        let zone = identity::ZoneName::from("zone");
+        let spectator = identity::PeerId::from("a");
+        handle_lease(
+            &mut state,
+            &zone,
+            &spectator,
+            time::UnixTime::from_secs(10),
+            time::UnixTime::from_secs(1),
+        );
+        let outputs = handle_lease(
+            &mut state,
+            &zone,
+            &spectator,
+            time::UnixTime::from_secs(2),
+            time::UnixTime::from_secs(2),
+        );
+        assert_eq!(
+            outputs,
+            vec![spectator::state_machine::SpectateOutput::SpectatorCountChanged(0)]
+        );
         assert!(state.leases.is_empty());
     }
 }

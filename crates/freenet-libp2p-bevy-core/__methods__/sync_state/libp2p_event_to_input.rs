@@ -21,24 +21,9 @@ pub fn libp2p_event_to_input<Replica: replica_sync::traits::ReplicatedState>(
             let message =
                 bincode::deserialize::<replica_sync::ReplicaSyncTopicMessage<Replica::Op>>(data)
                     .ok()?;
-            match message {
-                replica_sync::ReplicaSyncTopicMessage::ApplyThisOp { zone, meta, op } => {
-                    clock.observe(meta.lamport);
-                    Some(replica_sync::state_machine::Input::Remote { zone, meta, op })
-                }
-                replica_sync::ReplicaSyncTopicMessage::CompareSliceContentHashes {
-                    hashes, ..
-                } => {
-                    tracing::debug!(target: "replica_sync", "anti-entropy compare from={from} remote_slices={}", hashes.len());
-                    Some(
-                        replica_sync::state_machine::Input::RemoteSliceContentHashes {
-                            from: from.clone(),
-                            local: replica.slice_content_hashes(),
-                            remote: hashes,
-                        },
-                    )
-                }
-            }
+            replica_sync::bevy_systems::SyncState::<Replica::Op>::topic_message_to_input(
+                message, from, clock, replica,
+            )
         }
         p2p::Libp2pEvent::SnapshotPart {
             zone,

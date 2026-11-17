@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::identity;
 use crate::replica_sync;
+use crate::time;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReplicaSyncSet {
@@ -20,5 +21,10 @@ pub enum ReplicaSyncTopicMessage<Op> {
     CompareSliceContentHashes {
         zone: identity::ZoneName,
         hashes: replica_sync::ReplicaSliceContentHashes,
+    },
+    SpectatorLease {
+        zone: identity::ZoneName,
+        spectator: identity::PeerId,
+        until: time::UnixTime,
     },
 }
