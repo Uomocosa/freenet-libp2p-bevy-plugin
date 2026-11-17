@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
-use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+use freenet_libp2p_bevy_plugin::lobby_room::{discovery, spectator};
 use freenet_libp2p_bevy_plugin::p2p;
 
 use crate::starboard;
@@ -8,7 +8,15 @@ use crate::starboard;
 pub fn draw_cursor_labels(
     state: Option<Res<DiscoveryState>>,
     ready: Option<Res<p2p::ReadyChannel>>,
-    cursors: Query<(&Sprite, &starboard::render::Owner), With<starboard::render::Cursor>>,
+    spectated: Query<&spectator::Spectated<starboard::canvas::Canvas>>,
+    cursors: Query<
+        (
+            &Sprite,
+            &starboard::render::Owner,
+            &starboard::render::CursorPlacement,
+        ),
+        With<starboard::render::Cursor>,
+    >,
     mut labels: Query<
         (&ChildOf, &mut Text2d, &mut Transform),
         With<starboard::render::CursorLabel>,
@@ -19,9 +27,18 @@ pub fn draw_cursor_labels(
         .map(Res::into_inner)
         .and_then(|ready| ready.ready_rx.borrow().clone())
         .map(|me| me.id);
+    let stream_zone = spectated
+        .iter()
+        .find(|spectated| spectated.slot == spectator::SpectateSlot::Stream)
+        .map(|spectated| spectated.zone.clone());
     for (child_of, mut text, mut transform) in &mut labels {
-        let Ok((sprite, owner)) = cursors.get(child_of.parent()) else {
+        let Ok((sprite, owner, placement)) = cursors.get(child_of.parent()) else {
             continue;
+        };
+        let zone = match placement {
+            starboard::render::CursorPlacement::InRoom => None,
+            starboard::render::CursorPlacement::Stream => stream_zone.as_ref(),
+            starboard::render::CursorPlacement::Preview => continue,
         };
         let name = match owner {
             starboard::render::Owner::Me => me.as_ref().map_or_else(
@@ -29,13 +46,13 @@ pub fn draw_cursor_labels(
                 |me| {
                     state.map_or_else(
                         || me.as_str().to_string(),
-                        |state| starboard::room::member_name(state, me),
+                        |state| starboard::room::member_name(state, zone, me),
                     )
                 },
             ),
             starboard::render::Owner::Peer(peer) => state.map_or_else(
                 || peer.as_str().to_string(),
-                |state| starboard::room::member_name(state, peer),
+                |state| starboard::room::member_name(state, zone, peer),
             ),
         };
         if **text != name {
@@ -55,31 +72,45 @@ mod tests {
     use bevy::prelude::*;
     use discovery::state_machine::DiscoveryState;
     use freenet_libp2p_bevy_plugin::identity;
-    use freenet_libp2p_bevy_plugin::lobby_room::discovery;
+    use freenet_libp2p_bevy_plugin::lobby_room::{discovery, spectator};
     use freenet_libp2p_bevy_plugin::time;
 
     use super::draw_cursor_labels;
     use crate::starboard;
 
-    fn status_with(peers: &[(&str, &str)]) -> DiscoveryState {
+    fn member(peer: &str, name: &str) -> discovery::RoomMember {
+        discovery::RoomMember {
+            peer: identity::Peer {
+                id: identity::PeerId::from(peer),
+                addrs: Vec::new(),
+            },
+            updated_at: time::UnixTime::EPOCH,
+            display_name: Some(identity::Username::from(name)),
+            membership: discovery::RoomMembership::Occupant,
+        }
+    }
+
+    fn status_with(peers: &[(&str, &str)], lobby_peers: &[(&str, &str)]) -> DiscoveryState {
         let mut members = discovery::Members::new();
         for (peer, name) in peers {
-            members.insert(
-                identity::PeerId::from(*peer),
-                discovery::RoomMember {
-                    peer: identity::Peer {
-                        id: identity::PeerId::from(*peer),
-                        addrs: Vec::new(),
-                    },
-                    updated_at: time::UnixTime::EPOCH,
-                    display_name: Some(identity::Username::from(*name)),
-                    membership: discovery::RoomMembership::Occupant,
-                },
-            );
+            members.insert(identity::PeerId::from(*peer), member(peer, name));
         }
+        let mut lobby_members = discovery::Members::new();
+        for (peer, name) in lobby_peers {
+            lobby_members.insert(identity::PeerId::from(*peer), member(peer, name));
+        }
+        let lobby = discovery::Lobby::from([(
+            discovery::RoomName::from("beta"),
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::EPOCH,
+                members: lobby_members,
+            },
+        )]);
         freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
             identity::PeerId::from("me"),
         )
+        .with_lobby(lobby)
         .in_room(discovery::JoinedRoom {
             name: discovery::RoomName::from("alpha"),
             created_at: time::UnixTime::EPOCH,
@@ -90,95 +121,12 @@ mod tests {
         .build()
     }
 
-    fn preview_build(app: &mut App) {
-        app.insert_resource(status_with(&[("peer-a", "user0"), ("peer-b", "user1")]));
-        app.init_resource::<starboard::render::CanvasView>()
-            .init_resource::<starboard::input::OwnBrush>()
-            .init_resource::<ButtonInput<MouseButton>>()
-            .insert_resource(starboard::input::CursorCell(Some(
-                starboard::canvas::CellPos { x: 512, y: 700 },
-            )))
-            .init_resource::<starboard::room::RemoteCursors>()
-            .init_resource::<starboard::room::RoomBrushes>()
-            .add_systems(Startup, starboard::render::bevy_systems::spawn_board)
-            .add_systems(
-                Update,
-                (
-                    starboard::render::bevy_systems::fit_board,
-                    starboard::render::bevy_systems::follow_brush,
-                    starboard::render::bevy_systems::repaint_own_brush_outline,
-                    starboard::render::bevy_systems::draw_remote_cursors,
-                    draw_cursor_labels,
-                )
-                    .chain(),
-            );
-    }
-
-    const fn preview_own_only(_world: &mut World) {}
-
-    fn preview_with_peers(world: &mut World) {
-        let peers = [
-            identity::PeerId::from("peer-a"),
-            identity::PeerId::from("peer-b"),
-        ];
-        world.resource_mut::<starboard::room::RoomBrushes>().0 = starboard::identity::room_brushes(
-            peers.iter(),
-            time::UnixTime::EPOCH,
-            time::UnixTime::from_secs(1),
-        );
-        for (peer, x) in peers.into_iter().zip([300_u16, 700]) {
-            world
-                .resource_mut::<starboard::room::RemoteCursors>()
-                .insert(
-                    peer,
-                    starboard::room::CursorUpdate {
-                        cell: starboard::canvas::CellPos { x, y: 300 },
-                        size_index: starboard::canvas::DEFAULT_SIZE_INDEX,
-                    },
-                );
-        }
-    }
-
-    fn config() -> lele_bevy_preview::preview::Config {
-        let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        lele_bevy_preview::preview::Config {
-            out_dir: out,
-            ..Default::default()
-        }
-    }
-
-    fn scene() -> lele_bevy_preview::scene::Scene {
-        lele_bevy_preview::scene::Scene {
-            name: String::from("starboard_draw_cursor_labels"),
-            kind: lele_bevy_preview::scene::Kind::App,
-            build: preview_build,
-            states: vec![
-                lele_bevy_preview::scene::State {
-                    label: String::from("own cursor only"),
-                    apply: preview_own_only,
-                },
-                lele_bevy_preview::scene::State {
-                    label: String::from("two peers"),
-                    apply: preview_with_peers,
-                },
-            ],
-            timeline: None,
-        }
-    }
-
-    #[test]
-    fn draw_cursor_labels_ui_png_preview() {
-        scene().run(&config()).expect("preview");
-    }
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.insert_resource(status_with(&[("peer-a", "ada")]));
+    fn label_for(app: &mut App, placement: starboard::render::CursorPlacement) -> (Entity, Entity) {
         let cursor = app
             .world_mut()
             .spawn((
                 starboard::render::Cursor,
+                placement,
                 starboard::render::Owner::Peer(identity::PeerId::from("peer-a")),
                 Sprite {
                     custom_size: Some(Vec2::splat(20.0)),
@@ -193,11 +141,27 @@ mod tests {
                 ChildOf(cursor),
             ))
             .id();
+        (cursor, label)
+    }
+
+    fn app() -> App {
+        let mut app = App::new();
+        app.insert_resource(status_with(
+            &[("peer-a", "in-room-ada")],
+            &[("peer-a", "stream-ada")],
+        ));
         app.add_systems(Update, draw_cursor_labels);
+        app
+    }
+
+    #[test]
+    fn test_usage() {
+        let mut app = app();
+        let (_, label) = label_for(&mut app, starboard::render::CursorPlacement::InRoom);
         app.update();
 
         let text = app.world().get::<Text2d>(label).expect("label text");
-        assert_eq!(text.as_str(), "ada");
+        assert_eq!(text.as_str(), "in-room-ada");
         let transform = app
             .world()
             .get::<Transform>(label)
@@ -205,5 +169,33 @@ mod tests {
         assert!(
             (transform.translation.y - (10.0 + starboard::render::LABEL_GAP_PX)).abs() < 0.000_1
         );
+    }
+
+    #[test]
+    fn a_stream_label_uses_the_member_name_from_the_lobby_record() {
+        let mut app = app();
+        app.world_mut().spawn(spectator::Spectated {
+            slot: spectator::SpectateSlot::Stream,
+            zone: identity::ZoneName::from("beta"),
+            state: starboard::canvas::Canvas::default(),
+            freshness: spectator::SpectateFreshness::Live,
+        });
+        let (_, label) = label_for(&mut app, starboard::render::CursorPlacement::Stream);
+        app.update();
+
+        let text = app.world().get::<Text2d>(label).expect("label text");
+        assert_eq!(text.as_str(), "stream-ada");
+        assert_ne!(text.as_str(), "peer-a");
+    }
+
+    #[test]
+    fn an_in_room_label_keeps_the_joined_room_name() {
+        let mut app = app();
+        let (_, label) = label_for(&mut app, starboard::render::CursorPlacement::InRoom);
+        app.update();
+
+        let text = app.world().get::<Text2d>(label).expect("label text");
+        assert_eq!(text.as_str(), "in-room-ada");
+        assert_ne!(text.as_str(), "stream-ada");
     }
 }

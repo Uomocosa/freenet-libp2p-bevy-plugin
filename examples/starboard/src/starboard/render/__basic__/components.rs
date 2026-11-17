@@ -16,6 +16,7 @@ pub struct Cursor;
 pub enum CursorPlacement {
     InRoom,
     Preview,
+    Stream,
 }
 
 #[derive(Component)]

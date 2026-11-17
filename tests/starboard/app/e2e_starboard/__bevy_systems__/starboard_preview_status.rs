@@ -9,7 +9,7 @@ pub fn starboard_preview_status(
     In(_params): In<Option<Value>>,
     selection: Option<Res<ui::discovery::SelectedRoom>>,
     spectated: Query<&spectator::Spectated<starboard::starboard::canvas::Canvas>>,
-    preview_cursors: Option<Res<starboard::starboard::preview::PreviewCursors>>,
+    preview_cursors: Option<Res<starboard::starboard::preview::SlotCursors>>,
     target: Option<Res<peek::RoomPreviewTarget>>,
     viewports: Query<&ImageNode, With<ui::discovery::RoomPreviewViewport>>,
 ) -> BrpResult {
@@ -32,7 +32,13 @@ pub fn starboard_preview_status(
                 .filter(|tile| tile.is_some())
                 .count()
         }),
-        remote_cursors: preview_cursors.map_or(0, |cursors| cursors.len()),
+        remote_cursors: preview_cursors
+            .and_then(|cursors| {
+                cursors
+                    .get(&spectator::SpectateSlot::Preview)
+                    .map(std::collections::BTreeMap::len)
+            })
+            .unwrap_or(0),
         has_preview_image,
     };
     serde_json::to_value(status).map_err(BrpError::internal)

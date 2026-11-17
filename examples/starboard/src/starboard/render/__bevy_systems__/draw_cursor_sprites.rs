@@ -15,6 +15,7 @@ pub fn draw_cursor_sprites(
     view: &starboard::render::CanvasView,
     window: Vec2,
     placement: starboard::render::CursorPlacement,
+    label_kind: starboard::render::CursorLabelKind,
     layers: &RenderLayers,
 ) {
     for (entity, cursor_placement, owner, mut cursor_brush, mut sprite, mut transform) in
@@ -63,20 +64,21 @@ pub fn draw_cursor_sprites(
         let radius = starboard::canvas::brush_radius(cursor.size_index);
         let starboard::render::BrushImage { side, pixels } = brush.cursor_image(radius);
         let image = images.add(starboard::render::square_image(side, pixels));
-        commands
-            .spawn((
-                starboard::render::Cursor,
-                placement,
-                wanted_owner,
-                starboard::render::CursorBrush(brush),
-                Sprite::from_image(image),
-                Transform::default(),
-                layers.clone(),
-            ))
-            .with_child((
+        let mut cursor = commands.spawn((
+            starboard::render::Cursor,
+            placement,
+            wanted_owner,
+            starboard::render::CursorBrush(brush),
+            Sprite::from_image(image),
+            Transform::default(),
+            layers.clone(),
+        ));
+        if label_kind == starboard::render::CursorLabelKind::MemberName {
+            cursor.with_child((
                 starboard::render::cursor_label(starboard::render::LABEL_COLOR),
                 layers.clone(),
             ));
+        }
     }
 }
 
@@ -85,6 +87,7 @@ mod tests {
     use bevy::camera::visibility::RenderLayers;
     use bevy::prelude::*;
     use freenet_libp2p_bevy_plugin::identity;
+    use freenet_libp2p_bevy_plugin::lobby_room::spectator;
 
     use super::draw_cursor_sprites;
     use crate::starboard;
@@ -93,20 +96,25 @@ mod tests {
         mut commands: Commands,
         mut images: ResMut<Assets<Image>>,
         mut sprites: starboard::render::CursorSprites,
-        cursors: Res<starboard::preview::PreviewCursors>,
+        cursors: Res<starboard::preview::SlotCursors>,
         brushes: Res<starboard::room::RoomBrushes>,
     ) {
         let cursors = cursors.into_inner();
         let brushes = brushes.into_inner();
+        let empty = std::collections::BTreeMap::new();
+        let preview = cursors
+            .get(&spectator::SpectateSlot::Preview)
+            .unwrap_or(&empty);
         draw_cursor_sprites(
             &mut commands,
             &mut images,
             &mut sprites,
-            cursors,
+            preview,
             brushes,
             &starboard::render::CanvasView::fit(Vec2::splat(200.0)),
             Vec2::splat(200.0),
             starboard::render::CursorPlacement::Preview,
+            starboard::render::CursorLabelKind::None,
             &RenderLayers::default(),
         );
     }
@@ -125,7 +133,7 @@ mod tests {
             AssetPlugin::default(),
             ImagePlugin::default_nearest(),
         ));
-        app.init_resource::<starboard::preview::PreviewCursors>()
+        app.init_resource::<starboard::preview::SlotCursors>()
             .init_resource::<starboard::room::RoomBrushes>()
             .add_systems(Update, draw_test);
         app
@@ -143,7 +151,7 @@ mod tests {
     }
 
     fn preview_build(app: &mut App) {
-        app.init_resource::<starboard::preview::PreviewCursors>()
+        app.init_resource::<starboard::preview::SlotCursors>()
             .init_resource::<starboard::render::CanvasView>()
             .init_resource::<starboard::input::OwnBrush>()
             .insert_resource(starboard::room::RoomBrushes(
@@ -164,7 +172,9 @@ mod tests {
 
     fn show_cursor(world: &mut World) {
         world
-            .resource_mut::<starboard::preview::PreviewCursors>()
+            .resource_mut::<starboard::preview::SlotCursors>()
+            .entry(freenet_libp2p_bevy_plugin::lobby_room::spectator::SpectateSlot::Preview)
+            .or_default()
             .insert(identity::PeerId::from("peer-a"), cursor(300));
     }
 
@@ -196,7 +206,9 @@ mod tests {
         let mut app = app();
         let peer = identity::PeerId::from("peer-a");
         app.world_mut()
-            .resource_mut::<starboard::preview::PreviewCursors>()
+            .resource_mut::<starboard::preview::SlotCursors>()
+            .entry(spectator::SpectateSlot::Preview)
+            .or_default()
             .insert(peer.clone(), cursor(300));
         app.insert_resource(starboard::room::RoomBrushes(
             std::collections::BTreeMap::from([(
@@ -211,7 +223,9 @@ mod tests {
         assert_eq!(preview_sprites(&mut app), 1);
 
         app.world_mut()
-            .resource_mut::<starboard::preview::PreviewCursors>()
+            .resource_mut::<starboard::preview::SlotCursors>()
+            .entry(spectator::SpectateSlot::Preview)
+            .or_default()
             .clear();
         app.update();
         assert_eq!(preview_sprites(&mut app), 0);

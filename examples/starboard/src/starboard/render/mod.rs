@@ -28,6 +28,7 @@ pub use basic::constants::{
     LABEL_COLOR, LABEL_FONT_SIZE, LABEL_GAP_PX, LABEL_Z, OWN_CURSOR_Z, OWN_FALLBACK_NAME,
     OWN_LABEL_COLOR, OWN_OUTLINE_PX, OWN_OUTLINE_RGBA, OWN_PREVIEW_ALPHA, PREVIEW_FILL_ALPHA,
 };
+pub use basic::enums::CursorLabelKind;
 pub use basic::structs::BrushImage;
 pub use basic::type_aliases::CursorSprites;
 pub use blend_cell_rgba::blend_cell_rgba;

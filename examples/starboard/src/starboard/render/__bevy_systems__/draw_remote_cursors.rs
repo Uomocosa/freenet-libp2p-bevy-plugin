@@ -28,6 +28,7 @@ pub fn draw_remote_cursors(
         view,
         window.size(),
         starboard::render::CursorPlacement::InRoom,
+        starboard::render::CursorLabelKind::MemberName,
         &RenderLayers::default(),
     );
 }

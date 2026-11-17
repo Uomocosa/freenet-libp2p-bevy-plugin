@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use bevy::prelude::*;
 use discovery::state_machine::DiscoveryState;
@@ -13,8 +13,8 @@ pub fn collect_remote_cursors(
     events: Option<ResMut<p2p::PendingEvents<starboard::room::CursorUpdate>>>,
     spectated: Query<&spectator::Spectated<starboard::canvas::Canvas>>,
     mut cursors: ResMut<starboard::room::RemoteCursors>,
-    mut preview: ResMut<starboard::preview::PreviewCursors>,
-    mut shown_zone: Local<Option<identity::ZoneName>>,
+    mut slot_cursors: ResMut<starboard::preview::SlotCursors>,
+    mut shown_zones: Local<BTreeMap<spectator::SpectateSlot, identity::ZoneName>>,
 ) {
     let status = status.map(Res::into_inner);
     let own = ready.and_then(|ready| ready.ready_rx.borrow().clone().map(|peer| peer.id));
@@ -22,13 +22,20 @@ pub fn collect_remote_cursors(
         .as_ref()
         .and_then(|status| status.room.as_ref())
         .map(|room| identity::ZoneName::clone(&room.name));
-    let zone = spectated
+    let zones: BTreeMap<spectator::SpectateSlot, identity::ZoneName> = spectated
         .iter()
-        .find(|spectated| spectated.slot == spectator::SpectateSlot::Stream)
-        .map(|spectated| spectated.zone.clone());
-    if shown_zone.as_ref() != zone.as_ref() {
-        preview.clear();
-        (*shown_zone).clone_from(&zone);
+        .map(|spectated| (spectated.slot, spectated.zone.clone()))
+        .collect();
+    let live_slots: BTreeSet<spectator::SpectateSlot> = zones.keys().copied().collect();
+    slot_cursors.retain(|slot, _| live_slots.contains(slot));
+    shown_zones.retain(|slot, _| live_slots.contains(slot));
+    for (slot, zone) in &zones {
+        if shown_zones.get(slot) != Some(zone) {
+            if let Some(seen) = slot_cursors.get_mut(slot) {
+                seen.clear();
+            }
+            shown_zones.insert(*slot, zone.clone());
+        }
     }
     if let Some(mut events) = events {
         for event in events.take_all() {
@@ -41,10 +48,16 @@ pub fn collect_remote_cursors(
                 if Some(&from) == own.as_ref() {
                     continue;
                 }
-                if Some(&message_zone) == zone.as_ref() {
-                    preview.insert(from, payload);
-                } else if Some(&message_zone) == own_zone.as_ref() {
-                    cursors.insert(from, payload);
+                if Some(&message_zone) == own_zone.as_ref() {
+                    cursors.insert(from.clone(), payload);
+                }
+                for (slot, zone) in &zones {
+                    if *zone == message_zone {
+                        slot_cursors
+                            .entry(*slot)
+                            .or_default()
+                            .insert(from.clone(), payload);
+                    }
                 }
             }
         }
@@ -54,13 +67,15 @@ pub fn collect_remote_cursors(
         .and_then(|status| status.room.as_ref())
         .map_or_else(BTreeSet::new, |room| room.members.keys().collect());
     cursors.retain(|peer, _| members.contains(peer));
-    let preview_members: BTreeSet<&identity::PeerId> = zone
-        .as_ref()
-        .and_then(|zone| {
-            status.and_then(|status| status.lobby.get(&discovery::RoomName::from(zone.clone())))
-        })
-        .map_or_else(BTreeSet::new, |room| room.members.keys().collect());
-    preview.retain(|peer, _| preview_members.contains(peer));
+    for (slot, zone) in &zones {
+        let room_members: BTreeSet<&identity::PeerId> = status
+            .as_ref()
+            .and_then(|status| status.lobby.get(&discovery::RoomName::from(zone.clone())))
+            .map_or_else(BTreeSet::new, |room| room.members.keys().collect());
+        if let Some(seen) = slot_cursors.get_mut(slot) {
+            seen.retain(|peer, _| room_members.contains(peer));
+        }
+    }
 }
 
 #[cfg(test)]
@@ -110,19 +125,26 @@ mod tests {
         .build()
     }
 
-    fn lobby_status(room: &str, peers: &[&str]) -> DiscoveryState {
-        let room_members: BTreeMap<identity::PeerId, discovery::RoomMember> = peers
-            .iter()
-            .map(|peer| (identity::PeerId::from(*peer), member(peer)))
-            .collect();
-        let lobby = discovery::Lobby::from([(
+    fn lobby_room(room: &str, peers: &[&str]) -> (discovery::RoomName, discovery::Room) {
+        (
             discovery::RoomName::from(room),
             discovery::Room {
                 room_size: discovery::RoomSize::DEFAULT,
                 created_at: time::UnixTime::EPOCH,
-                members: room_members,
+                members: peers
+                    .iter()
+                    .map(|peer| (identity::PeerId::from(*peer), member(peer)))
+                    .collect::<BTreeMap<_, _>>(),
             },
-        )]);
+        )
+    }
+
+    fn lobby_status(rooms: &[(&str, &[&str])]) -> DiscoveryState {
+        let mut lobby = discovery::Lobby::default();
+        for (room, peers) in rooms {
+            let (name, record) = lobby_room(room, peers);
+            lobby.insert(name, record);
+        }
         freenet_libp2p_bevy_plugin::lobby_room::testing::DiscoveryStateBuilder::new(
             identity::PeerId::from("me"),
         )
@@ -144,7 +166,7 @@ mod tests {
         app.init_resource::<p2p::ReadyChannel>();
         app.init_resource::<p2p::PendingEvents<starboard::room::CursorUpdate>>();
         app.init_resource::<starboard::room::RemoteCursors>();
-        app.init_resource::<starboard::preview::PreviewCursors>();
+        app.init_resource::<starboard::preview::SlotCursors>();
         app.add_systems(Update, collect_remote_cursors);
         let _ = app
             .world()
@@ -167,23 +189,22 @@ mod tests {
             });
     }
 
-    fn spectate(app: &mut App, zone: &str) {
+    fn spectate(app: &mut App, slot: spectator::SpectateSlot, zone: &str) {
         app.world_mut().spawn(spectator::Spectated {
-            slot: spectator::SpectateSlot::Stream,
+            slot,
             zone: identity::ZoneName::from(zone),
             state: starboard::canvas::Canvas::default(),
             freshness: spectator::SpectateFreshness::Live,
         });
     }
 
-    fn despawn_spectated(app: &mut App) {
-        let mut query = app
-            .world_mut()
-            .query_filtered::<Entity, With<spectator::Spectated<starboard::canvas::Canvas>>>();
-        let entities: Vec<Entity> = query.iter(app.world()).collect();
-        for entity in entities {
-            app.world_mut().despawn(entity);
-        }
+    fn slot_cursors(
+        app: &App,
+        slot: spectator::SpectateSlot,
+    ) -> Option<&BTreeMap<identity::PeerId, starboard::room::CursorUpdate>> {
+        app.world()
+            .resource::<starboard::preview::SlotCursors>()
+            .get(&slot)
     }
 
     #[test]
@@ -222,10 +243,9 @@ mod tests {
     }
 
     #[test]
-    fn the_spectated_zone_cursors_go_to_the_preview_not_the_room() {
-        let mut app = app(joined_status(&["peer-a", "peer-b"]));
-        spectate(&mut app, "beta");
-        *app.world_mut().resource_mut::<DiscoveryState>() = lobby_status("beta", &["peer-b"]);
+    fn the_streamed_zone_cursors_go_to_the_stream_slot() {
+        let mut app = app(lobby_status(&[("beta", &["peer-b"])]));
+        spectate(&mut app, spectator::SpectateSlot::Stream, "beta");
         zone_message(&mut app, "beta", "peer-b", 7);
         app.update();
 
@@ -235,36 +255,95 @@ mod tests {
                 .len(),
             0
         );
-        let preview = app.world().resource::<starboard::preview::PreviewCursors>();
-        assert_eq!(preview.len(), 1);
         assert_eq!(
-            preview
-                .get(&identity::PeerId::from("peer-b"))
-                .map(|c| c.cell.x),
+            slot_cursors(&app, spectator::SpectateSlot::Stream)
+                .and_then(|cursors| cursors.get(&identity::PeerId::from("peer-b")))
+                .map(|cursor| cursor.cell.x),
             Some(7)
+        );
+        assert!(slot_cursors(&app, spectator::SpectateSlot::Preview).is_none());
+    }
+
+    #[test]
+    fn each_slot_collects_only_its_own_zone() {
+        let mut app = app(lobby_status(&[
+            ("beta", &["peer-b"]),
+            ("gamma", &["peer-c"]),
+        ]));
+        spectate(&mut app, spectator::SpectateSlot::Preview, "gamma");
+        spectate(&mut app, spectator::SpectateSlot::Stream, "beta");
+        zone_message(&mut app, "beta", "peer-b", 7);
+        zone_message(&mut app, "gamma", "peer-c", 9);
+        app.update();
+
+        assert_eq!(
+            slot_cursors(&app, spectator::SpectateSlot::Stream)
+                .and_then(|cursors| cursors.get(&identity::PeerId::from("peer-b")))
+                .map(|cursor| cursor.cell.x),
+            Some(7)
+        );
+        assert_eq!(
+            slot_cursors(&app, spectator::SpectateSlot::Preview)
+                .and_then(|cursors| cursors.get(&identity::PeerId::from("peer-c")))
+                .map(|cursor| cursor.cell.x),
+            Some(9)
         );
     }
 
     #[test]
-    fn leaving_the_preview_clears_its_cursors() {
-        let mut app = app(lobby_status("beta", &["peer-b"]));
-        spectate(&mut app, "beta");
+    fn both_slots_watching_one_zone_both_receive_the_cursor() {
+        let mut app = app(lobby_status(&[("beta", &["peer-b"])]));
+        spectate(&mut app, spectator::SpectateSlot::Preview, "beta");
+        spectate(&mut app, spectator::SpectateSlot::Stream, "beta");
         zone_message(&mut app, "beta", "peer-b", 7);
         app.update();
-        assert_eq!(
-            app.world()
-                .resource::<starboard::preview::PreviewCursors>()
-                .len(),
-            1
-        );
 
-        despawn_spectated(&mut app);
+        for slot in [
+            spectator::SpectateSlot::Preview,
+            spectator::SpectateSlot::Stream,
+        ] {
+            assert_eq!(
+                slot_cursors(&app, slot)
+                    .and_then(|cursors| cursors.get(&identity::PeerId::from("peer-b")))
+                    .map(|cursor| cursor.cell.x),
+                Some(7),
+                "{slot:?} missed the shared-zone cursor"
+            );
+        }
+    }
+
+    #[test]
+    fn leaving_a_slot_clears_only_its_cursors() {
+        let mut app = app(lobby_status(&[
+            ("beta", &["peer-b"]),
+            ("gamma", &["peer-c"]),
+        ]));
+        spectate(&mut app, spectator::SpectateSlot::Preview, "gamma");
+        spectate(&mut app, spectator::SpectateSlot::Stream, "beta");
+        zone_message(&mut app, "beta", "peer-b", 7);
+        zone_message(&mut app, "gamma", "peer-c", 9);
         app.update();
+
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<spectator::Spectated<starboard::canvas::Canvas>>>();
+        let previews: Vec<Entity> = query
+            .iter(app.world())
+            .filter(|entity| {
+                app.world()
+                    .get::<spectator::Spectated<starboard::canvas::Canvas>>(*entity)
+                    .is_some_and(|spectated| spectated.slot == spectator::SpectateSlot::Preview)
+            })
+            .collect();
+        for entity in previews {
+            app.world_mut().despawn(entity);
+        }
+        app.update();
+
+        assert!(slot_cursors(&app, spectator::SpectateSlot::Preview).is_none());
         assert_eq!(
-            app.world()
-                .resource::<starboard::preview::PreviewCursors>()
-                .len(),
-            0
+            slot_cursors(&app, spectator::SpectateSlot::Stream).map(BTreeMap::len),
+            Some(1)
         );
     }
 }
