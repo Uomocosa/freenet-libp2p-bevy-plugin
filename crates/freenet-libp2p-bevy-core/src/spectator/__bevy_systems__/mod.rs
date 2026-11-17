@@ -4,6 +4,9 @@ pub use count_spectators::count_spectators;
 mod drive;
 pub use drive::drive;
 
+mod manage_spectated;
+pub use manage_spectated::manage_spectated;
+
 mod route_spectate_commands;
 pub use route_spectate_commands::route_spectate_commands;
 

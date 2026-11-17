@@ -9,7 +9,7 @@ use ui::discovery::{RoomPreviewMemberList, RoomPreviewViewport};
 
 pub fn show_preview_image<S: replica_sync::traits::ReplicatedState>(
     mut commands: Commands,
-    spectated: Option<Res<spectator::Spectated<S>>>,
+    spectated: Query<&spectator::Spectated<S>>,
     target: Option<Res<peek::RoomPreviewTarget>>,
     viewport: Option<Single<Entity, With<RoomPreviewViewport>>>,
     member_list: Option<Single<&mut Visibility, With<RoomPreviewMemberList>>>,
@@ -18,7 +18,9 @@ pub fn show_preview_image<S: replica_sync::traits::ReplicatedState>(
     let Some(viewport) = viewport else {
         return;
     };
-    let spectated = spectated.map(Res::into_inner);
+    let spectated = spectated
+        .iter()
+        .find(|spectated| spectated.slot == spectator::SpectateSlot::Preview);
     let target = target.map(Res::into_inner);
     let is_showing_image = spectated.is_some_and(|spectated| {
         matches!(
@@ -138,11 +140,22 @@ mod tests {
     }
 
     fn spectate(app: &mut App, freshness: spectator::SpectateFreshness) {
-        app.insert_resource(spectator::Spectated::<State> {
+        app.world_mut().spawn(spectator::Spectated::<State> {
+            slot: spectator::SpectateSlot::Preview,
             zone: identity::ZoneName::from("alpha"),
             state: State,
             freshness,
         });
+    }
+
+    fn despawn_spectated(app: &mut App) {
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<spectator::Spectated<State>>>();
+        let entities: Vec<Entity> = query.iter(app.world()).collect();
+        for entity in entities {
+            app.world_mut().despawn(entity);
+        }
     }
 
     fn member_visibility(app: &App, member_list: Entity) -> Visibility {
@@ -182,8 +195,7 @@ mod tests {
         let (mut app, viewport, member_list) = app();
         spectate(&mut app, spectator::SpectateFreshness::Live);
         app.update();
-        app.world_mut()
-            .remove_resource::<spectator::Spectated<State>>();
+        despawn_spectated(&mut app);
         app.update();
         assert!(app.world().get::<ImageNode>(viewport).is_none());
         assert_eq!(member_visibility(&app, member_list), Visibility::Inherited);
@@ -255,7 +267,8 @@ mod tests {
             zone: zone.clone(),
             image,
         });
-        world.insert_resource(spectator::Spectated::<State> {
+        world.spawn(spectator::Spectated::<State> {
+            slot: spectator::SpectateSlot::Preview,
             zone,
             state: State,
             freshness: spectator::SpectateFreshness::Live,

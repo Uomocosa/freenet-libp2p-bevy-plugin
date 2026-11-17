@@ -14,14 +14,12 @@ pub struct SpectatorState<Op, Snap> {
     pub game: identity::GameId,
     pub me: Option<identity::PeerId>,
     pub zone: Option<identity::ZoneName>,
-    pub my_zone: Option<identity::ZoneName>,
+    pub history_prefix: Option<p2p::HistoryKeyPrefix>,
     pub phase: spectator::state_machine::SpectatePhase,
     pub buffered_ops: Vec<(replica_sync::OpMeta, Op)>,
     pub applied_metas: Vec<replica_sync::OpMeta>,
     pub players: BTreeSet<identity::PeerId>,
-    pub leases: BTreeMap<identity::PeerId, time::UnixTime>,
     pub next_lease_at: time::UnixTime,
-    pub last_reported_count: usize,
     pub last_slice_request_at: BTreeMap<identity::PeerId, time::UnixTime>,
     pub pending_slice_requests: BTreeMap<replica_sync::ReplicaSliceIndex, time::UnixTime>,
     pub _snap: PhantomData<Snap>,
@@ -34,14 +32,12 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
             game,
             me: None,
             zone: None,
-            my_zone: None,
+            history_prefix: None,
             phase: spectator::state_machine::SpectatePhase::Idle,
             buffered_ops: Vec::new(),
             applied_metas: Vec::new(),
             players: BTreeSet::new(),
-            leases: BTreeMap::new(),
             next_lease_at: time::UnixTime::EPOCH,
-            last_reported_count: 0,
             last_slice_request_at: BTreeMap::new(),
             pending_slice_requests: BTreeMap::new(),
             _snap: PhantomData,
@@ -54,12 +50,10 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
         &mut self,
         input: spectator::state_machine::SpectateInput<Op, Snap>,
         now: time::UnixTime,
+        lease_interval: Duration,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
         match input {
-            spectator::state_machine::SpectateInput::Command(command) => {
-                self.handle_command(command, now)
-            }
-            spectator::state_machine::SpectateInput::Snapshot(snapshot) => {
+            spectator::state_machine::SpectateInput::Snapshot { snapshot, .. } => {
                 self.handle_snapshot(snapshot)
             }
             spectator::state_machine::SpectateInput::Topic(message) => self.handle_topic(message),
@@ -69,36 +63,16 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
                 local,
                 remote,
             } => self.handle_remote_slice_content_hashes(&from, &zone, &local, &remote, now),
-            spectator::state_machine::SpectateInput::SliceReceived { index, snapshot } => {
-                self.handle_slice_received(index, snapshot)
-            }
+            spectator::state_machine::SpectateInput::SliceReceived {
+                index, snapshot, ..
+            } => self.handle_slice_received(index, snapshot),
             spectator::state_machine::SpectateInput::Players(players) => {
                 self.handle_players(players)
             }
             spectator::state_machine::SpectateInput::LocalPeer(peer) => {
-                self.handle_local_peer(peer, now)
+                self.handle_local_peer(peer, now, lease_interval)
             }
-            spectator::state_machine::SpectateInput::MyZone(zone) => self.handle_my_zone(zone),
-            spectator::state_machine::SpectateInput::Lease {
-                zone,
-                spectator,
-                until,
-            } => self.handle_lease(&zone, &spectator, until, now),
-            spectator::state_machine::SpectateInput::Tick => self.handle_tick(now),
-        }
-    }
-
-    pub(crate) fn handle_command(
-        &mut self,
-        command: spectator::state_machine::SpectateCommand,
-        now: time::UnixTime,
-    ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
-        match command {
-            spectator::state_machine::SpectateCommand::Start {
-                zone,
-                history_prefix,
-            } => self.start_spectating(&zone, history_prefix, now),
-            spectator::state_machine::SpectateCommand::Stop => self.stop_spectating(now),
+            spectator::state_machine::SpectateInput::Tick => self.handle_tick(now, lease_interval),
         }
     }
 
@@ -134,41 +108,14 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
             | replica_sync::ReplicaSyncTopicMessage::SpectatorLease { .. } => Vec::new(),
         }
     }
-
-    pub(crate) fn lease_interval(&self) -> Duration {
-        let count = u32::try_from(self.leases.len().saturating_add(1)).unwrap_or(u32::MAX);
-        let scaled = spectator::state_machine::LEASE_INTERVAL_PER_SPECTATOR.saturating_mul(count);
-        spectator::state_machine::MIN_LEASE_INTERVAL
-            .max(scaled)
-            .min(spectator::state_machine::MAX_LEASE_INTERVAL)
-    }
-}
-
-#[rustfmt::skip]
-impl<Op, Snap> SpectatorState<Op, Snap> {
-    pub(crate) fn next_lease_after(&self, now: time::UnixTime) -> time::UnixTime { now.saturating_add(self.lease_interval().checked_div(2).unwrap_or_default()) }
 }
 
 #[atomic_delegates]
 impl<Op, Snap> SpectatorState<Op, Snap> {
     pub(crate) fn has_seen_meta(&self, meta: replica_sync::OpMeta) -> bool {}
-    pub(crate) fn lease_until(&self, now: time::UnixTime) -> time::UnixTime {}
     pub(crate) fn remember_applied_meta(&mut self, meta: replica_sync::OpMeta) {}
-    pub(crate) fn expire_leases(
-        &mut self,
-        now: time::UnixTime,
-    ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
-    }
     pub(crate) fn expire_slice_requests(
         &mut self,
-        now: time::UnixTime,
-    ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
-    }
-    pub(crate) fn handle_lease(
-        &mut self,
-        zone: &identity::ZoneName,
-        spectator: &identity::PeerId,
-        until: time::UnixTime,
         now: time::UnixTime,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     }
@@ -176,11 +123,7 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
         &mut self,
         peer: Option<identity::PeerId>,
         now: time::UnixTime,
-    ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
-    }
-    pub(crate) fn handle_my_zone(
-        &mut self,
-        zone: Option<identity::ZoneName>,
+        lease_interval: Duration,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     }
     pub(crate) fn handle_remote_op(
@@ -193,6 +136,7 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
     pub(crate) fn handle_tick(
         &mut self,
         now: time::UnixTime,
+        lease_interval: Duration,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     }
     pub(crate) fn handle_remote_slice_content_hashes(
@@ -212,6 +156,7 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
     pub(crate) fn publish_lease(
         &mut self,
         now: time::UnixTime,
+        lease_interval: Duration,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     }
     pub(crate) fn start_spectating(
@@ -219,6 +164,7 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
         zone: &identity::ZoneName,
         history_prefix: p2p::HistoryKeyPrefix,
         now: time::UnixTime,
+        lease_interval: Duration,
     ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     }
     pub(crate) fn stop_spectating(
@@ -244,6 +190,7 @@ mod tests {
         let outputs = state.update(
             spectator::state_machine::SpectateInput::Tick,
             time::UnixTime::EPOCH,
+            spectator::state_machine::MIN_LEASE_INTERVAL,
         );
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.phase, spectator::state_machine::SpectatePhase::Idle);
@@ -253,14 +200,11 @@ mod tests {
         let mut state =
             spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
         state.me = Some(identity::PeerId::from("me"));
-        state.update(
-            spectator::state_machine::SpectateInput::Command(
-                spectator::state_machine::SpectateCommand::Start {
-                    zone: identity::ZoneName::from("zone"),
-                    history_prefix: p2p::HistoryKeyPrefix::from("prefix"),
-                },
-            ),
+        state.start_spectating(
+            &identity::ZoneName::from("zone"),
+            p2p::HistoryKeyPrefix::from("prefix"),
             time::UnixTime::EPOCH,
+            spectator::state_machine::MIN_LEASE_INTERVAL,
         );
         state
     }
@@ -287,35 +231,17 @@ mod tests {
             lease_outputs(&state.update(
                 spectator::state_machine::SpectateInput::Tick,
                 time::UnixTime::from_millis(7_499),
+                spectator::state_machine::MIN_LEASE_INTERVAL,
             )),
             Vec::new()
         );
         assert_eq!(
-            lease_outputs(&state.update(spectator::state_machine::SpectateInput::Tick, half,)),
+            lease_outputs(&state.update(
+                spectator::state_machine::SpectateInput::Tick,
+                half,
+                spectator::state_machine::MIN_LEASE_INTERVAL,
+            )),
             vec![half.saturating_add(std::time::Duration::from_secs(45))]
-        );
-    }
-
-    #[test]
-    fn the_lease_interval_grows_with_the_spectator_count_and_is_capped() {
-        let mut state = spectating_state();
-        assert_eq!(state.lease_interval(), std::time::Duration::from_secs(15));
-        for index in 0..99 {
-            state.leases.insert(
-                identity::PeerId::from(format!("spectator-{index}")),
-                time::UnixTime::from_secs(10_000),
-            );
-        }
-        assert_eq!(state.lease_interval(), std::time::Duration::from_secs(50));
-        for index in 0..300 {
-            state.leases.insert(
-                identity::PeerId::from(format!("more-{index}")),
-                time::UnixTime::from_secs(10_000),
-            );
-        }
-        assert_eq!(
-            state.lease_interval(),
-            spectator::state_machine::MAX_LEASE_INTERVAL
         );
     }
 
@@ -323,12 +249,7 @@ mod tests {
     fn stop_publishes_a_lease_that_has_already_expired() {
         let mut state = spectating_state();
         let now = time::UnixTime::from_secs(30);
-        let outputs = state.update(
-            spectator::state_machine::SpectateInput::Command(
-                spectator::state_machine::SpectateCommand::Stop,
-            ),
-            now,
-        );
+        let outputs = state.stop_spectating(now);
         assert_eq!(lease_outputs(&outputs), vec![now]);
         assert_eq!(state.phase, spectator::state_machine::SpectatePhase::Idle);
     }
@@ -343,10 +264,12 @@ mod tests {
             .insert(index, time::UnixTime::EPOCH);
         state.update(
             spectator::state_machine::SpectateInput::SliceReceived {
+                zone: identity::ZoneName::from("zone"),
                 index,
                 snapshot: Vec::new(),
             },
             time::UnixTime::EPOCH,
+            spectator::state_machine::MIN_LEASE_INTERVAL,
         );
         assert!(state.pending_slice_requests.is_empty());
     }

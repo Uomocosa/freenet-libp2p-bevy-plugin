@@ -157,15 +157,19 @@ fn join_player(app: &mut App, zone: &identity::ZoneName, prefix: &p2p::HistoryKe
     ));
 }
 
-fn prepare() -> Option<(App, App, identity::ZoneName, p2p::HistoryKeyPrefix)> {
-    let game = identity::GameId::from("game-spectator");
-    let zone = identity::ZoneName::from("zone-spectator");
-    let history = Some(replica_sync::HistoryConfig {
+fn history_config() -> replica_sync::HistoryConfig {
+    replica_sync::HistoryConfig {
         write_interval: Duration::from_millis(80),
         record_ttl: Duration::from_secs(90),
         per_zone_bytes: p2p::HistoryByteCount::from(64u64 * 1024 * 1024),
         max_fetch_retries: 2,
-    });
+    }
+}
+
+fn prepare() -> Option<(App, App, identity::ZoneName, p2p::HistoryKeyPrefix)> {
+    let game = identity::GameId::from("game-spectator");
+    let zone = identity::ZoneName::from("zone-spectator");
+    let history = Some(history_config());
     let mut player = node(&game, history);
     let mut spectator = node(&game, None);
     let player_peer = dialable(&wait_ready(&mut player)?);
@@ -211,16 +215,31 @@ fn wait_for_history(
     false
 }
 
-fn wait_for_bootstrap(player: &mut App, spectator: &mut App) -> bool {
+fn is_live_with(app: &mut App, slot: spectator::SpectateSlot, key: u8, value: u32) -> bool {
+    let mut query = app.world_mut().query::<&spectator::Spectated<Map>>();
+    let world = app.world();
+    query.iter(world).any(|spectated| {
+        spectated.slot == slot
+            && spectated.freshness == spectator::SpectateFreshness::Live
+            && spectated.state.entries.get(&key) == Some(&value)
+    })
+}
+
+fn has_spectated(app: &mut App, slot: spectator::SpectateSlot) -> bool {
+    let mut query = app.world_mut().query::<&spectator::Spectated<Map>>();
+    let world = app.world();
+    query.iter(world).any(|spectated| spectated.slot == slot)
+}
+
+fn wait_for_bootstrap(
+    player: &mut App,
+    spectator: &mut App,
+    slot: spectator::SpectateSlot,
+) -> bool {
     for _ in 0..MAX_ROUNDS {
         player.update();
         spectator.update();
-        if let Some(spectated) = spectator
-            .world()
-            .get_resource::<spectator::Spectated<Map>>()
-            && spectated.freshness == spectator::SpectateFreshness::Live
-            && spectated.state.entries.get(&1) == Some(&10)
-        {
+        if is_live_with(spectator, slot, 1, 10) {
             return true;
         }
         std::thread::sleep(SETTLE);
@@ -228,7 +247,7 @@ fn wait_for_bootstrap(player: &mut App, spectator: &mut App) -> bool {
     false
 }
 
-fn wait_for_live_op(player: &mut App, spectator: &mut App) -> bool {
+fn wait_for_live_op(player: &mut App, spectator: &mut App, slot: spectator::SpectateSlot) -> bool {
     for round in 0..MAX_ROUNDS {
         if round % 25 == 0 {
             player
@@ -239,11 +258,7 @@ fn wait_for_live_op(player: &mut App, spectator: &mut App) -> bool {
         }
         player.update();
         spectator.update();
-        if let Some(spectated) = spectator
-            .world()
-            .get_resource::<spectator::Spectated<Map>>()
-            && spectated.state.entries.get(&2) == Some(&20)
-        {
+        if is_live_with(spectator, slot, 2, 20) {
             return true;
         }
         std::thread::sleep(SETTLE);
@@ -290,15 +305,80 @@ fn wait_for_zone_message(
     false
 }
 
-fn wait_for_spectated_removed(player: &mut App, spectator: &mut App) -> bool {
+fn wait_for_spectated_removed(
+    player: &mut App,
+    spectator: &mut App,
+    slot: spectator::SpectateSlot,
+) -> bool {
     for _ in 0..MAX_ROUNDS {
         player.update();
         spectator.update();
-        if spectator
-            .world()
-            .get_resource::<spectator::Spectated<Map>>()
-            .is_none()
-        {
+        if !has_spectated(spectator, slot) {
+            return true;
+        }
+        std::thread::sleep(SETTLE);
+    }
+    false
+}
+
+fn wait_for_second_player(
+    first: &mut App,
+    second: &mut App,
+    spectator: &mut App,
+    slot: spectator::SpectateSlot,
+) -> bool {
+    for _ in 0..MAX_ROUNDS {
+        first.update();
+        second.update();
+        spectator.update();
+        if is_live_with(spectator, slot, 1, 10) {
+            return true;
+        }
+        std::thread::sleep(SETTLE);
+    }
+    false
+}
+
+fn wait_for_second_live_op(
+    first: &mut App,
+    second: &mut App,
+    spectator: &mut App,
+    slot: spectator::SpectateSlot,
+) -> bool {
+    for round in 0..MAX_ROUNDS {
+        if round % 25 == 0 {
+            for player in [&mut *first, &mut *second] {
+                player
+                    .world_mut()
+                    .resource_mut::<replica_sync::PendingOps<Map>>()
+                    .ops
+                    .push(Op { key: 2, value: 20 });
+            }
+        }
+        first.update();
+        second.update();
+        spectator.update();
+        if is_live_with(spectator, slot, 2, 20) {
+            return true;
+        }
+        std::thread::sleep(SETTLE);
+    }
+    false
+}
+
+fn wait_for_both_counts(
+    first: &mut App,
+    second: &mut App,
+    spectator: &mut App,
+    expected: (usize, usize),
+) -> bool {
+    for _ in 0..MAX_ROUNDS {
+        first.update();
+        second.update();
+        spectator.update();
+        let first_count = **first.world().resource::<spectator::SpectatorCount>();
+        let second_count = **second.world().resource::<spectator::SpectatorCount>();
+        if first_count == expected.0 && second_count == expected.1 {
             return true;
         }
         std::thread::sleep(SETTLE);
@@ -354,15 +434,24 @@ async fn a_spectator_sees_live_ops_and_the_count_round_trips() {
     spectator
         .world_mut()
         .write_message(spectator::SpectateCommand::Start {
+            slot: spectator::SpectateSlot::Preview,
             zone,
             history_prefix: prefix,
         });
     assert!(
-        wait_for_bootstrap(&mut player, &mut spectator),
+        wait_for_bootstrap(
+            &mut player,
+            &mut spectator,
+            spectator::SpectateSlot::Preview
+        ),
         "the spectator never bootstrapped from the zone history"
     );
     assert!(
-        wait_for_live_op(&mut player, &mut spectator),
+        wait_for_live_op(
+            &mut player,
+            &mut spectator,
+            spectator::SpectateSlot::Preview
+        ),
         "the spectator never saw a live op"
     );
     assert!(
@@ -371,16 +460,15 @@ async fn a_spectator_sees_live_ops_and_the_count_round_trips() {
     );
     spectator
         .world_mut()
-        .write_message(spectator::SpectateCommand::Stop);
+        .write_message(spectator::SpectateCommand::Stop {
+            slot: spectator::SpectateSlot::Preview,
+        });
     assert!(
         wait_for_count(&mut player, &mut spectator, 0),
         "the player never dropped the stopped spectator"
     );
     assert!(
-        spectator
-            .world()
-            .get_resource::<spectator::Spectated<Map>>()
-            .is_none(),
+        !has_spectated(&mut spectator, spectator::SpectateSlot::Preview),
         "Stop must remove Spectated"
     );
 }
@@ -411,12 +499,14 @@ async fn two_spectators_on_one_zone_are_counted_separately() {
     first
         .world_mut()
         .write_message(spectator::SpectateCommand::Start {
+            slot: spectator::SpectateSlot::Preview,
             zone: zone.clone(),
             history_prefix: prefix.clone(),
         });
     second
         .world_mut()
         .write_message(spectator::SpectateCommand::Start {
+            slot: spectator::SpectateSlot::Preview,
             zone,
             history_prefix: prefix,
         });
@@ -426,7 +516,9 @@ async fn two_spectators_on_one_zone_are_counted_separately() {
     );
     first
         .world_mut()
-        .write_message(spectator::SpectateCommand::Stop);
+        .write_message(spectator::SpectateCommand::Stop {
+            slot: spectator::SpectateSlot::Preview,
+        });
     assert!(
         wait_for_two_counts(&mut player, &mut first, &mut second, 1),
         "the player never dropped the stopped spectator"
@@ -456,11 +548,16 @@ async fn a_non_member_spectator_receives_zone_messages_until_stop() {
     spectator
         .world_mut()
         .write_message(spectator::SpectateCommand::Start {
+            slot: spectator::SpectateSlot::Preview,
             zone: zone.clone(),
             history_prefix: prefix,
         });
     assert!(
-        wait_for_bootstrap(&mut player, &mut spectator),
+        wait_for_bootstrap(
+            &mut player,
+            &mut spectator,
+            spectator::SpectateSlot::Preview
+        ),
         "the spectator never bootstrapped from the zone history"
     );
     assert!(
@@ -469,9 +566,15 @@ async fn a_non_member_spectator_receives_zone_messages_until_stop() {
     );
     spectator
         .world_mut()
-        .write_message(spectator::SpectateCommand::Stop);
+        .write_message(spectator::SpectateCommand::Stop {
+            slot: spectator::SpectateSlot::Preview,
+        });
     assert!(
-        wait_for_spectated_removed(&mut player, &mut spectator),
+        wait_for_spectated_removed(
+            &mut player,
+            &mut spectator,
+            spectator::SpectateSlot::Preview
+        ),
         "Stop never removed Spectated"
     );
     for _ in 0..100 {
@@ -499,5 +602,130 @@ async fn a_non_member_spectator_receives_zone_messages_until_stop() {
     assert!(
         !kept_receiving,
         "the spectator kept receiving zone messages after Stop"
+    );
+}
+
+fn prepared_second_zone(
+    spectator: &mut App,
+    game: &identity::GameId,
+    zone: &identity::ZoneName,
+) -> Option<(App, p2p::HistoryKeyPrefix)> {
+    let mut player = node(game, Some(history_config()));
+    let player_peer = dialable(&wait_ready(&mut player)?);
+    if !connect_and_seed_kad(spectator, &player_peer) {
+        return None;
+    }
+    let spectator_peer = ready(spectator)?;
+    let _ = player
+        .world()
+        .resource::<p2p::Libp2pCommandSender>()
+        .send(p2p::Libp2pCommand::AddKadPeer(dialable(&spectator_peer)));
+    let prefix = p2p::HistoryKeyPrefix::new(game, zone, time::UnixTime::now());
+    join_player(&mut player, zone, &prefix);
+    player
+        .world_mut()
+        .resource_mut::<Map>()
+        .entries
+        .insert(1, 10);
+    let mut events = player
+        .world()
+        .resource::<p2p::Libp2pEventChannel>()
+        .subscribe();
+    wait_for_history(&mut player, &mut events, &prefix).then_some((player, prefix))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_spectator_streams_one_zone_and_previews_another_at_once() {
+    let prepared = prepare();
+    assert!(prepared.is_some(), "the two peers never prepared");
+    let Some((mut stream_player, mut spectator, stream_zone, stream_prefix)) = prepared else {
+        return;
+    };
+    let game = identity::GameId::from("game-spectator");
+    let preview_zone = identity::ZoneName::from("zone-preview");
+    let Some((mut preview_player, preview_prefix)) =
+        prepared_second_zone(&mut spectator, &game, &preview_zone)
+    else {
+        panic!("the preview player never prepared");
+    };
+    let mut stream_events = stream_player
+        .world()
+        .resource::<p2p::Libp2pEventChannel>()
+        .subscribe();
+    assert!(
+        wait_for_history(&mut stream_player, &mut stream_events, &stream_prefix),
+        "the stream player never wrote its history"
+    );
+
+    spectator
+        .world_mut()
+        .write_message(spectator::SpectateCommand::Start {
+            slot: spectator::SpectateSlot::Stream,
+            zone: stream_zone,
+            history_prefix: stream_prefix,
+        });
+    spectator
+        .world_mut()
+        .write_message(spectator::SpectateCommand::Start {
+            slot: spectator::SpectateSlot::Preview,
+            zone: preview_zone,
+            history_prefix: preview_prefix,
+        });
+
+    for slot in [
+        spectator::SpectateSlot::Stream,
+        spectator::SpectateSlot::Preview,
+    ] {
+        assert!(
+            wait_for_second_player(
+                &mut stream_player,
+                &mut preview_player,
+                &mut spectator,
+                slot,
+            ),
+            "a slot never bootstrapped from its own zone history"
+        );
+        assert!(
+            wait_for_second_live_op(
+                &mut stream_player,
+                &mut preview_player,
+                &mut spectator,
+                slot,
+            ),
+            "a slot never saw a live op in its own zone"
+        );
+    }
+    assert!(
+        wait_for_both_counts(
+            &mut stream_player,
+            &mut preview_player,
+            &mut spectator,
+            (1, 1)
+        ),
+        "both zones never counted the spectator"
+    );
+
+    spectator
+        .world_mut()
+        .write_message(spectator::SpectateCommand::Stop {
+            slot: spectator::SpectateSlot::Preview,
+        });
+
+    assert!(
+        wait_for_both_counts(
+            &mut stream_player,
+            &mut preview_player,
+            &mut spectator,
+            (1, 0)
+        ),
+        "stopping the preview never dropped its zone count"
+    );
+    assert!(
+        !has_spectated(&mut spectator, spectator::SpectateSlot::Preview),
+        "stopping the preview never removed its Spectated entity"
+    );
+    assert!(
+        has_spectated(&mut spectator, spectator::SpectateSlot::Stream),
+        "stopping the preview removed the stream Spectated entity"
     );
 }

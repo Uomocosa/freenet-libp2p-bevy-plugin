@@ -32,7 +32,9 @@ pub fn peek_selected_room(
         }
         *started_room = None;
         *cleared_for_secs = None;
-        spectate.write(spectator::SpectateCommand::Stop);
+        spectate.write(spectator::SpectateCommand::Stop {
+            slot: spectator::SpectateSlot::Preview,
+        });
         return;
     };
     *cleared_for_secs = None;
@@ -57,6 +59,7 @@ pub fn peek_selected_room(
         network.write(p2p::Libp2pCommand::Dial(member.peer.clone()));
     }
     spectate.write(spectator::SpectateCommand::Start {
+        slot: spectator::SpectateSlot::Preview,
         zone: (**room).clone(),
         history_prefix,
     });
@@ -141,6 +144,7 @@ mod tests {
         let prefix =
             p2p::HistoryKeyPrefix::new(&game(), &room, time::UnixTime::from_secs(created_at));
         spectator::SpectateCommand::Start {
+            slot: spectator::SpectateSlot::Preview,
             zone: (*room).clone(),
             history_prefix: prefix,
         }
@@ -214,7 +218,12 @@ mod tests {
         }
         assert_eq!(sent(&mut app), Vec::new(), "still inside the linger");
         app.update();
-        assert_eq!(sent(&mut app), vec![spectator::SpectateCommand::Stop]);
+        assert_eq!(
+            sent(&mut app),
+            vec![spectator::SpectateCommand::Stop {
+                slot: spectator::SpectateSlot::Preview,
+            }]
+        );
     }
 
     #[test]

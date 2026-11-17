@@ -1,4 +1,4 @@
-use bevy::prelude::{Commands, MessageWriter};
+use bevy::prelude::MessageWriter;
 
 use crate::identity;
 use crate::p2p;
@@ -6,23 +6,16 @@ use crate::replica_sync;
 use crate::spectator;
 
 pub fn carry_out_network_output<S: replica_sync::traits::ReplicatedState>(
-    machine: &spectator::Machine<S::Op, Vec<u8>>,
+    machine: &spectator::Machine<S::Op>,
+    slot: spectator::SpectateSlot,
     output: &spectator::state_machine::SpectateOutput<S::Op, Vec<u8>>,
     game: &spectator::SpectatorGame,
-    spectated: Option<&mut spectator::Spectated<S>>,
-    commands: &mut Commands,
-    bootstrap: &mut spectator::HistoryBootstrap<Vec<u8>>,
     network: &mut MessageWriter<p2p::Libp2pCommand>,
 ) {
     use p2p::Libp2pCommand;
     use spectator::state_machine::SpectateOutput;
     match output {
         SpectateOutput::Subscribe(topic) => {
-            if let Some(zone) = machine.zone.clone()
-                && *topic == identity::Topic::from_replica_sync(game, &zone)
-            {
-                bootstrap.reset_for_spectated::<S>(commands, zone);
-            }
             network.write(Libp2pCommand::Subscribe {
                 topic: topic.clone(),
             });
@@ -42,37 +35,34 @@ pub fn carry_out_network_output<S: replica_sync::traits::ReplicatedState>(
             network.write(Libp2pCommand::GetHistoryRecord { id: id.clone() });
         }
         SpectateOutput::RequestSlice { from, index } => {
-            let Some(zone) = machine.zone.clone() else {
+            let Some(zone) = machine.zone_of(slot) else {
                 return;
             };
-            if let Some(spectated) = spectated {
-                spectated.freshness = spectator::SpectateFreshness::Repairing;
-            }
             network.write(Libp2pCommand::FetchReplicaSlice {
                 peer_id: from.clone(),
-                zone,
+                zone: zone.clone(),
                 index: *index,
             });
         }
         SpectateOutput::Publish(message) => {
-            let Some(zone) = machine.zone.clone() else {
+            let Some(zone) = machine.zone_of(slot) else {
                 return;
             };
             if let Ok(data) = bincode::serialize(message) {
                 network.write(Libp2pCommand::Publish {
-                    topic: identity::Topic::from_replica_sync(game, &zone),
+                    topic: identity::Topic::from_replica_sync(game, zone),
                     data,
                 });
             }
         }
         SpectateOutput::PublishLease {
             zone,
-            spectator,
+            spectator: peer,
             until,
         } => {
             let message = replica_sync::ReplicaSyncTopicMessage::<S::Op>::SpectatorLease {
                 zone: zone.clone(),
-                spectator: spectator.clone(),
+                spectator: peer.clone(),
                 until: *until,
             };
             if let Ok(data) = bincode::serialize(&message) {
@@ -84,9 +74,7 @@ pub fn carry_out_network_output<S: replica_sync::traits::ReplicatedState>(
         }
         SpectateOutput::Merge(_)
         | SpectateOutput::Apply { .. }
-        | SpectateOutput::Clear
-        | SpectateOutput::RepairFinished
-        | SpectateOutput::SpectatorCountChanged(_) => {}
+        | SpectateOutput::RepairFinished => {}
     }
 }
 
@@ -124,10 +112,8 @@ mod tests {
         }
     }
 
-    fn machine() -> spectator::Machine<u8, Vec<u8>> {
-        spectator::Machine(spectator::state_machine::SpectatorState::new(
-            identity::GameId::from("game"),
-        ))
+    fn machine() -> spectator::Machine<u8> {
+        spectator::Machine::new(identity::GameId::from("game"))
     }
 
     fn written(app: &mut App) -> Vec<p2p::Libp2pCommand> {
@@ -145,23 +131,18 @@ mod tests {
         app.add_message::<p2p::Libp2pCommand>();
         app.insert_resource(machine());
         app.insert_resource(spectator::SpectatorGame(identity::GameId::from("game")));
-        app.init_resource::<spectator::HistoryBootstrap<Vec<u8>>>();
         let zone = identity::ZoneName::from("zone");
         app.world_mut()
             .run_system_once_with(
                 |input: In<spectator::state_machine::SpectateOutput<u8, Vec<u8>>>,
-                 machine: Res<spectator::Machine<u8, Vec<u8>>>,
+                 machine: Res<spectator::Machine<u8>>,
                  game: Res<spectator::SpectatorGame>,
-                 mut bootstrap: ResMut<spectator::HistoryBootstrap<Vec<u8>>>,
-                 mut commands: Commands,
                  mut network: MessageWriter<p2p::Libp2pCommand>| {
                     let In(output) = input;
                     machine.carry_out_network_output::<MockState>(
+                        spectator::SpectateSlot::Preview,
                         &output,
                         &game,
-                        None,
-                        &mut commands,
-                        &mut bootstrap,
                         &mut network,
                     );
                 },
@@ -181,26 +162,21 @@ mod tests {
         app.add_message::<p2p::Libp2pCommand>();
         app.insert_resource(machine());
         app.insert_resource(spectator::SpectatorGame(identity::GameId::from("game")));
-        app.init_resource::<spectator::HistoryBootstrap<Vec<u8>>>();
         app.world_mut()
             .run_system_once_with(
                 |input: In<spectator::state_machine::SpectateOutput<u8, Vec<u8>>>,
-                 machine: Res<spectator::Machine<u8, Vec<u8>>>,
+                 machine: Res<spectator::Machine<u8>>,
                  game: Res<spectator::SpectatorGame>,
-                 mut bootstrap: ResMut<spectator::HistoryBootstrap<Vec<u8>>>,
-                 mut commands: Commands,
                  mut network: MessageWriter<p2p::Libp2pCommand>| {
                     let In(output) = input;
                     machine.carry_out_network_output::<MockState>(
+                        spectator::SpectateSlot::Preview,
                         &output,
                         &game,
-                        None,
-                        &mut commands,
-                        &mut bootstrap,
                         &mut network,
                     );
                 },
-                spectator::state_machine::SpectateOutput::<u8, Vec<u8>>::Clear,
+                spectator::state_machine::SpectateOutput::<u8, Vec<u8>>::RepairFinished,
             )
             .unwrap();
         assert_eq!(written(&mut app), Vec::new());

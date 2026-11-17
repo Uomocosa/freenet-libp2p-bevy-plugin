@@ -8,6 +8,7 @@ pub fn start_spectating<Op, Snap>(
     zone: &identity::ZoneName,
     history_prefix: p2p::HistoryKeyPrefix,
     now: time::UnixTime,
+    lease_interval: std::time::Duration,
 ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     let mut outputs = if state.zone.is_some() {
         state.stop_spectating(now)
@@ -15,6 +16,7 @@ pub fn start_spectating<Op, Snap>(
         Vec::new()
     };
     state.zone = Some(zone.clone());
+    state.history_prefix = Some(history_prefix.clone());
     state.phase = spectator::state_machine::SpectatePhase::FetchingSnapshot;
     state.buffered_ops.clear();
     state.applied_metas.clear();
@@ -29,7 +31,7 @@ pub fn start_spectating<Op, Snap>(
     outputs.push(spectator::state_machine::SpectateOutput::GetHistoryRecord(
         p2p::ZoneHistoryRecordKind::Manifest(history_prefix),
     ));
-    outputs.extend(state.publish_lease(now));
+    outputs.extend(state.publish_lease(now, lease_interval));
     outputs
 }
 
@@ -52,12 +54,16 @@ mod tests {
         p2p::HistoryKeyPrefix::from("prefix")
     }
 
+    fn interval() -> std::time::Duration {
+        spectator::state_machine::MIN_LEASE_INTERVAL
+    }
+
     #[test]
     fn test_usage() {
         let mut state = state();
         let zone = identity::ZoneName::from("zone");
         let now = time::UnixTime::from_secs(100);
-        let outputs = start_spectating(&mut state, &zone, prefix(), now);
+        let outputs = start_spectating(&mut state, &zone, prefix(), now, interval());
         assert!(matches!(
             outputs.as_slice(),
             [
@@ -75,6 +81,7 @@ mod tests {
             spectator::state_machine::SpectatePhase::FetchingSnapshot
         );
         assert_eq!(state.zone, Some(zone));
+        assert_eq!(state.history_prefix, Some(prefix()));
     }
 
     #[test]
@@ -82,7 +89,13 @@ mod tests {
         let mut state: spectator::state_machine::SpectatorState<u8, Vec<u8>> =
             spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
         let zone = identity::ZoneName::from("zone");
-        let outputs = start_spectating(&mut state, &zone, prefix(), time::UnixTime::from_secs(100));
+        let outputs = start_spectating(
+            &mut state,
+            &zone,
+            prefix(),
+            time::UnixTime::from_secs(100),
+            interval(),
+        );
         assert!(matches!(
             outputs.as_slice(),
             [
@@ -101,18 +114,24 @@ mod tests {
     fn starting_another_zone_leaves_the_previous_one_first() {
         let mut state = state();
         let first = identity::ZoneName::from("first");
-        start_spectating(&mut state, &first, prefix(), time::UnixTime::from_secs(10));
+        start_spectating(
+            &mut state,
+            &first,
+            prefix(),
+            time::UnixTime::from_secs(10),
+            interval(),
+        );
         let outputs = start_spectating(
             &mut state,
             &identity::ZoneName::from("second"),
             prefix(),
             time::UnixTime::from_secs(20),
+            interval(),
         );
         let unsubscribe = spectator::state_machine::SpectateOutput::Unsubscribe(
             identity::Topic::from_replica_sync(&identity::GameId::from("game"), &first),
         );
         assert!(outputs.contains(&unsubscribe));
-        assert!(outputs.contains(&spectator::state_machine::SpectateOutput::Clear));
         assert_eq!(state.zone, Some(identity::ZoneName::from("second")));
         assert_eq!(
             state.phase,

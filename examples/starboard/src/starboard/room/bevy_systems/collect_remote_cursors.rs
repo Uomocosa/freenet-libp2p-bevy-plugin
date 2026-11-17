@@ -11,7 +11,7 @@ pub fn collect_remote_cursors(
     status: Option<Res<DiscoveryState>>,
     ready: Option<Res<p2p::ReadyChannel>>,
     events: Option<ResMut<p2p::PendingEvents<starboard::room::CursorUpdate>>>,
-    spectated: Option<Res<spectator::Spectated<starboard::canvas::Canvas>>>,
+    spectated: Query<&spectator::Spectated<starboard::canvas::Canvas>>,
     mut cursors: ResMut<starboard::room::RemoteCursors>,
     mut preview: ResMut<starboard::preview::PreviewCursors>,
     mut shown_zone: Local<Option<identity::ZoneName>>,
@@ -22,7 +22,10 @@ pub fn collect_remote_cursors(
         .as_ref()
         .and_then(|status| status.room.as_ref())
         .map(|room| identity::ZoneName::clone(&room.name));
-    let zone = spectated.map(|spectated| spectated.zone.clone());
+    let zone = spectated
+        .iter()
+        .find(|spectated| spectated.slot == spectator::SpectateSlot::Stream)
+        .map(|spectated| spectated.zone.clone());
     if shown_zone.as_ref() != zone.as_ref() {
         preview.clear();
         (*shown_zone).clone_from(&zone);
@@ -165,11 +168,22 @@ mod tests {
     }
 
     fn spectate(app: &mut App, zone: &str) {
-        app.insert_resource(spectator::Spectated {
+        app.world_mut().spawn(spectator::Spectated {
+            slot: spectator::SpectateSlot::Stream,
             zone: identity::ZoneName::from(zone),
             state: starboard::canvas::Canvas::default(),
             freshness: spectator::SpectateFreshness::Live,
         });
+    }
+
+    fn despawn_spectated(app: &mut App) {
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<spectator::Spectated<starboard::canvas::Canvas>>>();
+        let entities: Vec<Entity> = query.iter(app.world()).collect();
+        for entity in entities {
+            app.world_mut().despawn(entity);
+        }
     }
 
     #[test]
@@ -244,8 +258,7 @@ mod tests {
             1
         );
 
-        app.world_mut()
-            .remove_resource::<spectator::Spectated<starboard::canvas::Canvas>>();
+        despawn_spectated(&mut app);
         app.update();
         assert_eq!(
             app.world()

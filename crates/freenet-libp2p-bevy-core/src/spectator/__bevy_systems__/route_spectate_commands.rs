@@ -16,11 +16,9 @@ pub fn route_spectate_commands<S: replica_sync::traits::ReplicatedState>(
         .next()
         .and_then(|in_zone| zone_names.get(**in_zone).ok())
         .cloned();
-    inputs.push(spectator::state_machine::SpectateInput::MyZone(my_zone));
+    inputs.push(spectator::MachineInput::MyZone(my_zone));
     for command in commands.read() {
-        inputs.push(spectator::state_machine::SpectateInput::Command(
-            command.clone(),
-        ));
+        inputs.push(spectator::MachineInput::Command(command.clone()));
     }
 }
 

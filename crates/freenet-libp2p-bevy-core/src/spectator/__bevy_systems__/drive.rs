@@ -1,4 +1,4 @@
-use bevy::prelude::{Commands, Has, MessageWriter, Query, Res, ResMut};
+use bevy::prelude::{Has, MessageWriter, Query, Res, ResMut};
 
 use crate::identity;
 use crate::p2p;
@@ -9,13 +9,12 @@ use crate::time;
 
 pub fn drive<S: replica_sync::traits::ReplicatedState>(
     game: Res<spectator::SpectatorGame>,
-    mut machine: ResMut<spectator::Machine<S::Op, Vec<u8>>>,
+    mut machine: ResMut<spectator::Machine<S::Op>>,
     mut inputs: ResMut<spectator::SpectatorInputs<S::Op, Vec<u8>>>,
-    mut bootstrap: ResMut<spectator::HistoryBootstrap<Vec<u8>>>,
-    mut spectated: Option<ResMut<spectator::Spectated<S>>>,
     mut count: ResMut<spectator::SpectatorCount>,
-    mut commands: Commands,
+    mut bootstrap: ResMut<spectator::HistoryBootstrap<Vec<u8>>>,
     mut network: MessageWriter<p2p::Libp2pCommand>,
+    mut spectated: Query<&mut spectator::Spectated<S>>,
     players: Query<(&peers::Peer, Has<peers::InZone>, Has<peers::Me>)>,
 ) {
     let game = game.into_inner();
@@ -25,26 +24,42 @@ pub fn drive<S: replica_sync::traits::ReplicatedState>(
         .filter(|(_, is_in_zone, is_me)| *is_in_zone && !*is_me)
         .map(|(peer, _, _)| (**peer).clone())
         .collect();
-    inputs.push(spectator::state_machine::SpectateInput::Players(players));
+    inputs.push(spectator::MachineInput::Session(
+        spectator::state_machine::SpectateInput::Players(players),
+    ));
     for input in std::mem::take(&mut **inputs) {
         for output in machine.update(input, now) {
-            machine.carry_out_network_output(
-                &output,
-                game,
-                spectated.as_deref_mut(),
-                &mut commands,
-                &mut bootstrap,
-                &mut network,
-            );
-            spectator::Machine::<S::Op, Vec<u8>>::carry_out_state_output(
-                &output,
-                spectated.as_deref_mut(),
-                &mut count,
-                &mut commands,
-                &mut bootstrap,
-            );
+            match output {
+                spectator::MachineOutput::Session {
+                    slot,
+                    output: session_output,
+                } => {
+                    machine.carry_out_network_output::<S>(
+                        slot,
+                        &session_output,
+                        game,
+                        &mut network,
+                    );
+                    let target = spectated
+                        .iter_mut()
+                        .find(|spectated| spectated.slot == slot)
+                        .map(bevy::ecs::change_detection::Mut::into_inner);
+                    spectator::Machine::<S::Op>::carry_out_state_output(&session_output, target);
+                }
+                spectator::MachineOutput::SpectatorCountChanged(spectators) => {
+                    **count = spectators;
+                }
+            }
         }
     }
+    let live_prefixes: Vec<&p2p::HistoryKeyPrefix> = machine
+        .sessions
+        .values()
+        .filter_map(|session| session.history_prefix.as_ref())
+        .collect();
+    bootstrap
+        .pending
+        .retain(|prefix, _| live_prefixes.contains(&prefix));
 }
 
 // no test_usage necessary

@@ -1,7 +1,6 @@
 use crate::identity;
 use crate::p2p;
 use crate::replica_sync;
-use crate::spectator;
 use crate::time;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -14,8 +13,10 @@ pub enum SpectatePhase {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpectateInput<Op, Snap> {
-    Command(spectator::state_machine::SpectateCommand),
-    Snapshot(Snap),
+    Snapshot {
+        history_prefix: p2p::HistoryKeyPrefix,
+        snapshot: Snap,
+    },
     Topic(replica_sync::ReplicaSyncTopicMessage<Op>),
     RemoteSliceContentHashes {
         from: identity::PeerId,
@@ -24,17 +25,12 @@ pub enum SpectateInput<Op, Snap> {
         remote: replica_sync::ReplicaSliceContentHashes,
     },
     SliceReceived {
+        zone: identity::ZoneName,
         index: replica_sync::ReplicaSliceIndex,
         snapshot: Snap,
     },
     Players(Vec<identity::PeerId>),
     LocalPeer(Option<identity::PeerId>),
-    MyZone(Option<identity::ZoneName>),
-    Lease {
-        zone: identity::ZoneName,
-        spectator: identity::PeerId,
-        until: time::UnixTime,
-    },
     Tick,
 }
 
@@ -60,9 +56,7 @@ pub enum SpectateOutput<Op, Snap> {
         meta: replica_sync::OpMeta,
         op: Op,
     },
-    Clear,
     RepairFinished,
-    SpectatorCountChanged(usize),
 }
 
 // no test_usage necessary

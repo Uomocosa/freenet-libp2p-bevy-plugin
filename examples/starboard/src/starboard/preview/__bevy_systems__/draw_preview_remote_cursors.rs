@@ -10,7 +10,7 @@ pub fn draw_preview_remote_cursors(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     status: Option<Res<DiscoveryState>>,
-    spectated: Option<Res<spectator::Spectated<starboard::canvas::Canvas>>>,
+    spectated: Query<&spectator::Spectated<starboard::canvas::Canvas>>,
     cursors: Res<starboard::preview::PreviewCursors>,
     brushes: Res<starboard::room::RoomBrushes>,
     mut sprites: starboard::render::CursorSprites,
@@ -22,7 +22,10 @@ pub fn draw_preview_remote_cursors(
         starboard::render::CanvasView::fit(Vec2::splat(starboard::preview::PREVIEW_BOARD_SIDE));
     let window = Vec2::splat(starboard::preview::PREVIEW_BOARD_SIDE);
     let layers = RenderLayers::layer(starboard::preview::PREVIEW_LAYER);
-    let Some(spectated) = spectated else {
+    let Some(spectated) = spectated
+        .iter()
+        .find(|spectated| spectated.slot == spectator::SpectateSlot::Preview)
+    else {
         starboard::render::bevy_systems::draw_cursor_sprites(
             &mut commands,
             &mut images,
@@ -127,7 +130,8 @@ mod tests {
             ImagePlugin::default_nearest(),
         ));
         app.insert_resource(lobby_status());
-        app.insert_resource(spectator::Spectated {
+        app.world_mut().spawn(spectator::Spectated {
+            slot: spectator::SpectateSlot::Preview,
             zone: identity::ZoneName::from("alpha"),
             state: starboard::canvas::Canvas::default(),
             freshness: spectator::SpectateFreshness::Live,
@@ -141,8 +145,13 @@ mod tests {
         app.update();
         assert_eq!(preview_sprites(&mut app), 1);
 
-        app.world_mut()
-            .remove_resource::<spectator::Spectated<starboard::canvas::Canvas>>();
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<spectator::Spectated<starboard::canvas::Canvas>>>();
+        let entities: Vec<Entity> = query.iter(app.world()).collect();
+        for entity in entities {
+            app.world_mut().despawn(entity);
+        }
         app.update();
         assert_eq!(preview_sprites(&mut app), 0);
     }

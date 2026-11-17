@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::p2p;
 use crate::spectator;
 
@@ -14,8 +16,6 @@ pub fn handle_history_record<Snap>(
             if manifest.chunk_count == 0 {
                 return spectator::BootstrapOutcome::Ignored;
             }
-            bootstrap.prefix = Some(prefix.clone());
-            bootstrap.chunks.clear();
             let requests = (0..manifest.chunk_count)
                 .map(|index| {
                     p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
@@ -25,29 +25,41 @@ pub fn handle_history_record<Snap>(
                     })
                 })
                 .collect();
-            bootstrap.manifest = Some(manifest);
+            bootstrap.pending.insert(
+                prefix.clone(),
+                spectator::PendingHistory {
+                    manifest: Some(manifest),
+                    chunks: BTreeMap::default(),
+                },
+            );
             spectator::BootstrapOutcome::RequestChunks(requests)
         }
         p2p::ZoneHistoryRecordKind::Chunk(chunk_id) => {
-            let Some(manifest) = bootstrap.manifest.clone() else {
+            let Some(pending) = bootstrap.pending.get_mut(&chunk_id.prefix) else {
                 return spectator::BootstrapOutcome::Ignored;
             };
-            if bootstrap.prefix.as_ref() != Some(&chunk_id.prefix)
-                || manifest.content_hash != chunk_id.content_hash
+            let Some(manifest) = pending.manifest.clone() else {
+                return spectator::BootstrapOutcome::Ignored;
+            };
+            if manifest.content_hash != chunk_id.content_hash
                 || *chunk_id.chunk >= u64::from(manifest.chunk_count)
             {
                 return spectator::BootstrapOutcome::Ignored;
             }
-            bootstrap.chunks.insert(chunk_id.chunk, value);
-            if u32::try_from(bootstrap.chunks.len()).unwrap_or(0) < manifest.chunk_count {
+            pending.chunks.insert(chunk_id.chunk, value);
+            if u32::try_from(pending.chunks.len()).unwrap_or(0) < manifest.chunk_count {
                 return spectator::BootstrapOutcome::Ignored;
             }
-            let ordered: Vec<Vec<u8>> = bootstrap.chunks.values().cloned().collect();
-            let Ok(bytes) = p2p::ChunkedSnapshot::join(&ordered, &manifest) else {
+            let ordered: Vec<Vec<u8>> = pending.chunks.values().cloned().collect();
+            let Ok(snapshot) = p2p::ChunkedSnapshot::join(&ordered, &manifest) else {
                 return spectator::BootstrapOutcome::Ignored;
             };
-            bootstrap.reset();
-            spectator::BootstrapOutcome::Snapshot(bytes)
+            let history_prefix = chunk_id.prefix.clone();
+            bootstrap.pending.remove(&history_prefix);
+            spectator::BootstrapOutcome::Snapshot {
+                history_prefix,
+                snapshot,
+            }
         }
     }
 }
@@ -58,32 +70,92 @@ mod tests {
     use crate::p2p;
     use crate::spectator;
 
+    fn split(
+        payload: &[u8],
+    ) -> (
+        p2p::HistoryManifest,
+        p2p::HistoryKeyPrefix,
+        Vec<Vec<u8>>,
+        Vec<u8>,
+    ) {
+        let prefix = p2p::HistoryKeyPrefix::from("prefix");
+        let split = p2p::ChunkedSnapshot::try_from_payload(payload, 1).expect("split");
+        let chunks = split.chunks.clone();
+        (split.manifest, prefix, chunks, payload.to_vec())
+    }
+
     #[test]
     fn test_usage() {
         let mut bootstrap = spectator::HistoryBootstrap::<Vec<u8>>::default();
-        let prefix = p2p::HistoryKeyPrefix::from("prefix");
         let payload = vec![7_u8, 8, 9];
-        let split = p2p::ChunkedSnapshot::try_from_payload(&payload, 1).expect("split");
-        let manifest = bincode::serialize(&split.manifest).expect("manifest");
-        let requests = handle_history_record(
-            &mut bootstrap,
-            &p2p::ZoneHistoryRecordKind::Manifest(prefix.clone()),
-            manifest,
-        );
+        let (manifest, prefix, chunks, expected) = split(&payload);
+        let manifest_bytes = bincode::serialize(&manifest).expect("manifest");
         assert!(matches!(
-            requests,
+            handle_history_record(
+                &mut bootstrap,
+                &p2p::ZoneHistoryRecordKind::Manifest(prefix.clone()),
+                manifest_bytes,
+            ),
             spectator::BootstrapOutcome::RequestChunks(_)
         ));
-        let chunk = handle_history_record(
+        let outcome = handle_history_record(
             &mut bootstrap,
             &p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
-                prefix,
-                content_hash: split.manifest.content_hash,
+                prefix: prefix.clone(),
+                content_hash: manifest.content_hash,
                 chunk: p2p::ChunkIndex(0),
             }),
-            split.chunks[0].clone(),
+            chunks[0].clone(),
         );
-        assert_eq!(chunk, spectator::BootstrapOutcome::Snapshot(payload));
-        assert!(bootstrap.manifest.is_none());
+        assert_eq!(
+            outcome,
+            spectator::BootstrapOutcome::Snapshot {
+                history_prefix: prefix,
+                snapshot: expected,
+            }
+        );
+        assert!(bootstrap.pending.is_empty());
+    }
+
+    #[test]
+    fn two_zones_bootstrap_side_by_side() {
+        let mut bootstrap = spectator::HistoryBootstrap::<Vec<u8>>::default();
+        let (first_manifest, first_prefix, first_chunks, first_payload) = split(&[1_u8]);
+        let (second_manifest, second_prefix, second_chunks, _) = split(&[2_u8]);
+        for (prefix, manifest) in [
+            (first_prefix.clone(), &first_manifest),
+            (second_prefix.clone(), &second_manifest),
+        ] {
+            handle_history_record(
+                &mut bootstrap,
+                &p2p::ZoneHistoryRecordKind::Manifest(prefix),
+                bincode::serialize(manifest).expect("manifest"),
+            );
+        }
+        handle_history_record(
+            &mut bootstrap,
+            &p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+                prefix: second_prefix,
+                content_hash: second_manifest.content_hash,
+                chunk: p2p::ChunkIndex(0),
+            }),
+            second_chunks[0].clone(),
+        );
+        assert!(bootstrap.pending.contains_key(&first_prefix));
+        assert_eq!(
+            handle_history_record(
+                &mut bootstrap,
+                &p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
+                    prefix: first_prefix.clone(),
+                    content_hash: first_manifest.content_hash,
+                    chunk: p2p::ChunkIndex(0),
+                }),
+                first_chunks[0].clone(),
+            ),
+            spectator::BootstrapOutcome::Snapshot {
+                history_prefix: first_prefix,
+                snapshot: first_payload,
+            }
+        );
     }
 }

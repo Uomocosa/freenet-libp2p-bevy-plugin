@@ -8,10 +8,12 @@ use crate::spectator;
 pub fn sync_preview_target<S: replica_sync::traits::ReplicatedState>(
     mut commands: Commands,
     images: Option<ResMut<Assets<Image>>>,
-    spectated: Option<Res<spectator::Spectated<S>>>,
+    spectated: Query<&spectator::Spectated<S>>,
     target: Option<ResMut<peek::RoomPreviewTarget>>,
 ) {
-    let spectated = spectated.map(Res::into_inner);
+    let spectated = spectated
+        .iter()
+        .find(|spectated| spectated.slot == spectator::SpectateSlot::Preview);
     match (spectated, target) {
         (Some(spectated), Some(mut target)) => {
             if target.zone != spectated.zone {
@@ -82,9 +84,20 @@ mod tests {
         freshness: spectator::SpectateFreshness,
     ) -> spectator::Spectated<State> {
         spectator::Spectated {
+            slot: spectator::SpectateSlot::Preview,
             zone: identity::ZoneName::from(zone),
             state: State,
             freshness,
+        }
+    }
+
+    fn despawn_spectated(app: &mut App) {
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<spectator::Spectated<State>>>();
+        let entities: Vec<Entity> = query.iter(app.world()).collect();
+        for entity in entities {
+            app.world_mut().despawn(entity);
         }
     }
 
@@ -103,7 +116,8 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut app = app();
-        app.insert_resource(spectated("alpha", spectator::SpectateFreshness::Live));
+        app.world_mut()
+            .spawn(spectated("alpha", spectator::SpectateFreshness::Live));
         app.update();
         let target = target(&app).expect("preview target");
         assert_eq!(target.zone, identity::ZoneName::from("alpha"));
@@ -113,10 +127,10 @@ mod tests {
     #[test]
     fn leaving_the_spectated_zone_removes_the_target_and_its_image() {
         let mut app = app();
-        app.insert_resource(spectated("alpha", spectator::SpectateFreshness::Live));
-        app.update();
         app.world_mut()
-            .remove_resource::<spectator::Spectated<State>>();
+            .spawn(spectated("alpha", spectator::SpectateFreshness::Live));
+        app.update();
+        despawn_spectated(&mut app);
         app.update();
         assert!(target(&app).is_none());
         assert_eq!(app.world().resource::<Assets<Image>>().len(), 0);
@@ -125,10 +139,12 @@ mod tests {
     #[test]
     fn switching_rooms_keeps_the_image_and_updates_the_zone() {
         let mut app = app();
-        app.insert_resource(spectated("alpha", spectator::SpectateFreshness::Live));
+        app.world_mut()
+            .spawn(spectated("alpha", spectator::SpectateFreshness::Live));
         app.update();
         let image = target(&app).expect("preview target").image.clone();
-        app.insert_resource(spectated(
+        despawn_spectated(&mut app);
+        app.world_mut().spawn(spectated(
             "beta",
             spectator::SpectateFreshness::Bootstrapping,
         ));

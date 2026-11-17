@@ -18,6 +18,7 @@ pub fn stop_spectating<Op, Snap>(
         });
     }
     state.phase = spectator::state_machine::SpectatePhase::Idle;
+    state.history_prefix = None;
     state.buffered_ops.clear();
     state.applied_metas.clear();
     state.last_slice_request_at.clear();
@@ -27,7 +28,6 @@ pub fn stop_spectating<Op, Snap>(
         identity::Topic::from_replica_sync(&state.game, &zone),
     ));
     outputs.push(spectator::state_machine::SpectateOutput::UnwatchZone(zone));
-    outputs.push(spectator::state_machine::SpectateOutput::Clear);
     outputs
 }
 
@@ -77,7 +77,6 @@ mod tests {
                 spectator::state_machine::SpectateOutput::UnwatchZone(identity::ZoneName::from(
                     "zone"
                 )),
-                spectator::state_machine::SpectateOutput::Clear,
             ]
         );
         assert_eq!(state.phase, spectator::state_machine::SpectatePhase::Idle);
@@ -97,19 +96,7 @@ mod tests {
     }
 
     #[test]
-    fn stopping_in_my_own_zone_still_unwatches_the_zone_topic() {
-        let mut state = spectating_state();
-        state.my_zone = Some(identity::ZoneName::from("zone"));
-        let outputs = stop_spectating(&mut state, time::UnixTime::from_secs(50));
-        let unwatch =
-            spectator::state_machine::SpectateOutput::UnwatchZone(identity::ZoneName::from("zone"));
-        assert!(outputs.contains(&unwatch));
-        assert!(outputs.contains(&spectator::state_machine::SpectateOutput::Clear));
-        assert_eq!(state.zone, None);
-    }
-
-    #[test]
-    fn stopping_without_a_known_id_skips_the_lease_but_still_clears() {
+    fn stopping_without_a_known_id_skips_the_lease_but_still_unwatches() {
         let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
             identity::GameId::from("game"),
         );
@@ -128,7 +115,6 @@ mod tests {
                 spectator::state_machine::SpectateOutput::UnwatchZone(identity::ZoneName::from(
                     "zone"
                 )),
-                spectator::state_machine::SpectateOutput::Clear,
             ]
         );
         assert_eq!(state.zone, None);

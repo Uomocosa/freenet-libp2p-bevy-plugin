@@ -4,6 +4,7 @@ use crate::time;
 pub fn publish_lease<Op, Snap>(
     state: &mut spectator::state_machine::SpectatorState<Op, Snap>,
     now: time::UnixTime,
+    lease_interval: std::time::Duration,
 ) -> Vec<spectator::state_machine::SpectateOutput<Op, Snap>> {
     let Some(zone) = state.zone.clone() else {
         return Vec::new();
@@ -11,8 +12,10 @@ pub fn publish_lease<Op, Snap>(
     let Some(me) = state.me.clone() else {
         return Vec::new();
     };
-    let until = state.lease_until(now);
-    state.next_lease_at = state.next_lease_after(now);
+    let until = now.saturating_add(
+        lease_interval.saturating_mul(spectator::state_machine::LEASE_TTL_MULTIPLIER),
+    );
+    state.next_lease_at = now.saturating_add(lease_interval.checked_div(2).unwrap_or_default());
     vec![spectator::state_machine::SpectateOutput::PublishLease {
         zone,
         spectator: me,
@@ -39,7 +42,11 @@ mod tests {
     fn test_usage() {
         let mut state = state();
         let now = time::UnixTime::from_secs(100);
-        let outputs = publish_lease(&mut state, now);
+        let outputs = publish_lease(
+            &mut state,
+            now,
+            spectator::state_machine::MIN_LEASE_INTERVAL,
+        );
         assert_eq!(
             outputs,
             vec![spectator::state_machine::SpectateOutput::PublishLease {
@@ -68,7 +75,11 @@ mod tests {
         );
         state.me = Some(identity::PeerId::from("me"));
         assert_eq!(
-            publish_lease(&mut state, time::UnixTime::from_secs(1)),
+            publish_lease(
+                &mut state,
+                time::UnixTime::from_secs(1),
+                spectator::state_machine::MIN_LEASE_INTERVAL
+            ),
             Vec::new()
         );
     }
@@ -80,7 +91,11 @@ mod tests {
         );
         state.zone = Some(identity::ZoneName::from("zone"));
         assert_eq!(
-            publish_lease(&mut state, time::UnixTime::from_secs(1)),
+            publish_lease(
+                &mut state,
+                time::UnixTime::from_secs(1),
+                spectator::state_machine::MIN_LEASE_INTERVAL
+            ),
             Vec::new()
         );
         assert_eq!(state.next_lease_at, time::UnixTime::EPOCH);

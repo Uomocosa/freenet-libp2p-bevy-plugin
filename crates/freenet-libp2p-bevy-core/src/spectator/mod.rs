@@ -1,13 +1,19 @@
 #[path = "__basic__/mod.rs"]
 mod basic;
 
-pub use basic::enums::{BootstrapOutcome, SpectateFreshness};
-pub use basic::resources::{
-    Spectated, SpectatorCount, SpectatorEvents, SpectatorGame, SpectatorInputs,
+pub use basic::components::Spectated;
+pub use basic::enums::{
+    BootstrapOutcome, InZoneInput, InZoneOutput, MachineInput, MachineOutput, SpectateFreshness,
+    SpectateSlot,
 };
+pub use basic::resources::{SpectatorCount, SpectatorEvents, SpectatorGame, SpectatorInputs};
+pub use basic::structs::PendingHistory;
 
 mod history_bootstrap;
 pub use history_bootstrap::HistoryBootstrap;
+
+mod in_zone;
+pub use in_zone::InZone;
 
 mod plugin;
 pub use plugin::SpectatorPlugin;

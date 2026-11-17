@@ -8,7 +8,7 @@ use crate::e2e_starboard::PreviewStatus;
 pub fn starboard_preview_status(
     In(_params): In<Option<Value>>,
     selection: Option<Res<ui::discovery::SelectedRoom>>,
-    spectated: Option<Res<spectator::Spectated<starboard::starboard::canvas::Canvas>>>,
+    spectated: Query<&spectator::Spectated<starboard::starboard::canvas::Canvas>>,
     preview_cursors: Option<Res<starboard::starboard::preview::PreviewCursors>>,
     target: Option<Res<peek::RoomPreviewTarget>>,
     viewports: Query<&ImageNode, With<ui::discovery::RoomPreviewViewport>>,
@@ -16,7 +16,9 @@ pub fn starboard_preview_status(
     let has_preview_image =
         target.is_some_and(|target| viewports.iter().any(|node| node.image == target.image));
     let selection = selection.map(Res::into_inner);
-    let spectated = spectated.map(Res::into_inner);
+    let spectated = spectated
+        .iter()
+        .find(|spectated| spectated.slot == spectator::SpectateSlot::Preview);
     let status = PreviewStatus {
         selected_room: selection
             .and_then(|selection| selection.room.as_ref())
@@ -108,7 +110,8 @@ mod tests {
                 mask: starboard::starboard::canvas::FULL_MASK,
             },
         );
-        app.insert_resource(spectator::Spectated {
+        app.world_mut().spawn(spectator::Spectated {
+            slot: spectator::SpectateSlot::Preview,
             zone: zone.clone(),
             state: canvas,
             freshness: spectator::SpectateFreshness::Live,

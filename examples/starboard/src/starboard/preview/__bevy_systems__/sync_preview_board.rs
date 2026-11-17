@@ -78,11 +78,22 @@ mod tests {
     }
 
     fn spectate(app: &mut App, zone: &str, canvas: starboard::canvas::Canvas) {
-        app.insert_resource(spectator::Spectated {
+        app.world_mut().spawn(spectator::Spectated {
+            slot: spectator::SpectateSlot::Preview,
             zone: identity::ZoneName::from(zone),
             state: canvas,
             freshness: spectator::SpectateFreshness::Live,
         });
+    }
+
+    fn despawn_spectated(app: &mut App) {
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<spectator::Spectated<starboard::canvas::Canvas>>>();
+        let entities: Vec<Entity> = query.iter(app.world()).collect();
+        for entity in entities {
+            app.world_mut().despawn(entity);
+        }
     }
 
     fn board_image(app: &mut App) -> Handle<Image> {
@@ -126,9 +137,10 @@ mod tests {
         cell: starboard::canvas::CellPos,
         color: starboard::identity::PaletteColor,
     ) {
-        let mut spectated = app
-            .world_mut()
-            .resource_mut::<spectator::Spectated<starboard::canvas::Canvas>>();
+        let world = app.world_mut();
+        let mut query =
+            world.query_filtered::<&mut spectator::Spectated<starboard::canvas::Canvas>, ()>();
+        let mut spectated = query.single_mut(world).expect("one spectated canvas");
         assert!(starboard::canvas::write_cell(
             &mut spectated.state,
             cell,
@@ -254,6 +266,7 @@ mod tests {
         spectate(&mut app, "alpha", canvas);
         app.update();
 
+        despawn_spectated(&mut app);
         spectate(&mut app, "beta", starboard::canvas::Canvas::default());
         app.update();
 
@@ -390,7 +403,8 @@ mod tests {
             zone: zone.clone(),
             image: image.clone(),
         });
-        world.insert_resource(spectator::Spectated {
+        world.spawn(spectator::Spectated {
+            slot: spectator::SpectateSlot::Preview,
             zone,
             state: painted_canvas(),
             freshness: spectator::SpectateFreshness::Live,

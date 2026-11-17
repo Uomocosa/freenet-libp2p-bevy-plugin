@@ -95,6 +95,7 @@ mod tests {
                 },
             ),
             time::UnixTime::EPOCH,
+            spectator::state_machine::MIN_LEASE_INTERVAL,
         );
         handle_snapshot(&mut state, vec![0]);
         let repeated = state.update(
@@ -106,6 +107,7 @@ mod tests {
                 },
             ),
             time::UnixTime::EPOCH,
+            spectator::state_machine::MIN_LEASE_INTERVAL,
         );
         assert_eq!(repeated, Vec::new());
     }

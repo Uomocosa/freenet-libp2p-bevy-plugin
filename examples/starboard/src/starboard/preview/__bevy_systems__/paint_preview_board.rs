@@ -5,17 +5,24 @@ use freenet_libp2p_bevy_plugin::lobby_room::spectator;
 use crate::starboard;
 
 pub fn paint_preview_board(
-    spectated: Option<ResMut<spectator::Spectated<starboard::canvas::Canvas>>>,
+    mut spectated: Query<&mut spectator::Spectated<starboard::canvas::Canvas>>,
     board: Option<Single<&Sprite, With<starboard::preview::PreviewBoardSprite>>>,
     mut images: ResMut<Assets<Image>>,
     mut shown_zone: Local<Option<identity::ZoneName>>,
 ) {
-    let (Some(mut spectated), Some(board)) = (spectated, board) else {
+    let Some(board) = board else {
+        *shown_zone = None;
+        return;
+    };
+    let Some(mut spectated) = spectated
+        .iter_mut()
+        .find(|spectated| spectated.slot == spectator::SpectateSlot::Preview)
+    else {
         *shown_zone = None;
         return;
     };
     let board = board.into_inner();
-    let is_new_room = spectated.is_added() || shown_zone.as_ref() != Some(&spectated.zone);
+    let is_new_room = shown_zone.as_ref() != Some(&spectated.zone);
     if !is_new_room && spectated.state.dirty_tiles.is_empty() {
         return;
     }
@@ -101,7 +108,8 @@ mod tests {
             zone: identity::ZoneName::from(zone),
             image: image.clone(),
         });
-        app.insert_resource(spectator::Spectated {
+        app.world_mut().spawn(spectator::Spectated {
+            slot: spectator::SpectateSlot::Preview,
             zone: identity::ZoneName::from(zone),
             state: canvas,
             freshness: spectator::SpectateFreshness::Live,
@@ -148,14 +156,25 @@ mod tests {
         );
     }
 
+    fn despawn_spectated(app: &mut App) {
+        let mut query = app
+            .world_mut()
+            .query_filtered::<Entity, With<spectator::Spectated<starboard::canvas::Canvas>>>();
+        let entities: Vec<Entity> = query.iter(app.world()).collect();
+        for entity in entities {
+            app.world_mut().despawn(entity);
+        }
+    }
+
     fn paint_into(
         app: &mut App,
         cell: starboard::canvas::CellPos,
         color: starboard::identity::PaletteColor,
     ) {
-        let mut spectated = app
-            .world_mut()
-            .resource_mut::<spectator::Spectated<starboard::canvas::Canvas>>();
+        let world = app.world_mut();
+        let mut query =
+            world.query_filtered::<&mut spectator::Spectated<starboard::canvas::Canvas>, ()>();
+        let mut spectated = query.single_mut(world).expect("one spectated canvas");
         assert!(starboard::canvas::write_cell(
             &mut spectated.state,
             cell,
@@ -191,8 +210,10 @@ mod tests {
     fn spectating_another_room_clears_the_previous_board() {
         let mut app = app();
         start(&mut app, "alpha", painted(CELL, RED));
+        despawn_spectated(&mut app);
 
-        app.insert_resource(spectator::Spectated {
+        app.world_mut().spawn(spectator::Spectated {
+            slot: spectator::SpectateSlot::Preview,
             zone: identity::ZoneName::from("beta"),
             state: starboard::canvas::Canvas::default(),
             freshness: spectator::SpectateFreshness::Live,

@@ -6,7 +6,9 @@ use crate::spectator;
 pub fn count_spectators<S: replica_sync::traits::ReplicatedState>(
     mut inputs: ResMut<spectator::SpectatorInputs<S::Op, Vec<u8>>>,
 ) {
-    inputs.push(spectator::state_machine::SpectateInput::Tick);
+    inputs.push(spectator::MachineInput::Session(
+        spectator::state_machine::SpectateInput::Tick,
+    ));
 }
 
 // no test_usage necessary
