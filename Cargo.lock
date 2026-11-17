@@ -2761,7 +2761,7 @@ dependencies = [
 
 [[package]]
 name = "common_types"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "atomic-delegate-macros",
  "bevy_ecs",
@@ -4284,7 +4284,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-core"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4314,7 +4314,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-lobby-room"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "atomic-delegate-macros",
  "bevy",
@@ -4340,7 +4340,7 @@ dependencies = [
 
 [[package]]
 name = "freenet-libp2p-bevy-plugin"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "freenet-libp2p-bevy-core",
  "freenet-libp2p-bevy-lobby-room",
@@ -5697,7 +5697,7 @@ dependencies = [
 
 [[package]]
 name = "input_fidelity_e2e"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "bevy",
  "clap",
@@ -6048,8 +6048,8 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "lele-bevy-preview"
-version = "0.0.17"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17#b0247a3c3cce3e6d625580ff4636900818ba9bb5"
+version = "0.0.18"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.18#d15b2b2ec43456c6d508b0e022a1028a1ef43437"
 dependencies = [
  "atomic-delegate-macros",
  "bevy",
@@ -6728,7 +6728,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "lobby_contract"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "atomic-delegate-macros",
  "bincode",
@@ -6743,7 +6743,7 @@ dependencies = [
 
 [[package]]
 name = "lobby_room"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "bevy",
  "clap",
@@ -6759,7 +6759,7 @@ dependencies = [
 
 [[package]]
 name = "lobby_room_e2e"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "async-trait",
  "bevy",
@@ -6781,7 +6781,7 @@ dependencies = [
 
 [[package]]
 name = "lobby_room_shared_types"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "atomic-delegate-macros",
  "bevy_reflect",
@@ -9878,7 +9878,7 @@ dependencies = [
 
 [[package]]
 name = "starboard"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "bevy",
  "bincode",
@@ -9898,7 +9898,7 @@ dependencies = [
 
 [[package]]
 name = "starboard_e2e"
-version = "0.0.11"
+version = "0.0.12"
 dependencies = [
  "bevy",
  "clap",
@@ -10194,8 +10194,8 @@ checksum = "adb6935a6f5c20170eeceb1a3835a49e12e19d792f6dd344ccc76a985ca5a6ca"
 
 [[package]]
 name = "telegram-bot-helper"
-version = "0.0.17"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17#b0247a3c3cce3e6d625580ff4636900818ba9bb5"
+version = "0.0.18"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.18#d15b2b2ec43456c6d508b0e022a1028a1ef43437"
 dependencies = [
  "atomic-delegate-macros",
  "chrono",
@@ -10209,8 +10209,8 @@ dependencies = [
 
 [[package]]
 name = "telegram-bot-helper-macros"
-version = "0.0.17"
-source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.17#b0247a3c3cce3e6d625580ff4636900818ba9bb5"
+version = "0.0.18"
+source = "git+https://github.com/Uomocosa/telegram-bot-helper?tag=v0.0.18#d15b2b2ec43456c6d508b0e022a1028a1ef43437"
 dependencies = [
  "proc-macro2",
  "quote",
