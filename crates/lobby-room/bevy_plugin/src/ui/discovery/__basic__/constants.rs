@@ -10,6 +10,9 @@ pub const FRIEND_BADGE_COLOR: Color = Color::srgb(0.35, 0.80, 0.44);
 pub const FRIEND_DIVIDER_WIDTH: f32 = 1.0;
 pub const FRIEND_DIVIDER_HEIGHT: f32 = 10.0;
 pub const FRIEND_DIVIDER_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.60);
+pub const ROOM_BUBBLE_TOOLTIP_FONT_SIZE: f32 = 10.0;
+pub const ROOM_BUBBLE_TOOLTIP_Z: i32 = 60;
+pub const ROOM_BUBBLE_TOOLTIP_BG_COLOR: Color = Color::srgb(0.18, 0.07, 0.21);
 
 pub const PANEL_COLOR: Color = Color::srgb(0.30, 0.12, 0.34);
 pub const BUTTON_COLOR: Color = Color::srgb(0.20, 0.24, 0.32);

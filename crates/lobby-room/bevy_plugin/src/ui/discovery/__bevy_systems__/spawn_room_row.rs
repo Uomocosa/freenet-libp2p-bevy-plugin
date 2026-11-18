@@ -7,8 +7,9 @@ use bevy::ui_widgets::Button;
 use crate::ui::basic;
 use ui::discovery::{
     BUTTON_LABEL_COLOR, HOVER_OUTLINE_WIDTH, HoverGlow, ROOM_BUBBLE_EMPTY_COLOR,
-    ROOM_BUBBLE_FULL_COLOR, ROOM_BUBBLE_HAS_SPACE_COLOR, ROOM_NAME_WIDTH, ROOM_ROW_WIDTH,
-    RoomBubble, RoomButton, RoomNameClip, RoomNameScroller,
+    ROOM_BUBBLE_FULL_COLOR, ROOM_BUBBLE_HAS_SPACE_COLOR, ROOM_BUBBLE_TOOLTIP_BG_COLOR,
+    ROOM_BUBBLE_TOOLTIP_FONT_SIZE, ROOM_BUBBLE_TOOLTIP_Z, ROOM_NAME_WIDTH, ROOM_ROW_WIDTH,
+    RoomBubble, RoomBubbleTooltip, RoomButton, RoomNameClip, RoomNameScroller,
 };
 
 pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::LobbyRow) {
@@ -80,6 +81,27 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
                     },
                     TextColor(BUTTON_LABEL_COLOR),
                 ));
+                bubble.spawn((
+                    RoomBubbleTooltip,
+                    Visibility::Hidden,
+                    GlobalZIndex(ROOM_BUBBLE_TOOLTIP_Z),
+                    Node {
+                        position_type: PositionType::Absolute,
+                        top: Val::Px(18.0),
+                        left: Val::Px(0.0),
+                        padding: UiRect::axes(Val::Px(6.0), Val::Px(3.0)),
+                        border_radius: BorderRadius::all(Val::Px(4.0)),
+                        ..default()
+                    },
+                    BackgroundColor(ROOM_BUBBLE_TOOLTIP_BG_COLOR),
+                    Text::new(ui::discovery::bevy_systems::occupancy_tooltip_text(row)),
+                    TextFont {
+                        font_size: FontSize::Px(ROOM_BUBBLE_TOOLTIP_FONT_SIZE),
+                        ..default()
+                    },
+                    TextColor(BUTTON_LABEL_COLOR),
+                    TextLayout::no_wrap(),
+                ));
             });
         });
 }
@@ -129,7 +151,7 @@ mod tests {
 
     fn preview_rows() -> Vec<core_discovery::LobbyRow> {
         vec![
-            row_fixture("alpha", 2, 8, core_discovery::RoomOccupancy::HasSpace, 3),
+            row_fixture("alpha", 2, 8, core_discovery::RoomOccupancy::HasSpace, 1),
             row_fixture("beta", 0, 4, core_discovery::RoomOccupancy::Empty, 0),
             row_fixture("gamma", 4, 4, core_discovery::RoomOccupancy::Full, 2),
             row_fixture(
@@ -137,7 +159,7 @@ mod tests {
                 1,
                 8,
                 core_discovery::RoomOccupancy::HasSpace,
-                5,
+                1,
             ),
         ]
     }

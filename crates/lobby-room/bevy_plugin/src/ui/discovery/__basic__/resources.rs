@@ -10,6 +10,9 @@ pub struct SelectedRoom(pub Option<core_discovery::RoomName>);
 pub struct StreamedRoom(pub Option<core_discovery::RoomName>);
 
 #[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Deref, DerefMut)]
+pub struct HoveredOccupancyPill(pub Option<core_discovery::RoomName>);
+
+#[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Deref, DerefMut)]
 pub struct JoinError(pub Option<String>);
 
 #[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Deref, DerefMut)]

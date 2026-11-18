@@ -16,6 +16,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
         app.init_resource::<JoinError>();
         app.init_resource::<EscMenuState>();
         app.init_resource::<ui::discovery::FriendsPressBeat>();
+        app.init_resource::<ui::discovery::HoveredOccupancyPill>();
         app.init_resource::<ui::discovery::SelectedRoom>();
         app.init_resource::<ui::discovery::StreamedRoom>();
         app.init_resource::<ui::discovery::StreamDisplay>();
@@ -66,6 +67,9 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                     })
                 }),
                 systems::show_room_search_tooltip.run_if(in_state(Screen::Lobby)),
+                systems::show_room_bubble_tooltip
+                    .after(systems::rebuild_room_list)
+                    .run_if(in_state(Screen::Lobby)),
                 systems::dismiss_join_failed.run_if(in_state(Screen::JoinFailed)),
                 (
                     (systems::rebuild_room_list, systems::scroll_room_names).chain(),

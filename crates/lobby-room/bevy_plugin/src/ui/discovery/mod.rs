@@ -6,8 +6,8 @@ pub use basic::components::{
     EnterRoomButton, EscMenu, EscMenuBackdrop, EscMenuFriendsButton, EscMenuLeaveButton,
     EscMenuResumeButton, HoverGlow, HoverOutlineOnly, JoinErrorDismissButton, JoinErrorRoot,
     JoiningRoomRoot, LeaveDoor, LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble,
-    RoomButton, RoomFriendSegment, RoomFullBadge, RoomList, RoomNameClip, RoomNameInput,
-    RoomNameScroller, RoomPreviewImage, RoomPreviewPanel, RoomPreviewPlaceholder,
+    RoomBubbleTooltip, RoomButton, RoomFriendSegment, RoomFullBadge, RoomList, RoomNameClip,
+    RoomNameInput, RoomNameScroller, RoomPreviewImage, RoomPreviewPanel, RoomPreviewPlaceholder,
     RoomPreviewViewport, RoomSearchIndicator, RoomSearchTooltip, RoomStreamActionSlot,
     RoomStreamCloseButton, RoomStreamFullscreenButton, RoomStreamHeader, RoomStreamImage,
     RoomStreamName, RoomStreamOccupancyBubble, RoomStreamOccupancyText, RoomStreamPanel,
@@ -15,7 +15,9 @@ pub use basic::components::{
 };
 pub use basic::constants::*;
 pub use basic::messages::CloseStream;
-pub use basic::resources::{FriendsPressBeat, JoinError, SelectedRoom, StreamedRoom};
+pub use basic::resources::{
+    FriendsPressBeat, HoveredOccupancyPill, JoinError, SelectedRoom, StreamedRoom,
+};
 pub use basic::states::{LeaveDialog, Screen};
 mod esc_menu_panel;
 pub use esc_menu_panel::EscMenuPanel;
