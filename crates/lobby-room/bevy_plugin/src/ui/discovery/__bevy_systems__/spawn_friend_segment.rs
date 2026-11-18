@@ -7,11 +7,21 @@ use ui::discovery::{
     RoomFriendSegmentFade,
 };
 
-pub fn spawn_friend_segment(pill: &mut ChildSpawnerCommands, row: Entity, friends: u32) -> Entity {
+pub fn spawn_friend_segment(
+    pill: &mut ChildSpawnerCommands,
+    row: Entity,
+    state: &ui::roll::State,
+) -> Entity {
+    let friends = state.slot_value(FRIENDS_SLOT);
+    let clip_width = if matches!(&state.phase, ui::roll::Phase::Reveal { .. }) {
+        Val::Px(0.0)
+    } else {
+        Val::Auto
+    };
     let mut segment = pill.spawn((
         RoomFriendSegment(row),
         Node {
-            width: Val::Px(0.0),
+            width: clip_width,
             overflow: Overflow::clip_x(),
             flex_shrink: 0.0,
             ..default()
@@ -108,7 +118,11 @@ mod tests {
             commands
                 .spawn(ui::discovery::RoomBubble)
                 .with_children(|bubble| {
-                    spawn_friend_segment(bubble, row, 2);
+                    spawn_friend_segment(
+                        bubble,
+                        row,
+                        &ui::roll::State::new(vec![2, 8, 2], Some(ui::discovery::FRIENDS_SLOT)),
+                    );
                 });
         });
         app.update();
@@ -148,7 +162,11 @@ mod tests {
             .with_children(|bubble| {
                 let pill = bubble.target_entity();
                 if friends > 0 {
-                    spawn_friend_segment(bubble, pill, friends);
+                    let state = ui::roll::State::new(
+                        vec![0, 0, friends],
+                        Some(ui::discovery::FRIENDS_SLOT),
+                    );
+                    spawn_friend_segment(bubble, pill, &state);
                 }
                 bubble.spawn((
                     Text::new(occupancy.to_string()),

@@ -32,10 +32,8 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
         BackgroundColor(basic::constants::ROOM_COLOR),
     ));
     let row_entity = row_commands.id();
-    row_commands.insert(ui::roll::RollMachine(ui::roll::State::new(
-        vec![occupants, room_size, friends],
-        Some(FRIENDS_SLOT),
-    )));
+    let roll_state = ui::roll::State::new(vec![occupants, room_size, friends], Some(FRIENDS_SLOT));
+    row_commands.insert(ui::roll::RollMachine(roll_state.clone()));
     let (mut name_text, mut bubble_entity) = (Entity::PLACEHOLDER, Entity::PLACEHOLDER);
     let name = (
         Text::new(row.name.as_str().to_string()),
@@ -75,7 +73,7 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
         .with_children(|bubble| {
             bubble_entity = bubble.target_entity();
             if friends > 0 {
-                ui::discovery::bevy_systems::spawn_friend_segment(bubble, row_entity, friends);
+                ui::discovery::bevy_systems::spawn_friend_segment(bubble, row_entity, &roll_state);
             }
             ui::discovery::bevy_systems::spawn_occupancy_numbers(
                 bubble, row_entity, occupants, room_size,
@@ -160,6 +158,34 @@ mod tests {
             .collect();
         found.sort_unstable();
         assert_eq!(found, vec![(0, 2), (1, 8), (2, 1)]);
+    }
+
+    #[test]
+    fn a_row_spawned_with_friends_shows_the_segment_without_the_sync_system() {
+        let mut app = App::new();
+        app.add_systems(Startup, |mut commands: Commands| {
+            let list = commands.spawn_empty().id();
+            commands.entity(list).with_children(|rooms| {
+                spawn_room_row(&mut rooms.reborrow(), &sample_row());
+            });
+        });
+        app.update();
+        let mut segments = app
+            .world_mut()
+            .query::<(&Node, &ui::discovery::RoomFriendSegment)>();
+        let (node, _) = segments
+            .single(app.world())
+            .expect("the friends segment spawns with its row");
+        assert_eq!(node.width, Val::Auto, "a fresh segment is not clipped");
+        let mut fades = app
+            .world_mut()
+            .query::<(&ui::discovery::RoomFriendSegmentFade, &BackgroundColor)>();
+        let mut fade_count = 0;
+        for (fade, background) in fades.iter(app.world()) {
+            assert_eq!(background.0, fade.base, "a fresh segment is fully opaque");
+            fade_count += 1;
+        }
+        assert_eq!(fade_count, 3, "dot, badge body and divider");
     }
 
     fn row_fixture(

@@ -38,7 +38,7 @@ pub fn sync_room_friend_segment(
         if existing.is_none() {
             let mut segment = Entity::PLACEHOLDER;
             commands.entity(parts.bubble).with_children(|bubble| {
-                segment = ui::discovery::bevy_systems::spawn_friend_segment(bubble, pill, friends);
+                segment = ui::discovery::bevy_systems::spawn_friend_segment(bubble, pill, machine);
             });
             commands.entity(parts.bubble).insert_children(0, &[segment]);
         }

@@ -531,7 +531,6 @@ mod tests {
             (
                 core_discovery::bevy_systems::rebuild_lobby_rows,
                 rebuild_room_list,
-                ui::discovery::bevy_systems::sync_room_friend_segment,
             )
                 .chain(),
         );
