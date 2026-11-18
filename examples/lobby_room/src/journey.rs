@@ -58,6 +58,7 @@ mod tests {
         app.insert_resource(local_user::LocalUser(identity::Username::from("alice")));
         app.init_resource::<ButtonInput<KeyCode>>();
         app.init_resource::<discovery::LobbyRows>();
+        app.init_resource::<discovery::RoomFriendNames>();
         app.init_resource::<discovery::RoomRoster>();
         let ready_channel = p2p::ReadyChannel::default();
         ready_channel.ready_tx.send_replace(Some(identity::Peer {

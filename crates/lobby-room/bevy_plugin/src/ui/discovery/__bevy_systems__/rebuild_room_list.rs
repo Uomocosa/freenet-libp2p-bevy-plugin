@@ -74,6 +74,7 @@ mod tests {
         let mut app = App::new();
         app.insert_resource(state);
         app.init_resource::<core_discovery::LobbyRows>();
+        app.init_resource::<core_discovery::RoomFriendNames>();
         app.world_mut().spawn(ui::discovery::RoomList);
         app.add_systems(
             Update,
@@ -427,6 +428,7 @@ mod tests {
         app.insert_resource(preview_state());
         app.insert_resource(preview_friends());
         app.init_resource::<core_discovery::LobbyRows>();
+        app.init_resource::<core_discovery::RoomFriendNames>();
         app.add_systems(Startup, spawn_list);
         app.add_systems(
             Update,

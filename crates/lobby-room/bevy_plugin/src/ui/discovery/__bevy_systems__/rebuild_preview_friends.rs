@@ -238,7 +238,7 @@ mod tests {
             occupants,
             room_size: core_discovery::RoomSize::try_from(8).expect("8"),
             occupancy: core_discovery::RoomOccupancy::HasSpace,
-            friends: 0,
+            friends: 2,
         }
     }
 

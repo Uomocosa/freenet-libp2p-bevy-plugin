@@ -292,7 +292,7 @@ mod tests {
                 room_size: core_discovery::RoomSize::try_from(8)
                     .expect("fixture room size is non-zero"),
                 occupancy: core_discovery::RoomOccupancy::HasSpace,
-                friends: 1,
+                friends: 2,
             },
             core_discovery::LobbyRow {
                 name: core_discovery::RoomName::from("beta"),
