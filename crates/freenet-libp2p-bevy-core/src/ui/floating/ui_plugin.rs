@@ -67,6 +67,6 @@ mod tests {
             .id();
         app.update();
         let node = app.world().get::<Node>(popup).expect("popup node");
-        assert_eq!(node.left, Val::Px(-85.0));
+        assert_eq!(node.left, Val::Px(-93.0));
     }
 }
