@@ -1,3 +1,5 @@
+use bevy::prelude::SystemSet;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Phase {
     Idle,
@@ -41,4 +43,9 @@ pub enum Output {
     RollSettled {
         numbers: Vec<u32>,
     },
+}
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RollSet {
+    Drive,
 }

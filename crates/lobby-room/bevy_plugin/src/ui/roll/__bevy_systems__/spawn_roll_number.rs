@@ -22,7 +22,7 @@ pub fn spawn_roll_number(
     ));
     let window_id = window.id();
     window.with_children(|columns| {
-        for place in 0..style.digit_count {
+        for place in (0..style.digit_count).rev() {
             let offset = f32::from(ui::roll::State::digit_at(value, usize::from(place)));
             columns
                 .spawn((
@@ -146,10 +146,25 @@ mod tests {
         assert_eq!(glyphs.last().map(String::as_str), Some("0"));
     }
 
+    fn digit_places(app: &mut App, window: Entity) -> Vec<usize> {
+        let mut columns = app.world_mut().query::<(&ui::roll::RollDigit, &ChildOf)>();
+        columns
+            .iter(app.world())
+            .filter(|(_, parent)| parent.parent() == window)
+            .map(|(digit, _)| digit.place)
+            .collect()
+    }
+
     #[test]
-    fn a_two_digit_number_shows_its_tens_row() {
-        let mut app = app_with(TWO_DIGITS, 10);
-        assert_eq!(digit_offsets(&mut app), vec![0.0, -10.0]);
+    fn the_tens_column_comes_before_the_ones_column() {
+        let mut app = app_with(TWO_DIGITS, 9);
+        let window = {
+            let mut numbers = app.world_mut().query::<(Entity, &ui::roll::RollNumber)>();
+            let found = numbers.iter(app.world()).next();
+            found.map(|(entity, _)| entity).expect("the window")
+        };
+        assert_eq!(digit_places(&mut app, window), vec![1, 0]);
+        assert_eq!(digit_offsets(&mut app), vec![-90.0, 0.0]);
     }
 
     fn preview_widgets(mut commands: Commands) {
