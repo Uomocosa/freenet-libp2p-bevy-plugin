@@ -2,8 +2,9 @@
 mod basic;
 
 pub use basic::components::FloatingPopup;
+pub use basic::constants::DEFAULT_POPUP_EDGE_MARGIN;
 pub use basic::enums::{PopupAlign, PopupAnchor};
-pub use basic::newtypes::PopupGap;
+pub use basic::newtypes::{PopupEdgeMargin, PopupGap};
 
 mod ui_plugin;
 pub use ui_plugin::UiPlugin;

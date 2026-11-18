@@ -52,6 +52,7 @@ mod tests {
                     preferred_side: ui::floating::PopupSide::Below,
                     cross_align: ui::floating::PopupAlign::Centre,
                     gap: ui::floating::PopupGap(4.0),
+                    edge_margin: ui::floating::DEFAULT_POPUP_EDGE_MARGIN,
                 },
                 ComputedNode {
                     size: Vec2::new(150.0, 18.0),

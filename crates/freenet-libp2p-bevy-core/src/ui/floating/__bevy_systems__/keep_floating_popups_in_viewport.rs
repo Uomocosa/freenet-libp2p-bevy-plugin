@@ -18,8 +18,12 @@ pub fn keep_floating_popups_in_viewport(
     let Some(window) = window else {
         return;
     };
-    let area = Rect::from_corners(Vec2::ZERO, Vec2::new(window.width(), window.height()));
     for (popup, popup_node, parent, mut node) in &mut popups {
+        let inset = *popup.edge_margin;
+        let area = Rect::from_corners(
+            Vec2::new(inset, inset),
+            Vec2::new(window.width() - inset, window.height() - inset),
+        );
         let inverse = popup_node.inverse_scale_factor();
         let popup_size = popup_node.size();
         let size = Vec2::new(popup_size.x * inverse, popup_size.y * inverse);
@@ -89,6 +93,7 @@ mod tests {
             preferred_side: ui::floating::PopupSide::Below,
             cross_align: ui::floating::PopupAlign::Centre,
             gap: ui::floating::PopupGap(4.0),
+            edge_margin: ui::floating::DEFAULT_POPUP_EDGE_MARGIN,
         }
     }
 
@@ -180,12 +185,12 @@ mod tests {
         app.add_systems(Update, keep_floating_popups_in_viewport);
         app.update();
         let node = app.world().get::<Node>(popup).expect("popup node");
-        assert_eq!(node.left, Val::Px(-85.0));
+        assert_eq!(node.left, Val::Px(-93.0));
         assert_eq!(node.top, Val::Px(24.0));
         let anchor_left = 920.0 - 50.0 / 2.0;
         assert!(
-            anchor_left + px(node.left) + 150.0 <= 960.0,
-            "the popup stays inside the window"
+            anchor_left + px(node.left) + 150.0 <= 960.0 - 8.0,
+            "the popup keeps the edge margin"
         );
     }
 
@@ -233,7 +238,7 @@ mod tests {
         app.add_systems(Update, keep_floating_popups_in_viewport);
         app.update();
         let node = app.world().get::<Node>(popup).expect("popup node");
-        assert_eq!(node.left, Val::Px(810.0));
+        assert_eq!(node.left, Val::Px(802.0));
         assert_eq!(node.top, Val::Px(114.0));
     }
 
@@ -277,6 +282,7 @@ mod png_tests {
             preferred_side: ui::floating::PopupSide::Below,
             cross_align: ui::floating::PopupAlign::Centre,
             gap: ui::floating::PopupGap(4.0),
+            edge_margin: ui::floating::DEFAULT_POPUP_EDGE_MARGIN,
         }
     }
 
@@ -356,7 +362,7 @@ mod png_tests {
                     apply: floating_disabled,
                 },
                 lele_bevy_preview::scene::State {
-                    label: String::from("popup kept inside the window"),
+                    label: String::from("popup kept a margin inside the window"),
                     apply: floating_enabled,
                 },
             ],
