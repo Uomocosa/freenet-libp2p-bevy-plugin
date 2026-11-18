@@ -1,5 +1,6 @@
 pub mod direct_dial;
 pub mod discovery;
+pub mod roll;
 pub mod roster;
 
 #[path = "__basic__/mod.rs"]
