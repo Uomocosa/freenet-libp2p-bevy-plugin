@@ -10,26 +10,13 @@ pub fn room_friend_names(
 ) -> BTreeMap<discovery::RoomName, Vec<identity::Username>> {
     state
         .lobby
-        .iter()
-        .map(|(name, room)| {
-            let mut names: Vec<identity::Username> = friend_ids
-                .iter()
-                .filter(|id| {
-                    room.members.get(*id).is_some_and(|member| {
-                        member.membership == discovery::RoomMembership::Occupant
-                    })
-                })
-                .map(|id| {
-                    room.members
-                        .get(id)
-                        .and_then(|member| member.display_name.clone())
-                        .filter(|name| !name.is_empty())
-                        .unwrap_or_else(|| {
-                            identity::Username::from(identity::ShortPeerId::from(id).as_str())
-                        })
-                })
+        .keys()
+        .map(|name| {
+            let names = state
+                .room_friends(name, friend_ids)
+                .into_iter()
+                .map(|friend| friend.name)
                 .collect();
-            names.sort_by(|a, b| a.as_str().cmp(b.as_str()));
             (name.clone(), names)
         })
         .collect()

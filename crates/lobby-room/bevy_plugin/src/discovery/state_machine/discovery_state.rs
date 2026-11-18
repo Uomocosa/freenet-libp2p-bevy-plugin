@@ -131,6 +131,12 @@ impl DiscoveryState {
         friend_ids: &[identity::PeerId],
     ) -> BTreeMap<discovery::RoomName, Vec<identity::Username>> {
     }
+    pub fn room_friends(
+        &self,
+        room: &discovery::RoomName,
+        friend_ids: &[identity::PeerId],
+    ) -> Vec<discovery::RoomFriend> {
+    }
     pub fn oldest_held_rooms_to_evict_until_history_limits_hold(
         &self,
         history_bytes_by_held_room: &BTreeMap<discovery::RoomName, p2p::HistoryByteCount>,

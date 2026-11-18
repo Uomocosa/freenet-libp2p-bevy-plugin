@@ -16,7 +16,7 @@ pub use basic::resources::{
     FreenetPeersReceiver, FreenetPort, HeartbeatTargetSender, Libp2pEventTap, LobbyRows,
     LobbyUpdateReceiver, RoomFriendNames, RoomRoster,
 };
-pub use basic::structs::{JoinedRoom, LobbyRow, LobbyTaskChannels, RoomRosterEntry};
+pub use basic::structs::{JoinedRoom, LobbyRow, LobbyTaskChannels, RoomFriend, RoomRosterEntry};
 pub use basic::type_aliases::Members;
 pub use lobby_room_shared_types::{
     Lobby, Room, RoomMember, RoomMembership, RoomName, RoomSize, RoomSizeError,

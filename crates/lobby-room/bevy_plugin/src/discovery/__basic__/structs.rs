@@ -25,6 +25,12 @@ pub struct LobbyRow {
     pub friends: usize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoomFriend {
+    pub peer: identity::PeerId,
+    pub name: identity::Username,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Reflect)]
 pub struct RoomRosterEntry {
     pub id: identity::PeerId,
