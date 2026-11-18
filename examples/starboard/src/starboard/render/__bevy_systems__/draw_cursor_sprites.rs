@@ -75,7 +75,7 @@ pub fn draw_cursor_sprites(
         ));
         if label_kind == starboard::render::CursorLabelKind::MemberName {
             cursor.with_child((
-                starboard::render::cursor_label(starboard::render::LABEL_COLOR),
+                starboard::render::cursor_label(starboard::render::LABEL_COLOR, ""),
                 layers.clone(),
             ));
         }

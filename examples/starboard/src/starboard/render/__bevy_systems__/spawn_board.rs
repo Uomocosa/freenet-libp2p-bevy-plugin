@@ -38,6 +38,7 @@ pub fn spawn_board(
             ));
             own.spawn(starboard::render::cursor_label(
                 starboard::render::OWN_LABEL_COLOR,
+                "",
             ));
         });
 }

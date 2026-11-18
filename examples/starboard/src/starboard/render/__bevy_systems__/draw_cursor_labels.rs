@@ -137,7 +137,7 @@ mod tests {
         let label = app
             .world_mut()
             .spawn((
-                starboard::render::cursor_label(Color::WHITE),
+                starboard::render::cursor_label(Color::WHITE, ""),
                 ChildOf(cursor),
             ))
             .id();
