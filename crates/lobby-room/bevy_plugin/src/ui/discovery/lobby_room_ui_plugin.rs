@@ -14,6 +14,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
         use ui::discovery::{EscMenuState, JoinError, LeaveDialog, Screen};
 
         app.add_plugins(ui::roster::UiPlugin);
+        app.add_plugins(ui::roll::UiPlugin);
         app.add_plugins(core_ui::floating::UiPlugin);
         app.init_resource::<JoinError>();
         app.init_resource::<EscMenuState>();

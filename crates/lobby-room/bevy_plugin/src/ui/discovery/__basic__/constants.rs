@@ -1,3 +1,4 @@
+use crate::ui;
 use bevy::prelude::Color;
 
 pub const ROOM_ROW_WIDTH: f32 = 232.0;
@@ -10,6 +11,26 @@ pub const FRIEND_BADGE_COLOR: Color = Color::srgb(0.35, 0.80, 0.44);
 pub const FRIEND_DIVIDER_WIDTH: f32 = 1.0;
 pub const FRIEND_DIVIDER_HEIGHT: f32 = 10.0;
 pub const FRIEND_DIVIDER_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.60);
+
+pub const OCCUPANTS_SLOT: usize = 0;
+pub const ROOM_SIZE_SLOT: usize = 1;
+pub const FRIENDS_SLOT: usize = 2;
+
+/// Bevy's default line height is 1.2 of the font size; keeping it here holds the pill at its current height.
+pub const ROOM_NUMBER_ROW_HEIGHT: f32 = 13.2;
+pub const FRIEND_NUMBER_ROW_HEIGHT: f32 = 10.8;
+
+pub const ROOM_NUMBER_STYLE: ui::roll::NumberStyle = ui::roll::NumberStyle {
+    font_size: 11.0,
+    row_height: ROOM_NUMBER_ROW_HEIGHT,
+    text_color: BUTTON_LABEL_COLOR,
+};
+
+pub const FRIEND_NUMBER_STYLE: ui::roll::NumberStyle = ui::roll::NumberStyle {
+    font_size: 9.0,
+    row_height: FRIEND_NUMBER_ROW_HEIGHT,
+    text_color: BUTTON_LABEL_COLOR,
+};
 pub const ROOM_BUBBLE_TOOLTIP_FONT_SIZE: f32 = 10.0;
 pub const ROOM_BUBBLE_TOOLTIP_Z: i32 = 60;
 pub const ROOM_BUBBLE_TOOLTIP_BG_COLOR: Color = Color::srgb(0.18, 0.07, 0.21);

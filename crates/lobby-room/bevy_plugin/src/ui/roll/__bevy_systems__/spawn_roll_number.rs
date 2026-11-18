@@ -146,4 +146,57 @@ mod tests {
         let (_, transform) = columns.single(app.world()).expect("one column");
         assert_eq!(transform.translation, Val2::px(0.0, 0.0));
     }
+
+    fn spawn_preview_pill(mut commands: Commands) {
+        let root = commands
+            .spawn(lele_bevy_preview::scene::Scene::centered_root())
+            .id();
+        let pill = commands
+            .spawn((
+                ChildOf(root),
+                Node {
+                    flex_direction: FlexDirection::Row,
+                    padding: UiRect::axes(Val::Px(7.0), Val::Px(2.5)),
+                    align_items: AlignItems::Center,
+                    border_radius: BorderRadius::MAX,
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.16, 0.44, 0.24)),
+            ))
+            .id();
+        commands.entity(pill).with_children(|parent| {
+            spawn_roll_number(&mut parent.reborrow(), pill, 0, 42, STYLE);
+        });
+    }
+
+    const fn preview_noop(_world: &mut World) {}
+
+    fn preview_build(app: &mut App) {
+        app.add_plugins(ui::roll::UiPlugin);
+        app.add_systems(Startup, spawn_preview_pill);
+        app.add_systems(
+            PostStartup,
+            lele_bevy_preview::scene::bevy_systems::center_roots,
+        );
+    }
+
+    #[test]
+    fn spawn_roll_number_ui_png_preview() {
+        let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
+        lele_bevy_preview::scene::Scene {
+            name: String::from("spawn_roll_number"),
+            kind: lele_bevy_preview::scene::Kind::System,
+            build: preview_build,
+            states: vec![lele_bevy_preview::scene::State {
+                label: String::from("two digits"),
+                apply: preview_noop,
+            }],
+            timeline: None,
+        }
+        .run(&lele_bevy_preview::preview::Config {
+            out_dir: out,
+            ..Default::default()
+        })
+        .expect("preview");
+    }
 }

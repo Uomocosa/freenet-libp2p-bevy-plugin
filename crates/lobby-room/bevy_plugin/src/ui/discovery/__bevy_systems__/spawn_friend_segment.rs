@@ -2,11 +2,11 @@ use crate::ui;
 use bevy::prelude::*;
 
 use ui::discovery::{
-    BUTTON_LABEL_COLOR, FRIEND_BADGE_COLOR, FRIEND_DIVIDER_COLOR, FRIEND_DIVIDER_HEIGHT,
-    FRIEND_DIVIDER_WIDTH, RoomFriendSegment,
+    FRIEND_BADGE_COLOR, FRIEND_DIVIDER_COLOR, FRIEND_DIVIDER_HEIGHT, FRIEND_DIVIDER_WIDTH,
+    FRIEND_NUMBER_STYLE, FRIENDS_SLOT, RoomFriendSegment,
 };
 
-pub fn spawn_friend_segment(pill: &mut ChildSpawnerCommands, friends: usize) {
+pub fn spawn_friend_segment(pill: &mut ChildSpawnerCommands, row: Entity, friends: u32) {
     pill.spawn((
         RoomFriendSegment,
         Node {
@@ -48,14 +48,13 @@ pub fn spawn_friend_segment(pill: &mut ChildSpawnerCommands, friends: usize) {
                     BackgroundColor(FRIEND_BADGE_COLOR),
                 ));
             });
-        segment.spawn((
-            Text::new(friends.to_string()),
-            TextFont {
-                font_size: FontSize::Px(9.0),
-                ..default()
-            },
-            TextColor(BUTTON_LABEL_COLOR),
-        ));
+        ui::roll::bevy_systems::spawn_roll_number(
+            segment,
+            row,
+            FRIENDS_SLOT,
+            friends,
+            FRIEND_NUMBER_STYLE,
+        );
         segment.spawn((
             Node {
                 width: Val::Px(FRIEND_DIVIDER_WIDTH),
@@ -77,10 +76,11 @@ mod tests {
     fn test_usage() {
         let mut app = App::new();
         app.add_systems(Startup, |mut commands: Commands| {
+            let row = commands.spawn_empty().id();
             commands
                 .spawn(ui::discovery::RoomBubble)
                 .with_children(|bubble| {
-                    spawn_friend_segment(bubble, 2);
+                    spawn_friend_segment(bubble, row, 2);
                 });
         });
         app.update();
@@ -88,13 +88,19 @@ mod tests {
             .world_mut()
             .query_filtered::<(), With<ui::discovery::RoomFriendSegment>>();
         assert_eq!(segments.iter(app.world()).count(), 1);
+        let mut numbers = app.world_mut().query::<&ui::roll::RollNumber>();
+        let number = numbers.single(app.world()).expect("the friend number");
+        assert_eq!(
+            (number.slot, number.value),
+            (ui::discovery::FRIENDS_SLOT, 2)
+        );
     }
 
     fn spawn_pill(
         commands: &mut Commands,
         list: Entity,
         occupancy: &str,
-        friends: usize,
+        friends: u32,
         color: Color,
     ) {
         commands
@@ -112,8 +118,9 @@ mod tests {
                 BackgroundColor(color),
             ))
             .with_children(|bubble| {
+                let pill = bubble.target_entity();
                 if friends > 0 {
-                    spawn_friend_segment(bubble, friends);
+                    spawn_friend_segment(bubble, pill, friends);
                 }
                 bubble.spawn((
                     Text::new(occupancy.to_string()),
@@ -160,6 +167,7 @@ mod tests {
     const fn preview_noop(_world: &mut World) {}
 
     fn preview_build(app: &mut App) {
+        app.add_plugins(ui::roll::UiPlugin);
         app.add_systems(Startup, spawn_pills);
         app.add_systems(
             PostStartup,

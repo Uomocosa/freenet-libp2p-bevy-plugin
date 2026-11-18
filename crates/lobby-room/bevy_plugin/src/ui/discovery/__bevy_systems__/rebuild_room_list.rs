@@ -120,8 +120,19 @@ mod tests {
 
     struct RowTexts {
         name: String,
-        bubble: String,
-        badge: Option<String>,
+        numbers: Vec<(usize, u32)>,
+        has_friend_segment: bool,
+    }
+
+    fn numbers_of(app: &mut App, pill: Entity) -> Vec<(usize, u32)> {
+        let mut numbers = app.world_mut().query::<&ui::roll::RollNumber>();
+        let mut found: Vec<(usize, u32)> = numbers
+            .iter(app.world())
+            .filter(|number| number.pill == pill)
+            .map(|number| (number.slot, number.value))
+            .collect();
+        found.sort_unstable();
+        found
     }
 
     fn row_texts(app: &mut App) -> Vec<(String, RowTexts)> {
@@ -138,21 +149,17 @@ mod tests {
                 let scroller = child_with::<ui::discovery::RoomNameScroller>(app.world_mut(), clip);
                 let name_text = child_with::<Text>(app.world_mut(), scroller);
                 let name = text_of(app.world_mut(), name_text);
+                let numbers = numbers_of(app, *row);
                 let bubble = child_with::<ui::discovery::RoomBubble>(app.world_mut(), *row);
-                let bubble_text = child_with::<Text>(app.world_mut(), bubble);
-                let bubble_text = text_of(app.world_mut(), bubble_text);
-                let badge_entity =
-                    child_marked::<ui::discovery::RoomFriendSegment>(app.world_mut(), bubble);
-                let badge = badge_entity.map(|badge| {
-                    let badge_text = child_with::<Text>(app.world_mut(), badge);
-                    text_of(app.world_mut(), badge_text)
-                });
+                let has_friend_segment =
+                    child_marked::<ui::discovery::RoomFriendSegment>(app.world_mut(), bubble)
+                        .is_some();
                 (
                     button,
                     RowTexts {
                         name,
-                        bubble: bubble_text,
-                        badge,
+                        numbers,
+                        has_friend_segment,
                     },
                 )
             })
@@ -196,7 +203,11 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["alpha", "beta"]
         );
-        assert!(rows.iter().all(|(_, texts)| texts.badge.is_none()));
+        assert!(
+            rows.iter().all(
+                |(_, texts)| !texts.has_friend_segment && texts.numbers == vec![(0, 0), (1, 8)]
+            )
+        );
     }
 
     #[test]
@@ -217,7 +228,7 @@ mod tests {
         app.update();
         let rows = row_texts(&mut app);
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].1.bubble, "1/8".to_string());
+        assert_eq!(rows[0].1.numbers, vec![(0, 1), (1, 8)]);
     }
 
     #[test]
@@ -233,7 +244,7 @@ mod tests {
         app.update();
         let rows = row_texts(&mut app);
         assert_eq!(rows[0].1.name, "alpha".to_string());
-        assert_eq!(rows[0].1.bubble, "3/8".to_string());
+        assert_eq!(rows[0].1.numbers, vec![(0, 3), (1, 8)]);
     }
 
     #[test]
@@ -298,8 +309,10 @@ mod tests {
         let mut app = app_with(rows);
         app.update();
         let rows = row_texts(&mut app);
-        assert_eq!(rows[0].1.badge, Some("2".to_string()));
-        assert_eq!(rows[1].1.badge, None);
+        assert!(rows[0].1.has_friend_segment);
+        assert_eq!(rows[0].1.numbers, vec![(0, 3), (1, 8), (2, 2)]);
+        assert!(!rows[1].1.has_friend_segment);
+        assert_eq!(rows[1].1.numbers, vec![(0, 0), (1, 8)]);
     }
 
     #[test]

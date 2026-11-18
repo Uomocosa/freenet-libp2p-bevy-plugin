@@ -44,9 +44,13 @@ pub fn resize_roll_numbers(
                 Some((incoming_width - outgoing_width).mul_add(progress, outgoing_width))
             }
         };
-        if let Some(width) = width {
-            node.width = Val::Px(width);
+        let Some(width) = width else {
+            continue;
+        };
+        if progress >= 1.0 && node.width == Val::Px(width) {
+            continue;
         }
+        node.width = Val::Px(width);
     }
 }
 
@@ -141,6 +145,30 @@ mod tests {
     fn a_settled_number_keeps_the_outgoing_width_when_the_incoming_is_unmeasured() {
         let mut app = app_with_widths(6.0, 0.0, &ui::roll::Phase::Idle);
         assert_eq!(window_width(&mut app), 6.0);
+    }
+
+    #[derive(Resource, Default, Deref, DerefMut)]
+    struct WidthWritten(bool);
+
+    fn record_width_write(
+        numbers: Query<Ref<Node>, With<ui::roll::RollNumber>>,
+        mut written: ResMut<WidthWritten>,
+    ) {
+        **written = numbers.iter().any(|node| node.is_changed());
+    }
+
+    #[test]
+    fn a_settled_number_keeps_its_matching_width_unwritten() {
+        let mut app = app_with_widths(6.0, 12.0, &ui::roll::Phase::Idle);
+        assert_eq!(window_width(&mut app), 12.0);
+        app.init_resource::<WidthWritten>();
+        app.add_systems(PostUpdate, record_width_write);
+        app.update();
+        app.update();
+        assert!(
+            !**app.world().resource::<WidthWritten>(),
+            "a settled number whose width already matches is left alone"
+        );
     }
 
     fn spawn_resize_preview(mut commands: Commands) {
