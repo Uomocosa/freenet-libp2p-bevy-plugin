@@ -20,6 +20,12 @@ pub struct RoomNameClip;
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomNameScroller;
 
+#[derive(Component, Debug, Clone, Copy)]
+pub struct RoomRowParts {
+    pub name_text: bevy::prelude::Entity,
+    pub bubble: bevy::prelude::Entity,
+}
+
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomBubble;
 

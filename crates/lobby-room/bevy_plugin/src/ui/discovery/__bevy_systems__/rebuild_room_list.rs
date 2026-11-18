@@ -7,11 +7,36 @@ pub fn rebuild_room_list(
     rows: Option<Res<core_discovery::LobbyRows>>,
     list: Single<(Entity, Ref<ui::discovery::RoomList>)>,
     mut shown: Local<Vec<core_discovery::LobbyRow>>,
+    mut machines: Query<(
+        &ui::discovery::RoomButton,
+        &mut ui::roll::RollMachine,
+        &ui::discovery::RoomRowParts,
+    )>,
+    mut texts: Query<&mut Text>,
+    mut backgrounds: Query<&mut BackgroundColor>,
 ) {
     let wanted: Vec<core_discovery::LobbyRow> =
         rows.map(|rows| (**rows).clone()).unwrap_or_default();
     let (list, marker) = list.into_inner();
     if *shown == wanted && !marker.is_added() {
+        return;
+    }
+    let do_names_match = !marker.is_added()
+        && shown.len() == wanted.len()
+        && shown
+            .iter()
+            .zip(&wanted)
+            .all(|(old, new)| old.name == new.name);
+    if do_names_match {
+        for row in &wanted {
+            ui::discovery::bevy_systems::update_room_row(
+                row,
+                &mut machines,
+                &mut texts,
+                &mut backgrounds,
+            );
+        }
+        *shown = wanted;
         return;
     }
     *shown = wanted;
@@ -247,6 +272,35 @@ mod tests {
         assert_eq!(rows[0].1.numbers, vec![(0, 3), (1, 8)]);
     }
 
+    fn lobby_row(
+        occupants: usize,
+        occupancy: core_discovery::RoomOccupancy,
+    ) -> core_discovery::LobbyRow {
+        core_discovery::LobbyRow {
+            name: core_discovery::RoomName::from("alpha"),
+            occupants,
+            room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+            occupancy,
+            friends: 0,
+        }
+    }
+
+    #[test]
+    fn a_value_change_keeps_the_row_entity() {
+        let mut app = app_with(vec![lobby_row(3, core_discovery::RoomOccupancy::HasSpace)]);
+        app.update();
+        let before = list_rows(&mut app);
+        assert_eq!(before.len(), 1);
+        *app.world_mut().resource_mut::<core_discovery::LobbyRows>() =
+            core_discovery::LobbyRows(vec![lobby_row(4, core_discovery::RoomOccupancy::Full)]);
+        app.update();
+        assert_eq!(list_rows(&mut app), before, "the row entity survives");
+        let mut machines = app.world_mut().query::<&ui::roll::RollMachine>();
+        let machine = machines.single(app.world()).expect("one machine");
+        assert_eq!(machine.numbers, vec![3, 8, 0]);
+        assert_eq!(machine.target, vec![4, 8, 0]);
+    }
+
     #[test]
     fn the_bubble_color_follows_the_occupancy() {
         let rows = vec![
@@ -470,6 +524,10 @@ mod tests {
 
     const fn preview_noop(_world: &mut World) {}
 
+    fn preview_empty(world: &mut World) {
+        world.remove_resource::<core_discovery::state_machine::DiscoveryState>();
+    }
+
     #[test]
     fn rebuild_room_list_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
@@ -477,10 +535,16 @@ mod tests {
             name: String::from("rebuild_room_list"),
             kind: lele_bevy_preview::scene::Kind::System,
             build: preview_build,
-            states: vec![lele_bevy_preview::scene::State {
-                label: String::from("four rooms sorted"),
-                apply: preview_noop,
-            }],
+            states: vec![
+                lele_bevy_preview::scene::State {
+                    label: String::from("four rooms sorted"),
+                    apply: preview_noop,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("lobby cleared"),
+                    apply: preview_empty,
+                },
+            ],
             timeline: None,
         }
         .run(&lele_bevy_preview::preview::Config {

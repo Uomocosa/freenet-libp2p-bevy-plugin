@@ -7,18 +7,13 @@ use freenet_libp2p_bevy_core::ui as core_ui;
 
 use crate::ui::basic;
 use ui::discovery::{
-    BUTTON_LABEL_COLOR, FRIENDS_SLOT, HOVER_OUTLINE_WIDTH, HoverGlow, ROOM_BUBBLE_EMPTY_COLOR,
-    ROOM_BUBBLE_FULL_COLOR, ROOM_BUBBLE_HAS_SPACE_COLOR, ROOM_BUBBLE_TOOLTIP_BG_COLOR,
+    BUTTON_LABEL_COLOR, FRIENDS_SLOT, HOVER_OUTLINE_WIDTH, HoverGlow, ROOM_BUBBLE_TOOLTIP_BG_COLOR,
     ROOM_BUBBLE_TOOLTIP_FONT_SIZE, ROOM_BUBBLE_TOOLTIP_Z, ROOM_NAME_WIDTH, ROOM_ROW_WIDTH,
-    RoomBubble, RoomBubbleTooltip, RoomButton, RoomNameClip, RoomNameScroller,
+    RoomBubble, RoomBubbleTooltip, RoomButton, RoomNameClip, RoomNameScroller, RoomRowParts,
 };
 
 pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::LobbyRow) {
-    let bubble_color = match row.occupancy {
-        core_discovery::RoomOccupancy::HasSpace => ROOM_BUBBLE_HAS_SPACE_COLOR,
-        core_discovery::RoomOccupancy::Empty => ROOM_BUBBLE_EMPTY_COLOR,
-        core_discovery::RoomOccupancy::Full => ROOM_BUBBLE_FULL_COLOR,
-    };
+    let bubble_color = ui::discovery::bevy_systems::room_bubble_color(row.occupancy);
     let [occupants, room_size, friends] = ui::discovery::bevy_systems::room_numbers(row);
     let mut row_commands = rooms.spawn((
         RoomButton(row.name.clone()),
@@ -41,6 +36,11 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
         vec![occupants, room_size, friends],
         Some(FRIENDS_SLOT),
     )));
+    let (mut name_text, mut bubble_entity) = (Entity::PLACEHOLDER, Entity::PLACEHOLDER);
+    let name = (
+        Text::new(row.name.as_str().to_string()),
+        TextLayout::no_wrap(),
+    );
     row_commands.with_children(|room| {
         room.spawn((
             RoomNameClip,
@@ -53,16 +53,13 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
         .with_children(|clip| {
             clip.spawn((RoomNameScroller, UiTransform::default(), Node::default()))
                 .with_children(|scroller| {
-                    scroller.spawn((
-                        Text::new(row.name.as_str().to_string()),
-                        TextLayout::no_wrap(),
-                    ));
+                    name_text = scroller.spawn(name).id();
                 });
         });
-        room.spawn((Node {
+        room.spawn(Node {
             flex_grow: 1.0,
             ..default()
-        },));
+        });
         room.spawn((
             RoomBubble,
             Node {
@@ -76,6 +73,7 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
             BackgroundColor(bubble_color),
         ))
         .with_children(|bubble| {
+            bubble_entity = bubble.target_entity();
             if friends > 0 {
                 ui::discovery::bevy_systems::spawn_friend_segment(bubble, row_entity, friends);
             }
@@ -103,14 +101,15 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
                 },
                 BackgroundColor(ROOM_BUBBLE_TOOLTIP_BG_COLOR),
                 Text::new(ui::discovery::bevy_systems::occupancy_tooltip_text(row)),
-                TextFont {
-                    font_size: FontSize::Px(ROOM_BUBBLE_TOOLTIP_FONT_SIZE),
-                    ..default()
-                },
+                TextFont::from_font_size(FontSize::Px(ROOM_BUBBLE_TOOLTIP_FONT_SIZE)),
                 TextColor(BUTTON_LABEL_COLOR),
                 TextLayout::no_wrap(),
             ));
         });
+    });
+    row_commands.insert(RoomRowParts {
+        name_text,
+        bubble: bubble_entity,
     });
 }
 

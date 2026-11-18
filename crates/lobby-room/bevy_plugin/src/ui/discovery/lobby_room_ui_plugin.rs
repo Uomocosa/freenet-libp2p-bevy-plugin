@@ -115,6 +115,10 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
     fn finish(&self, app: &mut App) {
         app.init_state::<ui::discovery::Screen>();
         app.add_sub_state::<ui::discovery::LeaveDialog>();
+        app.configure_sets(
+            Update,
+            ui::roll::RollSet::Drive.after(ui::discovery::bevy_systems::rebuild_room_list),
+        );
     }
 }
 

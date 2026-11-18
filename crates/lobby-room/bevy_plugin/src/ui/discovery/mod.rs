@@ -8,10 +8,11 @@ pub use basic::components::{
     JoiningRoomRoot, LeaveDoor, LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble,
     RoomBubbleTooltip, RoomButton, RoomFriendSegment, RoomFullBadge, RoomList, RoomNameClip,
     RoomNameInput, RoomNameScroller, RoomPreviewFriends, RoomPreviewImage, RoomPreviewPanel,
-    RoomPreviewPlaceholder, RoomPreviewViewport, RoomSearchIndicator, RoomSearchTooltip,
-    RoomStreamActionSlot, RoomStreamCloseButton, RoomStreamFullscreenButton, RoomStreamHeader,
-    RoomStreamImage, RoomStreamName, RoomStreamOccupancyBubble, RoomStreamOccupancyText,
-    RoomStreamPanel, RoomStreamPlaceholder, RoomStreamViewport, RoomsHeader, Root, SpinnerRing,
+    RoomPreviewPlaceholder, RoomPreviewViewport, RoomRowParts, RoomSearchIndicator,
+    RoomSearchTooltip, RoomStreamActionSlot, RoomStreamCloseButton, RoomStreamFullscreenButton,
+    RoomStreamHeader, RoomStreamImage, RoomStreamName, RoomStreamOccupancyBubble,
+    RoomStreamOccupancyText, RoomStreamPanel, RoomStreamPlaceholder, RoomStreamViewport,
+    RoomsHeader, Root, SpinnerRing,
 };
 pub use basic::constants::*;
 pub use basic::messages::CloseStream;
