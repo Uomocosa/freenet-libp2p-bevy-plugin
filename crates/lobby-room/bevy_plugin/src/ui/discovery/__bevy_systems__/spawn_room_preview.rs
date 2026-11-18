@@ -4,9 +4,10 @@ use bevy::prelude::*;
 use ui::discovery::{
     ACCENT_COLOR, INPUT_COLOR, PANEL_COLOR, PREVIEW_FRAME_COLOR, PREVIEW_FRAME_WIDTH,
     PREVIEW_HEIGHT, PREVIEW_INNER_RADIUS, PREVIEW_PADDING, PREVIEW_PLACEHOLDER_SPINNER_SIZE,
-    PREVIEW_PLACEHOLDER_SPINNER_WIDTH, PREVIEW_RADIUS, PREVIEW_RIGHT, PREVIEW_TOP, PREVIEW_WIDTH,
-    PREVIEW_Z, RoomPreviewImage, RoomPreviewPanel, RoomPreviewPlaceholder, RoomPreviewViewport,
-    SPINNER_TRACK_COLOR, Screen, SpinnerRing,
+    PREVIEW_PLACEHOLDER_SPINNER_WIDTH, PREVIEW_RADIUS, PREVIEW_RIGHT, PREVIEW_ROW_GAP, PREVIEW_TOP,
+    PREVIEW_VIEWPORT_PADDING, PREVIEW_WIDTH, PREVIEW_Z, RoomPreviewFriends, RoomPreviewImage,
+    RoomPreviewPanel, RoomPreviewPlaceholder, RoomPreviewViewport, SPINNER_TRACK_COLOR, Screen,
+    SpinnerRing,
 };
 
 pub fn spawn_room_preview(mut commands: Commands) {
@@ -85,6 +86,21 @@ pub fn spawn_room_preview(mut commands: Commands) {
                                 UiTransform::default(),
                             ));
                         });
+                    viewport.spawn((
+                        RoomPreviewFriends,
+                        Visibility::Hidden,
+                        Node {
+                            position_type: PositionType::Absolute,
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Column,
+                            row_gap: Val::Px(PREVIEW_ROW_GAP),
+                            padding: UiRect::all(Val::Px(PREVIEW_VIEWPORT_PADDING)),
+                            overflow: Overflow::clip(),
+                            ..default()
+                        },
+                        BackgroundColor(INPUT_COLOR),
+                    ));
                 });
         });
 }
@@ -147,6 +163,17 @@ mod tests {
             .world_mut()
             .query_filtered::<(), With<ui::discovery::SpinnerRing>>();
         assert_eq!(rings.iter(app.world()).count(), 1);
+        let mut overlays = app
+            .world_mut()
+            .query_filtered::<Entity, With<ui::discovery::RoomPreviewFriends>>();
+        let overlay = overlays.single(app.world()).expect("friends overlay");
+        assert_eq!(
+            *app.world()
+                .get::<Visibility>(overlay)
+                .expect("overlay visibility"),
+            Visibility::Hidden
+        );
+        assert!(app.world().get::<Children>(overlay).is_none());
     }
 
     #[test]

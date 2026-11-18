@@ -89,6 +89,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                         systems::clear_stream_on_close_request,
                         systems::highlight_selected_room.after(systems::animate_hover),
                         systems::refresh_room_preview,
+                        systems::rebuild_preview_friends.after(systems::show_room_bubble_tooltip),
                         systems::refresh_room_stream,
                         systems::rebuild_room_stream_action,
                         systems::layout_stream_panel,
@@ -260,6 +261,10 @@ mod tests {
         );
         app.add_systems(
             Update,
+            pin_pill_hover.before(ui::discovery::bevy_systems::show_room_bubble_tooltip),
+        );
+        app.add_systems(
+            Update,
             pin_rooms_header_hover.before(ui::discovery::bevy_systems::show_room_search_tooltip),
         );
         app.add_systems(
@@ -388,6 +393,15 @@ mod tests {
         }
     }
 
+    #[derive(Component)]
+    struct PinPillHover;
+
+    fn pin_pill_hover(mut commands: Commands, pinned: Query<Entity, With<PinPillHover>>) {
+        for entity in &pinned {
+            commands.entity(entity).insert(Hovered(true));
+        }
+    }
+
     fn hover_all(world: &mut World) {
         let mut inputs = world
             .query_filtered::<&mut bevy::text::EditableText, With<ui::discovery::RoomNameInput>>();
@@ -458,6 +472,86 @@ mod tests {
 
     fn select_full_room(world: &mut World) {
         select_room_value(world, "gamma");
+    }
+
+    fn pin_alpha_pill(world: &mut World) {
+        let mut rows = world.query::<(Entity, &ui::discovery::RoomButton)>();
+        let Some(row) = rows
+            .iter(world)
+            .find(|(_entity, button)| button.as_str() == "alpha")
+            .map(|(entity, _button)| entity)
+        else {
+            return;
+        };
+        let mut pills = world.query::<(Entity, &ChildOf, &ui::discovery::RoomBubble)>();
+        let alpha_pills: Vec<Entity> = pills
+            .iter(world)
+            .filter(|(_entity, link, _bubble)| link.parent() == row)
+            .map(|(entity, _link, _bubble)| entity)
+            .collect();
+        for pill in alpha_pills {
+            world.entity_mut(pill).insert((Hovered(true), PinPillHover));
+        }
+    }
+
+    fn hover_alpha_pill(world: &mut World) {
+        select_room_value(world, "alpha");
+        pin_alpha_pill(world);
+        **world.resource_mut::<ui::discovery::HoveredOccupancyPill>() =
+            Some(core_discovery::RoomName::from("alpha"));
+        world.insert_resource(core_discovery::RoomFriendNames(
+            std::collections::BTreeMap::from([(
+                core_discovery::RoomName::from("alpha"),
+                vec![
+                    identity::Username::from("alice"),
+                    identity::Username::from("bob"),
+                ],
+            )]),
+        ));
+    }
+
+    #[test]
+    fn the_preview_shows_the_friend_names_on_pill_hover() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        preview_build(&mut app);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        hover_alpha_pill(app.world_mut());
+        for _ in 0..3 {
+            app.update();
+        }
+        assert_eq!(
+            (**app
+                .world()
+                .resource::<ui::discovery::HoveredOccupancyPill>())
+            .clone(),
+            Some(core_discovery::RoomName::from("alpha"))
+        );
+        assert_eq!(
+            (**app.world().resource::<ui::discovery::SelectedRoom>()).clone(),
+            Some(core_discovery::RoomName::from("alpha"))
+        );
+        let mut overlays = app
+            .world_mut()
+            .query_filtered::<Entity, With<ui::discovery::RoomPreviewFriends>>();
+        let overlay = overlays.single(app.world()).expect("friends overlay");
+        assert_eq!(
+            *app.world()
+                .get::<Visibility>(overlay)
+                .expect("overlay visibility"),
+            Visibility::Inherited
+        );
+        let mut texts = app.world_mut().query_filtered::<&Text, ()>();
+        let labels: Vec<String> = texts
+            .iter(app.world())
+            .filter(|text| ["friends", "alice", "bob"].contains(&text.as_str()))
+            .map(|text| text.as_str().to_string())
+            .collect();
+        assert_eq!(labels, vec!["friends", "alice", "bob"]);
     }
 
     fn stream_only(world: &mut World) {
@@ -624,6 +718,10 @@ mod tests {
                 lele_bevy_preview::scene::State {
                     label: String::from("full room selected"),
                     apply: select_full_room,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("occupancy pill hovered on alpha"),
+                    apply: hover_alpha_pill,
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("stream only"),

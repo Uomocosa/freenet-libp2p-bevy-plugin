@@ -48,6 +48,9 @@ pub struct RoomPreviewViewport;
 pub struct RoomPreviewPlaceholder;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
+pub struct RoomPreviewFriends;
+
+#[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomPreviewImage;
 
 #[derive(Component, Debug, Default, Clone, Copy)]
