@@ -35,6 +35,22 @@ pub const STREAM_BOARD_SIDE: f32 = 800.0;
 /// Backdrop of the stream target: the same lobby viewport colour as the preview.
 pub const STREAM_BACKDROP_COLOR: Color = ui::discovery::INPUT_COLOR;
 
+/// Green of the own-brush accent, reused so a highlighted friend reads as "this one".
+pub const FRIEND_HIGHLIGHT_RGBA: [u8; 4] = starboard::render::OWN_OUTLINE_RGBA;
+
+/// Label colour of a highlighted friend, the own-accent label green.
+pub const FRIEND_LABEL_COLOR: Color = starboard::render::OWN_LABEL_COLOR;
+
+/// Fixed ring size in preview-target pixels: a default cursor is only about 6 px at
+/// the 200 px preview scale, so a brush-shaped ring would vanish.
+pub const FRIEND_HIGHLIGHT_RING_PX: u16 = 12;
+
+/// Thickness of the ring band, in preview-target pixels.
+pub const FRIEND_HIGHLIGHT_BAND_PX: u16 = 2;
+
+/// Depth of a highlight sprite, above the board and the remote cursor sprites.
+pub const FRIEND_HIGHLIGHT_Z: f32 = 2.0;
+
 pub const PREVIEW_SLOT: starboard::preview::SlotRenderConfig =
     starboard::preview::SlotRenderConfig {
         slot: spectator::SpectateSlot::Preview,
