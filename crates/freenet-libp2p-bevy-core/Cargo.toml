@@ -64,6 +64,7 @@ embedded-node = ["dep:anyhow", "dep:freenet", "dep:tempfile"]
 testing = ["tokio/net", "bevy/bevy_remote"]
 
 [dev-dependencies]
+lele-bevy-preview = { git = "https://github.com/Uomocosa/telegram-bot-helper", tag = "v0.0.18" }
 lele-bevy-state-machine = { workspace = true, features = ["testing"] }
 tempfile = "=3.27.0"
 tokio = { version = "=1.54.1", features = ["test-util"] }

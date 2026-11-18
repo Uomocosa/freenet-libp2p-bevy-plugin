@@ -4298,6 +4298,7 @@ dependencies = [
  "freenet",
  "futures",
  "futures-util",
+ "lele-bevy-preview",
  "lele-bevy-state-machine",
  "libp2p",
  "reqwest",
