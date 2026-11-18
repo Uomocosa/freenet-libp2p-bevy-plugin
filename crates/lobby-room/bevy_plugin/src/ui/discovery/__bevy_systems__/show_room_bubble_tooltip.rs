@@ -46,6 +46,9 @@ mod tests {
     use crate::ui;
     use bevy::picking::hover::Hovered;
     use bevy::prelude::*;
+    use bevy::ui::{ComputedNode, UiGlobalTransform};
+    use bevy::window::{PrimaryWindow, WindowResolution};
+    use freenet_libp2p_bevy_core::ui as core_ui;
 
     fn row(friends: usize) -> core_discovery::LobbyRow {
         core_discovery::LobbyRow {
@@ -77,6 +80,13 @@ mod tests {
 
     fn visibility(app: &App, entity: Entity) -> Visibility {
         *app.world().get::<Visibility>(entity).expect("visibility")
+    }
+
+    fn px(value: Val) -> f32 {
+        match value {
+            Val::Px(px) => px,
+            _ => panic!("expected a px value"),
+        }
     }
 
     fn tooltip_text(app: &App, tooltip: Entity) -> String {
@@ -135,6 +145,50 @@ mod tests {
     }
 
     #[test]
+    fn a_tooltip_near_the_right_edge_stays_inside_the_window() {
+        let mut app = app_with(1);
+        app.world_mut().spawn((
+            Window {
+                resolution: WindowResolution::new(960, 540),
+                ..default()
+            },
+            PrimaryWindow,
+        ));
+        app.add_systems(
+            Update,
+            core_ui::floating::bevy_systems::keep_floating_popups_in_viewport,
+        );
+        app.update();
+        let pill = first_with::<ui::discovery::RoomBubble>(&mut app);
+        let tooltip = first_with::<ui::discovery::RoomBubbleTooltip>(&mut app);
+        app.world_mut().entity_mut(pill).insert((
+            ComputedNode {
+                size: Vec2::new(60.0, 18.0),
+                ..ComputedNode::default()
+            },
+            UiGlobalTransform::from_xy(944.0, 100.0),
+        ));
+        app.world_mut().entity_mut(tooltip).insert(ComputedNode {
+            size: Vec2::new(150.0, 18.0),
+            ..ComputedNode::default()
+        });
+        hover_pill(&mut app);
+        app.update();
+        assert_eq!(visibility(&app, tooltip), Visibility::Visible);
+        let node = app.world().get::<Node>(tooltip).expect("tooltip node");
+        let pill_rect = core_ui::floating::PopupPlacement::rect_of(
+            app.world().get::<ComputedNode>(pill).expect("pill node"),
+            app.world()
+                .get::<UiGlobalTransform>(pill)
+                .expect("pill transform"),
+        );
+        assert!(
+            pill_rect.min.x + px(node.left) + 150.0 <= 960.0 - 8.0,
+            "the tooltip keeps the edge margin"
+        );
+    }
+
+    #[test]
     fn leaving_the_pill_hides_the_tooltip_and_clears_its_room() {
         let mut app = app_with(2);
         app.update();
@@ -173,8 +227,13 @@ mod tests {
             .spawn((
                 ChildOf(root),
                 Node {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(48.0),
+                    right: Val::Px(ui::discovery::LOBBY_PANEL_RIGHT),
+                    width: Val::Px(ui::discovery::LOBBY_PANEL_WIDTH),
                     flex_direction: FlexDirection::Column,
                     row_gap: Val::Px(4.0),
+                    padding: UiRect::all(Val::Px(8.0)),
                     ..default()
                 },
             ))
@@ -198,11 +257,11 @@ mod tests {
         }
     }
 
-    fn hover_alpha_pill(world: &mut World) {
+    fn hover_pill_of(world: &mut World, room: &str) {
         let mut rows = world.query::<(Entity, &ui::discovery::RoomButton)>();
         let Some(row) = rows
             .iter(world)
-            .find(|(_entity, button)| button.as_str() == "alpha")
+            .find(|(_entity, button)| button.as_str() == room)
             .map(|(entity, _button)| entity)
         else {
             return;
@@ -218,7 +277,16 @@ mod tests {
         }
     }
 
+    fn hover_alpha_pill(world: &mut World) {
+        hover_pill_of(world, "alpha");
+    }
+
+    fn hover_gamma_pill(world: &mut World) {
+        hover_pill_of(world, "gamma");
+    }
+
     fn preview_build(app: &mut App) {
+        app.add_plugins(core_ui::floating::UiPlugin);
         app.init_resource::<ui::discovery::HoveredOccupancyPill>();
         app.add_systems(Startup, spawn_preview_rows);
         app.add_systems(
@@ -245,6 +313,10 @@ mod tests {
                 lele_bevy_preview::scene::State {
                     label: String::from("occupancy pill hovered"),
                     apply: hover_alpha_pill,
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("occupancy pill hovered at the bottom right edge"),
+                    apply: hover_gamma_pill,
                 },
             ],
             timeline: None,

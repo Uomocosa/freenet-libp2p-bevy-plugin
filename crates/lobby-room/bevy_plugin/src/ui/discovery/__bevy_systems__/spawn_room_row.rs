@@ -3,6 +3,7 @@ use crate::ui;
 use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
 use bevy::ui_widgets::Button;
+use freenet_libp2p_bevy_core::ui as core_ui;
 
 use crate::ui::basic;
 use ui::discovery::{
@@ -83,6 +84,13 @@ pub fn spawn_room_row(rooms: &mut ChildSpawnerCommands, row: &core_discovery::Lo
                 ));
                 bubble.spawn((
                     RoomBubbleTooltip,
+                    core_ui::floating::FloatingPopup {
+                        anchor: core_ui::floating::PopupAnchor::Parent,
+                        preferred_side: core_ui::floating::PopupSide::Below,
+                        cross_align: core_ui::floating::PopupAlign::Centre,
+                        gap: core_ui::floating::PopupGap(4.0),
+                        edge_margin: core_ui::floating::DEFAULT_POPUP_EDGE_MARGIN,
+                    },
                     Visibility::Hidden,
                     GlobalZIndex(ROOM_BUBBLE_TOOLTIP_Z),
                     Node {

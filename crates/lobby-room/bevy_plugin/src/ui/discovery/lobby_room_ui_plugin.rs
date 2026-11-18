@@ -3,6 +3,7 @@ use crate::ui;
 use bevy::prelude::App;
 use bevy::prelude::*;
 use freenet_libp2p_bevy_core::replica_sync;
+use freenet_libp2p_bevy_core::ui as core_ui;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LobbyRoomUiPlugin;
@@ -13,6 +14,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
         use ui::discovery::{EscMenuState, JoinError, LeaveDialog, Screen};
 
         app.add_plugins(ui::roster::UiPlugin);
+        app.add_plugins(core_ui::floating::UiPlugin);
         app.init_resource::<JoinError>();
         app.init_resource::<EscMenuState>();
         app.init_resource::<ui::discovery::FriendsPressBeat>();
