@@ -6,13 +6,13 @@ pub use basic::components::{
     EnterRoomButton, EscMenu, EscMenuBackdrop, EscMenuFriendsButton, EscMenuLeaveButton,
     EscMenuResumeButton, HoverGlow, HoverOutlineOnly, JoinErrorDismissButton, JoinErrorRoot,
     JoiningRoomRoot, LeaveDoor, LeaveDoorRoot, LeaveNoButton, LeaveYesButton, RoomBubble,
-    RoomBubbleTooltip, RoomButton, RoomFriendSegment, RoomFullBadge, RoomList, RoomNameClip,
-    RoomNameInput, RoomNameScroller, RoomPreviewFriends, RoomPreviewImage, RoomPreviewPanel,
-    RoomPreviewPlaceholder, RoomPreviewViewport, RoomRowParts, RoomSearchIndicator,
-    RoomSearchTooltip, RoomStreamActionSlot, RoomStreamCloseButton, RoomStreamFullscreenButton,
-    RoomStreamHeader, RoomStreamImage, RoomStreamName, RoomStreamOccupancyBubble,
-    RoomStreamOccupancyText, RoomStreamPanel, RoomStreamPlaceholder, RoomStreamViewport,
-    RoomsHeader, Root, SpinnerRing,
+    RoomBubbleTooltip, RoomButton, RoomFriendSegment, RoomFriendSegmentContent,
+    RoomFriendSegmentFade, RoomFullBadge, RoomList, RoomNameClip, RoomNameInput, RoomNameScroller,
+    RoomPillRing, RoomPreviewFriends, RoomPreviewImage, RoomPreviewPanel, RoomPreviewPlaceholder,
+    RoomPreviewViewport, RoomRowParts, RoomSearchIndicator, RoomSearchTooltip,
+    RoomStreamActionSlot, RoomStreamCloseButton, RoomStreamFullscreenButton, RoomStreamHeader,
+    RoomStreamImage, RoomStreamName, RoomStreamOccupancyBubble, RoomStreamOccupancyText,
+    RoomStreamPanel, RoomStreamPlaceholder, RoomStreamViewport, RoomsHeader, Root, SpinnerRing,
 };
 pub use basic::constants::*;
 pub use basic::messages::CloseStream;

@@ -33,6 +33,26 @@ impl State {
         self.target = numbers;
         self.align()
     }
+
+    #[must_use]
+    pub fn slot_value(&self, slot: usize) -> u32 {
+        match &self.phase {
+            ui::roll::Phase::Reveal {
+                revealed_numbers, ..
+            } => revealed_numbers.get(slot).copied().unwrap_or(0),
+            _ => self.numbers.get(slot).copied().unwrap_or(0),
+        }
+    }
+
+    #[must_use]
+    pub fn reveal_progress(&self) -> f32 {
+        match &self.phase {
+            ui::roll::Phase::Reveal { elapsed_secs, .. } => {
+                (elapsed_secs / ui::roll::REVEAL_SECS).clamp(0.0, 1.0)
+            }
+            _ => 1.0,
+        }
+    }
 }
 
 #[atomic_delegates]
@@ -79,6 +99,20 @@ mod tests {
         let outputs = state.show(vec![2, 8, 1]);
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.phase, Phase::Idle);
+    }
+
+    #[test]
+    fn slot_value_shows_the_revealed_number_while_revealing() {
+        let mut state = State::new(vec![2, 8, 0], Some(2));
+        let _ = state.show(vec![2, 8, 1]);
+        assert_eq!(state.slot_value(2), 1);
+        assert_eq!(state.slot_value(0), 2);
+    }
+
+    #[test]
+    fn reveal_progress_is_complete_when_idle() {
+        let state = State::new(vec![2, 8, 1], Some(2));
+        assert_eq!(state.reveal_progress(), 1.0);
     }
 
     #[test]

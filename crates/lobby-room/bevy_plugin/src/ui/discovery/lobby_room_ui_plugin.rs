@@ -119,6 +119,12 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
             Update,
             ui::roll::RollSet::Drive.after(ui::discovery::bevy_systems::rebuild_room_list),
         );
+        app.add_systems(
+            Update,
+            ui::discovery::bevy_systems::sync_room_friend_segment
+                .after(ui::roll::RollSet::Drive)
+                .run_if(in_state(ui::discovery::Screen::Lobby)),
+        );
     }
 }
 

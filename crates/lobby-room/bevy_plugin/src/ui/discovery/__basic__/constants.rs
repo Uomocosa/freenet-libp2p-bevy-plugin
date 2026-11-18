@@ -11,6 +11,10 @@ pub const FRIEND_BADGE_COLOR: Color = Color::srgb(0.35, 0.80, 0.44);
 pub const FRIEND_DIVIDER_WIDTH: f32 = 1.0;
 pub const FRIEND_DIVIDER_HEIGHT: f32 = 10.0;
 pub const FRIEND_DIVIDER_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.60);
+pub const FRIEND_PULSE_GROW: f32 = 1.15;
+pub const FRIEND_PULSE_RING_ALPHA: f32 = 0.9;
+pub const FRIEND_PULSE_RING_INSET: f32 = -3.0;
+pub const FRIEND_PULSE_RING_BORDER: f32 = 2.0;
 
 pub const OCCUPANTS_SLOT: usize = 0;
 pub const ROOM_SIZE_SLOT: usize = 1;

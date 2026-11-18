@@ -1,5 +1,5 @@
 use crate::discovery as core_discovery;
-use bevy::prelude::Component;
+use bevy::prelude::{Color, Component, Entity};
 use derive_more::{Deref, DerefMut};
 
 #[derive(Component, Debug, Default, Clone, Copy)]
@@ -29,8 +29,20 @@ pub struct RoomRowParts {
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomBubble;
 
-#[derive(Component, Debug, Default, Clone, Copy)]
-pub struct RoomFriendSegment;
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Deref)]
+pub struct RoomFriendSegment(pub Entity);
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Deref)]
+pub struct RoomFriendSegmentContent(pub Entity);
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct RoomFriendSegmentFade {
+    pub base: Color,
+    pub pill: Entity,
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Deref)]
+pub struct RoomPillRing(pub Entity);
 
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct RoomBubbleTooltip;

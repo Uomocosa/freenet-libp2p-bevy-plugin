@@ -3,67 +3,95 @@ use bevy::prelude::*;
 
 use ui::discovery::{
     FRIEND_BADGE_COLOR, FRIEND_DIVIDER_COLOR, FRIEND_DIVIDER_HEIGHT, FRIEND_DIVIDER_WIDTH,
-    FRIEND_NUMBER_STYLE, FRIENDS_SLOT, RoomFriendSegment,
+    FRIEND_NUMBER_STYLE, FRIENDS_SLOT, RoomFriendSegment, RoomFriendSegmentContent,
+    RoomFriendSegmentFade,
 };
 
-pub fn spawn_friend_segment(pill: &mut ChildSpawnerCommands, row: Entity, friends: u32) {
-    pill.spawn((
-        RoomFriendSegment,
+pub fn spawn_friend_segment(pill: &mut ChildSpawnerCommands, row: Entity, friends: u32) -> Entity {
+    let mut segment = pill.spawn((
+        RoomFriendSegment(row),
         Node {
-            column_gap: Val::Px(4.0),
-            align_items: AlignItems::Center,
+            width: Val::Px(0.0),
+            overflow: Overflow::clip_x(),
+            flex_shrink: 0.0,
             ..default()
         },
-    ))
-    .with_children(|segment| {
-        segment
-            .spawn(Node {
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                row_gap: Val::Px(1.0),
-                ..default()
-            })
-            .with_children(|person| {
-                person.spawn((
-                    Node {
-                        width: Val::Px(4.0),
-                        height: Val::Px(4.0),
-                        border_radius: BorderRadius::MAX,
-                        ..default()
-                    },
-                    BackgroundColor(FRIEND_BADGE_COLOR),
-                ));
-                person.spawn((
-                    Node {
-                        width: Val::Px(10.0),
-                        height: Val::Px(5.0),
-                        border_radius: BorderRadius {
-                            top_left: CornerRadius::circular(Val::Px(5.0)),
-                            top_right: CornerRadius::circular(Val::Px(5.0)),
-                            bottom_left: CornerRadius::ZERO,
-                            bottom_right: CornerRadius::ZERO,
-                        },
-                        ..default()
-                    },
-                    BackgroundColor(FRIEND_BADGE_COLOR),
-                ));
-            });
-        ui::roll::bevy_systems::spawn_roll_number(
-            segment,
-            row,
-            FRIENDS_SLOT,
-            friends,
-            FRIEND_NUMBER_STYLE,
-        );
-        segment.spawn((
+    ));
+    let segment_entity = segment.id();
+    segment.with_children(|clip| {
+        clip.spawn((
+            RoomFriendSegmentContent(row),
             Node {
-                width: Val::Px(FRIEND_DIVIDER_WIDTH),
-                height: Val::Px(FRIEND_DIVIDER_HEIGHT),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                column_gap: Val::Px(4.0),
+                flex_shrink: 0.0,
                 ..default()
             },
-            BackgroundColor(FRIEND_DIVIDER_COLOR),
-        ));
+        ))
+        .with_children(|content| {
+            content
+                .spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    row_gap: Val::Px(1.0),
+                    ..default()
+                })
+                .with_children(|person| {
+                    person.spawn((
+                        RoomFriendSegmentFade {
+                            base: FRIEND_BADGE_COLOR,
+                            pill: row,
+                        },
+                        Node {
+                            width: Val::Px(4.0),
+                            height: Val::Px(4.0),
+                            border_radius: BorderRadius::MAX,
+                            ..default()
+                        },
+                        BackgroundColor(FRIEND_BADGE_COLOR),
+                    ));
+                    person.spawn((
+                        RoomFriendSegmentFade {
+                            base: FRIEND_BADGE_COLOR,
+                            pill: row,
+                        },
+                        Node {
+                            width: Val::Px(10.0),
+                            height: Val::Px(5.0),
+                            border_radius: BorderRadius {
+                                top_left: CornerRadius::circular(Val::Px(5.0)),
+                                top_right: CornerRadius::circular(Val::Px(5.0)),
+                                bottom_left: CornerRadius::ZERO,
+                                bottom_right: CornerRadius::ZERO,
+                            },
+                            ..default()
+                        },
+                        BackgroundColor(FRIEND_BADGE_COLOR),
+                    ));
+                });
+            ui::roll::bevy_systems::spawn_roll_number(
+                content,
+                row,
+                FRIENDS_SLOT,
+                friends,
+                FRIEND_NUMBER_STYLE,
+            );
+            content.spawn((
+                RoomFriendSegmentFade {
+                    base: FRIEND_DIVIDER_COLOR,
+                    pill: row,
+                },
+                Node {
+                    width: Val::Px(FRIEND_DIVIDER_WIDTH),
+                    height: Val::Px(FRIEND_DIVIDER_HEIGHT),
+                    ..default()
+                },
+                BackgroundColor(FRIEND_DIVIDER_COLOR),
+            ));
+        });
     });
+    segment_entity
 }
 
 #[cfg(test)]
