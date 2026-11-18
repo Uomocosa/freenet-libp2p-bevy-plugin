@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::ui::UiSystems;
 
 use crate::ui;
 
@@ -9,6 +10,10 @@ impl bevy::prelude::Plugin for UiPlugin {
         app.add_systems(
             Update,
             ui::roll::bevy_systems::drive_roll_machines.in_set(ui::roll::RollSet::Drive),
+        )
+        .add_systems(
+            PostUpdate,
+            ui::roll::bevy_systems::resize_roll_numbers.after(UiSystems::Layout),
         );
     }
 }

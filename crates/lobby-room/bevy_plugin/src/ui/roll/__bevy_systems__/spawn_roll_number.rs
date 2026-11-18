@@ -2,63 +2,62 @@ use bevy::prelude::*;
 
 use crate::ui;
 
-use ui::roll::DIGIT_ROWS;
-
 pub fn spawn_roll_number(
     parent: &mut ChildSpawnerCommands,
     pill: Entity,
     slot: usize,
     value: u32,
-    style: ui::roll::RollNumberStyle,
+    style: ui::roll::NumberStyle,
 ) -> Entity {
+    let glyphs = value.to_string();
     let mut window = parent.spawn((
-        ui::roll::RollNumber { pill, slot, value },
+        ui::roll::RollNumber {
+            pill,
+            slot,
+            value,
+            row_height: style.row_height,
+        },
         Node {
-            width: Val::Px(f32::from(style.digit_count) * style.digit_width),
+            width: Val::Auto,
             height: Val::Px(style.row_height),
             overflow: Overflow::clip_y(),
+            flex_shrink: 0.0,
             ..default()
         },
     ));
     let window_id = window.id();
     window.with_children(|columns| {
-        for place in (0..style.digit_count).rev() {
-            let offset = f32::from(ui::roll::State::digit_at(value, usize::from(place)));
-            columns
-                .spawn((
-                    ui::roll::RollDigit {
-                        place: usize::from(place),
-                        row_height: style.row_height,
-                    },
-                    UiTransform::from_translation(Val2::px(0.0, -(offset * style.row_height))),
-                    Node {
-                        width: Val::Px(style.digit_width),
-                        flex_direction: FlexDirection::Column,
-                        ..default()
-                    },
-                ))
-                .with_children(|column| {
-                    for row in 0..DIGIT_ROWS {
-                        column.spawn((
-                            Node {
-                                width: Val::Px(style.digit_width),
-                                height: Val::Px(style.row_height),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            children![(
-                                Text::new((row % 10).to_string()),
-                                TextFont {
-                                    font_size: FontSize::Px(style.font_size),
-                                    ..default()
-                                },
-                                TextColor(style.text_color),
-                            )],
-                        ));
-                    }
-                });
-        }
+        columns
+            .spawn((
+                ui::roll::RollNumberColumn,
+                UiTransform::default(),
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(2.0 * style.row_height),
+                    flex_direction: FlexDirection::Column,
+                    flex_shrink: 0.0,
+                    align_items: AlignItems::FlexEnd,
+                    ..default()
+                },
+            ))
+            .with_children(|column| {
+                column.spawn((
+                    ui::roll::RollNumberRow::Outgoing,
+                    Text::new(glyphs.clone()),
+                    style.text_font(),
+                    style.line_height(),
+                    TextColor(style.text_color),
+                    TextLayout::no_wrap(),
+                ));
+                column.spawn((
+                    ui::roll::RollNumberRow::Incoming,
+                    Text::new(glyphs),
+                    style.text_font(),
+                    style.line_height(),
+                    TextColor(style.text_color),
+                    TextLayout::no_wrap(),
+                ));
+            });
     });
     window_id
 }
@@ -66,158 +65,85 @@ pub fn spawn_roll_number(
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use bevy::text::LineHeight;
 
     use super::spawn_roll_number;
     use crate::ui;
-    use ui::roll::RollNumberStyle;
+    use ui::roll::NumberStyle;
 
-    const ONE_DIGIT: RollNumberStyle = RollNumberStyle {
+    const STYLE: NumberStyle = NumberStyle {
         font_size: 11.0,
-        digit_width: 6.0,
-        row_height: 10.0,
-        digit_count: 1,
+        row_height: 13.0,
         text_color: Color::WHITE,
     };
 
-    const TWO_DIGITS: RollNumberStyle = RollNumberStyle {
-        digit_count: 2,
-        ..ONE_DIGIT
-    };
-
-    fn app_with(style: RollNumberStyle, value: u32) -> App {
+    fn app_with(value: u32) -> App {
         let mut app = App::new();
         app.add_systems(Startup, move |mut commands: Commands| {
             let pill = commands.spawn_empty().id();
             commands.entity(pill).with_children(|parent| {
-                spawn_roll_number(&mut parent.reborrow(), pill, 0, value, style);
+                spawn_roll_number(&mut parent.reborrow(), pill, 0, value, STYLE);
             });
         });
         app.update();
         app
     }
 
-    fn digit_offsets(app: &mut App) -> Vec<f32> {
+    fn rows(app: &mut App) -> Vec<(ui::roll::RollNumberRow, String, LineHeight)> {
         let mut query = app
             .world_mut()
-            .query::<(&ui::roll::RollDigit, &UiTransform)>();
-        let mut offsets: Vec<(usize, f32)> = query
+            .query::<(&ui::roll::RollNumberRow, &Text, &LineHeight)>();
+        let mut found: Vec<(ui::roll::RollNumberRow, String, LineHeight)> = query
             .iter(app.world())
-            .map(|(digit, transform)| {
-                let Val::Px(y) = transform.translation.y else {
-                    panic!("the digit column translates in pixels")
-                };
-                (digit.place, y)
-            })
+            .map(|(row, text, line_height)| (*row, text.as_str().to_string(), *line_height))
             .collect();
-        offsets.sort_by_key(|(place, _)| *place);
-        offsets.into_iter().map(|(_, y)| y).collect()
+        found.sort_by_key(|(row, _, _)| match row {
+            ui::roll::RollNumberRow::Outgoing => 0,
+            ui::roll::RollNumberRow::Incoming => 1,
+        });
+        found
     }
 
     #[test]
     fn test_usage() {
-        let mut app = app_with(TWO_DIGITS, 9);
-        let column_count = {
-            let mut numbers = app
-                .world_mut()
-                .query::<(&ui::roll::RollNumber, &Children)>();
-            let (number, columns) = numbers.single(app.world()).expect("one number");
-            assert_eq!(number.slot, 0);
-            assert_eq!(number.value, 9);
-            columns.len()
-        };
-        assert_eq!(column_count, 2, "one column per digit");
-        assert_eq!(digit_offsets(&mut app), vec![-90.0, 0.0]);
-    }
-
-    #[test]
-    fn every_column_stacks_the_digits_plus_a_trailing_zero() {
-        let mut app = app_with(ONE_DIGIT, 0);
-        let mut columns = app.world_mut().query::<(&Children, &ui::roll::RollDigit)>();
-        for (rows, digit) in columns.iter(app.world()) {
-            assert_eq!(rows.len(), ui::roll::DIGIT_ROWS);
-            assert_eq!(digit.place, 0);
-        }
-        let mut rows = app.world_mut().query::<&Text>();
-        let glyphs: Vec<String> = rows
-            .iter(app.world())
-            .map(|text| text.as_str().to_string())
-            .collect();
-        assert_eq!(glyphs.len(), ui::roll::DIGIT_ROWS);
-        assert_eq!(glyphs.last().map(String::as_str), Some("0"));
-    }
-
-    fn digit_places(app: &mut App, window: Entity) -> Vec<usize> {
-        let mut columns = app.world_mut().query::<(&ui::roll::RollDigit, &ChildOf)>();
-        columns
-            .iter(app.world())
-            .filter(|(_, parent)| parent.parent() == window)
-            .map(|(digit, _)| digit.place)
-            .collect()
-    }
-
-    #[test]
-    fn the_tens_column_comes_before_the_ones_column() {
-        let mut app = app_with(TWO_DIGITS, 9);
-        let window = {
-            let mut numbers = app.world_mut().query::<(Entity, &ui::roll::RollNumber)>();
-            let found = numbers.iter(app.world()).next();
-            found.map(|(entity, _)| entity).expect("the window")
-        };
-        assert_eq!(digit_places(&mut app, window), vec![1, 0]);
-        assert_eq!(digit_offsets(&mut app), vec![-90.0, 0.0]);
-    }
-
-    fn preview_widgets(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        let pill = commands
-            .spawn((
-                ChildOf(root),
-                Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(2.0),
-                    padding: UiRect::axes(Val::Px(7.0), Val::Px(2.5)),
-                    align_items: AlignItems::Center,
-                    border_radius: BorderRadius::MAX,
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.16, 0.2, 0.26)),
-            ))
-            .id();
-        commands.entity(pill).with_children(|parent| {
-            spawn_roll_number(&mut parent.reborrow(), pill, 0, 9, ONE_DIGIT);
-            spawn_roll_number(&mut parent.reborrow(), pill, 1, 11, TWO_DIGITS);
-        });
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(Startup, preview_widgets);
-        app.add_systems(
-            PostStartup,
-            lele_bevy_preview::scene::bevy_systems::center_roots,
+        let mut app = app_with(42);
+        let mut numbers = app
+            .world_mut()
+            .query::<(&ui::roll::RollNumber, &Children, &Node)>();
+        let (number, columns, node) = numbers.single(app.world()).expect("one number");
+        assert_eq!(number.value, 42);
+        assert_eq!(node.height, Val::Px(13.0));
+        let column = columns.iter().next().expect("one column");
+        let column_children = app
+            .world()
+            .get::<Children>(column)
+            .expect("the column children");
+        assert_eq!(column_children.len(), 2, "exactly two whole-number texts");
+        let rows = rows(&mut app);
+        assert_eq!(
+            rows,
+            vec![
+                (
+                    ui::roll::RollNumberRow::Outgoing,
+                    String::from("42"),
+                    LineHeight::Px(13.0)
+                ),
+                (
+                    ui::roll::RollNumberRow::Incoming,
+                    String::from("42"),
+                    LineHeight::Px(13.0)
+                ),
+            ]
         );
     }
 
     #[test]
-    fn spawn_roll_number_ui_png_preview() {
-        let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        lele_bevy_preview::scene::Scene {
-            name: String::from("spawn_roll_number"),
-            kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
-            states: vec![lele_bevy_preview::scene::State {
-                label: String::from("a one-digit nine and a two-digit eleven"),
-                apply: preview_noop,
-            }],
-            timeline: None,
-        }
-        .run(&lele_bevy_preview::preview::Config {
-            out_dir: out,
-            ..Default::default()
-        })
-        .expect("preview");
+    fn a_spawned_number_starts_with_its_column_at_the_top() {
+        let mut app = app_with(9);
+        let mut columns = app
+            .world_mut()
+            .query::<(&ui::roll::RollNumberColumn, &UiTransform)>();
+        let (_, transform) = columns.single(app.world()).expect("one column");
+        assert_eq!(transform.translation, Val2::px(0.0, 0.0));
     }
 }

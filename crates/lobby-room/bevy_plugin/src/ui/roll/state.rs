@@ -35,26 +35,8 @@ impl State {
     }
 }
 
-impl State {
-    #[must_use]
-    pub(crate) fn digit_at(value: u32, place: usize) -> u8 {
-        let divisor = 10u32
-            .checked_pow(u32::try_from(place).unwrap_or(u32::MAX))
-            .unwrap_or(u32::MAX);
-        u8::try_from(
-            value
-                .checked_div(divisor)
-                .unwrap_or(0)
-                .checked_rem(10)
-                .unwrap_or(0),
-        )
-        .unwrap_or(0)
-    }
-}
-
 #[atomic_delegates]
 impl State {
-    pub(crate) fn roll_digit_position(from: u32, to: u32, place: usize, progress: f32) -> f32 {}
     pub(crate) fn align(&mut self) -> Vec<ui::roll::Output> {}
     pub(crate) fn begin_reveal(&mut self) -> Vec<ui::roll::Output> {}
     pub(crate) fn begin_roll(&mut self) -> Vec<ui::roll::Output> {}
