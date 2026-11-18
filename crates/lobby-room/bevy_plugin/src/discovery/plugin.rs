@@ -83,6 +83,7 @@ impl bevy::prelude::Plugin for Plugin {
             discovery::bevy_systems::leave_failed_room.after(replica_sync::ReplicaSyncSet::Drive),
         );
         app.init_resource::<discovery::LobbyRows>();
+        app.init_resource::<discovery::RoomFriendNames>();
         app.init_resource::<discovery::RoomRoster>();
         Self::publish_presence(app);
         app.add_systems(

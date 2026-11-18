@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 use bevy::prelude::{Reflect, Resource};
@@ -6,6 +7,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::discovery;
 use crate::freenet;
+use crate::identity;
 use crate::p2p;
 
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Deref)]
@@ -27,6 +29,9 @@ pub struct HeartbeatTargetSender(
 
 #[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Deref)]
 pub struct LobbyRows(pub Vec<discovery::LobbyRow>);
+
+#[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Deref, Reflect)]
+pub struct RoomFriendNames(pub BTreeMap<discovery::RoomName, Vec<identity::Username>>);
 
 #[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Reflect)]
 pub struct RoomRoster {

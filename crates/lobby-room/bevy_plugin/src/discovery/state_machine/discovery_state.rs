@@ -126,6 +126,11 @@ impl DiscoveryState {
     }
     pub fn leave(&mut self, now: time::UnixTime) -> Vec<Output> {}
     pub fn lobby_rows(&self, friend_ids: &[identity::PeerId]) -> Vec<discovery::LobbyRow> {}
+    pub fn room_friend_names(
+        &self,
+        friend_ids: &[identity::PeerId],
+    ) -> BTreeMap<discovery::RoomName, Vec<identity::Username>> {
+    }
     pub fn oldest_held_rooms_to_evict_until_history_limits_hold(
         &self,
         history_bytes_by_held_room: &BTreeMap<discovery::RoomName, p2p::HistoryByteCount>,

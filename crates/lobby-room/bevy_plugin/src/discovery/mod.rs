@@ -14,7 +14,7 @@ pub use basic::messages::{Command, Event};
 mod command_bytes;
 pub use basic::resources::{
     FreenetPeersReceiver, FreenetPort, HeartbeatTargetSender, Libp2pEventTap, LobbyRows,
-    LobbyUpdateReceiver, RoomRoster,
+    LobbyUpdateReceiver, RoomFriendNames, RoomRoster,
 };
 pub use basic::structs::{JoinedRoom, LobbyRow, LobbyTaskChannels, RoomRosterEntry};
 pub use basic::type_aliases::Members;
