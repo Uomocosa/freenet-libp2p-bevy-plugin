@@ -33,5 +33,7 @@ pub mod bevy_systems;
 
 mod lobby_room_ui_plugin;
 pub use lobby_room_ui_plugin::LobbyRoomUiPlugin;
+mod preview_friends_card_plugin;
+pub use preview_friends_card_plugin::PreviewFriendsCardPlugin;
 mod leave_prompt;
 pub use leave_prompt::LeavePrompt;

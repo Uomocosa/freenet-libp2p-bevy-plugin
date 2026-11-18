@@ -46,6 +46,7 @@ mod tests {
         )));
         app.add_plugins((
             ui::discovery::LobbyRoomUiPlugin,
+            ui::discovery::PreviewFriendsCardPlugin,
             ui::direct_dial::FriendsUiPlugin,
         ));
     }

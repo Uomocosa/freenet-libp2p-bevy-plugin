@@ -249,7 +249,14 @@ mod tests {
         app.insert_resource(ui::discovery::SelectedRoom(Some(
             core_discovery::RoomName::from("alpha"),
         )));
-        app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_preview);
+        app.add_systems(
+            Startup,
+            (
+                ui::discovery::bevy_systems::spawn_room_preview,
+                ui::discovery::bevy_systems::spawn_preview_friends_card,
+            )
+                .chain(),
+        );
         app.add_systems(
             Update,
             (

@@ -91,7 +91,6 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                         systems::clear_stream_on_close_request,
                         systems::highlight_selected_room.after(systems::animate_hover),
                         systems::refresh_room_preview,
-                        systems::rebuild_preview_friends.after(systems::show_room_bubble_tooltip),
                         systems::sync_peeked_room_friends.after(systems::show_room_bubble_tooltip),
                         systems::refresh_room_stream,
                         systems::rebuild_room_stream_action,
@@ -267,6 +266,11 @@ mod tests {
     }
 
     fn preview_build_with(app: &mut App, rows: core_discovery::LobbyRows) {
+        preview_build_ui_with(app, rows);
+        app.add_plugins(ui::discovery::PreviewFriendsCardPlugin);
+    }
+
+    fn preview_build_ui_with(app: &mut App, rows: core_discovery::LobbyRows) {
         app.init_resource::<Assets<Image>>();
         app.add_message::<core_discovery::Command>();
         app.insert_resource(preview_snapshot());
@@ -571,6 +575,29 @@ mod tests {
             .map(|text| text.as_str().to_string())
             .collect();
         assert_eq!(labels, vec!["friends", "alice", "bob"]);
+    }
+
+    #[test]
+    fn without_the_friends_card_plugin_the_preview_image_stays_visible() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        preview_build_ui_with(&mut app, preview_rows());
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        hover_alpha_pill(app.world_mut());
+        for _ in 0..3 {
+            app.update();
+        }
+        assert_eq!(count::<ui::discovery::RoomPreviewFriends>(&mut app), 0);
+        assert_eq!(preview_visibility(&mut app), Visibility::Visible);
+        let mut images = app
+            .world_mut()
+            .query_filtered::<Option<&Visibility>, With<ui::discovery::RoomPreviewImage>>();
+        let visibility = images.single(app.world()).expect("preview image");
+        assert!(!matches!(visibility, Some(Visibility::Hidden)));
     }
 
     fn stream_only(world: &mut World) {

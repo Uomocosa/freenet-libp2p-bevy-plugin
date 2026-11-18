@@ -66,7 +66,11 @@ mod tests {
             addrs: Vec::new(),
         }));
         app.insert_resource(ready_channel);
-        app.add_plugins((ui::discovery::LobbyRoomUiPlugin, overlay::Overlay));
+        app.add_plugins((
+            ui::discovery::LobbyRoomUiPlugin,
+            ui::discovery::PreviewFriendsCardPlugin,
+            overlay::Overlay,
+        ));
         app.add_systems(
             Update,
             (

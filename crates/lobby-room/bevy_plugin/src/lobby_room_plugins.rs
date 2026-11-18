@@ -13,6 +13,7 @@ impl PluginGroup for LobbyRoomPlugins {
         PluginGroupBuilder::start::<Self>()
             .add(discovery::Plugin::new(config))
             .add(ui::discovery::LobbyRoomUiPlugin)
+            .add(ui::discovery::PreviewFriendsCardPlugin)
             .add(ui::direct_dial::FriendsUiPlugin)
     }
 }
