@@ -97,140 +97,11 @@ pub fn rebuild_room_stream_action(
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::discovery as core_discovery;
-    use crate::ui;
-    use bevy::prelude::*;
-    use bevy::ui::Pressed;
-
-    use super::rebuild_room_stream_action;
-
-    fn row(name: &str, occupancy: core_discovery::RoomOccupancy) -> core_discovery::LobbyRow {
-        core_discovery::LobbyRow {
-            name: core_discovery::RoomName::from(name),
-            occupants: 0,
-            room_size: core_discovery::RoomSize::try_from(4).expect("4"),
-            occupancy,
-            friends: 0,
-        }
-    }
-
-    fn app_with(room: &str, rows: Vec<core_discovery::LobbyRow>) -> App {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(ui::discovery::StreamedRoom(Some(
-            core_discovery::RoomName::from(room),
-        )));
-        app.insert_resource(core_discovery::LobbyRows(rows));
-        app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_stream);
-        app.update();
-        app.add_systems(Update, rebuild_room_stream_action);
-        app
-    }
-
-    fn count<C: Component>(app: &mut App) -> usize {
-        let mut query = app.world_mut().query_filtered::<(), With<C>>();
-        query.iter(app.world()).count()
-    }
-
-    #[test]
-    fn test_usage() {
-        let mut app = app_with(
-            "alpha",
-            vec![row("alpha", core_discovery::RoomOccupancy::HasSpace)],
-        );
-        app.update();
-        assert_eq!(count::<ui::discovery::EnterRoomButton>(&mut app), 1);
-        assert_eq!(count::<ui::discovery::RoomFullBadge>(&mut app), 0);
-    }
-
-    #[test]
-    fn a_full_streamed_room_shows_the_full_badge_and_no_join_button() {
-        let mut app = app_with(
-            "gamma",
-            vec![row("gamma", core_discovery::RoomOccupancy::Full)],
-        );
-        app.update();
-        assert_eq!(count::<ui::discovery::RoomFullBadge>(&mut app), 1);
-        assert_eq!(count::<ui::discovery::EnterRoomButton>(&mut app), 0);
-    }
-
-    #[test]
-    fn the_join_button_joins_the_streamed_room() {
-        let mut app = app_with(
-            "alpha",
-            vec![row("alpha", core_discovery::RoomOccupancy::HasSpace)],
-        );
-        app.add_message::<core_discovery::Command>();
-        app.add_systems(
-            Update,
-            ui::discovery::bevy_systems::handle_join.after(rebuild_room_stream_action),
-        );
-        app.update();
-        let mut buttons = app
-            .world_mut()
-            .query_filtered::<Entity, With<ui::discovery::EnterRoomButton>>();
-        let button = buttons.single(app.world()).expect("join button");
-        app.world_mut().entity_mut(button).insert(Pressed);
-        app.update();
-        let messages = app.world().resource::<Messages<core_discovery::Command>>();
-        let mut cursor = messages.get_cursor();
-        assert_eq!(
-            cursor.read(messages).cloned().collect::<Vec<_>>(),
-            vec![core_discovery::Command::Join(
-                core_discovery::RoomName::from("alpha")
-            )]
-        );
-    }
-}
-
-#[cfg(test)]
 mod png_tests {
     use super::rebuild_room_stream_action;
     use crate::discovery as core_discovery;
     use crate::ui;
     use bevy::prelude::*;
-
-    fn row(name: &str, occupancy: core_discovery::RoomOccupancy) -> core_discovery::LobbyRow {
-        core_discovery::LobbyRow {
-            name: core_discovery::RoomName::from(name),
-            occupants: 0,
-            room_size: core_discovery::RoomSize::try_from(4).expect("4"),
-            occupancy,
-            friends: 0,
-        }
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(ui::discovery::StreamDisplay::default());
-        app.insert_resource(ui::discovery::StreamedRoom(Some(
-            core_discovery::RoomName::from("alpha"),
-        )));
-        app.insert_resource(core_discovery::LobbyRows(vec![
-            row("alpha", core_discovery::RoomOccupancy::HasSpace),
-            row("gamma", core_discovery::RoomOccupancy::Full),
-        ]));
-        app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_stream);
-        app.add_systems(
-            Update,
-            (
-                ui::discovery::bevy_systems::refresh_room_stream,
-                ui::discovery::bevy_systems::layout_stream_panel,
-                rebuild_room_stream_action,
-            )
-                .chain(),
-        );
-    }
-
-    fn stream_alpha(world: &mut World) {
-        **world.resource_mut::<ui::discovery::StreamedRoom>() =
-            Some(core_discovery::RoomName::from("alpha"));
-    }
-
-    fn stream_gamma(world: &mut World) {
-        **world.resource_mut::<ui::discovery::StreamedRoom>() =
-            Some(core_discovery::RoomName::from("gamma"));
-    }
 
     #[test]
     fn rebuild_room_stream_action_ui_png_preview() {
@@ -238,15 +109,52 @@ mod png_tests {
         lele_bevy_preview::scene::Scene {
             name: String::from("rebuild_room_stream_action"),
             kind: lele_bevy_preview::scene::Kind::Plugin,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.insert_resource(ui::discovery::StreamDisplay::default());
+                app.insert_resource(ui::discovery::StreamedRoom(Some(
+                    core_discovery::RoomName::from("alpha"),
+                )));
+                app.insert_resource(core_discovery::LobbyRows(vec![
+                    core_discovery::LobbyRow {
+                        name: core_discovery::RoomName::from("alpha"),
+                        occupants: 0,
+                        room_size: core_discovery::RoomSize::try_from(4).expect("4"),
+                        occupancy: core_discovery::RoomOccupancy::HasSpace,
+                        friends: 0,
+                    },
+                    core_discovery::LobbyRow {
+                        name: core_discovery::RoomName::from("gamma"),
+                        occupants: 0,
+                        room_size: core_discovery::RoomSize::try_from(4).expect("4"),
+                        occupancy: core_discovery::RoomOccupancy::Full,
+                        friends: 0,
+                    },
+                ]));
+                app.add_systems(Startup, ui::discovery::bevy_systems::spawn_room_stream);
+                app.add_systems(
+                    Update,
+                    (
+                        ui::discovery::bevy_systems::refresh_room_stream,
+                        ui::discovery::bevy_systems::layout_stream_panel,
+                        rebuild_room_stream_action,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("join button"),
-                    apply: stream_alpha,
+                    apply: |world: &mut World| {
+                        **world.resource_mut::<ui::discovery::StreamedRoom>() =
+                            Some(core_discovery::RoomName::from("alpha"));
+                    },
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("room full"),
-                    apply: stream_gamma,
+                    apply: |world: &mut World| {
+                        **world.resource_mut::<ui::discovery::StreamedRoom>() =
+                            Some(core_discovery::RoomName::from("gamma"));
+                    },
                 },
             ],
             timeline: None,

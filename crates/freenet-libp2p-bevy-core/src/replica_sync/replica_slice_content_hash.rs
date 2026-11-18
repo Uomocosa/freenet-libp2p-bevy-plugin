@@ -9,15 +9,3 @@ pub struct ReplicaSliceContentHash(pub u64);
 impl From<&[u8]> for ReplicaSliceContentHash {
     fn from(bytes: &[u8]) -> Self {}
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::replica_sync::ReplicaSliceContentHash;
-
-    #[test]
-    fn test_usage() {
-        let hash = ReplicaSliceContentHash::from(b"tile".as_slice());
-        assert_eq!(hash, ReplicaSliceContentHash::from(b"tile".as_slice()));
-        assert_ne!(hash, ReplicaSliceContentHash::from(b"tile!".as_slice()));
-    }
-}

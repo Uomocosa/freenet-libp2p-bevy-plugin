@@ -13,5 +13,3 @@ pub enum Error {
     #[error("could not build the node")]
     Build(#[source] anyhow::Error),
 }
-
-// no test_usage necessary

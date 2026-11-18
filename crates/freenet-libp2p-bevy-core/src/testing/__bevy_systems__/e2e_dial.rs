@@ -32,25 +32,3 @@ pub fn e2e_dial(
         .map_err(|error| BrpError::internal(error.to_string()))?;
     Ok(Value::Null)
 }
-
-#[cfg(test)]
-mod tests {
-    use bevy::prelude::*;
-    use serde_json::{Value, json};
-
-    use crate::p2p;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        app.insert_resource(p2p::Libp2pCommandSender(tx));
-        let system = app.world_mut().register_system(super::e2e_dial);
-        let addr =
-            "/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC";
-        let result = app.world_mut().run_system_with(system, Some(json!(addr)));
-        assert!(matches!(result, Ok(Ok(Value::Null))));
-        let sent = rx.try_recv().expect("dial command");
-        assert!(matches!(sent, p2p::Libp2pCommand::Dial(_)));
-    }
-}

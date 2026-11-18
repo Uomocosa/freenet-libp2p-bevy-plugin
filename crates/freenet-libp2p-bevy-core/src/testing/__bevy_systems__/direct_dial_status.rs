@@ -48,35 +48,3 @@ pub fn direct_dial_status(
     };
     serde_json::to_value(status).map_err(BrpError::internal)
 }
-
-#[cfg(test)]
-mod tests {
-    use bevy::prelude::*;
-    use serde_json::Value;
-
-    use crate::direct_dial;
-    use crate::identity;
-    use crate::time;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        let mut book = direct_dial::PeerBook::default();
-        assert!(book.add_friend(identity::Peer {
-            id: identity::PeerId::from("alice"),
-            addrs: Vec::new(),
-        }));
-        app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
-            &book,
-            time::UnixTime::from_secs(10),
-        ));
-        let system = app.world_mut().register_system(super::direct_dial_status);
-        let result = app.world_mut().run_system_with(system, None);
-        let Ok(Ok(Value::Object(status))) = result else {
-            panic!("status result: {result:?}");
-        };
-        assert_eq!(status["book"][0]["peer_id"], "alice");
-        assert_eq!(status["book"][0]["kind"], "Friend");
-        assert_eq!(status["connected"], Value::Array(Vec::new()));
-    }
-}

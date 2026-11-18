@@ -132,6 +132,26 @@ mod tests {
                 .is_some()
         );
     }
+
+    #[test]
+    fn a_bad_friend_address_shows_an_error() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(p2p::Libp2pEventChannel::default());
+        app.add_plugins(FriendsPlugin::new(direct_dial::Config::from(None)));
+        app.world_mut()
+            .resource_mut::<Messages<direct_dial::FriendAddressSubmitted>>()
+            .write(direct_dial::FriendAddressSubmitted(String::from(
+                "not a multiaddr",
+            )));
+        app.update();
+        assert_eq!(
+            app.world()
+                .resource::<direct_dial::FriendAddressError>()
+                .as_deref(),
+            Some("bad address: use /ip4/<host>/tcp/<port>/p2p/<id>")
+        );
+    }
 }
 
 #[cfg(test)]

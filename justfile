@@ -35,6 +35,27 @@ build:
 t PATTERN="" *FLAGS:
     VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --workspace --all-targets --all-features -E 'test(/{{ PATTERN }}/)' {{ FLAGS }}
 
+# The worker profile hides the `*_plugin::tests` suites, which assemble whole apps, and the
+# `*_preview` encode tests (the orchestrator's full `just test` covers them); the rest of a
+# crate's rdeps still runs. rdeps(CRATE) includes CRATE itself.
+[group('dev')]
+[doc('Run the tests of CRATE and its reverse dependencies (no plugin/preview suites).')]
+[unix]
+t-worker CRATE:
+    VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run --profile worker --workspace --all-targets --all-features --no-tests=pass -E 'rdeps({{ CRATE }})'
+
+# scripts/touched-filter.sh maps each changed src file to its module's tests; pass FILES to override.
+[group('dev')]
+[doc('Run the tests of the modules touched by the current git diff.')]
+[unix]
+t-touched:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    filter="$(scripts/touched-filter.sh)"
+    packages=$(grep -oE 'package\([^)]*\)' <<<"$filter" | sed -E 's/package\((.*)\)/-p \1/' | sort -u | tr '\n' ' ')
+    if [ -z "$packages" ]; then echo "t-touched: nothing touched"; exit 0; fi
+    TELEGRAM_BOT_TOKEN= TELEGRAM_CHAT_ID= VK_ICD_FILENAMES={{ _lavapipe }} cargo nextest run $packages --lib --bins --all-features --no-tests=pass -E "$filter"
+
 [group('dev')]
 [doc('Clippy plus lele-lint for one package (e.g. just check-crate starboard).')]
 check-crate CRATE:

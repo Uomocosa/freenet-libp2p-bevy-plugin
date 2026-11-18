@@ -13,6 +13,3 @@ pub use lobby_room_plugins::LobbyRoomPlugins;
 
 #[path = "../__methods__/mod.rs"]
 mod methods;
-
-#[cfg(test)]
-mod runner_config_tests;

@@ -133,6 +133,7 @@ mod build_plugin_tests {
 
     use crate::identity;
     use crate::p2p;
+    use crate::peers;
     use crate::plugin;
     use crate::replica_sync;
 
@@ -205,6 +206,45 @@ mod build_plugin_tests {
             app.world()
                 .get_resource::<replica_sync::HistoryConfig>()
                 .is_some()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn write_ops_applies_pending_ops_to_the_replica() {
+        let game = identity::GameId::from("game");
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(plugin::P2PPlugin(
+            plugin::Config::<u8>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
+                .with_game(game.clone()),
+        ));
+        app.add_plugins(replica_sync::SyncPlugin::<Map>::new(game));
+        let zone_entity = app
+            .world_mut()
+            .spawn(identity::ZoneName::from("alpha"))
+            .id();
+        let _ = app
+            .world()
+            .resource::<p2p::ReadyChannel>()
+            .ready_tx
+            .send(Some(identity::Peer {
+                id: identity::PeerId::from("me"),
+                addrs: Vec::new(),
+            }));
+        app.world_mut().spawn((
+            peers::Peer::from(identity::PeerId::from("me")),
+            peers::Me,
+            peers::InZone(zone_entity),
+        ));
+        app.world_mut()
+            .resource_mut::<replica_sync::PendingOps<Map>>()
+            .ops
+            .push(Op { key: 1, value: 2 });
+        app.update();
+
+        assert_eq!(
+            app.world().resource::<Map>().entries.get(&1).copied(),
+            Some(2)
         );
     }
 }

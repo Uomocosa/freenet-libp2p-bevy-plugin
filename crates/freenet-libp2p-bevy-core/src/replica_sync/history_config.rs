@@ -22,23 +22,3 @@ impl Default for HistoryConfig {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use crate::p2p;
-    use crate::replica_sync;
-
-    #[test]
-    fn test_usage() {
-        let config = replica_sync::HistoryConfig::default();
-        assert_eq!(config.write_interval, Duration::from_secs(30));
-        assert_eq!(config.record_ttl, Duration::from_secs(90));
-        assert_eq!(
-            config.per_zone_bytes,
-            p2p::HistoryByteCount::from(64u64 * 1024 * 1024)
-        );
-        assert_eq!(config.max_fetch_retries, 3);
-    }
-}

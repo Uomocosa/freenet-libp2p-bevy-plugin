@@ -33,5 +33,3 @@ pub fn manage_spectated<S: replica_sync::traits::ReplicatedState>(
         }
     }
 }
-
-// no test_usage necessary

@@ -16,5 +16,3 @@ impl Default for HolderHeartbeatIntervals {
         }
     }
 }
-
-// no test_usage necessary

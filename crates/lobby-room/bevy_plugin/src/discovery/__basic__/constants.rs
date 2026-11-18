@@ -46,5 +46,3 @@ pub const MAX_LOBBY_ROOMS: usize = 256;
 
 pub const LOBBY_CONTRACT_WASM: &[u8] =
     include_bytes!("../../../../freenet_contract/lobby_contract.wasm");
-
-// no test_usage necessary

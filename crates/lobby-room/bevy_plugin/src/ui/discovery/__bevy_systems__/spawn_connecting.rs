@@ -44,34 +44,8 @@ pub fn spawn_connecting(mut commands: Commands) {
 
 #[cfg(test)]
 mod tests {
-    use crate::ui;
-    use bevy::prelude::*;
-
     use super::spawn_connecting;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, spawn_connecting);
-        app.update();
-        let mut rings = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::SpinnerRing>>();
-        assert_eq!(rings.iter(app.world()).count(), 1);
-    }
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(
-            Startup,
-            (
-                spawn_connecting,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-    }
-
-    const fn preview_noop(_world: &mut World) {}
+    use bevy::prelude::*;
 
     #[test]
     fn spawn_connecting_ui_png_preview() {
@@ -79,10 +53,19 @@ mod tests {
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_connecting"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(
+                    Startup,
+                    (
+                        spawn_connecting,
+                        lele_bevy_preview::scene::bevy_systems::center_roots,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("connecting"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }

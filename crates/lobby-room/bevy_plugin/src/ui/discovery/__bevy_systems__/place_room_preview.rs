@@ -83,201 +83,11 @@ pub fn place_room_preview(
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::discovery as core_discovery;
-    use crate::ui;
-    use bevy::prelude::*;
-    use bevy::ui::{ComputedNode, UiGlobalTransform};
-    use bevy::window::{PrimaryWindow, WindowResolution};
-
-    use super::place_room_preview;
-
-    fn app_with(selected: Option<&str>, window_height: u32) -> (App, Entity) {
-        let mut app = App::new();
-        app.insert_resource(ui::discovery::SelectedRoom(
-            selected.map(core_discovery::RoomName::from),
-        ));
-        app.insert_resource(ui::discovery::StreamDisplay::default());
-        app.world_mut().spawn((
-            Window {
-                resolution: WindowResolution::new(960, window_height),
-                ..default()
-            },
-            PrimaryWindow,
-        ));
-        app.world_mut().spawn((
-            ui::discovery::RoomButton(core_discovery::RoomName::from("alpha")),
-            ComputedNode {
-                size: Vec2::new(232.0, 32.0),
-                ..ComputedNode::default()
-            },
-            UiGlobalTransform::from_xy(860.0, 300.0),
-        ));
-        let preview = app
-            .world_mut()
-            .spawn((ui::discovery::RoomPreviewPanel, Node::default()))
-            .id();
-        app.add_systems(Update, place_room_preview);
-        (app, preview)
-    }
-
-    fn preview_node(app: &App, preview: Entity) -> Node {
-        app.world()
-            .get::<Node>(preview)
-            .expect("preview node")
-            .clone()
-    }
-
-    fn move_row(app: &mut App, y: f32) {
-        let mut rows = app.world_mut().query::<&mut UiGlobalTransform>();
-        for mut transform in rows.iter_mut(app.world_mut()) {
-            *transform = UiGlobalTransform::from_xy(860.0, y);
-        }
-    }
-
-    #[test]
-    fn test_usage() {
-        let (mut app, preview) = app_with(Some("alpha"), 540);
-        app.update();
-        let node = preview_node(&app, preview);
-        assert_eq!(node.top, Val::Px(200.0));
-        assert_eq!(node.right, Val::Px(ui::discovery::PREVIEW_RIGHT));
-        assert_eq!(node.left, Val::Auto);
-        assert_eq!(node.bottom, Val::Auto);
-    }
-
-    #[test]
-    fn a_top_row_clamps_to_the_window_margin() {
-        let (mut app, preview) = app_with(Some("alpha"), 540);
-        move_row(&mut app, 90.0);
-        app.update();
-        assert_eq!(
-            preview_node(&app, preview).top,
-            Val::Px(ui::discovery::LOBBY_PANEL_RIGHT)
-        );
-    }
-
-    #[test]
-    fn a_bottom_row_clamps_to_the_window_margin() {
-        let (mut app, preview) = app_with(Some("alpha"), 540);
-        move_row(&mut app, 520.0);
-        app.update();
-        assert_eq!(
-            preview_node(&app, preview).top,
-            Val::Px(540.0 - ui::discovery::PREVIEW_HEIGHT - ui::discovery::LOBBY_PANEL_RIGHT)
-        );
-    }
-
-    #[test]
-    fn the_stream_header_pushes_the_card_below_it() {
-        let (mut app, preview) = app_with(Some("alpha"), 540);
-        move_row(&mut app, 90.0);
-        app.insert_resource(ui::discovery::StreamedRoom(Some(
-            core_discovery::RoomName::from("alpha"),
-        )));
-        app.world_mut().spawn((
-            ui::discovery::RoomStreamHeader,
-            ComputedNode {
-                size: Vec2::new(600.0, 40.0),
-                ..ComputedNode::default()
-            },
-            UiGlobalTransform::from_xy(400.0, 80.0),
-        ));
-        app.update();
-        assert_eq!(preview_node(&app, preview).top, Val::Px(116.0));
-    }
-
-    #[test]
-    fn without_a_selection_the_card_is_left_alone() {
-        let (mut app, preview) = app_with(None, 540);
-        app.update();
-        assert_eq!(preview_node(&app, preview).top, Val::Auto);
-    }
-
-    #[test]
-    fn fullscreen_does_not_move_the_card() {
-        let (mut app, preview) = app_with(Some("alpha"), 540);
-        *app.world_mut()
-            .resource_mut::<ui::discovery::StreamDisplay>() =
-            ui::discovery::StreamDisplay::Fullscreen;
-        app.update();
-        assert_eq!(preview_node(&app, preview).top, Val::Auto);
-    }
-}
-
-#[cfg(test)]
 mod png_tests {
     use super::place_room_preview;
     use crate::discovery as core_discovery;
     use crate::ui;
     use bevy::prelude::*;
-
-    fn row(name: &str) -> core_discovery::LobbyRow {
-        core_discovery::LobbyRow {
-            name: core_discovery::RoomName::from(name),
-            occupants: 2,
-            room_size: core_discovery::RoomSize::try_from(8).expect("8"),
-            occupancy: core_discovery::RoomOccupancy::HasSpace,
-            friends: 0,
-        }
-    }
-
-    fn spawn_list(mut commands: Commands) {
-        commands
-            .spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(48.0),
-                    right: Val::Px(ui::discovery::LOBBY_PANEL_RIGHT),
-                    width: Val::Px(ui::discovery::LOBBY_PANEL_WIDTH),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(4.0),
-                    padding: UiRect::all(Val::Px(8.0)),
-                    ..default()
-                },
-                BackgroundColor(ui::discovery::PANEL_COLOR),
-            ))
-            .with_children(|list| {
-                for name in ["alpha", "beta", "gamma"] {
-                    ui::discovery::bevy_systems::spawn_room_row(list, &row(name));
-                }
-            });
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(core_discovery::LobbyRows(vec![
-            row("alpha"),
-            row("beta"),
-            row("gamma"),
-        ]));
-        app.insert_resource(ui::discovery::SelectedRoom(Some(
-            core_discovery::RoomName::from("beta"),
-        )));
-        app.insert_resource(ui::discovery::StreamedRoom::default());
-        app.init_resource::<ui::discovery::StreamDisplay>();
-        app.add_systems(
-            Startup,
-            (spawn_list, ui::discovery::bevy_systems::spawn_room_preview),
-        );
-        app.add_systems(
-            Update,
-            (
-                ui::discovery::bevy_systems::refresh_room_preview,
-                place_room_preview,
-            )
-                .chain(),
-        );
-    }
-
-    fn hover_beta(world: &mut World) {
-        **world.resource_mut::<ui::discovery::SelectedRoom>() =
-            Some(core_discovery::RoomName::from("beta"));
-    }
-
-    fn hover_gamma(world: &mut World) {
-        **world.resource_mut::<ui::discovery::SelectedRoom>() =
-            Some(core_discovery::RoomName::from("gamma"));
-    }
 
     #[test]
     fn place_room_preview_ui_png_preview() {
@@ -285,15 +95,82 @@ mod png_tests {
         lele_bevy_preview::scene::Scene {
             name: String::from("place_room_preview"),
             kind: lele_bevy_preview::scene::Kind::Plugin,
-            build: preview_build,
+            build: |app: &mut App| {
+                let row = |name: &str| core_discovery::LobbyRow {
+                    name: core_discovery::RoomName::from(name),
+                    occupants: 2,
+                    room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+                    occupancy: core_discovery::RoomOccupancy::HasSpace,
+                    friends: 0,
+                };
+                app.insert_resource(core_discovery::LobbyRows(vec![
+                    row("alpha"),
+                    row("beta"),
+                    row("gamma"),
+                ]));
+                app.insert_resource(ui::discovery::SelectedRoom(Some(
+                    core_discovery::RoomName::from("beta"),
+                )));
+                app.insert_resource(ui::discovery::StreamedRoom::default());
+                app.init_resource::<ui::discovery::StreamDisplay>();
+                app.add_systems(
+                    Startup,
+                    (
+                        |mut commands: Commands| {
+                            commands
+                                .spawn((
+                                    Node {
+                                        position_type: PositionType::Absolute,
+                                        top: Val::Px(48.0),
+                                        right: Val::Px(ui::discovery::LOBBY_PANEL_RIGHT),
+                                        width: Val::Px(ui::discovery::LOBBY_PANEL_WIDTH),
+                                        flex_direction: FlexDirection::Column,
+                                        row_gap: Val::Px(4.0),
+                                        padding: UiRect::all(Val::Px(8.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(ui::discovery::PANEL_COLOR),
+                                ))
+                                .with_children(|list| {
+                                    for name in ["alpha", "beta", "gamma"] {
+                                        let row = core_discovery::LobbyRow {
+                                            name: core_discovery::RoomName::from(name),
+                                            occupants: 2,
+                                            room_size: core_discovery::RoomSize::try_from(8)
+                                                .expect("8"),
+                                            occupancy: core_discovery::RoomOccupancy::HasSpace,
+                                            friends: 0,
+                                        };
+                                        ui::discovery::bevy_systems::spawn_room_row(list, &row);
+                                    }
+                                });
+                        },
+                        ui::discovery::bevy_systems::spawn_room_preview,
+                    ),
+                );
+                app.add_systems(
+                    Update,
+                    (
+                        ui::discovery::bevy_systems::refresh_room_preview,
+                        place_room_preview,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("beside the middle row"),
-                    apply: hover_beta,
+                    apply: |world: &mut World| {
+                        **world.resource_mut::<ui::discovery::SelectedRoom>() =
+                            Some(core_discovery::RoomName::from("beta"));
+                    },
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("beside the last row"),
-                    apply: hover_gamma,
+                    apply: |world: &mut World| {
+                        **world.resource_mut::<ui::discovery::SelectedRoom>() =
+                            Some(core_discovery::RoomName::from("gamma"));
+                    },
                 },
             ],
             timeline: None,

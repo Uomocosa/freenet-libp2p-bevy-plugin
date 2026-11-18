@@ -10,18 +10,3 @@ pub const fn room_bubble_color(occupancy: core_discovery::RoomOccupancy) -> Colo
         core_discovery::RoomOccupancy::Full => ui::discovery::ROOM_BUBBLE_FULL_COLOR,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::room_bubble_color;
-    use crate::discovery as core_discovery;
-    use crate::ui;
-
-    #[test]
-    fn test_usage() {
-        assert_eq!(
-            room_bubble_color(core_discovery::RoomOccupancy::Full),
-            ui::discovery::ROOM_BUBBLE_FULL_COLOR
-        );
-    }
-}

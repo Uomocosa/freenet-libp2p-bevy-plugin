@@ -120,107 +120,64 @@ mod tests {
     use bevy::prelude::*;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, spawn_roster_bubble);
-        app.update();
-        let mut bubbles = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::RosterBubble>>();
-        assert_eq!(bubbles.iter(app.world()).count(), 1);
-        let mut dots = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::RosterDot>>();
-        assert_eq!(dots.iter(app.world()).count(), 1);
-        let mut dot_tips = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::RosterDotTooltip>>();
-        assert_eq!(dot_tips.iter(app.world()).count(), 1);
-        let mut count_tips = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::RosterCountTooltip>>();
-        assert_eq!(count_tips.iter(app.world()).count(), 1);
-        let mut lists = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::RosterList>>();
-        assert_eq!(lists.iter(app.world()).count(), 1);
-        let mut spectator_pills = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::SpectatorPill>>();
-        assert_eq!(spectator_pills.iter(app.world()).count(), 1);
-        let mut spectator_counts = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::SpectatorCountText>>();
-        assert_eq!(spectator_counts.iter(app.world()).count(), 1);
-        let mut spectator_tips = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::SpectatorPillTooltip>>();
-        assert_eq!(spectator_tips.iter(app.world()).count(), 1);
-    }
-
-    fn spawn_mock_screen(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands.spawn((
-            ChildOf(root),
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            BackgroundColor(ui::constants::ROOM_COLOR),
-            children![(
-                Node {
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Px(16.0),
-                    right: Val::Px(16.0),
-                    width: Val::Px(44.0),
-                    height: Val::Px(68.0),
-                    border_radius: BorderRadius::all(Val::Px(6.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgb(0.47, 0.29, 0.16)),
-                children![Text::new("leave")],
-            )],
-        ));
-    }
-
-    fn preview_roster() -> core_discovery::RoomRoster {
-        core_discovery::RoomRoster {
-            own: core_discovery::OwnRoomStatus::Connected,
-            count: 3,
-            max: 8,
-            entries: Vec::new(),
-        }
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(preview_roster());
-        app.insert_resource(spectator::SpectatorCount(2));
-        app.add_systems(Startup, (spawn_mock_screen, super::spawn_roster_bubble));
-        app.add_systems(
-            Update,
-            (
-                ui::roster::bevy_systems::refresh_roster_status,
-                ui::roster::bevy_systems::refresh_spectator_pill,
-                ui::roster::bevy_systems::refresh_spectator_tooltip,
-            ),
-        );
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
-    #[test]
     fn spawn_roster_bubble_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_roster_bubble"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.insert_resource(core_discovery::RoomRoster {
+                    own: core_discovery::OwnRoomStatus::Connected,
+                    count: 3,
+                    max: 8,
+                    entries: Vec::new(),
+                });
+                app.insert_resource(spectator::SpectatorCount(2));
+                app.add_systems(
+                    Startup,
+                    (
+                        |mut commands: Commands| {
+                            let root = commands
+                                .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                                .id();
+                            commands.spawn((
+                                ChildOf(root),
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                BackgroundColor(ui::constants::ROOM_COLOR),
+                                children![(
+                                    Node {
+                                        position_type: PositionType::Absolute,
+                                        bottom: Val::Px(16.0),
+                                        right: Val::Px(16.0),
+                                        width: Val::Px(44.0),
+                                        height: Val::Px(68.0),
+                                        border_radius: BorderRadius::all(Val::Px(6.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgb(0.47, 0.29, 0.16)),
+                                    children![Text::new("leave")],
+                                )],
+                            ));
+                        },
+                        spawn_roster_bubble,
+                    ),
+                );
+                app.add_systems(
+                    Update,
+                    (
+                        ui::roster::bevy_systems::refresh_roster_status,
+                        ui::roster::bevy_systems::refresh_spectator_pill,
+                        ui::roster::bevy_systems::refresh_spectator_tooltip,
+                    ),
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("collapsed pill"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }

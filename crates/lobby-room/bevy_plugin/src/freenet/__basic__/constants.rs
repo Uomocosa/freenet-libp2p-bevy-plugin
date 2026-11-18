@@ -85,5 +85,3 @@ pub const DRAIN_TIMEOUT: Duration = Duration::from_millis(10);
 /// until its deadline, because a `Get` can vanish for freenet's 60s
 /// `OPERATION_TTL` and a `NotFound` may never arrive.
 pub const GET_RETRY_AFTER: Duration = Duration::from_secs(5);
-
-// no test_usage necessary

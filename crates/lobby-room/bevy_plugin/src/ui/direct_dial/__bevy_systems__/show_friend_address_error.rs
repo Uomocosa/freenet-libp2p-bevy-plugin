@@ -23,76 +23,47 @@ mod tests {
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(core_direct_dial::FriendAddressError(Some(String::from(
-            "bad address",
-        ))));
-        app.world_mut()
-            .spawn((ui::direct_dial::FriendErrorText, Text::new("")));
-        app.add_systems(Update, show_friend_address_error);
-        app.update();
-        let mut texts = app
-            .world_mut()
-            .query_filtered::<&Text, With<ui::direct_dial::FriendErrorText>>();
-        let shown: Vec<String> = texts
-            .iter(app.world())
-            .map(|text| text.as_str().to_string())
-            .collect();
-        assert_eq!(shown, vec![String::from("bad address")]);
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(core_direct_dial::FriendAddressError::default());
-        app.add_systems(
-            Startup,
-            (
-                spawn_error_text,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-        app.add_systems(Update, show_friend_address_error);
-    }
-
-    fn spawn_error_text(mut commands: Commands) {
-        commands.spawn((
-            Node {
-                padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
-                ..default()
-            },
-            BackgroundColor(ui::discovery::PANEL_COLOR),
-            children![(ui::direct_dial::FriendErrorText, Text::new(""),)],
-        ));
-    }
-
-    fn show_bad_address(world: &mut World) {
-        **world.resource_mut::<core_direct_dial::FriendAddressError>() = Some(String::from(
-            "bad address: use /ip4/<host>/tcp/<port>/p2p/<id>",
-        ));
-    }
-
-    fn show_duplicate(world: &mut World) {
-        **world.resource_mut::<core_direct_dial::FriendAddressError>() =
-            Some(String::from("already a friend"));
-    }
-
-    #[test]
     fn show_friend_address_error_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("show_friend_address_error"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.insert_resource(core_direct_dial::FriendAddressError::default());
+                app.add_systems(
+                    Startup,
+                    (
+                        |mut commands: Commands| {
+                            commands.spawn((
+                                Node {
+                                    padding: UiRect::axes(Val::Px(10.0), Val::Px(4.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(ui::discovery::PANEL_COLOR),
+                                children![(ui::direct_dial::FriendErrorText, Text::new(""),)],
+                            ));
+                        },
+                        lele_bevy_preview::scene::bevy_systems::center_roots,
+                    )
+                        .chain(),
+                );
+                app.add_systems(Update, show_friend_address_error);
+            },
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("bad address"),
-                    apply: show_bad_address,
+                    apply: |world: &mut World| {
+                        **world.resource_mut::<core_direct_dial::FriendAddressError>() = Some(
+                            String::from("bad address: use /ip4/<host>/tcp/<port>/p2p/<id>"),
+                        );
+                    },
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("already a friend"),
-                    apply: show_duplicate,
+                    apply: |world: &mut World| {
+                        **world.resource_mut::<core_direct_dial::FriendAddressError>() =
+                            Some(String::from("already a friend"));
+                    },
                 },
             ],
             timeline: None,

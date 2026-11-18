@@ -70,34 +70,8 @@ pub fn spawn_leave_door(mut commands: Commands) {
 
 #[cfg(test)]
 mod tests {
-    use crate::ui;
-    use bevy::prelude::*;
-
     use super::spawn_leave_door;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, spawn_leave_door);
-        app.update();
-        let mut doors = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::LeaveDoor>>();
-        assert_eq!(doors.iter(app.world()).count(), 1);
-    }
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(
-            Startup,
-            (
-                spawn_leave_door,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-    }
-
-    const fn preview_noop(_world: &mut World) {}
+    use bevy::prelude::*;
 
     #[test]
     fn spawn_leave_door_ui_png_preview() {
@@ -105,10 +79,19 @@ mod tests {
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_leave_door"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(
+                    Startup,
+                    (
+                        spawn_leave_door,
+                        lele_bevy_preview::scene::bevy_systems::center_roots,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("closed door"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }

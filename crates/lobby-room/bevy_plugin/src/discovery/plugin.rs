@@ -137,6 +137,10 @@ mod build_plugin_tests {
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::peers;
+    use crate::presence;
+    use crate::replica_sync;
+    use crate::testing;
     use crate::time;
 
     #[tokio::test]
@@ -327,5 +331,430 @@ mod build_plugin_tests {
                 .all(|target| target.membership == discovery::RoomMembership::Departed),
             "quit marks every heartbeat target Departed"
         );
+    }
+
+    #[test]
+    fn an_occupant_is_published_with_its_room_and_display_name() {
+        let mut app = app_with_swarm();
+        let room = discovery::RoomName::from("room-7");
+        let peer = identity::PeerId::from("bob");
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
+            room.clone(),
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::EPOCH,
+                members: std::collections::BTreeMap::from([(
+                    peer.clone(),
+                    discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: peer.clone(),
+                            addrs: Vec::new(),
+                        },
+                        display_name: Some(identity::Username::from("Bob")),
+                        updated_at: time::UnixTime::EPOCH,
+                        membership: discovery::RoomMembership::Occupant,
+                    },
+                )]),
+            },
+        );
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .with_lobby(lobby)
+                .build(),
+        );
+        app.update();
+        assert_eq!(
+            app.world().resource::<presence::PeerPresence>().get(&peer),
+            Some(&presence::Whereabouts {
+                zone: identity::Zone::Restricted(identity::ZoneName::clone(&room)),
+                display_name: Some(identity::Username::from("Bob")),
+            })
+        );
+    }
+
+    #[test]
+    fn a_history_holder_publishes_no_presence() {
+        let mut app = app_with_swarm();
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
+            discovery::RoomName::from("room-7"),
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::EPOCH,
+                members: std::collections::BTreeMap::from([(
+                    identity::PeerId::from("bob"),
+                    discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: identity::PeerId::from("bob"),
+                            addrs: Vec::new(),
+                        },
+                        display_name: Some(identity::Username::from("Bob")),
+                        updated_at: time::UnixTime::EPOCH,
+                        membership: discovery::RoomMembership::HistoryHolder,
+                    },
+                )]),
+            },
+        );
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .with_lobby(lobby)
+                .build(),
+        );
+        app.update();
+        assert!(app.world().resource::<presence::PeerPresence>().is_empty());
+    }
+
+    #[test]
+    fn a_peer_in_two_rooms_takes_the_first_room_by_name() {
+        let mut app = app_with_swarm();
+        let peer = identity::PeerId::from("bob");
+        let mut lobby = discovery::Lobby::default();
+        for room in ["room-b", "room-a"] {
+            lobby.insert(
+                discovery::RoomName::from(room),
+                discovery::Room {
+                    room_size: discovery::RoomSize::DEFAULT,
+                    created_at: time::UnixTime::EPOCH,
+                    members: std::collections::BTreeMap::from([(
+                        peer.clone(),
+                        discovery::RoomMember {
+                            peer: identity::Peer {
+                                id: peer.clone(),
+                                addrs: Vec::new(),
+                            },
+                            display_name: Some(identity::Username::from("Bob")),
+                            updated_at: time::UnixTime::EPOCH,
+                            membership: discovery::RoomMembership::Occupant,
+                        },
+                    )]),
+                },
+            );
+        }
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .with_lobby(lobby)
+                .build(),
+        );
+        app.update();
+        let zone = app
+            .world()
+            .resource::<presence::PeerPresence>()
+            .get(&peer)
+            .map(|whereabouts| whereabouts.zone.clone());
+        assert_eq!(
+            zone,
+            Some(identity::Zone::Restricted(identity::ZoneName::from(
+                "room-a"
+            )))
+        );
+    }
+
+    #[test]
+    fn the_plugin_projects_a_room_prefix_and_liveness() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_message::<AppExit>();
+        app.add_plugins(discovery::Plugin::new(discovery::Config::default()));
+        let game = identity::GameId::from("test");
+        app.insert_resource(replica_sync::SyncGame(game.clone()));
+        let room = discovery::RoomName::from("room-a");
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
+            room.clone(),
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::from_secs(10),
+                members: std::collections::BTreeMap::from([(
+                    identity::PeerId::from("alice"),
+                    discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: identity::PeerId::from("alice"),
+                            addrs: Vec::new(),
+                        },
+                        display_name: None,
+                        updated_at: time::UnixTime::from_secs(10),
+                        membership: discovery::RoomMembership::Occupant,
+                    },
+                )]),
+            },
+        );
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build();
+        let (expected_prefix, expected_liveness) =
+            discovery::state_machine::DiscoveryState::room_prefix_and_lobby_status(
+                Some(&state),
+                &game,
+                &room,
+            );
+        app.insert_resource(state);
+        app.update();
+        let mut rooms = app.world_mut().query::<(Entity, &identity::ZoneName)>();
+        let room_entity = rooms
+            .iter(app.world())
+            .find(|(_, name)| **name == *room)
+            .map(|(entity, _)| entity)
+            .expect("room entity");
+        assert_eq!(
+            app.world().get::<p2p::HistoryKeyPrefix>(room_entity),
+            Some(&expected_prefix)
+        );
+        assert_eq!(
+            app.world()
+                .get::<replica_sync::state_machine::ZoneLiveness>(room_entity),
+            Some(&expected_liveness)
+        );
+    }
+
+    #[test]
+    fn a_stale_room_entity_is_not_reused() {
+        let mut app = app_with_swarm();
+        app.insert_resource(replica_sync::SyncGame(identity::GameId::from("game")));
+        let room = discovery::RoomName::from("room-a");
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
+            room.clone(),
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::from_secs(10),
+                members: std::collections::BTreeMap::from([(
+                    identity::PeerId::from("alice"),
+                    discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: identity::PeerId::from("alice"),
+                            addrs: Vec::new(),
+                        },
+                        display_name: None,
+                        updated_at: time::UnixTime::from_secs(10),
+                        membership: discovery::RoomMembership::Occupant,
+                    },
+                )]),
+            },
+        );
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .with_lobby(lobby)
+                .build(),
+        );
+        app.update();
+        let old = {
+            let mut rooms = app.world_mut().query::<(Entity, &identity::ZoneName)>();
+            rooms
+                .iter(app.world())
+                .find(|(_, name)| **name == *room)
+                .map(|(entity, _)| entity)
+                .expect("room entity")
+        };
+        app.world_mut().despawn(old);
+        app.update();
+        let fresh = {
+            let mut rooms = app.world_mut().query::<(Entity, &identity::ZoneName)>();
+            rooms
+                .iter(app.world())
+                .find(|(_, name)| **name == *room)
+                .map(|(entity, _)| entity)
+                .expect("fresh room entity")
+        };
+        assert_ne!(fresh, old);
+        assert!(app.world().get_entity(fresh).is_ok());
+    }
+
+    #[test]
+    fn a_stale_peer_entity_is_not_reused() {
+        let mut app = app_with_swarm();
+        app.insert_resource(replica_sync::SyncGame(identity::GameId::from("game")));
+        let room = discovery::RoomName::from("room-a");
+        let alice = identity::PeerId::from("alice");
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
+            room,
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::from_secs(10),
+                members: std::collections::BTreeMap::from([(
+                    alice.clone(),
+                    discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: alice.clone(),
+                            addrs: Vec::new(),
+                        },
+                        display_name: None,
+                        updated_at: time::UnixTime::from_secs(10),
+                        membership: discovery::RoomMembership::Occupant,
+                    },
+                )]),
+            },
+        );
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .with_lobby(lobby)
+                .build(),
+        );
+        app.update();
+        let old = {
+            let mut peers_found = app.world_mut().query::<(Entity, &peers::Peer)>();
+            peers_found
+                .iter(app.world())
+                .find(|(_, peer)| ***peer == alice)
+                .map(|(entity, _)| entity)
+                .expect("peer entity")
+        };
+        app.world_mut().despawn(old);
+        app.update();
+        let fresh = {
+            let mut peers_found = app.world_mut().query::<(Entity, &peers::Peer)>();
+            peers_found
+                .iter(app.world())
+                .find(|(_, peer)| ***peer == alice)
+                .map(|(entity, _)| entity)
+                .expect("fresh peer entity")
+        };
+        assert_ne!(fresh, old);
+        assert!(app.world().get_entity(fresh).is_ok());
+    }
+
+    #[test]
+    fn a_holder_of_two_rooms_links_both_without_churn() {
+        let mut app = app_with_swarm();
+        app.insert_resource(replica_sync::SyncGame(identity::GameId::from("game")));
+        let alice = identity::PeerId::from("alice");
+        let mut lobby = discovery::Lobby::default();
+        for room in ["room-a", "room-b"] {
+            lobby.insert(
+                discovery::RoomName::from(room),
+                discovery::Room {
+                    room_size: discovery::RoomSize::DEFAULT,
+                    created_at: time::UnixTime::from_secs(10),
+                    members: std::collections::BTreeMap::from([(
+                        alice.clone(),
+                        discovery::RoomMember {
+                            peer: identity::Peer {
+                                id: alice.clone(),
+                                addrs: Vec::new(),
+                            },
+                            display_name: None,
+                            updated_at: time::UnixTime::from_secs(10),
+                            membership: discovery::RoomMembership::HistoryHolder,
+                        },
+                    )]),
+                },
+            );
+        }
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .with_lobby(lobby)
+                .build(),
+        );
+        app.update();
+        let hold_link_count = |app: &mut App| {
+            app.world_mut()
+                .query_filtered::<Entity, With<peers::HistoryHold>>()
+                .iter(app.world())
+                .count()
+        };
+        assert_eq!(hold_link_count(&mut app), 2);
+        let alice_entity = {
+            let mut peers_found = app.world_mut().query::<(Entity, &peers::Peer)>();
+            peers_found
+                .iter(app.world())
+                .find(|(_, peer)| ***peer == alice)
+                .map(|(entity, _)| entity)
+                .expect("alice peer entity")
+        };
+        assert_eq!(
+            app.world()
+                .get::<peers::HeldZones>(alice_entity)
+                .expect("held zones")
+                .len(),
+            2
+        );
+        let room_entities: Vec<Entity> = {
+            let mut rooms = app.world_mut().query::<(Entity, &identity::ZoneName)>();
+            rooms.iter(app.world()).map(|(entity, _)| entity).collect()
+        };
+        assert_eq!(room_entities.len(), 2);
+        for room in room_entities {
+            assert!(
+                app.world()
+                    .get::<peers::HistoryHolders>(room)
+                    .is_some_and(|holders| holders.len() == 1)
+            );
+        }
+        for _ in 0..4 {
+            app.update();
+            assert_eq!(hold_link_count(&mut app), 2);
+        }
+    }
+
+    #[test]
+    fn a_departed_holder_frees_its_links_and_the_room_is_swept() {
+        let mut app = app_with_swarm();
+        app.add_plugins(peers::TrackingPlugin);
+        app.insert_resource(replica_sync::SyncGame(identity::GameId::from("game")));
+        let room = discovery::RoomName::from("room-a");
+        let alice = identity::PeerId::from("alice");
+        let mut lobby = discovery::Lobby::default();
+        lobby.insert(
+            room.clone(),
+            discovery::Room {
+                room_size: discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::from_secs(10),
+                members: std::collections::BTreeMap::from([(
+                    alice.clone(),
+                    discovery::RoomMember {
+                        peer: identity::Peer {
+                            id: alice.clone(),
+                            addrs: Vec::new(),
+                        },
+                        display_name: None,
+                        updated_at: time::UnixTime::from_secs(10),
+                        membership: discovery::RoomMembership::HistoryHolder,
+                    },
+                )]),
+            },
+        );
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .with_lobby(lobby)
+                .build(),
+        );
+        app.update();
+        let hold_link_count = |app: &mut App| {
+            app.world_mut()
+                .query_filtered::<Entity, With<peers::HistoryHold>>()
+                .iter(app.world())
+                .count()
+        };
+        assert_eq!(hold_link_count(&mut app), 1);
+        let room_entity = {
+            let mut rooms = app.world_mut().query::<(Entity, &identity::ZoneName)>();
+            rooms
+                .iter(app.world())
+                .find(|(_, name)| **name == *room)
+                .map(|(entity, _)| entity)
+                .expect("room entity")
+        };
+        assert!(app.world().get_entity(room_entity).is_ok());
+        {
+            let mut state = app
+                .world_mut()
+                .resource_mut::<discovery::state_machine::DiscoveryState>();
+            state
+                .lobby
+                .get_mut(&room)
+                .expect("room in lobby")
+                .members
+                .get_mut(&alice)
+                .expect("alice listed")
+                .membership = discovery::RoomMembership::Departed;
+            state.lobby.remove(&room);
+        }
+        app.update();
+        app.update();
+        assert_eq!(hold_link_count(&mut app), 0);
+        assert!(app.world().get_entity(room_entity).is_err());
+        let mut rooms = app.world_mut().query::<(Entity, &identity::ZoneName)>();
+        assert_eq!(rooms.iter(app.world()).count(), 0);
     }
 }

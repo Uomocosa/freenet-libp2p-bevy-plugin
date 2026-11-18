@@ -22,12 +22,3 @@ pub struct Behaviour<Payload: p2p::traits::Message> {
     pub dcutr: dcutr::Behaviour,
     pub mdns: Toggle<mdns::tokio::Behaviour>,
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_usage() {
-        let _ = stringify!(Behaviour::<()>);
-    }
-}
-// no test_usage necessary

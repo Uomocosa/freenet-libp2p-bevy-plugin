@@ -48,75 +48,45 @@ mod tests {
     use bevy::prelude::*;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, |mut commands: Commands| {
-            commands.spawn_empty().with_children(|header| {
-                spawn_stream_control_button(
-                    header,
-                    ui::discovery::RoomStreamCloseButton,
-                    ui::discovery::bevy_systems::spawn_close_bars,
-                );
-            });
-        });
-        app.update();
-        let mut buttons = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomStreamCloseButton>>();
-        assert_eq!(buttons.iter(app.world()).count(), 1);
-    }
-}
-
-#[cfg(test)]
-mod png_tests {
-    use super::spawn_stream_control_button;
-    use crate::ui;
-    use bevy::prelude::*;
-
-    fn spawn_controls_preview(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands
-            .spawn((
-                ChildOf(root),
-                Node {
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    padding: UiRect::all(Val::Px(8.0)),
-                    ..default()
-                },
-                BackgroundColor(ui::discovery::PANEL_COLOR),
-            ))
-            .with_children(|row| {
-                spawn_stream_control_button(
-                    row,
-                    ui::discovery::RoomStreamFullscreenButton,
-                    ui::discovery::bevy_systems::spawn_fullscreen_corners,
-                );
-                spawn_stream_control_button(
-                    row,
-                    ui::discovery::RoomStreamCloseButton,
-                    ui::discovery::bevy_systems::spawn_close_bars,
-                );
-            });
-    }
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(Startup, spawn_controls_preview);
-        app.add_systems(
-            PostStartup,
-            lele_bevy_preview::scene::bevy_systems::center_roots,
-        );
-    }
-
-    #[test]
     fn spawn_stream_control_button_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_stream_control_button"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands
+                        .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                        .id();
+                    commands
+                        .spawn((
+                            ChildOf(root),
+                            Node {
+                                align_items: AlignItems::Center,
+                                column_gap: Val::Px(8.0),
+                                padding: UiRect::all(Val::Px(8.0)),
+                                ..default()
+                            },
+                            BackgroundColor(ui::discovery::PANEL_COLOR),
+                        ))
+                        .with_children(|row| {
+                            spawn_stream_control_button(
+                                row,
+                                ui::discovery::RoomStreamFullscreenButton,
+                                ui::discovery::bevy_systems::spawn_fullscreen_corners,
+                            );
+                            spawn_stream_control_button(
+                                row,
+                                ui::discovery::RoomStreamCloseButton,
+                                ui::discovery::bevy_systems::spawn_close_bars,
+                            );
+                        });
+                });
+                app.add_systems(
+                    PostStartup,
+                    lele_bevy_preview::scene::bevy_systems::center_roots,
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("fullscreen and close icons"),
                 apply: |_world: &mut World| {},

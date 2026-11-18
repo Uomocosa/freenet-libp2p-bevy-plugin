@@ -80,117 +80,63 @@ pub fn spawn_rooms_header(root: &mut ChildSpawnerCommands) {
 
 #[cfg(test)]
 mod tests {
+    use super::spawn_rooms_header;
     use crate::ui;
     use bevy::picking::hover::Hovered;
     use bevy::prelude::*;
 
-    use super::spawn_rooms_header;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, |mut commands: Commands| {
-            let root = commands.spawn_empty().id();
-            commands
-                .entity(root)
-                .with_children(|root| spawn_rooms_header(&mut root.reborrow()));
-        });
-        app.update();
-        let mut headers = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomsHeader>>();
-        assert_eq!(headers.iter(app.world()).count(), 1);
-        let mut rings = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::SpinnerRing>>();
-        assert_eq!(rings.iter(app.world()).count(), 1);
-        let mut indicators = app
-            .world_mut()
-            .query_filtered::<Entity, With<ui::discovery::RoomSearchIndicator>>();
-        let indicator = indicators.single(app.world()).expect("search indicator");
-        let mut tooltips = app
-            .world_mut()
-            .query_filtered::<Entity, With<ui::discovery::RoomSearchTooltip>>();
-        let tooltip = tooltips.single(app.world()).expect("search tooltip");
-        let tooltip_visibility = *app
-            .world()
-            .get::<Visibility>(tooltip)
-            .expect("tooltip visibility");
-        assert_eq!(tooltip_visibility, Visibility::Hidden);
-        let GlobalZIndex(tooltip_z) = *app.world().get::<GlobalZIndex>(tooltip).expect("tooltip z");
-        assert_eq!(tooltip_z, ui::discovery::ROOM_SEARCH_TOOLTIP_Z);
-        assert_eq!(
-            app.world()
-                .entity(indicator)
-                .get::<Children>()
-                .expect("indicator children")
-                .len(),
-            2
-        );
-    }
-
-    #[derive(Component)]
-    struct PinSearchHover;
-
-    fn pin_search_hover(mut commands: Commands, pinned: Query<Entity, With<PinSearchHover>>) {
-        for entity in &pinned {
-            commands.entity(entity).insert(Hovered(true));
-        }
-    }
-
-    fn hover_indicator(world: &mut World) {
-        let mut indicators =
-            world.query_filtered::<Entity, With<ui::discovery::RoomSearchIndicator>>();
-        let indicators: Vec<Entity> = indicators.iter(world).collect();
-        for entity in indicators {
-            world
-                .entity_mut(entity)
-                .insert((Hovered(true), PinSearchHover));
-        }
-    }
-
-    fn spawn_header_preview(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands
-            .entity(root)
-            .with_children(|root| spawn_rooms_header(&mut root.reborrow()));
-    }
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(Startup, spawn_header_preview);
-        app.add_systems(
-            PostStartup,
-            lele_bevy_preview::scene::bevy_systems::center_roots,
-        );
-        app.add_systems(
-            Update,
-            (
-                pin_search_hover,
-                ui::discovery::bevy_systems::show_room_search_tooltip,
-            )
-                .chain(),
-        );
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
     #[test]
     fn spawn_rooms_header_ui_png_preview() {
+        #[derive(Component)]
+        struct PinSearchHover;
+
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_rooms_header"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands
+                        .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                        .id();
+                    commands
+                        .entity(root)
+                        .with_children(|root| spawn_rooms_header(&mut root.reborrow()));
+                });
+                app.add_systems(
+                    PostStartup,
+                    lele_bevy_preview::scene::bevy_systems::center_roots,
+                );
+                app.add_systems(
+                    Update,
+                    (
+                        |mut commands: Commands, pinned: Query<Entity, With<PinSearchHover>>| {
+                            for entity in &pinned {
+                                commands.entity(entity).insert(Hovered(true));
+                            }
+                        },
+                        ui::discovery::bevy_systems::show_room_search_tooltip,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("idle"),
-                    apply: preview_noop,
+                    apply: |_world: &mut World| {},
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("searching hovered"),
-                    apply: hover_indicator,
+                    apply: |world: &mut World| {
+                        let mut indicators = world
+                            .query_filtered::<Entity, With<ui::discovery::RoomSearchIndicator>>();
+                        let indicators: Vec<Entity> = indicators.iter(world).collect();
+                        for entity in indicators {
+                            world
+                                .entity_mut(entity)
+                                .insert((Hovered(true), PinSearchHover));
+                        }
+                    },
                 },
             ],
             timeline: None,

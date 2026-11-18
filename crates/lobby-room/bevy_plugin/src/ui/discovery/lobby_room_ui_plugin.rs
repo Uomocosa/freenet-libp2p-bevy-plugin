@@ -153,6 +153,7 @@ mod tests {
     use bevy::state::app::StatesPlugin;
     use bevy::time::TimeUpdateStrategy;
     use bevy::ui::Pressed;
+    use bevy::window::{CursorIcon, PrimaryWindow, SystemCursorIcon};
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
     use freenet_libp2p_bevy_core::identity;
     use freenet_libp2p_bevy_core::p2p;
@@ -738,6 +739,156 @@ mod tests {
     }
 
     #[test]
+    fn double_clicking_a_room_row_joins_it_once() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            100,
+        )));
+        app.add_message::<core_discovery::Command>();
+        preview_build(&mut app);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let press = |app: &mut App, room: &str| {
+            let row = {
+                let mut rows = app
+                    .world_mut()
+                    .query::<(Entity, &ui::discovery::RoomButton)>();
+                rows.iter(app.world())
+                    .find(|(_entity, button)| button.as_str() == room)
+                    .map(|(entity, _button)| entity)
+                    .expect("the room row")
+            };
+            app.world_mut().entity_mut(row).remove::<Pressed>();
+            app.world_mut().entity_mut(row).insert(Pressed);
+            app.update();
+        };
+        let mut cursor = app
+            .world()
+            .resource::<Messages<core_discovery::Command>>()
+            .get_cursor();
+        let mut joins = |app: &mut App| -> Vec<core_discovery::Command> {
+            let messages = app.world().resource::<Messages<core_discovery::Command>>();
+            cursor
+                .read(messages)
+                .filter(|command| matches!(command, core_discovery::Command::Join(_)))
+                .cloned()
+                .collect()
+        };
+        press(&mut app, "gamma");
+        press(&mut app, "gamma");
+        assert!(
+            joins(&mut app).is_empty(),
+            "a full room never joins on a double click"
+        );
+        press(&mut app, "alpha");
+        press(&mut app, "beta");
+        assert!(
+            joins(&mut app).is_empty(),
+            "two presses on different rows do not join"
+        );
+        press(&mut app, "alpha");
+        for _ in 0..4 {
+            app.update();
+        }
+        press(&mut app, "alpha");
+        assert!(
+            joins(&mut app).is_empty(),
+            "two presses outside the double-click window do not join"
+        );
+        press(&mut app, "alpha");
+        assert_eq!(
+            joins(&mut app),
+            vec![core_discovery::Command::Join(
+                core_discovery::RoomName::from("alpha")
+            )],
+            "the double click joins the room once"
+        );
+        press(&mut app, "alpha");
+        assert_eq!(
+            joins(&mut app),
+            Vec::new(),
+            "the press after a join starts a new double click"
+        );
+    }
+
+    #[test]
+    fn the_stream_image_letterboxes_into_its_viewport() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        preview_build(&mut app);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let viewport = {
+            let mut viewports = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::RoomStreamViewport>>();
+            viewports.single(app.world()).expect("stream viewport")
+        };
+        let fitted = |app: &mut App| -> (f32, f32) {
+            let mut images = app
+                .world_mut()
+                .query_filtered::<&Node, With<ui::discovery::RoomStreamImage>>();
+            let node = images.single(app.world()).expect("stream image node");
+            let (Val::Px(width), Val::Px(height)) = (node.width, node.height) else {
+                panic!("the fitted image uses pixel sizes");
+            };
+            (width, height)
+        };
+        assert_eq!(
+            fitted(&mut app),
+            (0.0, 0.0),
+            "an unmeasured panel keeps the spawn size"
+        );
+        app.world_mut()
+            .entity_mut(viewport)
+            .insert(bevy::ui::ComputedNode {
+                size: Vec2::new(640.0, 300.0),
+                ..bevy::ui::ComputedNode::default()
+            });
+        app.update();
+        assert_eq!(
+            fitted(&mut app),
+            (480.0, 300.0),
+            "a tall panel letterboxes the sides"
+        );
+        app.world_mut()
+            .entity_mut(viewport)
+            .insert(bevy::ui::ComputedNode {
+                size: Vec2::new(640.0, 600.0),
+                ..bevy::ui::ComputedNode::default()
+            });
+        app.update();
+        assert_eq!(
+            fitted(&mut app),
+            (640.0, 400.0),
+            "a short panel letterboxes the top and bottom"
+        );
+        app.world_mut()
+            .entity_mut(viewport)
+            .insert(bevy::ui::ComputedNode {
+                size: Vec2::new(640.0, 400.0),
+                padding: bevy::sprite::BorderRect {
+                    min_inset: Vec2::new(12.0, 64.0),
+                    max_inset: Vec2::new(12.0, 12.0),
+                },
+                ..bevy::ui::ComputedNode::default()
+            });
+        app.update();
+        let (width, height) = fitted(&mut app);
+        assert!(
+            (width - 518.4).abs() < 0.01,
+            "the padding is excluded from the fitted area"
+        );
+        assert!((height - 324.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
     fn default_ui_plugin_ui_scene_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
@@ -1168,19 +1319,1252 @@ mod tests {
         esc_closes_the_drawer_before_the_menu(&mut app);
         the_friends_press_beats_then_opens_the_drawer(&mut app);
     }
+
+    #[test]
+    fn pick_screen_routes_each_discovery_state_to_its_screen() {
+        let screen_after = |state: Option<DiscoveryState>, join_error: Option<&str>| {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, StatesPlugin));
+            app.add_message::<core_discovery::Command>();
+            if let Some(state) = state {
+                app.insert_resource(state);
+            }
+            app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+            app.finish();
+            if let Some(message) = join_error {
+                **app.world_mut().resource_mut::<ui::discovery::JoinError>() =
+                    Some(String::from(message));
+            }
+            for _ in 0..5 {
+                app.update();
+            }
+            *app.world().resource::<State<ui::discovery::Screen>>().get()
+        };
+        let in_room = |phase| {
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .in_room(core_discovery::JoinedRoom {
+                    name: core_discovery::RoomName::from("alpha"),
+                    created_at: time::UnixTime::EPOCH,
+                    phase,
+                    members: core_discovery::Members::new(),
+                    how_entered: core_discovery::HowRoomWasEntered::Created,
+                })
+                .build()
+        };
+        assert_eq!(screen_after(None, None), ui::discovery::Screen::Connecting);
+        assert_eq!(
+            screen_after(
+                Some(
+                    testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                        .lobby_fetched()
+                        .build()
+                ),
+                None
+            ),
+            ui::discovery::Screen::Lobby
+        );
+        assert_eq!(
+            screen_after(
+                Some(in_room(core_discovery::JoinPhase::Joining {
+                    since: time::UnixTime::EPOCH,
+                })),
+                None
+            ),
+            ui::discovery::Screen::JoiningRoom
+        );
+        assert_eq!(
+            screen_after(Some(in_room(core_discovery::JoinPhase::Ready)), None),
+            ui::discovery::Screen::InRoom
+        );
+        assert_eq!(
+            screen_after(
+                Some(in_room(core_discovery::JoinPhase::Ready)),
+                Some("gone")
+            ),
+            ui::discovery::Screen::JoinFailed
+        );
+    }
+
+    #[test]
+    fn the_yes_answer_leaves_the_room_and_closes_the_prompt() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .in_room(core_discovery::JoinedRoom {
+                    name: core_discovery::RoomName::from("alpha"),
+                    created_at: time::UnixTime::EPOCH,
+                    phase: core_discovery::JoinPhase::Ready,
+                    members: core_discovery::Members::new(),
+                    how_entered: core_discovery::HowRoomWasEntered::Created,
+                })
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        app.world_mut()
+            .resource_mut::<NextState<ui::discovery::LeaveDialog>>()
+            .set(ui::discovery::LeaveDialog::Open);
+        app.update();
+        app.world_mut()
+            .spawn((ui::discovery::LeaveYesButton, Pressed));
+        app.update();
+        let messages = app.world().resource::<Messages<core_discovery::Command>>();
+        let mut cursor = messages.get_cursor();
+        assert_eq!(
+            cursor.read(messages).cloned().collect::<Vec<_>>(),
+            vec![core_discovery::Command::Leave]
+        );
+        assert!(matches!(
+            *app.world()
+                .resource::<NextState<ui::discovery::LeaveDialog>>(),
+            NextState::Pending(ui::discovery::LeaveDialog::Closed)
+        ));
+    }
+
+    #[test]
+    fn the_no_answer_closes_the_prompt_without_leaving() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .in_room(core_discovery::JoinedRoom {
+                    name: core_discovery::RoomName::from("alpha"),
+                    created_at: time::UnixTime::EPOCH,
+                    phase: core_discovery::JoinPhase::Ready,
+                    members: core_discovery::Members::new(),
+                    how_entered: core_discovery::HowRoomWasEntered::Created,
+                })
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        app.world_mut()
+            .resource_mut::<NextState<ui::discovery::LeaveDialog>>()
+            .set(ui::discovery::LeaveDialog::Open);
+        app.update();
+        app.world_mut()
+            .spawn((ui::discovery::LeaveNoButton, Pressed));
+        app.update();
+        let messages = app.world().resource::<Messages<core_discovery::Command>>();
+        let mut cursor = messages.get_cursor();
+        assert_eq!(
+            cursor
+                .read(messages)
+                .filter(|command| matches!(command, core_discovery::Command::Leave))
+                .count(),
+            0
+        );
+        assert!(matches!(
+            *app.world()
+                .resource::<NextState<ui::discovery::LeaveDialog>>(),
+            NextState::Pending(ui::discovery::LeaveDialog::Closed)
+        ));
+    }
+
+    #[test]
+    fn a_room_without_friends_has_no_friend_suffix_in_its_tooltip() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(core_discovery::LobbyRows(vec![core_discovery::LobbyRow {
+            name: core_discovery::RoomName::from("alpha"),
+            occupants: 2,
+            room_size: core_discovery::RoomSize::try_from(4).expect("4"),
+            occupancy: core_discovery::RoomOccupancy::HasSpace,
+            friends: 0,
+        }]));
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let mut texts = app.world_mut().query::<&Text>();
+        let labels: Vec<String> = texts
+            .iter(app.world())
+            .map(|text| text.as_str().to_string())
+            .collect();
+        assert!(
+            labels.iter().any(|label| label == "2 of 4 players"),
+            "a room with no friends shows only its occupancy"
+        );
+    }
+
+    #[test]
+    fn escape_leaves_fullscreen_before_opening_the_menu() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_plugins(InputPlugin);
+        app.add_message::<core_discovery::Command>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        app.update();
+        *app.world_mut()
+            .resource_mut::<ui::discovery::StreamDisplay>() =
+            ui::discovery::StreamDisplay::Fullscreen;
+        press(&mut app, KeyCode::Escape);
+        assert_eq!(
+            *app.world().resource::<ui::discovery::StreamDisplay>(),
+            ui::discovery::StreamDisplay::Panel
+        );
+        assert_eq!(esc_menu_visibility(&mut app), Visibility::Hidden);
+        press(&mut app, KeyCode::Escape);
+        assert_eq!(esc_menu_visibility(&mut app), Visibility::Visible);
+    }
+
+    #[test]
+    fn tab_with_the_menu_open_presses_the_friends_button_and_starts_the_beat() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_plugins(InputPlugin);
+        app.add_message::<core_discovery::Command>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        app.update();
+        press(&mut app, KeyCode::Escape);
+        assert_eq!(esc_menu_visibility(&mut app), Visibility::Visible);
+        press(&mut app, KeyCode::Tab);
+        assert!(friends_button_pressed(&mut app));
+        assert!(**app.world().resource::<ui::discovery::FriendsPressBeat>() > 0.0);
+    }
+
+    #[test]
+    fn escape_cancels_a_pending_friends_beat_and_opens_the_menu() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_plugins(InputPlugin);
+        app.add_message::<core_discovery::Command>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        app.update();
+        let button = {
+            let mut buttons = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::EscMenuFriendsButton>>();
+            buttons.single(app.world()).expect("friends button")
+        };
+        app.world_mut().entity_mut(button).insert(Pressed);
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::FriendsPressBeat>() =
+            ui::discovery::MENU_FRIENDS_BEAT_SECS;
+        app.update();
+        press(&mut app, KeyCode::Escape);
+        assert!((**app.world().resource::<ui::discovery::FriendsPressBeat>()).abs() < f32::EPSILON);
+        assert_eq!(esc_menu_visibility(&mut app), Visibility::Visible);
+    }
+
+    #[test]
+    fn a_room_gone_event_records_the_join_error() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        app.world_mut()
+            .resource_mut::<Messages<core_discovery::Event>>()
+            .write(core_discovery::Event::RoomGone(
+                core_discovery::RoomName::from("alpha"),
+            ));
+        app.update();
+        assert_eq!(
+            **app.world().resource::<ui::discovery::JoinError>(),
+            Some(String::from(
+                "Room alpha no longer exists (all players left)"
+            ))
+        );
+    }
+
+    #[test]
+    fn a_history_unavailable_failure_records_the_history_error() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        app.world_mut()
+            .resource_mut::<Messages<replica_sync::JoinFailure>>()
+            .write(replica_sync::JoinFailure::HistoryUnavailable(
+                identity::ZoneName::from("beta"),
+            ));
+        app.update();
+        assert_eq!(
+            **app.world().resource::<ui::discovery::JoinError>(),
+            Some(String::from("Couldn't get room history"))
+        );
+    }
+
+    #[test]
+    fn a_history_unavailable_event_records_the_history_error() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        app.world_mut()
+            .resource_mut::<Messages<core_discovery::Event>>()
+            .write(core_discovery::Event::HistoryUnavailable(
+                core_discovery::RoomName::from("beta"),
+            ));
+        app.update();
+        assert_eq!(
+            **app.world().resource::<ui::discovery::JoinError>(),
+            Some(String::from("Couldn't get room history"))
+        );
+    }
+
+    #[test]
+    fn a_joined_event_clears_the_join_error() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        **app.world_mut().resource_mut::<ui::discovery::JoinError>() =
+            Some(String::from("an earlier join error"));
+        app.world_mut()
+            .resource_mut::<Messages<core_discovery::Event>>()
+            .write(core_discovery::Event::Joined(
+                core_discovery::RoomName::from("alpha"),
+            ));
+        app.update();
+        assert_eq!(**app.world().resource::<ui::discovery::JoinError>(), None);
+    }
+
+    #[test]
+    fn the_row_count_covers_occupant_members_only() {
+        let member = |peer: &str, membership| {
+            (
+                identity::PeerId::from(peer),
+                core_discovery::RoomMember {
+                    peer: identity::Peer {
+                        id: identity::PeerId::from(peer),
+                        addrs: Vec::new(),
+                    },
+                    display_name: None,
+                    updated_at: time::UnixTime::EPOCH,
+                    membership,
+                },
+            )
+        };
+        let mut lobby = core_discovery::Lobby::default();
+        lobby.insert(
+            core_discovery::RoomName::from("alpha"),
+            core_discovery::Room {
+                room_size: core_discovery::RoomSize::DEFAULT,
+                created_at: time::UnixTime::EPOCH,
+                members: std::collections::BTreeMap::from([
+                    member("occupant", core_discovery::RoomMembership::Occupant),
+                    member("holder", core_discovery::RoomMembership::HistoryHolder),
+                    member("departed", core_discovery::RoomMembership::Departed),
+                ]),
+            },
+        );
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .with_lobby(lobby)
+                .lobby_fetched()
+                .build(),
+        );
+        app.init_resource::<core_discovery::LobbyRows>();
+        app.init_resource::<core_discovery::RoomFriendNames>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.add_systems(
+            Update,
+            core_discovery::bevy_systems::rebuild_lobby_rows
+                .before(ui::discovery::bevy_systems::rebuild_room_list),
+        );
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let row = {
+            let mut rows = app
+                .world_mut()
+                .query::<(Entity, &ui::discovery::RoomButton)>();
+            rows.iter(app.world())
+                .find(|(_entity, button)| button.as_str() == "alpha")
+                .map(|(entity, _button)| entity)
+                .expect("the alpha room row")
+        };
+        let mut numbers = app.world_mut().query::<&ui::roll::RollNumber>();
+        let mut found: Vec<(usize, u32)> = numbers
+            .iter(app.world())
+            .filter(|number| number.pill == row)
+            .map(|number| (number.slot, number.value))
+            .collect();
+        found.sort_unstable();
+        assert_eq!(found, vec![(0, 1), (1, 8)]);
+    }
+
+    #[test]
+    fn a_value_change_reuses_the_row_then_clearing_the_lobby_despawns_it() {
+        let row = |occupants, occupancy| core_discovery::LobbyRow {
+            name: core_discovery::RoomName::from("alpha"),
+            occupants,
+            room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+            occupancy,
+            friends: 0,
+        };
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(core_discovery::LobbyRows(vec![row(
+            3,
+            core_discovery::RoomOccupancy::HasSpace,
+        )]));
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let before = {
+            let mut rows = app
+                .world_mut()
+                .query::<(Entity, &ui::discovery::RoomButton)>();
+            rows.iter(app.world())
+                .find(|(_entity, button)| button.as_str() == "alpha")
+                .map(|(entity, _button)| entity)
+                .expect("the alpha room row")
+        };
+        *app.world_mut().resource_mut::<core_discovery::LobbyRows>() =
+            core_discovery::LobbyRows(vec![row(4, core_discovery::RoomOccupancy::Full)]);
+        app.update();
+        let after = {
+            let mut rows = app
+                .world_mut()
+                .query::<(Entity, &ui::discovery::RoomButton)>();
+            rows.iter(app.world())
+                .find(|(_entity, button)| button.as_str() == "alpha")
+                .map(|(entity, _button)| entity)
+                .expect("the alpha room row")
+        };
+        assert_eq!(after, before, "the row entity survives a value change");
+        assert_eq!(
+            app.world()
+                .get::<ui::roll::RollMachine>(before)
+                .expect("roll machine")
+                .target,
+            vec![4, 8, 0]
+        );
+        *app.world_mut().resource_mut::<core_discovery::LobbyRows>() =
+            core_discovery::LobbyRows(Vec::new());
+        app.update();
+        let mut buttons = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::RoomButton>>();
+        assert_eq!(buttons.iter(app.world()).count(), 0);
+        let mut lists = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::RoomList>>();
+        assert_eq!(lists.iter(app.world()).count(), 1);
+    }
+
+    #[test]
+    fn the_preview_panel_hides_while_the_same_room_streams() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(core_discovery::LobbyRows(vec![core_discovery::LobbyRow {
+            name: core_discovery::RoomName::from("alpha"),
+            occupants: 1,
+            room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+            occupancy: core_discovery::RoomOccupancy::HasSpace,
+            friends: 0,
+        }]));
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let row = {
+            let mut rows = app
+                .world_mut()
+                .query::<(Entity, &ui::discovery::RoomButton)>();
+            rows.iter(app.world())
+                .find(|(_entity, button)| button.as_str() == "alpha")
+                .map(|(entity, _button)| entity)
+                .expect("the alpha room row")
+        };
+        app.world_mut().entity_mut(row).insert(Hovered(true));
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::SelectedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
+        app.update();
+        assert_eq!(preview_visibility(&mut app), Visibility::Visible);
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
+        app.update();
+        assert_eq!(preview_visibility(&mut app), Visibility::Hidden);
+    }
+
+    #[test]
+    fn the_stream_panel_follows_the_streamed_room_and_resets_when_it_stops() {
+        let row =
+            |name: &str, occupants: usize, room_size: u16, occupancy| core_discovery::LobbyRow {
+                name: core_discovery::RoomName::from(name),
+                occupants,
+                room_size: core_discovery::RoomSize::try_from(room_size).expect("room size"),
+                occupancy,
+                friends: 0,
+            };
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(core_discovery::LobbyRows(vec![
+            row("alpha", 2, 8, core_discovery::RoomOccupancy::HasSpace),
+            row("gamma", 4, 4, core_discovery::RoomOccupancy::Full),
+        ]));
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        *app.world_mut()
+            .resource_mut::<ui::discovery::StreamDisplay>() =
+            ui::discovery::StreamDisplay::Fullscreen;
+        app.update();
+        let mut panels = app
+            .world_mut()
+            .query_filtered::<&Visibility, With<ui::discovery::RoomStreamPanel>>();
+        assert_eq!(
+            *panels.single(app.world()).expect("stream panel"),
+            Visibility::Hidden
+        );
+        assert_eq!(
+            *app.world().resource::<ui::discovery::StreamDisplay>(),
+            ui::discovery::StreamDisplay::Panel
+        );
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
+        app.update();
+        assert_eq!(
+            *panels.single(app.world()).expect("stream panel"),
+            Visibility::Visible
+        );
+        let mut names = app
+            .world_mut()
+            .query_filtered::<&Text, With<ui::discovery::RoomStreamName>>();
+        assert_eq!(names.single(app.world()).expect("name").as_str(), "alpha");
+        let mut texts = app
+            .world_mut()
+            .query_filtered::<&Text, With<ui::discovery::RoomStreamOccupancyText>>();
+        assert_eq!(
+            texts.single(app.world()).expect("occupancy").as_str(),
+            "2/8"
+        );
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from("gamma"));
+        app.update();
+        let mut names = app
+            .world_mut()
+            .query_filtered::<&Text, With<ui::discovery::RoomStreamName>>();
+        assert_eq!(names.single(app.world()).expect("name").as_str(), "gamma");
+        let mut texts = app
+            .world_mut()
+            .query_filtered::<&Text, With<ui::discovery::RoomStreamOccupancyText>>();
+        assert_eq!(
+            texts.single(app.world()).expect("occupancy").as_str(),
+            "4/4"
+        );
+    }
+
+    #[test]
+    fn pressing_the_leave_door_opens_the_leave_prompt_once() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .in_room(core_discovery::JoinedRoom {
+                    name: core_discovery::RoomName::from("alpha"),
+                    created_at: time::UnixTime::EPOCH,
+                    phase: core_discovery::JoinPhase::Ready,
+                    members: core_discovery::Members::new(),
+                    how_entered: core_discovery::HowRoomWasEntered::Created,
+                })
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let door = {
+            let mut doors = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::LeaveDoor>>();
+            doors.single(app.world()).expect("leave door")
+        };
+        app.world_mut().entity_mut(door).insert(Pressed);
+        app.update();
+        assert!(matches!(
+            *app.world()
+                .resource::<NextState<ui::discovery::LeaveDialog>>(),
+            NextState::Pending(ui::discovery::LeaveDialog::Open)
+        ));
+        app.update();
+        app.world_mut().entity_mut(door).remove::<Pressed>();
+        app.world_mut().entity_mut(door).insert(Pressed);
+        app.update();
+        assert!(!matches!(
+            *app.world()
+                .resource::<NextState<ui::discovery::LeaveDialog>>(),
+            NextState::Pending(ui::discovery::LeaveDialog::Open)
+        ));
+    }
+
+    #[test]
+    fn hovering_the_rooms_header_shows_the_search_tooltip() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let indicator = {
+            let mut indicators = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::RoomSearchIndicator>>();
+            indicators.single(app.world()).expect("search indicator")
+        };
+        let tooltip = {
+            let mut tooltips = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::RoomSearchTooltip>>();
+            tooltips.single(app.world()).expect("search tooltip")
+        };
+        let visibility = |app: &App| {
+            *app.world()
+                .get::<Visibility>(tooltip)
+                .expect("search tooltip")
+        };
+        assert_eq!(visibility(&app), Visibility::Hidden);
+        app.world_mut().entity_mut(indicator).insert(Hovered(true));
+        app.update();
+        assert_eq!(visibility(&app), Visibility::Visible);
+        app.world_mut().entity_mut(indicator).insert(Hovered(false));
+        app.update();
+        assert_eq!(visibility(&app), Visibility::Hidden);
+    }
+
+    #[test]
+    fn the_room_name_input_shows_the_text_cursor_on_hover() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        let window = app
+            .world_mut()
+            .spawn((Window::default(), PrimaryWindow, CursorIcon::default()))
+            .id();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let input = {
+            let mut inputs = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::RoomNameInput>>();
+            inputs.single(app.world()).expect("room name input")
+        };
+        app.world_mut().entity_mut(input).insert(Hovered(true));
+        app.update();
+        assert_eq!(
+            *app.world().get::<CursorIcon>(window).expect("cursor"),
+            CursorIcon::System(SystemCursorIcon::Text)
+        );
+        app.world_mut().entity_mut(input).insert(Hovered(false));
+        app.update();
+        assert_eq!(
+            *app.world().get::<CursorIcon>(window).expect("cursor"),
+            CursorIcon::default()
+        );
+    }
+
+    #[test]
+    fn the_menu_leave_button_shows_only_in_a_room() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let button = {
+            let mut buttons = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::EscMenuLeaveButton>>();
+            buttons.single(app.world()).expect("leave button")
+        };
+        let visibility = |app: &App| *app.world().get::<Visibility>(button).expect("leave button");
+        assert_eq!(visibility(&app), Visibility::Hidden);
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .in_room(core_discovery::JoinedRoom {
+                    name: core_discovery::RoomName::from("alpha"),
+                    created_at: time::UnixTime::EPOCH,
+                    phase: core_discovery::JoinPhase::Ready,
+                    members: core_discovery::Members::new(),
+                    how_entered: core_discovery::HowRoomWasEntered::Created,
+                })
+                .build(),
+        );
+        for _ in 0..5 {
+            app.update();
+        }
+        assert_eq!(visibility(&app), Visibility::Inherited);
+    }
+
+    #[test]
+    fn hovering_a_room_pill_shows_its_friends_tooltip() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(core_discovery::LobbyRows(vec![core_discovery::LobbyRow {
+            name: core_discovery::RoomName::from("alpha"),
+            occupants: 3,
+            room_size: core_discovery::RoomSize::try_from(4).expect("4"),
+            occupancy: core_discovery::RoomOccupancy::HasSpace,
+            friends: 1,
+        }]));
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let row = {
+            let mut rows = app
+                .world_mut()
+                .query::<(Entity, &ui::discovery::RoomButton)>();
+            rows.iter(app.world())
+                .find(|(_entity, button)| button.as_str() == "alpha")
+                .map(|(entity, _button)| entity)
+                .expect("the alpha room row")
+        };
+        let pill = {
+            let mut pills = app
+                .world_mut()
+                .query::<(Entity, &ChildOf, &ui::discovery::RoomBubble)>();
+            pills
+                .iter(app.world())
+                .find(|(_entity, link, _bubble)| link.parent() == row)
+                .map(|(entity, _link, _bubble)| entity)
+                .expect("the alpha room pill")
+        };
+        let tooltip = {
+            let mut tooltips = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::RoomBubbleTooltip>>();
+            tooltips.single(app.world()).expect("bubble tooltip")
+        };
+        let visibility = |app: &App| {
+            *app.world()
+                .get::<Visibility>(tooltip)
+                .expect("bubble tooltip")
+        };
+        assert_eq!(visibility(&app), Visibility::Hidden);
+        app.world_mut().entity_mut(pill).insert(Hovered(true));
+        app.update();
+        assert_eq!(visibility(&app), Visibility::Visible);
+        assert_eq!(
+            app.world()
+                .get::<Text>(tooltip)
+                .expect("tooltip text")
+                .as_str(),
+            "3 of 4 players | 1 friend"
+        );
+        assert_eq!(
+            **app
+                .world()
+                .resource::<ui::discovery::HoveredOccupancyPill>(),
+            Some(core_discovery::RoomName::from("alpha"))
+        );
+        app.world_mut().entity_mut(pill).insert(Hovered(false));
+        app.update();
+        assert_eq!(visibility(&app), Visibility::Hidden);
+        assert_eq!(
+            **app
+                .world()
+                .resource::<ui::discovery::HoveredOccupancyPill>(),
+            None
+        );
+    }
+
+    #[test]
+    fn the_joining_screen_names_the_room_from_the_state() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .in_room(core_discovery::JoinedRoom {
+                    name: core_discovery::RoomName::from("alpha"),
+                    created_at: time::UnixTime::EPOCH,
+                    phase: core_discovery::JoinPhase::Joining {
+                        since: time::UnixTime::EPOCH,
+                    },
+                    members: core_discovery::Members::new(),
+                    how_entered: core_discovery::HowRoomWasEntered::Created,
+                })
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        assert_eq!(count::<ui::discovery::JoiningRoomRoot>(&mut app), 1);
+        let mut texts = app.world_mut().query::<&Text>();
+        let labels: Vec<String> = texts
+            .iter(app.world())
+            .map(|text| text.as_str().to_string())
+            .collect();
+        assert!(
+            labels.iter().any(|label| label == "Joining room alpha..."),
+            "the joining screen names the room: {labels:?}"
+        );
+    }
+
+    #[test]
+    fn the_join_failed_screen_shows_the_recorded_error() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .in_room(core_discovery::JoinedRoom {
+                    name: core_discovery::RoomName::from("alpha"),
+                    created_at: time::UnixTime::EPOCH,
+                    phase: core_discovery::JoinPhase::Ready,
+                    members: core_discovery::Members::new(),
+                    how_entered: core_discovery::HowRoomWasEntered::Created,
+                })
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        let message = String::from("Room alpha no longer exists (all players left)");
+        **app.world_mut().resource_mut::<ui::discovery::JoinError>() = Some(message.clone());
+        for _ in 0..5 {
+            app.update();
+        }
+        assert_eq!(count::<ui::discovery::JoinErrorRoot>(&mut app), 1);
+        let mut texts = app.world_mut().query::<&Text>();
+        let labels: Vec<String> = texts
+            .iter(app.world())
+            .map(|text| text.as_str().to_string())
+            .collect();
+        assert!(
+            labels.contains(&message),
+            "the join failed screen shows the recorded error: {labels:?}"
+        );
+    }
+
+    #[test]
+    fn the_stream_close_button_clears_the_streamed_room() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(preview_snapshot());
+        app.insert_resource(preview_rows());
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..3 {
+            app.update();
+        }
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
+        app.update();
+        assert!(
+            (**app.world().resource::<ui::discovery::StreamedRoom>()).is_some(),
+            "the stream is running before the press"
+        );
+        let button = {
+            let mut buttons = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::RoomStreamCloseButton>>();
+            buttons.single(app.world()).expect("stream close button")
+        };
+        app.world_mut().entity_mut(button).insert(Pressed);
+        app.update();
+        assert!(
+            (**app.world().resource::<ui::discovery::StreamedRoom>()).is_none(),
+            "the close press clears the streamed room"
+        );
+    }
+
+    #[test]
+    fn the_preview_never_prints_a_member_name() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.add_message::<core_discovery::Command>();
+        preview_build_ui_with(&mut app, preview_rows());
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        select_room(app.world_mut());
+        for _ in 0..3 {
+            app.update();
+        }
+        assert_eq!(preview_visibility(&mut app), Visibility::Visible);
+        let panel = {
+            let mut panels = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::RoomPreviewPanel>>();
+            panels.single(app.world()).expect("preview panel")
+        };
+        let mut stack = vec![panel];
+        let mut texts = Vec::new();
+        while let Some(entity) = stack.pop() {
+            if let Some(text) = app.world().get::<Text>(entity) {
+                texts.push(text.as_str().to_string());
+            }
+            if let Some(children) = app.world().get::<Children>(entity) {
+                stack.extend(children.iter());
+            }
+        }
+        assert!(
+            texts.is_empty(),
+            "the preview is image-only and never prints a member name: {texts:?}"
+        );
+    }
+
+    #[test]
+    fn the_connecting_spinner_rotates() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            100,
+        )));
+        app.add_message::<core_discovery::Command>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        app.update();
+        app.update();
+        let mut rings = app
+            .world_mut()
+            .query_filtered::<&UiTransform, With<ui::discovery::SpinnerRing>>();
+        let rotation = rings.single(app.world()).expect("spinner ring").rotation;
+        assert_ne!(
+            rotation,
+            Rot2::IDENTITY,
+            "the connecting spinner has turned after two frames"
+        );
+    }
+
+    #[test]
+    fn hovering_a_room_row_for_the_delay_opens_its_preview_and_leaving_closes_it() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            50,
+        )));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(core_discovery::LobbyRows(vec![core_discovery::LobbyRow {
+            name: core_discovery::RoomName::from("alpha"),
+            occupants: 2,
+            room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+            occupancy: core_discovery::RoomOccupancy::HasSpace,
+            friends: 0,
+        }]));
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let row = {
+            let mut rows = app
+                .world_mut()
+                .query::<(Entity, &ui::discovery::RoomButton)>();
+            rows.iter(app.world())
+                .find(|(_entity, button)| button.as_str() == "alpha")
+                .map(|(entity, _button)| entity)
+                .expect("the alpha room row")
+        };
+        app.world_mut().entity_mut(row).insert(Hovered(true));
+        for _ in 0..5 {
+            app.update();
+        }
+        assert_eq!(
+            (**app.world().resource::<ui::discovery::SelectedRoom>()).clone(),
+            None,
+            "a quarter second of hover is below the preview delay"
+        );
+        for _ in 0..3 {
+            app.update();
+        }
+        assert_eq!(
+            (**app.world().resource::<ui::discovery::SelectedRoom>()).clone(),
+            Some(core_discovery::RoomName::from("alpha")),
+            "the hover delay opens the preview"
+        );
+        app.world_mut().entity_mut(row).remove::<Hovered>();
+        app.update();
+        assert_eq!(
+            (**app.world().resource::<ui::discovery::SelectedRoom>()).clone(),
+            None,
+            "leaving the row closes the preview"
+        );
+    }
+
+    #[test]
+    fn watching_a_streamed_room_emits_one_watch_command_and_a_new_hover_watches_both() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            50,
+        )));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(core_discovery::LobbyRows(vec![
+            core_discovery::LobbyRow {
+                name: core_discovery::RoomName::from("alpha"),
+                occupants: 2,
+                room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+                occupancy: core_discovery::RoomOccupancy::HasSpace,
+                friends: 0,
+            },
+            core_discovery::LobbyRow {
+                name: core_discovery::RoomName::from("beta"),
+                occupants: 1,
+                room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+                occupancy: core_discovery::RoomOccupancy::HasSpace,
+                friends: 0,
+            },
+        ]));
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let _ = app
+            .world_mut()
+            .resource_mut::<Messages<core_discovery::Command>>()
+            .drain()
+            .count();
+        **app
+            .world_mut()
+            .resource_mut::<ui::discovery::StreamedRoom>() =
+            Some(core_discovery::RoomName::from("alpha"));
+        app.update();
+        assert_eq!(
+            app.world_mut()
+                .resource_mut::<Messages<core_discovery::Command>>()
+                .drain()
+                .collect::<Vec<_>>(),
+            vec![core_discovery::Command::Watch(
+                core_discovery::RoomName::from("alpha")
+            )],
+            "starting a stream watches its room once"
+        );
+        app.update();
+        assert_eq!(
+            app.world_mut()
+                .resource_mut::<Messages<core_discovery::Command>>()
+                .drain()
+                .count(),
+            0,
+            "the same streamed room is not watched again"
+        );
+        let row = {
+            let mut rows = app
+                .world_mut()
+                .query::<(Entity, &ui::discovery::RoomButton)>();
+            rows.iter(app.world())
+                .find(|(_entity, button)| button.as_str() == "beta")
+                .map(|(entity, _button)| entity)
+                .expect("the beta room row")
+        };
+        app.world_mut().entity_mut(row).insert(Hovered(true));
+        for _ in 0..8 {
+            app.update();
+        }
+        assert_eq!(
+            app.world_mut()
+                .resource_mut::<Messages<core_discovery::Command>>()
+                .drain()
+                .collect::<Vec<_>>(),
+            vec![core_discovery::Command::Watch(
+                core_discovery::RoomName::from("beta")
+            )],
+            "a hovered room is watched alongside the streamed one"
+        );
+    }
+
+    #[test]
+    fn the_friend_badge_appears_after_a_roll_and_hides_when_the_last_friend_leaves() {
+        let row = |occupants: usize, friends: usize| core_discovery::LobbyRow {
+            name: core_discovery::RoomName::from("alpha"),
+            occupants,
+            room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+            occupancy: core_discovery::RoomOccupancy::HasSpace,
+            friends,
+        };
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            50,
+        )));
+        app.add_message::<core_discovery::Command>();
+        app.insert_resource(core_discovery::LobbyRows(vec![row(2, 0)]));
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .lobby_fetched()
+                .build(),
+        );
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        app.finish();
+        for _ in 0..5 {
+            app.update();
+        }
+        let mut segments = app
+            .world_mut()
+            .query_filtered::<(), With<ui::discovery::RoomFriendSegment>>();
+        assert_eq!(segments.iter(app.world()).count(), 0);
+        *app.world_mut().resource_mut::<core_discovery::LobbyRows>() =
+            core_discovery::LobbyRows(vec![row(2, 1)]);
+        let mut appeared = false;
+        for _ in 0..40 {
+            app.update();
+            let mut segments = app
+                .world_mut()
+                .query_filtered::<(), With<ui::discovery::RoomFriendSegment>>();
+            if segments.iter(app.world()).count() == 1 {
+                appeared = true;
+                break;
+            }
+        }
+        assert!(
+            appeared,
+            "the friend badge appears once its roll reveals it"
+        );
+        let bubble = {
+            let mut bubbles = app
+                .world_mut()
+                .query_filtered::<(Entity, &Children), With<ui::discovery::RoomBubble>>();
+            bubbles
+                .single(app.world())
+                .map(|(_entity, children)| *children.first().expect("a first child"))
+                .expect("one room bubble")
+        };
+        assert!(
+            app.world()
+                .get::<ui::discovery::RoomFriendSegment>(bubble)
+                .is_some(),
+            "the friend badge sits before the occupancy numbers"
+        );
+        *app.world_mut().resource_mut::<core_discovery::LobbyRows>() =
+            core_discovery::LobbyRows(vec![row(2, 0)]);
+        let mut vanished = false;
+        for _ in 0..40 {
+            app.update();
+            let mut segments = app
+                .world_mut()
+                .query_filtered::<(), With<ui::discovery::RoomFriendSegment>>();
+            if segments.iter(app.world()).count() == 0 {
+                vanished = true;
+                break;
+            }
+        }
+        assert!(
+            vanished,
+            "the friend badge hides once the last friend has rolled away"
+        );
+    }
 }
 
 #[cfg(test)]
 mod build_plugin_tests {
     use crate::discovery as core_discovery;
+    use crate::testing;
     use crate::ui;
+    use bevy::picking::hover::Hovered;
     use bevy::prelude::Plugin;
     use bevy::prelude::*;
+    use bevy::state::app::StatesPlugin;
+    use bevy::time::TimeUpdateStrategy;
+    use freenet_libp2p_bevy_core::identity;
+    use freenet_libp2p_bevy_core::time;
+    use std::time::Duration;
 
     #[test]
     fn test_usage() {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.add_plugins((MinimalPlugins, StatesPlugin));
         app.add_message::<core_discovery::Command>();
         Plugin::build(&ui::discovery::LobbyRoomUiPlugin, &mut app);
         Plugin::finish(&ui::discovery::LobbyRoomUiPlugin, &mut app);
@@ -1189,6 +2573,45 @@ mod build_plugin_tests {
             .world_mut()
             .query_filtered::<(), With<ui::discovery::SpinnerRing>>();
         assert_eq!(spinners.iter(app.world()).count(), 1);
+    }
+
+    #[test]
+    fn hovering_the_leave_door_opens_it_fully() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, StatesPlugin));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            100,
+        )));
+        app.add_message::<core_discovery::Command>();
+        app.add_plugins(ui::discovery::LobbyRoomUiPlugin);
+        Plugin::finish(&ui::discovery::LobbyRoomUiPlugin, &mut app);
+        app.insert_resource(
+            testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+                .in_room(core_discovery::JoinedRoom {
+                    name: core_discovery::RoomName::from("alpha"),
+                    created_at: time::UnixTime::EPOCH,
+                    phase: core_discovery::JoinPhase::Ready,
+                    members: core_discovery::Members::new(),
+                    how_entered: core_discovery::HowRoomWasEntered::Created,
+                })
+                .build(),
+        );
+        for _ in 0..5 {
+            app.update();
+        }
+        let door = {
+            let mut doors = app
+                .world_mut()
+                .query_filtered::<Entity, With<ui::discovery::LeaveDoor>>();
+            doors.single(app.world()).expect("leave door")
+        };
+        app.world_mut().entity_mut(door).insert(Hovered(true));
+        for _ in 0..10 {
+            app.update();
+        }
+        let mut openings = app.world_mut().query::<&ui::discovery::DoorOpening>();
+        let opening = openings.single(app.world()).map(|opening| **opening).ok();
+        assert_eq!(opening, Some(1.0));
     }
 }
 

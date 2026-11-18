@@ -58,5 +58,3 @@ pub enum SpectateOutput<Op, Snap> {
     },
     RepairFinished,
 }
-
-// no test_usage necessary

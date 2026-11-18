@@ -19,5 +19,3 @@ pub struct SpectatorInputs<Op, Snap>(pub Vec<spectator::MachineInput<Op, Snap>>)
 
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct SpectatorCount(pub usize);
-
-// no test_usage necessary

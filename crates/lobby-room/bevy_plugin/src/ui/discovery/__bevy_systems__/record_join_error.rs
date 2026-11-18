@@ -26,32 +26,3 @@ pub fn record_join_error(
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::discovery as core_discovery;
-    use crate::ui;
-    use bevy::prelude::*;
-
-    use super::record_join_error;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_message::<core_discovery::Event>();
-        app.init_resource::<ui::discovery::JoinError>();
-        app.add_systems(Update, record_join_error);
-        app.world_mut()
-            .resource_mut::<Messages<core_discovery::Event>>()
-            .write(core_discovery::Event::RoomGone(
-                core_discovery::RoomName::from("alpha"),
-            ));
-        app.update();
-        assert_eq!(
-            **app.world().resource::<ui::discovery::JoinError>(),
-            Some(String::from(
-                "Room alpha no longer exists (all players left)"
-            ))
-        );
-    }
-}

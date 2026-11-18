@@ -32,5 +32,3 @@ pub enum Error {
 impl From<tokio_tungstenite::tungstenite::Error> for Error {
     fn from(error: tokio_tungstenite::tungstenite::Error) -> Self { Self::WebSocket(Box::new(error)) }
 }
-
-// no test_usage necessary

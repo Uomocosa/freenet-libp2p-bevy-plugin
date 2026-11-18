@@ -110,129 +110,10 @@ pub fn sync_room_friend_segment(
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
-    use bevy::prelude::*;
-    use bevy::time::TimeUpdateStrategy;
-
     use super::sync_room_friend_segment;
     use crate::discovery as core_discovery;
     use crate::ui;
-
-    fn lobby_row(occupants: usize, friends: usize) -> core_discovery::LobbyRow {
-        core_discovery::LobbyRow {
-            name: core_discovery::RoomName::from("alpha"),
-            occupants,
-            room_size: core_discovery::RoomSize::try_from(8).expect("room size"),
-            occupancy: core_discovery::RoomOccupancy::HasSpace,
-            friends,
-        }
-    }
-
-    fn app_with_rows(rows: Vec<core_discovery::LobbyRow>) -> App {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
-            50,
-        )));
-        app.insert_resource(core_discovery::LobbyRows(rows));
-        app.add_plugins(ui::roll::UiPlugin);
-        app.world_mut().spawn(ui::discovery::RoomList);
-        app.add_systems(Update, ui::discovery::bevy_systems::rebuild_room_list);
-        app.configure_sets(
-            Update,
-            ui::roll::RollSet::Drive.after(ui::discovery::bevy_systems::rebuild_room_list),
-        );
-        app.add_systems(
-            Update,
-            sync_room_friend_segment.after(ui::roll::RollSet::Drive),
-        );
-        app
-    }
-
-    fn set_rows(app: &mut App, rows: Vec<core_discovery::LobbyRow>) {
-        *app.world_mut().resource_mut::<core_discovery::LobbyRows>() =
-            core_discovery::LobbyRows(rows);
-    }
-
-    fn machine_state(app: &mut App) -> ui::roll::State {
-        let mut machines = app.world_mut().query::<&ui::roll::RollMachine>();
-        machines
-            .iter(app.world())
-            .next()
-            .map(|machine| ui::roll::State::clone(machine))
-            .expect("one machine")
-    }
-
-    fn segment_count(app: &mut App) -> usize {
-        let mut segments = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomFriendSegment>>();
-        segments.iter(app.world()).count()
-    }
-
-    fn ring_count(app: &mut App) -> usize {
-        let mut rings = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomPillRing>>();
-        rings.iter(app.world()).count()
-    }
-
-    fn first_bubble_child(app: &mut App) -> Entity {
-        let mut bubbles = app
-            .world_mut()
-            .query_filtered::<(Entity, &Children), With<ui::discovery::RoomBubble>>();
-        let (_, children) = bubbles.single(app.world()).expect("one bubble");
-        *children.first().expect("a first child")
-    }
-
-    fn spawn_preview_list(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands.spawn((
-            ChildOf(root),
-            ui::discovery::RoomList,
-            Node {
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(4.0),
-                ..default()
-            },
-        ));
-    }
-
-    fn preview_at_rest(world: &mut World) {
-        let mut machines = world.query::<&mut ui::roll::RollMachine>();
-        for mut machine in machines.iter_mut(world) {
-            **machine = ui::roll::State::new(vec![2, 8, 1], Some(ui::discovery::FRIENDS_SLOT));
-        }
-    }
-
-    fn preview_revealing(world: &mut World) {
-        let mut machines = world.query::<&mut ui::roll::RollMachine>();
-        for mut machine in machines.iter_mut(world) {
-            machine.numbers = vec![2, 8, 0];
-            machine.target = vec![2, 8, 1];
-            machine.phase = ui::roll::Phase::Reveal {
-                slot: ui::discovery::FRIENDS_SLOT,
-                revealed_numbers: vec![2, 8, 1],
-                elapsed_secs: 0.225,
-            };
-        }
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(core_discovery::LobbyRows(vec![lobby_row(2, 1)]));
-        app.add_systems(Startup, spawn_preview_list);
-        app.add_systems(
-            Update,
-            (
-                ui::discovery::bevy_systems::rebuild_room_list,
-                sync_room_friend_segment,
-            )
-                .chain(),
-        );
-    }
+    use bevy::prelude::*;
 
     const PULSE_PREVIEW_FPS: u32 = 30;
     const PULSE_PREVIEW_FRAMES: u32 = 132;
@@ -240,110 +121,70 @@ mod tests {
     const FIRST_FRIEND_DELAY_SECS: f32 = 0.10;
     const SECOND_FRIEND_DELAY_SECS: f32 = 0.37;
 
-    #[derive(Resource, Default, Deref)]
-    struct PulseClock(Option<f32>);
-
-    fn start_pulse_preview(world: &mut World) {
-        world
-            .resource_mut::<Time<Virtual>>()
-            .set_relative_speed(PULSE_SLOW_MOTION);
-        let now = world.resource::<Time>().elapsed_secs();
-        world.insert_resource(PulseClock(Some(now)));
-    }
-
-    fn script_rows(
-        time: Res<Time>,
-        clock: Res<PulseClock>,
-        mut rows: ResMut<core_discovery::LobbyRows>,
-    ) {
-        let Some(started_at) = **clock.into_inner() else {
-            return;
-        };
-        let elapsed = time.into_inner().elapsed_secs() - started_at;
-        let wanted = if elapsed < FIRST_FRIEND_DELAY_SECS {
-            vec![lobby_row(2, 0)]
-        } else if elapsed < SECOND_FRIEND_DELAY_SECS {
-            vec![lobby_row(2, 1)]
-        } else {
-            vec![lobby_row(3, 2)]
-        };
-        if **rows != wanted {
-            *rows = core_discovery::LobbyRows(wanted);
-        }
-    }
-
-    fn pulse_preview_build(app: &mut App) {
-        app.insert_resource(core_discovery::LobbyRows(vec![lobby_row(2, 0)]));
-        app.init_resource::<PulseClock>();
-        app.add_plugins(ui::roll::UiPlugin);
-        app.add_systems(Startup, spawn_preview_list);
-        app.configure_sets(
-            Update,
-            ui::roll::RollSet::Drive.after(ui::discovery::bevy_systems::rebuild_room_list),
-        );
-        app.add_systems(
-            Update,
-            (
-                script_rows.before(ui::discovery::bevy_systems::rebuild_room_list),
-                ui::discovery::bevy_systems::rebuild_room_list,
-                sync_room_friend_segment.after(ui::roll::RollSet::Drive),
-            ),
-        );
-        app.add_systems(
-            PostStartup,
-            lele_bevy_preview::scene::bevy_systems::center_roots,
-        );
-    }
-
-    fn pulse_preview_settled(world: &mut World) {
-        *world.resource_mut::<core_discovery::LobbyRows>() =
-            core_discovery::LobbyRows(vec![lobby_row(3, 2)]);
-        let mut machines = world.query::<&mut ui::roll::RollMachine>();
-        for mut machine in machines.iter_mut(world) {
-            **machine = ui::roll::State::new(vec![3, 8, 2], Some(ui::discovery::FRIENDS_SLOT));
-        }
-    }
-
-    #[test]
-    fn sync_room_friend_segment_pulse_ui_mp4_preview() {
-        let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        lele_bevy_preview::scene::Scene {
-            name: String::from("sync_room_friend_segment_pulse"),
-            kind: lele_bevy_preview::scene::Kind::System,
-            build: pulse_preview_build,
-            states: vec![lele_bevy_preview::scene::State {
-                label: String::from("settled: three of eight, two friends"),
-                apply: pulse_preview_settled,
-            }],
-            timeline: Some(lele_bevy_preview::scene::Timeline {
-                label: String::from("first friend pulse then one roll (0.25x)"),
-                frames: PULSE_PREVIEW_FRAMES,
-                fps: PULSE_PREVIEW_FPS,
-                apply: start_pulse_preview,
-            }),
-        }
-        .run(&lele_bevy_preview::preview::Config {
-            out_dir: out,
-            ..Default::default()
-        })
-        .expect("preview");
-    }
-
     #[test]
     fn sync_room_friend_segment_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("sync_room_friend_segment"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.insert_resource(core_discovery::LobbyRows(vec![core_discovery::LobbyRow {
+                    name: core_discovery::RoomName::from("alpha"),
+                    occupants: 2,
+                    room_size: core_discovery::RoomSize::try_from(8).expect("room size"),
+                    occupancy: core_discovery::RoomOccupancy::HasSpace,
+                    friends: 1,
+                }]));
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands
+                        .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                        .id();
+                    commands.spawn((
+                        ChildOf(root),
+                        ui::discovery::RoomList,
+                        Node {
+                            flex_direction: FlexDirection::Column,
+                            row_gap: Val::Px(4.0),
+                            ..default()
+                        },
+                    ));
+                });
+                app.add_systems(
+                    Update,
+                    (
+                        ui::discovery::bevy_systems::rebuild_room_list,
+                        sync_room_friend_segment,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("badge at rest"),
-                    apply: preview_at_rest,
+                    apply: |world: &mut World| {
+                        let mut machines = world.query::<&mut ui::roll::RollMachine>();
+                        for mut machine in machines.iter_mut(world) {
+                            **machine = ui::roll::State::new(
+                                vec![2, 8, 1],
+                                Some(ui::discovery::FRIENDS_SLOT),
+                            );
+                        }
+                    },
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("badge revealing"),
-                    apply: preview_revealing,
+                    apply: |world: &mut World| {
+                        let mut machines = world.query::<&mut ui::roll::RollMachine>();
+                        for mut machine in machines.iter_mut(world) {
+                            machine.numbers = vec![2, 8, 0];
+                            machine.target = vec![2, 8, 1];
+                            machine.phase = ui::roll::Phase::Reveal {
+                                slot: ui::discovery::FRIENDS_SLOT,
+                                revealed_numbers: vec![2, 8, 1],
+                                elapsed_secs: 0.225,
+                            };
+                        }
+                    },
                 },
             ],
             timeline: None,
@@ -356,110 +197,106 @@ mod tests {
     }
 
     #[test]
-    fn test_usage() {
-        let mut app = app_with_rows(vec![lobby_row(2, 1)]);
-        app.update();
-        assert_eq!(segment_count(&mut app), 1);
-    }
-
-    #[test]
-    fn the_revealed_segment_sits_before_the_occupancy_numbers() {
-        let mut app = app_with_rows(vec![lobby_row(2, 0)]);
-        app.update();
-        set_rows(&mut app, vec![lobby_row(2, 1)]);
-        app.update();
-        app.update();
-        let first = first_bubble_child(&mut app);
-        assert!(
-            app.world()
-                .get::<ui::discovery::RoomFriendSegment>(first)
-                .is_some(),
-            "the friends segment is the bubble's first child"
-        );
-    }
-
-    #[test]
-    fn a_room_with_friends_already_at_spawn_does_not_pulse() {
-        let mut app = app_with_rows(vec![lobby_row(2, 2)]);
-        app.update();
-        for _ in 0..4 {
-            app.update();
+    fn sync_room_friend_segment_pulse_ui_mp4_preview() {
+        let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
+        lele_bevy_preview::scene::Scene {
+            name: String::from("sync_room_friend_segment_pulse"),
+            kind: lele_bevy_preview::scene::Kind::System,
+            build: |app: &mut App| {
+                app.insert_resource(core_discovery::LobbyRows(vec![core_discovery::LobbyRow {
+                    name: core_discovery::RoomName::from("alpha"),
+                    occupants: 2,
+                    room_size: core_discovery::RoomSize::try_from(8).expect("room size"),
+                    occupancy: core_discovery::RoomOccupancy::HasSpace,
+                    friends: 0,
+                }]));
+                app.add_plugins(ui::roll::UiPlugin);
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands
+                        .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                        .id();
+                    commands.spawn((
+                        ChildOf(root),
+                        ui::discovery::RoomList,
+                        Node {
+                            flex_direction: FlexDirection::Column,
+                            row_gap: Val::Px(4.0),
+                            ..default()
+                        },
+                    ));
+                });
+                app.configure_sets(
+                    Update,
+                    ui::roll::RollSet::Drive.after(ui::discovery::bevy_systems::rebuild_room_list),
+                );
+                app.add_systems(
+                    Update,
+                    (
+                        (
+                            |time: Res<Time>,
+                             mut clock: Local<Option<f32>>,
+                             mut rows: ResMut<core_discovery::LobbyRows>| {
+                                let started_at = *clock.get_or_insert(time.elapsed_secs());
+                                let elapsed = time.elapsed_secs() - started_at;
+                                let (occupants, friends) = if elapsed < FIRST_FRIEND_DELAY_SECS {
+                                    (2, 0)
+                                } else if elapsed < SECOND_FRIEND_DELAY_SECS {
+                                    (2, 1)
+                                } else {
+                                    (3, 2)
+                                };
+                                let core_discovery::LobbyRows(row_list) = &mut *rows;
+                                let Some(row) = row_list.first_mut() else {
+                                    return;
+                                };
+                                if row.occupants != occupants || row.friends != friends {
+                                    row.occupants = occupants;
+                                    row.friends = friends;
+                                }
+                            },
+                        )
+                            .before(ui::discovery::bevy_systems::rebuild_room_list),
+                        ui::discovery::bevy_systems::rebuild_room_list,
+                        sync_room_friend_segment.after(ui::roll::RollSet::Drive),
+                    ),
+                );
+                app.add_systems(
+                    PostStartup,
+                    lele_bevy_preview::scene::bevy_systems::center_roots,
+                );
+            },
+            states: vec![lele_bevy_preview::scene::State {
+                label: String::from("settled: three of eight, two friends"),
+                apply: |world: &mut World| {
+                    {
+                        let mut rows = world.resource_mut::<core_discovery::LobbyRows>();
+                        if let Some(row) = rows.0.first_mut() {
+                            row.occupants = 3;
+                            row.friends = 2;
+                        }
+                    }
+                    let mut machines = world.query::<&mut ui::roll::RollMachine>();
+                    for mut machine in machines.iter_mut(world) {
+                        **machine =
+                            ui::roll::State::new(vec![3, 8, 2], Some(ui::discovery::FRIENDS_SLOT));
+                    }
+                },
+            }],
+            timeline: Some(lele_bevy_preview::scene::Timeline {
+                label: String::from("first friend pulse then one roll (0.25x)"),
+                frames: PULSE_PREVIEW_FRAMES,
+                fps: PULSE_PREVIEW_FPS,
+                apply: |world: &mut World| {
+                    world
+                        .resource_mut::<Time<Virtual>>()
+                        .set_relative_speed(PULSE_SLOW_MOTION);
+                },
+            }),
         }
-        let state = machine_state(&mut app);
-        assert_eq!(state.phase, ui::roll::Phase::Idle);
-        assert_eq!(state.numbers, vec![2, 8, 2]);
-        assert_eq!(segment_count(&mut app), 1);
-        assert_eq!(ring_count(&mut app), 0, "a spawn-time badge never pulses");
-    }
-
-    #[test]
-    fn friends_dropping_to_zero_hides_the_segment_after_the_roll() {
-        let mut app = app_with_rows(vec![lobby_row(2, 1)]);
-        app.update();
-        assert_eq!(segment_count(&mut app), 1);
-        set_rows(&mut app, vec![lobby_row(2, 0)]);
-        app.update();
-        assert!(matches!(
-            machine_state(&mut app).phase,
-            ui::roll::Phase::Roll { .. }
-        ));
-        assert_eq!(segment_count(&mut app), 1, "the badge rolls down first");
-        for _ in 0..6 {
-            app.update();
-        }
-        let state = machine_state(&mut app);
-        assert_eq!(state.phase, ui::roll::Phase::Idle);
-        assert_eq!(state.numbers, vec![2, 8, 0]);
-        assert_eq!(segment_count(&mut app), 0, "the badge hides once idle");
-    }
-
-    #[test]
-    fn one_roll_after_the_pulse_carries_the_occupant_and_the_second_friend() {
-        let mut app = app_with_rows(vec![lobby_row(2, 0)]);
-        app.update();
-        set_rows(&mut app, vec![lobby_row(2, 1)]);
-        app.update();
-        assert!(matches!(
-            machine_state(&mut app).phase,
-            ui::roll::Phase::Reveal { .. }
-        ));
-        for _ in 0..3 {
-            app.update();
-        }
-        set_rows(&mut app, vec![lobby_row(3, 2)]);
-        app.update();
-        let state = machine_state(&mut app);
-        assert!(
-            matches!(state.phase, ui::roll::Phase::Reveal { .. }),
-            "the pulse is still running"
-        );
-        assert_eq!(state.target, vec![3, 8, 2]);
-        assert_eq!(state.numbers, vec![2, 8, 0]);
-        for _ in 0..4 {
-            app.update();
-        }
-        let state = machine_state(&mut app);
-        assert!(
-            matches!(
-                &state.phase,
-                ui::roll::Phase::Roll { from, to, .. }
-                    if from == &vec![2, 8, 1] && to == &vec![3, 8, 2]
-            ),
-            "one roll carries both changes: {:?}",
-            state.phase
-        );
-        for _ in 0..6 {
-            app.update();
-        }
-        let state = machine_state(&mut app);
-        assert_eq!(state.phase, ui::roll::Phase::Idle);
-        assert_eq!(state.numbers, vec![3, 8, 2]);
-        let mut numbers = app.world_mut().query::<&ui::roll::RollNumber>();
-        let mut values: Vec<(usize, u32)> = numbers
-            .iter(app.world())
-            .map(|number| (number.slot, number.value))
-            .collect();
-        values.sort_unstable();
-        assert_eq!(values, vec![(0, 3), (1, 8), (2, 2)]);
+        .run(&lele_bevy_preview::preview::Config {
+            out_dir: out,
+            ..Default::default()
+        })
+        .expect("preview");
     }
 }

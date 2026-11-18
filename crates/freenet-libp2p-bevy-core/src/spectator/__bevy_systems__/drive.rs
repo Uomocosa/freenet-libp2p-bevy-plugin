@@ -61,5 +61,3 @@ pub fn drive<S: replica_sync::traits::ReplicatedState>(
         .pending
         .retain(|prefix, _| live_prefixes.contains(&prefix));
 }
-
-// no test_usage necessary

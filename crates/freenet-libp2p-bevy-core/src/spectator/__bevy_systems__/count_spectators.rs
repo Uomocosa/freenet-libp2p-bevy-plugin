@@ -10,5 +10,3 @@ pub fn count_spectators<S: replica_sync::traits::ReplicatedState>(
         spectator::state_machine::SpectateInput::Tick,
     ));
 }
-
-// no test_usage necessary

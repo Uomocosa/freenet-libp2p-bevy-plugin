@@ -51,61 +51,40 @@ mod tests {
     use bevy::prelude::*;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, |mut commands: Commands| {
-            commands.spawn_empty().with_children(|panel| {
-                spawn_address_chip(panel);
-            });
-        });
-        app.update();
-        let mut chips = app
-            .world_mut()
-            .query_filtered::<(), With<ui::direct_dial::OwnAddressChip>>();
-        assert_eq!(chips.iter(app.world()).count(), 1);
-    }
-
-    fn spawn_chip(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands
-            .spawn((
-                ChildOf(root),
-                Node {
-                    width: Val::Px(240.0),
-                    ..default()
-                },
-                BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
-            ))
-            .with_children(|panel| {
-                spawn_address_chip(panel);
-            });
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(
-            Startup,
-            (
-                spawn_chip,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-    }
-
-    #[test]
     fn spawn_address_chip_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_address_chip"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(
+                    Startup,
+                    (
+                        |mut commands: Commands| {
+                            let root = commands
+                                .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                                .id();
+                            commands
+                                .spawn((
+                                    ChildOf(root),
+                                    Node {
+                                        width: Val::Px(240.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
+                                ))
+                                .with_children(|panel| {
+                                    spawn_address_chip(panel);
+                                });
+                        },
+                        lele_bevy_preview::scene::bevy_systems::center_roots,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("address chip"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }

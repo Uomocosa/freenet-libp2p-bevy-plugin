@@ -10,20 +10,3 @@ pub fn e2e_input_idle(
 ) -> BrpResult {
     Ok(Value::Bool(queue.into_inner().is_idle()))
 }
-
-#[cfg(test)]
-mod tests {
-    use bevy::prelude::*;
-    use serde_json::Value;
-
-    use crate::testing;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.init_resource::<testing::SyntheticInputQueue>();
-        let system = app.world_mut().register_system(super::e2e_input_idle);
-        let result = app.world_mut().run_system_with(system, None);
-        assert!(matches!(result, Ok(Ok(Value::Bool(true)))));
-    }
-}

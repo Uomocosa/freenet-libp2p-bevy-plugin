@@ -19,5 +19,3 @@ pub fn publish_slice_content_hashes<Replica: replica_sync::traits::ReplicatedSta
         },
     ));
 }
-
-// no test_usage necessary

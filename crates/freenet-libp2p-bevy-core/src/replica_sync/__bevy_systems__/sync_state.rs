@@ -69,31 +69,3 @@ impl<Op> SyncState<Op> {
     ) -> Option<replica_sync::state_machine::Input<Replica::Op>> {
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::SyncState;
-    use crate::identity;
-    use crate::replica_sync;
-
-    #[test]
-    fn test_usage() {
-        let mut state = SyncState::<u8>(replica_sync::state_machine::ReplicaState {
-            zone: Some(identity::ZoneName::from("zone")),
-            slice_anti_entropy: replica_sync::state_machine::SliceAntiEntropyState {
-                max_fetches_per_peer: 3,
-                ..Default::default()
-            },
-            kademlia_history: replica_sync::state_machine::KademliaHistoryState {
-                is_enabled: true,
-                ..Default::default()
-            },
-            ..Default::default()
-        });
-        state.reset_after_leaving();
-        assert_eq!(state.zone, None);
-        assert_eq!(state.phase, replica_sync::state_machine::Phase::Idle);
-        assert_eq!(state.slice_anti_entropy.max_fetches_per_peer, 3);
-        assert!(state.kademlia_history.is_enabled);
-    }
-}

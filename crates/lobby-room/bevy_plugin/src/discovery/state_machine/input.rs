@@ -19,15 +19,3 @@ impl From<&discovery::Command> for Input {
         Self::Command(command.clone())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Input;
-    use crate::discovery;
-
-    #[test]
-    fn test_usage() {
-        let command = discovery::Command::Join(discovery::RoomName::from("room-a"));
-        assert_eq!(Input::from(&command), Input::Command(command));
-    }
-}

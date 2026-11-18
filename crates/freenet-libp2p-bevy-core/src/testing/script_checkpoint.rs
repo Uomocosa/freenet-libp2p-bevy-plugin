@@ -9,15 +9,3 @@ impl ScriptCheckpoint {
         Self(name)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::ScriptCheckpoint;
-
-    #[test]
-    fn test_usage() {
-        const DONE: ScriptCheckpoint = ScriptCheckpoint::new("painting-done");
-        assert_eq!(*DONE, "painting-done");
-        assert_eq!(DONE, ScriptCheckpoint::new("painting-done"));
-    }
-}

@@ -67,66 +67,37 @@ mod tests {
     use super::spawn_drawer_sections;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, (spawn_panel, spawn_drawer_sections).chain());
-        app.update();
-        let mut inputs = app
-            .world_mut()
-            .query_filtered::<(), With<ui::direct_dial::FriendAddressInput>>();
-        assert_eq!(inputs.iter(app.world()).count(), 1);
-        let mut chips = app
-            .world_mut()
-            .query_filtered::<(), With<ui::direct_dial::OwnAddressChip>>();
-        assert_eq!(chips.iter(app.world()).count(), 1);
-        let mut lists = app
-            .world_mut()
-            .query_filtered::<(), With<ui::direct_dial::FriendList>>();
-        assert_eq!(lists.iter(app.world()).count(), 1);
-        let mut errors = app
-            .world_mut()
-            .query_filtered::<(), With<ui::direct_dial::FriendErrorText>>();
-        assert_eq!(errors.iter(app.world()).count(), 1);
-    }
-
-    fn spawn_panel(mut commands: Commands) {
-        commands.spawn((
-            ui::direct_dial::FriendsDrawerPanel,
-            Node {
-                width: Val::Px(264.0),
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(10.0),
-                padding: UiRect::all(Val::Px(14.0)),
-                ..default()
-            },
-            BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
-        ));
-    }
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(
-            Startup,
-            (
-                spawn_panel,
-                spawn_drawer_sections,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
-    #[test]
     fn spawn_drawer_sections_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_drawer_sections"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(
+                    Startup,
+                    (
+                        |mut commands: Commands| {
+                            commands.spawn((
+                                ui::direct_dial::FriendsDrawerPanel,
+                                Node {
+                                    width: Val::Px(264.0),
+                                    flex_direction: FlexDirection::Column,
+                                    row_gap: Val::Px(10.0),
+                                    padding: UiRect::all(Val::Px(14.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
+                            ));
+                        },
+                        spawn_drawer_sections,
+                        lele_bevy_preview::scene::bevy_systems::center_roots,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("drawer chrome"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }

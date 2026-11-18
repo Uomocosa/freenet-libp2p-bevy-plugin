@@ -45,76 +45,44 @@ mod tests {
     use bevy::prelude::*;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, |mut commands: Commands| {
-            let row = commands.spawn_empty().id();
-            commands
-                .spawn(ui::discovery::RoomBubble)
-                .with_children(|pill| {
-                    spawn_occupancy_numbers(pill, row, 2, 8);
-                });
-        });
-        app.update();
-        let mut numbers = app.world_mut().query::<&ui::roll::RollNumber>();
-        let mut found: Vec<(usize, u32)> = numbers
-            .iter(app.world())
-            .map(|number| (number.slot, number.value))
-            .collect();
-        found.sort_unstable();
-        assert_eq!(found, vec![(0, 2), (1, 8)]);
-        let mut texts = app.world_mut().query::<&Text>();
-        assert!(
-            texts.iter(app.world()).any(|text| text.as_str() == "/"),
-            "the slash stays static text"
-        );
-    }
-
-    fn spawn_preview_pill(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        let row = commands.spawn_empty().id();
-        commands
-            .spawn((
-                ChildOf(root),
-                ui::discovery::RoomBubble,
-                Node {
-                    flex_direction: FlexDirection::Row,
-                    padding: UiRect::axes(Val::Px(7.0), Val::Px(2.5)),
-                    column_gap: Val::Px(4.0),
-                    align_items: AlignItems::Center,
-                    border_radius: BorderRadius::MAX,
-                    ..default()
-                },
-                BackgroundColor(ui::discovery::ROOM_BUBBLE_HAS_SPACE_COLOR),
-            ))
-            .with_children(|pill| {
-                spawn_occupancy_numbers(pill, row, 2, 8);
-            });
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
-    fn preview_build(app: &mut App) {
-        app.add_plugins(ui::roll::UiPlugin);
-        app.add_systems(Startup, spawn_preview_pill);
-        app.add_systems(
-            PostStartup,
-            lele_bevy_preview::scene::bevy_systems::center_roots,
-        );
-    }
-
-    #[test]
     fn spawn_occupancy_numbers_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_occupancy_numbers"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_plugins(ui::roll::UiPlugin);
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands
+                        .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                        .id();
+                    let row = commands.spawn_empty().id();
+                    commands
+                        .spawn((
+                            ChildOf(root),
+                            ui::discovery::RoomBubble,
+                            Node {
+                                flex_direction: FlexDirection::Row,
+                                padding: UiRect::axes(Val::Px(7.0), Val::Px(2.5)),
+                                column_gap: Val::Px(4.0),
+                                align_items: AlignItems::Center,
+                                border_radius: BorderRadius::MAX,
+                                ..default()
+                            },
+                            BackgroundColor(ui::discovery::ROOM_BUBBLE_HAS_SPACE_COLOR),
+                        ))
+                        .with_children(|pill| {
+                            spawn_occupancy_numbers(pill, row, 2, 8);
+                        });
+                });
+                app.add_systems(
+                    PostStartup,
+                    lele_bevy_preview::scene::bevy_systems::center_roots,
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("two of eight"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }

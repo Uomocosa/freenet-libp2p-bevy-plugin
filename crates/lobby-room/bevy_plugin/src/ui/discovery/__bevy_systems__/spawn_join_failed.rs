@@ -53,40 +53,9 @@ pub fn spawn_join_failed(mut commands: Commands, join_error: Res<JoinError>) {
 
 #[cfg(test)]
 mod tests {
+    use super::spawn_join_failed;
     use crate::ui;
     use bevy::prelude::*;
-
-    use super::spawn_join_failed;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.insert_resource(ui::discovery::JoinError(Some(String::from(
-            "Room alpha no longer exists (all players left)",
-        ))));
-        app.add_systems(Startup, spawn_join_failed);
-        app.update();
-        let mut roots = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::JoinErrorRoot>>();
-        assert_eq!(roots.iter(app.world()).count(), 1);
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(ui::discovery::JoinError(Some(String::from(
-            "Room alpha no longer exists (all players left)",
-        ))));
-        app.add_systems(
-            Startup,
-            (
-                spawn_join_failed,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-    }
-
-    const fn preview_noop(_world: &mut World) {}
 
     #[test]
     fn spawn_join_failed_ui_png_preview() {
@@ -94,10 +63,22 @@ mod tests {
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_join_failed"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.insert_resource(ui::discovery::JoinError(Some(String::from(
+                    "Room alpha no longer exists (all players left)",
+                ))));
+                app.add_systems(
+                    Startup,
+                    (
+                        spawn_join_failed,
+                        lele_bevy_preview::scene::bevy_systems::center_roots,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("join failed"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }

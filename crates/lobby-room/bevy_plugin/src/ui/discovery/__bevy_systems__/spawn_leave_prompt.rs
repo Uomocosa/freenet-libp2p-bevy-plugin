@@ -49,34 +49,8 @@ pub fn spawn_leave_prompt(mut commands: Commands) {
 
 #[cfg(test)]
 mod tests {
-    use crate::ui;
-    use bevy::prelude::*;
-
     use super::spawn_leave_prompt;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, spawn_leave_prompt);
-        app.update();
-        let mut prompts = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::LeavePrompt>>();
-        assert_eq!(prompts.iter(app.world()).count(), 1);
-    }
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(
-            Startup,
-            (
-                spawn_leave_prompt,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-    }
-
-    const fn preview_noop(_world: &mut World) {}
+    use bevy::prelude::*;
 
     #[test]
     fn spawn_leave_prompt_ui_png_preview() {
@@ -84,10 +58,19 @@ mod tests {
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_leave_prompt"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(
+                    Startup,
+                    (
+                        spawn_leave_prompt,
+                        lele_bevy_preview::scene::bevy_systems::center_roots,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("leave prompt"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }

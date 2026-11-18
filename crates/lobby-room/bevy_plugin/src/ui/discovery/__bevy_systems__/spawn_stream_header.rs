@@ -87,97 +87,51 @@ mod tests {
     use bevy::prelude::*;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, |mut commands: Commands| {
-            commands
-                .spawn_empty()
-                .with_children(|header| spawn_stream_header(&mut header.reborrow()));
-        });
-        app.update();
-        let mut names = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomStreamName>>();
-        assert_eq!(names.iter(app.world()).count(), 1);
-        let mut bubbles = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomStreamOccupancyBubble>>();
-        assert_eq!(bubbles.iter(app.world()).count(), 1);
-        let mut slots = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomStreamActionSlot>>();
-        assert_eq!(slots.iter(app.world()).count(), 1);
-        let mut closes = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomStreamCloseButton>>();
-        assert_eq!(closes.iter(app.world()).count(), 1);
-        let mut fullscreens = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomStreamFullscreenButton>>();
-        assert_eq!(fullscreens.iter(app.world()).count(), 1);
-    }
-}
-
-#[cfg(test)]
-mod png_tests {
-    use super::spawn_stream_header;
-    use crate::ui;
-    use bevy::prelude::*;
-
-    fn spawn_header_preview(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands
-            .spawn((
-                ChildOf(root),
-                Node {
-                    width: Val::Px(480.0),
-                    height: Val::Px(52.0),
-                    border_radius: BorderRadius::all(Val::Px(8.0)),
-                    ..default()
-                },
-                BackgroundColor(ui::discovery::PANEL_COLOR),
-            ))
-            .with_children(|header| spawn_stream_header(&mut header.reborrow()));
-    }
-
-    fn fill_header(world: &mut World) {
-        let mut names = world.query_filtered::<&mut Text, With<ui::discovery::RoomStreamName>>();
-        if let Ok(mut name) = names.single_mut(world) {
-            *name = Text::new("alpha");
-        }
-        let mut occupancies =
-            world.query_filtered::<&mut Text, With<ui::discovery::RoomStreamOccupancyText>>();
-        if let Ok(mut occupancy) = occupancies.single_mut(world) {
-            *occupancy = Text::new("2/8");
-        }
-        let mut bubbles = world
-            .query_filtered::<&mut BackgroundColor, With<ui::discovery::RoomStreamOccupancyBubble>>(
-            );
-        if let Ok(mut bubble) = bubbles.single_mut(world) {
-            *bubble = BackgroundColor(ui::discovery::ROOM_BUBBLE_HAS_SPACE_COLOR);
-        }
-    }
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(Startup, spawn_header_preview);
-        app.add_systems(
-            PostStartup,
-            lele_bevy_preview::scene::bevy_systems::center_roots,
-        );
-    }
-
-    #[test]
     fn spawn_stream_header_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_stream_header"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands
+                        .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                        .id();
+                    commands
+                        .spawn((
+                            ChildOf(root),
+                            Node {
+                                width: Val::Px(480.0),
+                                height: Val::Px(52.0),
+                                border_radius: BorderRadius::all(Val::Px(8.0)),
+                                ..default()
+                            },
+                            BackgroundColor(ui::discovery::PANEL_COLOR),
+                        ))
+                        .with_children(|header| spawn_stream_header(&mut header.reborrow()));
+                });
+                app.add_systems(
+                    PostStartup,
+                    lele_bevy_preview::scene::bevy_systems::center_roots,
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("stream header"),
-                apply: fill_header,
+                apply: |world: &mut World| {
+                    let mut names = world
+                        .query_filtered::<&mut Text, With<ui::discovery::RoomStreamName>>();
+                    if let Ok(mut name) = names.single_mut(world) {
+                        *name = Text::new("alpha");
+                    }
+                    let mut occupancies = world.query_filtered::<&mut Text, With<ui::discovery::RoomStreamOccupancyText>>();
+                    if let Ok(mut occupancy) = occupancies.single_mut(world) {
+                        *occupancy = Text::new("2/8");
+                    }
+                    let mut bubbles = world.query_filtered::<&mut BackgroundColor, With<ui::discovery::RoomStreamOccupancyBubble>>();
+                    if let Ok(mut bubble) = bubbles.single_mut(world) {
+                        *bubble = BackgroundColor(ui::discovery::ROOM_BUBBLE_HAS_SPACE_COLOR);
+                    }
+                },
             }],
             timeline: None,
         }

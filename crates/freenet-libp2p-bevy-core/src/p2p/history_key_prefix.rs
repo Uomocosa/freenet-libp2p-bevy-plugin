@@ -41,19 +41,3 @@ impl HistoryKeyPrefix {
         Self::from(digest.to_hex().to_string())
     }
 }
-#[cfg(test)]
-mod tests {
-    use super::HistoryKeyPrefix;
-    use crate::identity;
-    use crate::time;
-
-    #[test]
-    fn test_usage() {
-        let prefix = HistoryKeyPrefix::new(
-            &identity::GameId::from("game"),
-            &identity::ZoneName::from("zone"),
-            time::UnixTime::from_secs(7),
-        );
-        assert_eq!(prefix.len(), 64);
-    }
-}

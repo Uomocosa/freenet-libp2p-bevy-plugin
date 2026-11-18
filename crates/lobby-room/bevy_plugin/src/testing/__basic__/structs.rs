@@ -47,5 +47,3 @@ pub struct LocatedNode {
     pub centre: Vec2,
     pub disabled: bool,
 }
-
-// no test_usage necessary

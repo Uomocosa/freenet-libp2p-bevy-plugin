@@ -22,5 +22,3 @@ pub enum RollNumberRow {
     Outgoing,
     Incoming,
 }
-
-// no test_usage necessary

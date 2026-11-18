@@ -63,5 +63,3 @@ pub enum MachineOutput<Op, Snap> {
     },
     SpectatorCountChanged(usize),
 }
-
-// no test_usage necessary

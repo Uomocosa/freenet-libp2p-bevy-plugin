@@ -69,102 +69,79 @@ mod tests {
     use freenet_libp2p_bevy_core::identity;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, spawn_friends_drawer);
-        app.update();
-        let mut drawers = app
-            .world_mut()
-            .query_filtered::<(), With<ui::direct_dial::FriendsDrawer>>();
-        assert_eq!(drawers.iter(app.world()).count(), 1);
-        let mut backdrops = app
-            .world_mut()
-            .query_filtered::<(), With<ui::direct_dial::FriendsDrawerBackdrop>>();
-        assert_eq!(backdrops.iter(app.world()).count(), 1);
-    }
-
-    fn preview_share() -> core_direct_dial::OwnShareAddress {
-        core_direct_dial::OwnShareAddress(Some(core_direct_dial::OwnAddress {
-            id: identity::PeerId::from("12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC"),
-            short: String::from("12D3Koo...99RC"),
-            full: Some(String::from(
-                "/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
-            )),
-        }))
-    }
-
-    fn spawn_mock_screen(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands.spawn((
-            ChildOf(root),
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            BackgroundColor(ui::constants::ROOM_COLOR),
-            children![(
-                Node {
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(40.0),
-                    right: Val::Px(40.0),
-                    padding: UiRect::all(Val::Px(12.0)),
-                    border_radius: BorderRadius::all(Val::Px(8.0)),
-                    ..default()
-                },
-                BackgroundColor(ui::discovery::PANEL_COLOR),
-                children![Text::new("the screen behind the drawer")],
-            )],
-        ));
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(preview_share());
-        app.init_resource::<ui::direct_dial::FriendsDrawerState>();
-        app.add_systems(
-            Startup,
-            (
-                spawn_mock_screen,
-                spawn_friends_drawer,
-                ui::direct_dial::bevy_systems::spawn_drawer_sections,
-            ),
-        );
-        app.add_systems(
-            Update,
-            (
-                ui::direct_dial::bevy_systems::animate_friends_drawer,
-                ui::direct_dial::bevy_systems::refresh_own_address,
-            ),
-        );
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
-    fn open_fully(world: &mut World) {
-        world.insert_resource(ui::direct_dial::FriendsDrawerState(true));
-        let mut slides = world.query_filtered::<&mut ui::direct_dial::FriendsDrawerSlide, With<ui::direct_dial::FriendsDrawerPanel>>();
-        if let Ok(mut slide) = slides.single_mut(world) {
-            **slide = ui::constants::DRAWER_SLIDE_SECS;
-        }
-    }
-
-    #[test]
     fn spawn_friends_drawer_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_friends_drawer"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.insert_resource(core_direct_dial::OwnShareAddress(Some(
+                    core_direct_dial::OwnAddress {
+                        id: identity::PeerId::from(
+                            "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
+                        ),
+                        short: String::from("12D3Koo...99RC"),
+                        full: Some(String::from(
+                            "/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
+                        )),
+                    },
+                )));
+                app.init_resource::<ui::direct_dial::FriendsDrawerState>();
+                app.add_systems(
+                    Startup,
+                    (
+                        |mut commands: Commands| {
+                            let root = commands
+                                .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                                .id();
+                            commands.spawn((
+                                ChildOf(root),
+                                Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                BackgroundColor(ui::constants::ROOM_COLOR),
+                                children![(
+                                    Node {
+                                        position_type: PositionType::Absolute,
+                                        top: Val::Px(40.0),
+                                        right: Val::Px(40.0),
+                                        padding: UiRect::all(Val::Px(12.0)),
+                                        border_radius: BorderRadius::all(Val::Px(8.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(ui::discovery::PANEL_COLOR),
+                                    children![Text::new("the screen behind the drawer")],
+                                )],
+                            ));
+                        },
+                        spawn_friends_drawer,
+                        ui::direct_dial::bevy_systems::spawn_drawer_sections,
+                    ),
+                );
+                app.add_systems(
+                    Update,
+                    (
+                        ui::direct_dial::bevy_systems::animate_friends_drawer,
+                        ui::direct_dial::bevy_systems::refresh_own_address,
+                    ),
+                );
+            },
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("closed"),
-                    apply: preview_noop,
+                    apply: |_world: &mut World| {},
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("open empty"),
-                    apply: open_fully,
+                    apply: |world: &mut World| {
+                        world.insert_resource(ui::direct_dial::FriendsDrawerState(true));
+                        let mut slides = world.query_filtered::<&mut ui::direct_dial::FriendsDrawerSlide, With<ui::direct_dial::FriendsDrawerPanel>>();
+                        if let Ok(mut slide) = slides.single_mut(world) {
+                            **slide = ui::constants::DRAWER_SLIDE_SECS;
+                        }
+                    },
                 },
             ],
             timeline: None,

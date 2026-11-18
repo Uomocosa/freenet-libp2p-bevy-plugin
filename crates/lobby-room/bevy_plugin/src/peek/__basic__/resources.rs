@@ -17,5 +17,3 @@ pub struct RoomStreamTarget {
     pub zone: identity::ZoneName,
     pub image: Handle<Image>,
 }
-
-// no test_usage necessary

@@ -1,0 +1,5 @@
+[profile.default]
+slow-timeout = "60s"
+
+[profile.worker]
+default-filter = "not test(/_plugin::tests::/) and not test(/_preview(::|$)/)"

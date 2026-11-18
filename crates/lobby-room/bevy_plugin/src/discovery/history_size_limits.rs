@@ -16,5 +16,3 @@ impl Default for HistorySizeLimits {
         }
     }
 }
-
-// no test_usage necessary

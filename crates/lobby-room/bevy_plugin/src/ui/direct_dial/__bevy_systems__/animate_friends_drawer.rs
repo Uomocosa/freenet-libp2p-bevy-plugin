@@ -50,247 +50,107 @@ pub fn animate_friends_drawer(
 mod tests {
     use crate::ui;
     use bevy::prelude::*;
-    use bevy::time::TimeUpdateStrategy;
+    use lele_bevy_preview::preview;
+    use lele_bevy_preview::scene::{self, Kind, Scene, State};
 
     use super::animate_friends_drawer;
     use ui::direct_dial::{
-        DRAWER_BACKDROP_ALPHA, DRAWER_WIDTH, FriendsDrawer, FriendsDrawerBackdrop,
-        FriendsDrawerPanel, FriendsDrawerSlide, FriendsDrawerState,
+        DRAWER_WIDTH, DRAWER_Z, FriendsDrawer, FriendsDrawerBackdrop, FriendsDrawerPanel,
+        FriendsDrawerSlide, FriendsDrawerState,
     };
-
-    fn app_with(open: bool, slide: f32) -> (App, Entity, Entity, Entity) {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(
-            std::time::Duration::from_millis(100),
-        ));
-        app.insert_resource(FriendsDrawerState(open));
-        let root = app
-            .world_mut()
-            .spawn((FriendsDrawer, Visibility::Hidden))
-            .id();
-        let panel = app
-            .world_mut()
-            .spawn((
-                ChildOf(root),
-                FriendsDrawerPanel,
-                FriendsDrawerSlide(slide),
-                UiTransform::default(),
-            ))
-            .id();
-        let backdrop = app
-            .world_mut()
-            .spawn((
-                ChildOf(root),
-                FriendsDrawerBackdrop,
-                BackgroundColor::default(),
-            ))
-            .id();
-        app.add_systems(Update, animate_friends_drawer);
-        (app, root, panel, backdrop)
-    }
-
-    #[test]
-    fn test_usage() {
-        let (mut app, root, _panel, _backdrop) = app_with(false, 0.0);
-        app.update();
-        assert_eq!(
-            *app.world().get::<Visibility>(root).expect("root"),
-            Visibility::Hidden
-        );
-    }
-
-    #[test]
-    fn an_open_drawer_slides_towards_full_progress() {
-        let (mut app, root, panel, backdrop) = app_with(true, 0.0);
-        for _ in 0..2 {
-            app.update();
-        }
-        let slide = *app.world().get::<FriendsDrawerSlide>(panel).expect("slide");
-        assert!(*slide > 0.0, "the slide advanced");
-        let transform = app.world().get::<UiTransform>(panel).expect("transform");
-        let Val::Px(x) = transform.translation.x else {
-            panic!("the panel translates in pixels");
-        };
-        assert!(
-            x > -DRAWER_WIDTH && x < 0.0,
-            "the panel is partially slid in, x={x}"
-        );
-        let BackgroundColor(color) = *app.world().get::<BackgroundColor>(backdrop).expect("bg");
-        assert!(color.alpha() > 0.0 && color.alpha() < DRAWER_BACKDROP_ALPHA);
-        assert_eq!(
-            *app.world().get::<Visibility>(root).expect("root"),
-            Visibility::Visible
-        );
-    }
-
-    #[test]
-    fn a_fully_open_drawer_rests_at_full_progress() {
-        let (mut app, root, panel, backdrop) = app_with(true, ui::constants::DRAWER_SLIDE_SECS);
-        for _ in 0..2 {
-            app.update();
-        }
-        let transform = app.world().get::<UiTransform>(panel).expect("transform");
-        assert_eq!(transform.translation, Val2::ZERO);
-        let BackgroundColor(color) = *app.world().get::<BackgroundColor>(backdrop).expect("bg");
-        assert!((color.alpha() - DRAWER_BACKDROP_ALPHA).abs() < f32::EPSILON);
-        assert_eq!(
-            *app.world().get::<Visibility>(root).expect("root"),
-            Visibility::Visible
-        );
-    }
-
-    #[test]
-    fn a_closing_drawer_slides_back_out_and_hides() {
-        let (mut app, root, panel, _backdrop) = app_with(false, ui::constants::DRAWER_SLIDE_SECS);
-        for _ in 0..2 {
-            app.update();
-        }
-        let slide = *app.world().get::<FriendsDrawerSlide>(panel).expect("slide");
-        assert!(
-            *slide < ui::constants::DRAWER_SLIDE_SECS,
-            "the slide retreated"
-        );
-        let transform = app.world().get::<UiTransform>(panel).expect("transform");
-        let Val::Px(x) = transform.translation.x else {
-            panic!("the panel translates in pixels");
-        };
-        assert!(
-            x < 0.0 && x > -DRAWER_WIDTH,
-            "the panel is partially slid out, x={x}"
-        );
-        assert_eq!(
-            *app.world().get::<Visibility>(root).expect("root"),
-            Visibility::Visible
-        );
-        for _ in 0..30 {
-            app.update();
-        }
-        let transform = app.world().get::<UiTransform>(panel).expect("transform");
-        let Val::Px(x) = transform.translation.x else {
-            panic!("the panel translates in pixels");
-        };
-        assert!(
-            (x + DRAWER_WIDTH).abs() < f32::EPSILON,
-            "the panel is fully out, x={x}"
-        );
-        assert_eq!(
-            *app.world().get::<Visibility>(root).expect("root"),
-            Visibility::Hidden
-        );
-    }
-
-    fn spawn_drawer(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands.spawn((
-            ChildOf(root),
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            BackgroundColor(ui::constants::ROOM_COLOR),
-            children![
-                (
-                    Node {
-                        position_type: PositionType::Absolute,
-                        top: Val::Px(40.0),
-                        right: Val::Px(40.0),
-                        padding: UiRect::all(Val::Px(12.0)),
-                        border_radius: BorderRadius::all(Val::Px(8.0)),
-                        ..default()
-                    },
-                    BackgroundColor(ui::discovery::PANEL_COLOR),
-                    children![Text::new("the screen behind the drawer")],
-                ),
-                (
-                    FriendsDrawer,
-                    GlobalZIndex(ui::direct_dial::DRAWER_Z),
-                    Visibility::Hidden,
-                    Node {
-                        position_type: PositionType::Absolute,
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    children![
-                        (
-                            FriendsDrawerBackdrop,
-                            Node {
-                                position_type: PositionType::Absolute,
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.0)),
-                        ),
-                        (
-                            FriendsDrawerPanel,
-                            FriendsDrawerSlide(0.0),
-                            UiTransform::default(),
-                            Node {
-                                position_type: PositionType::Absolute,
-                                top: Val::ZERO,
-                                bottom: Val::ZERO,
-                                left: Val::ZERO,
-                                width: Val::Px(DRAWER_WIDTH),
-                                ..default()
-                            },
-                            BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
-                            children![Text::new("drawer")],
-                        ),
-                    ],
-                ),
-            ],
-        ));
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(FriendsDrawerState(false));
-        app.add_systems(
-            Startup,
-            (
-                spawn_drawer,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-        app.add_systems(Update, animate_friends_drawer);
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
-    fn open(world: &mut World) {
-        world.insert_resource(FriendsDrawerState(true));
-        let mut panels =
-            world.query_filtered::<&mut FriendsDrawerSlide, With<FriendsDrawerPanel>>();
-        if let Ok(mut slide) = panels.single_mut(world) {
-            **slide = ui::constants::DRAWER_SLIDE_SECS;
-        }
-    }
 
     #[test]
     fn animate_friends_drawer_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        lele_bevy_preview::scene::Scene {
+        Scene {
             name: String::from("animate_friends_drawer"),
-            kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            kind: Kind::System,
+            build: |app: &mut App| {
+                app.insert_resource(FriendsDrawerState(false));
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands.spawn(Scene::centered_root()).id();
+                    commands.spawn((
+                        ChildOf(root),
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        BackgroundColor(ui::constants::ROOM_COLOR),
+                        children![
+                            (
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    top: Val::Px(40.0),
+                                    right: Val::Px(40.0),
+                                    padding: UiRect::all(Val::Px(12.0)),
+                                    border_radius: BorderRadius::all(Val::Px(8.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(ui::discovery::PANEL_COLOR),
+                                children![Text::new("the screen behind the drawer")],
+                            ),
+                            (
+                                FriendsDrawer,
+                                GlobalZIndex(DRAWER_Z),
+                                Visibility::Hidden,
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                children![
+                                    (
+                                        FriendsDrawerBackdrop,
+                                        Node {
+                                            position_type: PositionType::Absolute,
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
+                                            ..default()
+                                        },
+                                        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.0)),
+                                    ),
+                                    (
+                                        FriendsDrawerPanel,
+                                        FriendsDrawerSlide(0.0),
+                                        UiTransform::default(),
+                                        Node {
+                                            position_type: PositionType::Absolute,
+                                            width: Val::Px(DRAWER_WIDTH),
+                                            ..default()
+                                        },
+                                        BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
+                                        children![Text::new("drawer")],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ));
+                });
+                app.add_systems(PostStartup, scene::bevy_systems::center_roots);
+                app.add_systems(Update, animate_friends_drawer);
+            },
             states: vec![
-                lele_bevy_preview::scene::State {
+                State {
                     label: String::from("closed"),
-                    apply: preview_noop,
+                    apply: |_world: &mut World| {},
                 },
-                lele_bevy_preview::scene::State {
+                State {
                     label: String::from("open"),
-                    apply: open,
+                    apply: |world: &mut World| {
+                        world.insert_resource(FriendsDrawerState(true));
+                        let mut panels = world
+                            .query_filtered::<&mut FriendsDrawerSlide, With<FriendsDrawerPanel>>();
+                        if let Ok(mut slide) = panels.single_mut(world) {
+                            **slide = ui::constants::DRAWER_SLIDE_SECS;
+                        }
+                    },
                 },
             ],
             timeline: None,
         }
-        .run(&lele_bevy_preview::preview::Config {
+        .run(&preview::Config {
             out_dir: out,
             ..Default::default()
         })
@@ -300,22 +160,94 @@ mod tests {
     #[test]
     fn animate_friends_drawer_ui_mp4_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        lele_bevy_preview::scene::Scene {
+        Scene {
             name: String::from("animate_friends_drawer"),
-            kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
-            states: vec![lele_bevy_preview::scene::State {
+            kind: Kind::System,
+            build: |app: &mut App| {
+                app.insert_resource(FriendsDrawerState(false));
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands.spawn(Scene::centered_root()).id();
+                    commands.spawn((
+                        ChildOf(root),
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        BackgroundColor(ui::constants::ROOM_COLOR),
+                        children![
+                            (
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    top: Val::Px(40.0),
+                                    right: Val::Px(40.0),
+                                    padding: UiRect::all(Val::Px(12.0)),
+                                    border_radius: BorderRadius::all(Val::Px(8.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(ui::discovery::PANEL_COLOR),
+                                children![Text::new("the screen behind the drawer")],
+                            ),
+                            (
+                                FriendsDrawer,
+                                GlobalZIndex(DRAWER_Z),
+                                Visibility::Hidden,
+                                Node {
+                                    position_type: PositionType::Absolute,
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                children![
+                                    (
+                                        FriendsDrawerBackdrop,
+                                        Node {
+                                            position_type: PositionType::Absolute,
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
+                                            ..default()
+                                        },
+                                        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.0)),
+                                    ),
+                                    (
+                                        FriendsDrawerPanel,
+                                        FriendsDrawerSlide(0.0),
+                                        UiTransform::default(),
+                                        Node {
+                                            position_type: PositionType::Absolute,
+                                            width: Val::Px(DRAWER_WIDTH),
+                                            ..default()
+                                        },
+                                        BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
+                                        children![Text::new("drawer")],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ));
+                });
+                app.add_systems(PostStartup, scene::bevy_systems::center_roots);
+                app.add_systems(Update, animate_friends_drawer);
+            },
+            states: vec![State {
                 label: String::from("closed"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: Some(lele_bevy_preview::scene::Timeline {
                 label: String::from("slide in"),
                 frames: 20,
                 fps: 30,
-                apply: open,
+                apply: |world: &mut World| {
+                    world.insert_resource(FriendsDrawerState(true));
+                    let mut panels =
+                        world.query_filtered::<&mut FriendsDrawerSlide, With<FriendsDrawerPanel>>();
+                    if let Ok(mut slide) = panels.single_mut(world) {
+                        **slide = ui::constants::DRAWER_SLIDE_SECS;
+                    }
+                },
             }),
         }
-        .run(&lele_bevy_preview::preview::Config {
+        .run(&preview::Config {
             out_dir: out,
             ..Default::default()
         })

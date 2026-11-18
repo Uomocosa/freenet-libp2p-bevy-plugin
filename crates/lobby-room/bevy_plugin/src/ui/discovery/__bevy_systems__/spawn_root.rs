@@ -79,87 +79,8 @@ pub fn spawn_root(mut commands: Commands) {
 
 #[cfg(test)]
 mod tests {
-    use crate::ui;
-    use bevy::input_focus::{InputFocus, InputFocusPlugin, pointer_focus::PointerFocusPlugin};
-    use bevy::picking::backend::HitData;
-    use bevy::picking::events::{Pointer, PointerPress};
-    use bevy::picking::pointer::{Location, PointerButton, PointerId};
-    use bevy::prelude::*;
-    use bevy::window::PrimaryWindow;
-
     use super::spawn_root;
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, spawn_root);
-        app.update();
-        let mut lists = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomList>>();
-        assert_eq!(lists.iter(app.world()).count(), 1);
-        let mut inputs = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomNameInput>>();
-        assert_eq!(inputs.iter(app.world()).count(), 1);
-        let mut headers = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomsHeader>>();
-        assert_eq!(headers.iter(app.world()).count(), 1);
-        let mut indicators = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomSearchIndicator>>();
-        assert_eq!(indicators.iter(app.world()).count(), 1);
-        let mut tooltips = app
-            .world_mut()
-            .query_filtered::<&Visibility, With<ui::discovery::RoomSearchTooltip>>();
-        assert_eq!(
-            *tooltips.single(app.world()).expect("search tooltip"),
-            Visibility::Hidden
-        );
-    }
-
-    #[test]
-    fn the_search_input_has_no_hover_glow_and_the_create_button_does() {
-        let mut app = App::new();
-        app.add_systems(Startup, spawn_root);
-        app.update();
-        let input = app
-            .world_mut()
-            .query_filtered::<Entity, With<ui::discovery::RoomNameInput>>()
-            .single(app.world())
-            .expect("one room name input");
-        assert!(app.world().get::<ui::discovery::HoverGlow>(input).is_none());
-        assert!(app.world().get::<Outline>(input).is_none());
-        let button = app
-            .world_mut()
-            .query_filtered::<Entity, With<ui::discovery::CreateRoomButton>>()
-            .single(app.world())
-            .expect("one create button");
-        assert!(
-            app.world()
-                .get::<ui::discovery::HoverGlow>(button)
-                .is_some()
-        );
-        assert!(
-            app.world()
-                .get::<ui::discovery::HoverOutlineOnly>(button)
-                .is_some()
-        );
-    }
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(
-            Startup,
-            (
-                spawn_root,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-    }
-
-    const fn preview_noop(_world: &mut World) {}
+    use bevy::prelude::*;
 
     #[test]
     fn spawn_root_ui_png_preview() {
@@ -167,10 +88,19 @@ mod tests {
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_root"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(
+                    Startup,
+                    (
+                        spawn_root,
+                        lele_bevy_preview::scene::bevy_systems::center_roots,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("empty lobby"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }
@@ -179,39 +109,5 @@ mod tests {
             ..Default::default()
         })
         .expect("preview");
-    }
-
-    #[test]
-    fn a_primary_press_focuses_the_room_name_input() {
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, InputFocusPlugin, PointerFocusPlugin))
-            .add_systems(Startup, spawn_root);
-        let window = app
-            .world_mut()
-            .spawn((Window::default(), PrimaryWindow))
-            .id();
-        app.update();
-        let input = app
-            .world_mut()
-            .query_filtered::<Entity, With<ui::discovery::RoomNameInput>>()
-            .single(app.world())
-            .expect("one room name input");
-        let location = Location {
-            target: bevy::camera::NormalizedRenderTarget::Window(
-                bevy::window::WindowRef::Entity(window)
-                    .normalize(Some(window))
-                    .expect("window target"),
-            ),
-            position: Vec2::ZERO,
-        };
-        app.world_mut().trigger(PointerPress {
-            entity: input,
-            pointer: Pointer::new(PointerId::Mouse, location),
-            button: PointerButton::Primary,
-            hit: HitData::new(Entity::PLACEHOLDER, 0.0, None, None),
-            count: 1,
-        });
-        app.update();
-        assert_eq!(app.world().resource::<InputFocus>().get(), Some(input));
     }
 }

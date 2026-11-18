@@ -108,5 +108,3 @@ pub fn route_topic_messages<S: replica_sync::traits::ReplicatedState>(
         }
     }
 }
-
-// no test_usage necessary

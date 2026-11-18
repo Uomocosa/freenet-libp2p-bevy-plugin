@@ -10,5 +10,3 @@ pub struct Spectated<S> {
     pub state: S,
     pub freshness: spectator::SpectateFreshness,
 }
-
-// no test_usage necessary

@@ -44,11 +44,18 @@ impl bevy::prelude::Plugin for FriendsUiPlugin {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::ui;
     use bevy::prelude::*;
+    use bevy::text::EditableText;
+    use bevy::time::TimeUpdateStrategy;
+    use bevy::ui::InteractionDisabled;
+    use bevy::ui::Pressed;
 
     use super::FriendsUiPlugin;
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
+    use freenet_libp2p_bevy_core::identity;
     use freenet_libp2p_bevy_core::time;
 
     fn app_with_state() -> App {
@@ -202,6 +209,251 @@ mod tests {
             ..Default::default()
         })
         .expect("preview");
+    }
+
+    #[test]
+    fn a_blank_address_disables_the_add_friend_button() {
+        let mut app = app_with_state();
+        app.add_plugins(FriendsUiPlugin);
+        app.update();
+        let type_address = |app: &mut App, typed: &str| {
+            let mut inputs = app
+                .world_mut()
+                .query_filtered::<&mut EditableText, With<ui::direct_dial::FriendAddressInput>>();
+            *inputs
+                .single_mut(app.world_mut())
+                .expect("friend address input") = EditableText::new(typed);
+        };
+        let disabled = |app: &mut App| {
+            let mut buttons = app.world_mut().query_filtered::<(), (
+                With<ui::direct_dial::AddFriendButton>,
+                With<InteractionDisabled>,
+            )>();
+            buttons.iter(app.world()).count()
+        };
+        type_address(&mut app, "   ");
+        app.update();
+        assert_eq!(disabled(&mut app), 1, "a blank address disables the button");
+        type_address(&mut app, "/ip4/1.2.3.4/tcp/4001");
+        app.update();
+        assert_eq!(disabled(&mut app), 0, "a typed address enables the button");
+    }
+
+    #[test]
+    fn a_copy_toast_fades_and_then_disappears() {
+        let mut app = app_with_state();
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+            200,
+        )));
+        app.add_plugins(FriendsUiPlugin);
+        app.update();
+        let toast = app
+            .world_mut()
+            .spawn((
+                ui::direct_dial::CopyToast(0.8),
+                TextColor(Color::WHITE),
+                BackgroundColor(Color::BLACK),
+            ))
+            .id();
+        app.update();
+        let TextColor(fresh) = *app.world().get::<TextColor>(toast).expect("text color");
+        assert!(
+            (fresh.alpha() - 1.0).abs() < f32::EPSILON,
+            "a fresh toast is fully opaque"
+        );
+        app.update();
+        let TextColor(color) = *app.world().get::<TextColor>(toast).expect("text color");
+        assert!(color.alpha() < 1.0, "the toast has faded");
+        for _ in 0..10 {
+            app.update();
+        }
+        assert!(
+            app.world().get_entity(toast).is_err(),
+            "the toast despawns when its time is up"
+        );
+    }
+
+    #[test]
+    fn the_copy_chip_needs_a_pressed_chip_and_a_full_address() {
+        let mut app = app_with_state();
+        app.add_plugins(FriendsUiPlugin);
+        app.update();
+        let toast_count = |app: &mut App| {
+            let mut toasts = app
+                .world_mut()
+                .query_filtered::<(), With<ui::direct_dial::CopyToast>>();
+            toasts.iter(app.world()).count()
+        };
+        assert_eq!(toast_count(&mut app), 0, "an unpressed chip copies nothing");
+        let chip = app
+            .world_mut()
+            .query_filtered::<Entity, With<ui::direct_dial::OwnAddressChip>>()
+            .single(app.world())
+            .expect("chip");
+        app.world_mut().entity_mut(chip).insert(Pressed);
+        app.update();
+        assert_eq!(
+            toast_count(&mut app),
+            0,
+            "a press before the address is known copies nothing"
+        );
+        app.insert_resource(core_direct_dial::OwnShareAddress(Some(
+            core_direct_dial::OwnAddress {
+                id: identity::PeerId::from("me"),
+                short: String::from("12D3Koo...99RC"),
+                full: None,
+            },
+        )));
+        app.world_mut().entity_mut(chip).remove::<Pressed>();
+        app.world_mut().entity_mut(chip).insert(Pressed);
+        app.update();
+        assert_eq!(
+            toast_count(&mut app),
+            0,
+            "an address without a full form copies nothing"
+        );
+    }
+
+    #[test]
+    fn friend_rows_show_presence_as_a_dot_and_a_place() {
+        let mut app = app_with_state();
+        app.add_plugins(FriendsUiPlugin);
+        app.update();
+        *app.world_mut()
+            .resource_mut::<core_direct_dial::FriendsView>() = core_direct_dial::FriendsView(vec![
+            core_direct_dial::FriendView {
+                id: identity::PeerId::from("alice"),
+                name: String::from("alice"),
+                presence: core_direct_dial::FriendPresence::Offline,
+            },
+            core_direct_dial::FriendView {
+                id: identity::PeerId::from("bob"),
+                name: String::from("bob"),
+                presence: core_direct_dial::FriendPresence::Online,
+            },
+            core_direct_dial::FriendView {
+                id: identity::PeerId::from("carol"),
+                name: String::from("carol"),
+                presence: core_direct_dial::FriendPresence::InZone(identity::ZoneName::from(
+                    "room-7",
+                )),
+            },
+        ]);
+        app.update();
+        let mut rows = app
+            .world_mut()
+            .query_filtered::<(), With<ui::direct_dial::FriendRow>>();
+        assert_eq!(rows.iter(app.world()).count(), 3);
+        let mut dots = app
+            .world_mut()
+            .query_filtered::<&BackgroundColor, With<ui::direct_dial::FriendStatusDot>>();
+        let dot_colors: Vec<BackgroundColor> = dots.iter(app.world()).copied().collect();
+        assert!(dot_colors.contains(&BackgroundColor(ui::direct_dial::FRIEND_OFFLINE_DOT_COLOR)));
+        assert!(dot_colors.contains(&BackgroundColor(ui::discovery::FRIEND_BADGE_COLOR)));
+        let mut texts = app.world_mut().query::<&Text>();
+        let labels: Vec<&str> = texts.iter(app.world()).map(|text| text.as_str()).collect();
+        assert!(labels.contains(&"offline"));
+        assert!(labels.contains(&"in lobby"));
+        assert!(labels.contains(&"in room-7"));
+        *app.world_mut()
+            .resource_mut::<core_direct_dial::FriendsView>() =
+            core_direct_dial::FriendsView(vec![core_direct_dial::FriendView {
+                id: identity::PeerId::from("alice"),
+                name: String::from("alice"),
+                presence: core_direct_dial::FriendPresence::Offline,
+            }]);
+        app.update();
+        let mut rows = app
+            .world_mut()
+            .query_filtered::<(), With<ui::direct_dial::FriendRow>>();
+        assert_eq!(rows.iter(app.world()).count(), 1);
+    }
+
+    #[test]
+    fn the_friends_header_counts_online_and_total() {
+        let mut app = app_with_state();
+        app.add_plugins(FriendsUiPlugin);
+        app.world_mut()
+            .remove_resource::<core_direct_dial::FriendsView>();
+        app.update();
+        let header = |app: &mut App| {
+            let mut texts = app
+                .world_mut()
+                .query_filtered::<&Text, With<ui::direct_dial::FriendsCountText>>();
+            texts
+                .iter(app.world())
+                .map(|text| text.as_str().to_string())
+                .collect::<Vec<String>>()
+        };
+        assert_eq!(
+            header(&mut app),
+            vec![String::from("FRIENDS  0 online / 0")],
+            "without the view the header shows zero"
+        );
+        app.insert_resource(core_direct_dial::FriendsView(vec![
+            core_direct_dial::FriendView {
+                id: identity::PeerId::from("alice"),
+                name: String::from("alice"),
+                presence: core_direct_dial::FriendPresence::Offline,
+            },
+            core_direct_dial::FriendView {
+                id: identity::PeerId::from("bob"),
+                name: String::from("bob"),
+                presence: core_direct_dial::FriendPresence::Online,
+            },
+            core_direct_dial::FriendView {
+                id: identity::PeerId::from("carol"),
+                name: String::from("carol"),
+                presence: core_direct_dial::FriendPresence::InZone(identity::ZoneName::from(
+                    "room-7",
+                )),
+            },
+        ]));
+        app.update();
+        assert_eq!(
+            header(&mut app),
+            vec![String::from("FRIENDS  2 online / 3")]
+        );
+    }
+
+    #[test]
+    fn the_address_chip_shows_waiting_until_a_full_address_arrives() {
+        let mut app = app_with_state();
+        app.add_plugins(FriendsUiPlugin);
+        app.insert_resource(core_direct_dial::OwnShareAddress(Some(
+            core_direct_dial::OwnAddress {
+                id: identity::PeerId::from("me"),
+                short: String::from("12D3Koo...99RC"),
+                full: Some(String::from("/ip4/127.0.0.1/tcp/4001/p2p/me")),
+            },
+        )));
+        app.update();
+        let chip_label = |app: &mut App| {
+            let mut labels = app
+                .world_mut()
+                .query_filtered::<&Text, With<ui::direct_dial::OwnAddressText>>();
+            labels
+                .single(app.world())
+                .expect("address chip")
+                .as_str()
+                .to_string()
+        };
+        assert_eq!(chip_label(&mut app), "12D3Koo...99RC");
+        assert!(!chip_label(&mut app).contains("/ip4/"));
+        **app
+            .world_mut()
+            .resource_mut::<core_direct_dial::OwnShareAddress>() =
+            Some(core_direct_dial::OwnAddress {
+                id: identity::PeerId::from("me"),
+                short: String::from("12D3Koo...99RC"),
+                full: None,
+            });
+        app.update();
+        assert_eq!(chip_label(&mut app), "waiting for network...");
+        app.world_mut()
+            .remove_resource::<core_direct_dial::OwnShareAddress>();
+        app.update();
+        assert_eq!(chip_label(&mut app), "waiting for network...");
     }
 }
 

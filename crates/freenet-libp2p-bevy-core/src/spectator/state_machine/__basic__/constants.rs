@@ -10,5 +10,3 @@ pub const MAX_SLICE_REQUESTS_PER_PEER: usize = 4;
 pub const MIN_LEASE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(15);
 pub const SLICE_REQUEST_COOLDOWN: std::time::Duration = std::time::Duration::from_secs(5);
 pub const SLICE_REPAIR_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-
-// no test_usage necessary

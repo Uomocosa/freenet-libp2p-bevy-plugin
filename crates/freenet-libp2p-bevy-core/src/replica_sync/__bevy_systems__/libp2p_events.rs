@@ -17,5 +17,3 @@ pub struct Libp2pEvents {
 impl Libp2pEvents {
     pub fn drain(&self) -> Vec<p2p::Libp2pEvent> {}
 }
-
-// no test_usage necessary

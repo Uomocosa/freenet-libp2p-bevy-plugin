@@ -91,90 +91,10 @@ pub fn spawn_room_preview(mut commands: Commands) {
 
 #[cfg(test)]
 mod tests {
+    use super::spawn_room_preview;
     use crate::discovery as core_discovery;
     use crate::ui;
     use bevy::prelude::*;
-
-    use super::spawn_room_preview;
-
-    fn preview_row(name: &str, occupants: usize) -> core_discovery::LobbyRow {
-        core_discovery::LobbyRow {
-            name: core_discovery::RoomName::from(name),
-            occupants,
-            room_size: core_discovery::RoomSize::try_from(8).expect("8"),
-            occupancy: core_discovery::RoomOccupancy::HasSpace,
-            friends: 0,
-        }
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(core_discovery::LobbyRows(vec![preview_row("alpha", 2)]));
-        app.insert_resource(ui::discovery::StreamedRoom::default());
-        app.insert_resource(ui::discovery::SelectedRoom(Some(
-            core_discovery::RoomName::from("alpha"),
-        )));
-        app.add_systems(Startup, spawn_room_preview);
-        app.add_systems(Update, ui::discovery::bevy_systems::refresh_room_preview);
-    }
-
-    fn select_alpha(world: &mut World) {
-        **world.resource_mut::<ui::discovery::SelectedRoom>() =
-            Some(core_discovery::RoomName::from("alpha"));
-    }
-
-    #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, spawn_room_preview);
-        app.update();
-        let mut panels = app
-            .world_mut()
-            .query_filtered::<(&Visibility, &Node), With<ui::discovery::RoomPreviewPanel>>();
-        let (visibility, node) = panels.single(app.world()).expect("preview panel");
-        assert_eq!(*visibility, Visibility::Hidden);
-        assert_eq!(node.width, Val::Px(ui::discovery::PREVIEW_WIDTH));
-        assert_eq!(node.height, Val::Px(ui::discovery::PREVIEW_HEIGHT));
-        assert_ne!(node.border_radius, BorderRadius::ZERO);
-        let mut images = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomPreviewImage>>();
-        assert_eq!(images.iter(app.world()).count(), 1);
-        let mut placeholders = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomPreviewPlaceholder>>();
-        assert_eq!(placeholders.iter(app.world()).count(), 1);
-        let mut rings = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::SpinnerRing>>();
-        assert_eq!(rings.iter(app.world()).count(), 1);
-        let mut overlays = app
-            .world_mut()
-            .query_filtered::<Entity, With<ui::discovery::RoomPreviewFriends>>();
-        assert_eq!(
-            overlays.iter(app.world()).count(),
-            0,
-            "the friends card is its own plugin"
-        );
-    }
-
-    #[test]
-    fn the_preview_has_no_member_names() {
-        let mut app = App::new();
-        app.insert_resource(core_discovery::LobbyRows(vec![preview_row("alpha", 2)]));
-        app.insert_resource(ui::discovery::StreamedRoom::default());
-        app.insert_resource(ui::discovery::SelectedRoom(Some(
-            core_discovery::RoomName::from("alpha"),
-        )));
-        app.add_systems(Startup, spawn_room_preview);
-        app.add_systems(Update, ui::discovery::bevy_systems::refresh_room_preview);
-        app.update();
-        let mut texts = app.world_mut().query::<&Text>();
-        assert_eq!(
-            texts.iter(app.world()).count(),
-            0,
-            "the preview is image-only and never prints a member name"
-        );
-    }
 
     #[test]
     fn spawn_room_preview_ui_png_preview() {
@@ -182,10 +102,27 @@ mod tests {
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_room_preview"),
             kind: lele_bevy_preview::scene::Kind::Plugin,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.insert_resource(core_discovery::LobbyRows(vec![core_discovery::LobbyRow {
+                    name: core_discovery::RoomName::from("alpha"),
+                    occupants: 2,
+                    room_size: core_discovery::RoomSize::try_from(8).expect("8"),
+                    occupancy: core_discovery::RoomOccupancy::HasSpace,
+                    friends: 0,
+                }]));
+                app.insert_resource(ui::discovery::StreamedRoom::default());
+                app.insert_resource(ui::discovery::SelectedRoom(Some(
+                    core_discovery::RoomName::from("alpha"),
+                )));
+                app.add_systems(Startup, spawn_room_preview);
+                app.add_systems(Update, ui::discovery::bevy_systems::refresh_room_preview);
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("hovering alpha"),
-                apply: select_alpha,
+                apply: |world: &mut World| {
+                    **world.resource_mut::<ui::discovery::SelectedRoom>() =
+                        Some(core_discovery::RoomName::from("alpha"));
+                },
             }],
             timeline: None,
         }

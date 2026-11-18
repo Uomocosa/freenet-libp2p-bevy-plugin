@@ -29,6 +29,7 @@ mod tests {
     use bevy::prelude::*;
 
     use super::TrackingPlugin;
+    use crate::identity;
     use crate::p2p;
     use crate::peers;
 
@@ -40,6 +41,29 @@ mod tests {
         app.add_plugins(TrackingPlugin);
         app.update();
         assert!(app.world().get_resource::<peers::PeerEventTap>().is_some());
+    }
+
+    #[test]
+    fn ready_peer_becomes_the_me_entity() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(p2p::Libp2pEventChannel::default());
+        let ready = p2p::ReadyChannel::default();
+        ready.ready_tx.send_replace(Some(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        }));
+        app.insert_resource(ready);
+        app.add_plugins(TrackingPlugin);
+        app.update();
+        let mut found = app
+            .world_mut()
+            .query_filtered::<&peers::Peer, With<peers::Me>>();
+        let ids: Vec<identity::PeerId> = found
+            .iter(app.world())
+            .map(|peer| (**peer).clone())
+            .collect();
+        assert_eq!(ids, vec![identity::PeerId::from("me")]);
     }
 }
 

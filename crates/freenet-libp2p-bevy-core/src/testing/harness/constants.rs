@@ -40,5 +40,3 @@ pub const EXIT_DEADLINE: Duration = Duration::from_secs(30);
 pub const DEFAULT_RUST_LOG: &str = "info,starboard=debug,lobby_room=debug,discovery=debug";
 pub const LOG_TAIL_LINES: usize = 60;
 pub const NOISE_MARKER: &str = "history size against the per-process limit";
-
-// no test_usage necessary

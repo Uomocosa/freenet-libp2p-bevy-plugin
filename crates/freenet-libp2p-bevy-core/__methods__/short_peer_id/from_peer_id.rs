@@ -14,6 +14,8 @@ pub fn from_peer_id(id: &identity::PeerId) -> identity::ShortPeerId {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use super::from_peer_id;
     use crate::identity;
 
@@ -21,5 +23,16 @@ mod tests {
     fn test_usage() {
         let id = identity::PeerId::from("alice");
         assert_eq!(from_peer_id(&id).as_str(), "alice");
+    }
+
+    #[rstest]
+    #[case::short_id("alice", "alice")]
+    #[case::full_peer_id(
+        "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
+        "12D3Koo...99RC"
+    )]
+    fn short_peer_id_truncates(#[case] raw: &str, #[case] expected: &str) {
+        let id = identity::PeerId::from(raw);
+        assert_eq!(from_peer_id(&id).as_str(), expected);
     }
 }

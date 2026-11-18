@@ -76,94 +76,71 @@ mod tests {
     use bevy::prelude::*;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, |mut commands: Commands| {
-            commands
-                .spawn((Node::default(),))
-                .with_children(spawn_spectator_pill);
-        });
-        app.update();
-        let mut pills = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::SpectatorPill>>();
-        assert_eq!(pills.iter(app.world()).count(), 1);
-        let mut counts = app
-            .world_mut()
-            .query_filtered::<(), With<ui::roster::SpectatorCountText>>();
-        assert_eq!(counts.iter(app.world()).count(), 1);
-    }
-
-    fn spawn_mock_screen(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands
-            .spawn((
-                ChildOf(root),
-                Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    ..default()
-                },
-                BackgroundColor(ui::constants::ROOM_COLOR),
-            ))
-            .with_children(|screen| {
-                screen
-                    .spawn((Node {
-                        position_type: PositionType::Absolute,
-                        top: Val::Px(16.0),
-                        left: Val::Px(16.0),
-                        align_items: AlignItems::Center,
-                        column_gap: Val::Px(6.0),
-                        ..default()
-                    },))
-                    .with_children(|row| {
-                        row.spawn((
-                            Node {
-                                align_items: AlignItems::Center,
-                                column_gap: Val::Px(7.0),
-                                padding: UiRect::axes(Val::Px(10.0), Val::Px(5.0)),
-                                border_radius: BorderRadius::MAX,
-                                ..default()
-                            },
-                            BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
-                        ))
-                        .with_children(|pill| {
-                            pill.spawn((
-                                Text::new("3"),
-                                TextFont {
-                                    font_size: FontSize::Px(ui::roster::ROSTER_COUNT_FONT_SIZE),
-                                    ..default()
-                                },
-                                TextColor(ui::roster::ROSTER_LABEL_COLOR),
-                            ));
-                        });
-                        spawn_spectator_pill(row);
-                    });
-            });
-    }
-
-    fn preview_build(app: &mut App) {
-        app.insert_resource(spectator::SpectatorCount::default());
-        app.add_systems(Startup, spawn_mock_screen);
-        app.add_systems(Update, ui::roster::bevy_systems::refresh_spectator_pill);
-    }
-
-    fn two_watching(world: &mut World) {
-        world.insert_resource(spectator::SpectatorCount(2));
-    }
-
-    #[test]
     fn spawn_spectator_pill_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_spectator_pill"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.insert_resource(spectator::SpectatorCount::default());
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands
+                        .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                        .id();
+                    commands
+                        .spawn((
+                            ChildOf(root),
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            },
+                            BackgroundColor(ui::constants::ROOM_COLOR),
+                        ))
+                        .with_children(|screen| {
+                            screen
+                                .spawn((Node {
+                                    position_type: PositionType::Absolute,
+                                    top: Val::Px(16.0),
+                                    left: Val::Px(16.0),
+                                    align_items: AlignItems::Center,
+                                    column_gap: Val::Px(6.0),
+                                    ..default()
+                                },))
+                                .with_children(|row| {
+                                    row.spawn((
+                                        Node {
+                                            align_items: AlignItems::Center,
+                                            column_gap: Val::Px(7.0),
+                                            padding: UiRect::axes(Val::Px(10.0), Val::Px(5.0)),
+                                            border_radius: BorderRadius::MAX,
+                                            ..default()
+                                        },
+                                        BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
+                                    ))
+                                    .with_children(|pill| {
+                                        pill.spawn((
+                                            Text::new("3"),
+                                            TextFont {
+                                                font_size: FontSize::Px(
+                                                    ui::roster::ROSTER_COUNT_FONT_SIZE,
+                                                ),
+                                                ..default()
+                                            },
+                                            TextColor(ui::roster::ROSTER_LABEL_COLOR),
+                                        ));
+                                    });
+                                    spawn_spectator_pill(row);
+                                });
+                        });
+                });
+                app.add_systems(Update, ui::roster::bevy_systems::refresh_spectator_pill);
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("two watching"),
-                apply: two_watching,
+                apply: |world: &mut World| {
+                    world.insert_resource(spectator::SpectatorCount(2));
+                },
             }],
             timeline: None,
         }

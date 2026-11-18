@@ -21,5 +21,3 @@ pub fn route_spectate_commands<S: replica_sync::traits::ReplicatedState>(
         inputs.push(spectator::MachineInput::Command(command.clone()));
     }
 }
-
-// no test_usage necessary

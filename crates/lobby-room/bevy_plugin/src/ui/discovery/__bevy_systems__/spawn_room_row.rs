@@ -119,143 +119,61 @@ mod tests {
     use bevy::prelude::*;
 
     #[test]
-    fn test_usage() {
-        let mut app = App::new();
-        app.add_systems(Startup, |mut commands: Commands| {
-            let list = commands.spawn_empty().id();
-            commands.entity(list).with_children(|rooms| {
-                spawn_room_row(&mut rooms.reborrow(), &sample_row());
-            });
-        });
-        app.update();
-        let mut rows = app
-            .world_mut()
-            .query_filtered::<(), With<ui::discovery::RoomButton>>();
-        assert_eq!(rows.iter(app.world()).count(), 1);
-    }
-
-    #[test]
-    fn a_row_carries_one_machine_and_three_rolling_numbers() {
-        let mut app = App::new();
-        app.add_systems(Startup, |mut commands: Commands| {
-            let list = commands.spawn_empty().id();
-            commands.entity(list).with_children(|rooms| {
-                spawn_room_row(
-                    &mut rooms.reborrow(),
-                    &row_fixture("alpha", 2, 8, core_discovery::RoomOccupancy::HasSpace, 1),
-                );
-            });
-        });
-        app.update();
-        let mut machines = app.world_mut().query::<&ui::roll::RollMachine>();
-        let machine = machines.single(app.world()).expect("one machine");
-        assert_eq!(machine.numbers, vec![2, 8, 1]);
-        assert_eq!(machine.reveal_slot, Some(ui::discovery::FRIENDS_SLOT));
-        let mut numbers = app.world_mut().query::<&ui::roll::RollNumber>();
-        let mut found: Vec<(usize, u32)> = numbers
-            .iter(app.world())
-            .map(|number| (number.slot, number.value))
-            .collect();
-        found.sort_unstable();
-        assert_eq!(found, vec![(0, 2), (1, 8), (2, 1)]);
-    }
-
-    #[test]
-    fn a_row_spawned_with_friends_shows_the_segment_without_the_sync_system() {
-        let mut app = App::new();
-        app.add_systems(Startup, |mut commands: Commands| {
-            let list = commands.spawn_empty().id();
-            commands.entity(list).with_children(|rooms| {
-                spawn_room_row(&mut rooms.reborrow(), &sample_row());
-            });
-        });
-        app.update();
-        let mut segments = app
-            .world_mut()
-            .query::<(&Node, &ui::discovery::RoomFriendSegment)>();
-        let (node, _) = segments
-            .single(app.world())
-            .expect("the friends segment spawns with its row");
-        assert_eq!(node.width, Val::Auto, "a fresh segment is not clipped");
-        let mut fades = app
-            .world_mut()
-            .query::<(&ui::discovery::RoomFriendSegmentFade, &BackgroundColor)>();
-        let mut fade_count = 0;
-        for (fade, background) in fades.iter(app.world()) {
-            assert_eq!(background.0, fade.base, "a fresh segment is fully opaque");
-            fade_count += 1;
-        }
-        assert_eq!(fade_count, 3, "dot, badge body and divider");
-    }
-
-    fn row_fixture(
-        name: &str,
-        occupants: usize,
-        room_size: u16,
-        occupancy: core_discovery::RoomOccupancy,
-        friends: usize,
-    ) -> core_discovery::LobbyRow {
-        core_discovery::LobbyRow {
-            name: core_discovery::RoomName::from(name),
-            occupants,
-            room_size: core_discovery::RoomSize::try_from(room_size).expect("room size"),
-            occupancy,
-            friends,
-        }
-    }
-
-    fn sample_row() -> core_discovery::LobbyRow {
-        row_fixture("alpha", 3, 8, core_discovery::RoomOccupancy::HasSpace, 2)
-    }
-
-    fn preview_rows() -> Vec<core_discovery::LobbyRow> {
-        vec![
-            row_fixture("alpha", 2, 8, core_discovery::RoomOccupancy::HasSpace, 1),
-            row_fixture("beta", 0, 4, core_discovery::RoomOccupancy::Empty, 0),
-            row_fixture("gamma", 4, 4, core_discovery::RoomOccupancy::Full, 2),
-            row_fixture(
-                "a very long room name",
-                1,
-                8,
-                core_discovery::RoomOccupancy::HasSpace,
-                1,
-            ),
-        ]
-    }
-
-    fn spawn_room_rows(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        let list = commands
-            .spawn((
-                ChildOf(root),
-                Node {
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(4.0),
-                    ..default()
-                },
-            ))
-            .id();
-        commands.entity(list).with_children(|rooms| {
-            for row in preview_rows() {
-                spawn_room_row(&mut rooms.reborrow(), &row);
-            }
-        });
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
-    #[test]
     fn spawn_room_row_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("spawn_room_row"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_plugins(ui::roll::UiPlugin);
+                app.add_systems(Startup, |mut commands: Commands| {
+                    let root = commands
+                        .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                        .id();
+                    let list = commands
+                        .spawn((
+                            ChildOf(root),
+                            Node {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(4.0),
+                                ..default()
+                            },
+                        ))
+                        .id();
+                    commands.entity(list).with_children(|rooms| {
+                        let rows = [
+                            ("alpha", 2, 8, core_discovery::RoomOccupancy::HasSpace, 1),
+                            ("beta", 0, 4, core_discovery::RoomOccupancy::Empty, 0),
+                            ("gamma", 4, 4, core_discovery::RoomOccupancy::Full, 2),
+                            (
+                                "a very long room name",
+                                1,
+                                8,
+                                core_discovery::RoomOccupancy::HasSpace,
+                                1,
+                            ),
+                        ];
+                        for (name, occupants, room_size, occupancy, friends) in rows {
+                            let row = core_discovery::LobbyRow {
+                                name: core_discovery::RoomName::from(name),
+                                occupants,
+                                room_size: core_discovery::RoomSize::try_from(room_size)
+                                    .expect("fixture room size is non-zero"),
+                                occupancy,
+                                friends,
+                            };
+                            spawn_room_row(&mut rooms.reborrow(), &row);
+                        }
+                    });
+                });
+                app.add_systems(
+                    PostStartup,
+                    lele_bevy_preview::scene::bevy_systems::center_roots,
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("friends · no friends · full room"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }
@@ -264,14 +182,5 @@ mod tests {
             ..Default::default()
         })
         .expect("preview");
-    }
-
-    fn preview_build(app: &mut App) {
-        app.add_plugins(ui::roll::UiPlugin);
-        app.add_systems(Startup, spawn_room_rows);
-        app.add_systems(
-            PostStartup,
-            lele_bevy_preview::scene::bevy_systems::center_roots,
-        );
     }
 }

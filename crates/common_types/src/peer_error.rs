@@ -9,5 +9,3 @@ pub enum PeerError {
     #[error("peer address is missing a peer id")]
     MissingPeerId,
 }
-
-// no test_usage necessary

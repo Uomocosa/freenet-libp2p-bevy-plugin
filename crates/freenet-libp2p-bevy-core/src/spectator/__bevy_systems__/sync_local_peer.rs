@@ -17,5 +17,3 @@ pub fn sync_local_peer<S: replica_sync::traits::ReplicatedState>(
         ));
     }
 }
-
-// no test_usage necessary

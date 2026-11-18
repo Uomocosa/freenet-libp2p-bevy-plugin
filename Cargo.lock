@@ -4302,6 +4302,7 @@ dependencies = [
  "lele-bevy-state-machine",
  "libp2p",
  "reqwest",
+ "rstest",
  "serde",
  "serde_json",
  "telegram-bot-helper",

@@ -15,5 +15,3 @@ pub fn refresh_zone_history<Replica: replica_sync::traits::ReplicatedState>(
         replica_sync::state_machine::Input::HistoryWriteTimerFired,
     ));
 }
-
-// no test_usage necessary

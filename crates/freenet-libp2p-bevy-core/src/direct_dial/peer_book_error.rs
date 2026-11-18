@@ -7,5 +7,3 @@ pub enum PeerBookError {
     #[error("peer book codec error")]
     Codec(#[from] serde_json::Error),
 }
-
-// no test_usage necessary

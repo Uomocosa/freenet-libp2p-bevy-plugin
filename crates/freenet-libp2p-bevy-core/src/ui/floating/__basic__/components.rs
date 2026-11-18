@@ -10,5 +10,3 @@ pub struct FloatingPopup {
     pub gap: ui::floating::PopupGap,
     pub edge_margin: ui::floating::PopupEdgeMargin,
 }
-
-// no test_usage necessary

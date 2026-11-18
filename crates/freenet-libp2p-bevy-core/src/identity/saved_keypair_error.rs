@@ -7,5 +7,3 @@ pub enum SavedKeypairError {
     #[error("keypair codec error")]
     Codec(#[from] libp2p::identity::DecodingError),
 }
-
-// no test_usage necessary

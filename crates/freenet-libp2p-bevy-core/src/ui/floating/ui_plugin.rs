@@ -69,4 +69,101 @@ mod tests {
         let node = app.world().get::<Node>(popup).expect("popup node");
         assert_eq!(node.left, Val::Px(-93.0));
     }
+
+    #[test]
+    fn a_popup_with_no_measured_size_is_left_alone() {
+        let mut app = App::new();
+        app.add_plugins(UiPlugin);
+        app.world_mut().spawn((
+            Window {
+                resolution: WindowResolution::new(960, 540),
+                ..default()
+            },
+            PrimaryWindow,
+        ));
+        let anchor = app
+            .world_mut()
+            .spawn((
+                ComputedNode {
+                    size: Vec2::new(50.0, 20.0),
+                    ..ComputedNode::default()
+                },
+                UiGlobalTransform::from_xy(920.0, 100.0),
+            ))
+            .id();
+        let popup = app
+            .world_mut()
+            .spawn((
+                ui::floating::FloatingPopup {
+                    anchor: ui::floating::PopupAnchor::Parent,
+                    preferred_side: ui::floating::PopupSide::Below,
+                    cross_align: ui::floating::PopupAlign::Centre,
+                    gap: ui::floating::PopupGap(4.0),
+                    edge_margin: ui::floating::DEFAULT_POPUP_EDGE_MARGIN,
+                },
+                ComputedNode {
+                    size: Vec2::ZERO,
+                    ..ComputedNode::default()
+                },
+                ChildOf(anchor),
+                Node {
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
+            ))
+            .id();
+        app.update();
+        let node = app.world().get::<Node>(popup).expect("popup node");
+        assert_eq!(node.left, Val::Auto);
+        assert_eq!(node.top, Val::Auto);
+    }
+
+    #[test]
+    fn a_two_times_inverse_scale_factor_is_converted_to_logical_pixels() {
+        let mut app = App::new();
+        app.add_plugins(UiPlugin);
+        app.world_mut().spawn((
+            Window {
+                resolution: WindowResolution::new(960, 540),
+                ..default()
+            },
+            PrimaryWindow,
+        ));
+        let mut anchor_node = ComputedNode {
+            size: Vec2::new(50.0, 20.0),
+            ..ComputedNode::default()
+        };
+        anchor_node.inverse_scale_factor = 2.0;
+        let anchor = app
+            .world_mut()
+            .spawn((anchor_node, UiGlobalTransform::from_xy(400.0, 100.0)))
+            .id();
+        let mut popup_node = ComputedNode {
+            size: Vec2::new(150.0, 18.0),
+            ..ComputedNode::default()
+        };
+        popup_node.inverse_scale_factor = 2.0;
+        let popup = app
+            .world_mut()
+            .spawn((
+                ui::floating::FloatingPopup {
+                    anchor: ui::floating::PopupAnchor::Parent,
+                    preferred_side: ui::floating::PopupSide::Below,
+                    cross_align: ui::floating::PopupAlign::Centre,
+                    gap: ui::floating::PopupGap(4.0),
+                    edge_margin: ui::floating::DEFAULT_POPUP_EDGE_MARGIN,
+                },
+                popup_node,
+                ChildOf(anchor),
+                Node {
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
+            ))
+            .id();
+        app.update();
+        let node = app.world().get::<Node>(popup).expect("popup node");
+        assert_eq!(node.left, Val::Px(-100.0));
+        assert_eq!(node.top, Val::Px(44.0));
+    }
 }
