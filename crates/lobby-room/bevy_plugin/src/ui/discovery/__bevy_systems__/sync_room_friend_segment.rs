@@ -36,9 +36,11 @@ pub fn sync_room_friend_segment(
             continue;
         }
         if existing.is_none() {
+            let mut segment = Entity::PLACEHOLDER;
             commands.entity(parts.bubble).with_children(|bubble| {
-                ui::discovery::bevy_systems::spawn_friend_segment(bubble, pill, friends);
+                segment = ui::discovery::bevy_systems::spawn_friend_segment(bubble, pill, friends);
             });
+            commands.entity(parts.bubble).insert_children(0, &[segment]);
         }
         let Some((_, _, mut node)) = segments
             .iter_mut()
@@ -176,6 +178,14 @@ mod tests {
         rings.iter(app.world()).count()
     }
 
+    fn first_bubble_child(app: &mut App) -> Entity {
+        let mut bubbles = app
+            .world_mut()
+            .query_filtered::<(Entity, &Children), With<ui::discovery::RoomBubble>>();
+        let (_, children) = bubbles.single(app.world()).expect("one bubble");
+        *children.first().expect("a first child")
+    }
+
     fn spawn_preview_list(mut commands: Commands) {
         let root = commands
             .spawn(lele_bevy_preview::scene::Scene::centered_root())
@@ -255,6 +265,22 @@ mod tests {
         let mut app = app_with_rows(vec![lobby_row(2, 1)]);
         app.update();
         assert_eq!(segment_count(&mut app), 1);
+    }
+
+    #[test]
+    fn the_revealed_segment_sits_before_the_occupancy_numbers() {
+        let mut app = app_with_rows(vec![lobby_row(2, 0)]);
+        app.update();
+        set_rows(&mut app, vec![lobby_row(2, 1)]);
+        app.update();
+        app.update();
+        let first = first_bubble_child(&mut app);
+        assert!(
+            app.world()
+                .get::<ui::discovery::RoomFriendSegment>(first)
+                .is_some(),
+            "the friends segment is the bubble's first child"
+        );
     }
 
     #[test]
