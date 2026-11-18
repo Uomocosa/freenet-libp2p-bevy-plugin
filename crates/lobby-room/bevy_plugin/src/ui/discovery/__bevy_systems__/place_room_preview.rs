@@ -1,10 +1,12 @@
 use crate::ui;
+use bevy::math::{Rect, Vec2};
 use bevy::prelude::*;
 use bevy::ui::{ComputedNode, UiGlobalTransform};
 use bevy::window::PrimaryWindow;
+use freenet_libp2p_bevy_core::ui as core_ui;
 
 use ui::discovery::{
-    LOBBY_PANEL_RIGHT, PREVIEW_HEIGHT, PREVIEW_LIST_GAP, PREVIEW_RIGHT, RoomButton,
+    LOBBY_PANEL_RIGHT, PREVIEW_HEIGHT, PREVIEW_LIST_GAP, PREVIEW_RIGHT, PREVIEW_WIDTH, RoomButton,
     RoomPreviewPanel, RoomStreamHeader, SelectedRoom, StreamDisplay, StreamedRoom,
 };
 
@@ -37,15 +39,9 @@ pub fn place_room_preview(
     else {
         return;
     };
-    let (_, _, row_translation) = row_transform.to_scale_angle_translation();
-    let row_centre = row_translation.y * row_node.inverse_scale_factor();
+    let anchor = core_ui::floating::PopupPlacement::rect_of(row_node, row_transform);
     let margin = LOBBY_PANEL_RIGHT;
-    let min_top = margin;
-    let max_top = window.height() - PREVIEW_HEIGHT - margin;
-    let mut top = (row_centre - PREVIEW_HEIGHT / 2.0).max(min_top);
-    if max_top > min_top {
-        top = top.min(max_top);
-    }
+    let mut min_top = margin;
     let is_streaming = streamed.is_some_and(|streamed| (**streamed).is_some());
     if is_streaming {
         let Some(header) = header else {
@@ -57,11 +53,19 @@ pub fn place_room_preview(
         let header_bottom = header_translation
             .y
             .mul_add(header_node.inverse_scale_factor(), header_half);
-        let clearance = header_bottom + PREVIEW_LIST_GAP;
-        if top < clearance {
-            top = clearance;
-        }
+        min_top = min_top.max(header_bottom + PREVIEW_LIST_GAP);
     }
+    let area = Rect::from_corners(
+        Vec2::new(margin, min_top),
+        Vec2::new(window.width() - margin, window.height() - margin),
+    );
+    let wanted = Vec2::new(anchor.center().x, anchor.center().y - PREVIEW_HEIGHT / 2.0);
+    let top = core_ui::floating::PopupPlacement::clamped_into(
+        area,
+        Vec2::new(PREVIEW_WIDTH, PREVIEW_HEIGHT),
+        wanted,
+    )
+    .y;
     let mut node = preview.into_inner();
     let wanted_top = Val::Px(top);
     if node.top != wanted_top {
