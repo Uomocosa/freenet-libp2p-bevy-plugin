@@ -47,6 +47,7 @@ pub mod peer_book;
 pub mod peer_message_router;
 #[cfg(all(feature = "testing", feature = "e2e-harness"))]
 pub mod polling;
+pub mod popup_placement;
 pub mod replica_slice_content_hash;
 pub mod replica_slice_index;
 pub mod replica_state;
