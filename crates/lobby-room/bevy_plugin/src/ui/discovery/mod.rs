@@ -17,7 +17,8 @@ pub use basic::components::{
 pub use basic::constants::*;
 pub use basic::messages::CloseStream;
 pub use basic::resources::{
-    FriendsPressBeat, HoveredOccupancyPill, JoinError, SelectedRoom, StreamedRoom,
+    FriendsPressBeat, HoveredOccupancyPill, JoinError, PeekedRoomFriends, SelectedRoom,
+    StreamedRoom,
 };
 pub use basic::states::{LeaveDialog, Screen};
 mod esc_menu_panel;

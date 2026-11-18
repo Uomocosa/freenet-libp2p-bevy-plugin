@@ -12,6 +12,9 @@ pub struct StreamedRoom(pub Option<core_discovery::RoomName>);
 #[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Deref, DerefMut)]
 pub struct HoveredOccupancyPill(pub Option<core_discovery::RoomName>);
 
+#[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Deref)]
+pub struct PeekedRoomFriends(pub Vec<core_discovery::RoomFriend>);
+
 #[derive(Resource, Debug, Default, Clone, PartialEq, Eq, Deref, DerefMut)]
 pub struct JoinError(pub Option<String>);
 

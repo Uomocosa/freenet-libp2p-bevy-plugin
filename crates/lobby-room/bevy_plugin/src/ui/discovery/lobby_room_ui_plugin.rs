@@ -20,13 +20,12 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
         app.init_resource::<EscMenuState>();
         app.init_resource::<ui::discovery::FriendsPressBeat>();
         app.init_resource::<ui::discovery::HoveredOccupancyPill>();
+        app.init_resource::<ui::discovery::PeekedRoomFriends>();
         app.init_resource::<ui::discovery::SelectedRoom>();
         app.init_resource::<ui::discovery::StreamedRoom>();
         app.init_resource::<ui::discovery::StreamDisplay>();
         app.add_message::<ui::discovery::CloseStream>();
         app.init_resource::<ButtonInput<KeyCode>>();
-        app.add_message::<core_discovery::Event>();
-        app.add_message::<replica_sync::JoinFailure>();
         app.add_systems(OnEnter(Screen::Connecting), systems::spawn_connecting);
         app.add_systems(OnEnter(Screen::Lobby), systems::spawn_root);
         app.add_systems(
@@ -93,6 +92,7 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
                         systems::highlight_selected_room.after(systems::animate_hover),
                         systems::refresh_room_preview,
                         systems::rebuild_preview_friends.after(systems::show_room_bubble_tooltip),
+                        systems::sync_peeked_room_friends.after(systems::show_room_bubble_tooltip),
                         systems::refresh_room_stream,
                         systems::rebuild_room_stream_action,
                         systems::layout_stream_panel,
@@ -115,6 +115,12 @@ impl bevy::prelude::Plugin for LobbyRoomUiPlugin {
     fn finish(&self, app: &mut App) {
         app.init_state::<ui::discovery::Screen>();
         app.add_sub_state::<ui::discovery::LeaveDialog>();
+        app.add_message::<core_discovery::Event>();
+        app.add_message::<replica_sync::JoinFailure>();
+        app.add_systems(
+            OnExit(ui::discovery::Screen::Lobby),
+            ui::discovery::bevy_systems::reset_peeked_room_friends,
+        );
         app.configure_sets(
             Update,
             ui::roll::RollSet::Drive.after(ui::discovery::bevy_systems::rebuild_room_list),
