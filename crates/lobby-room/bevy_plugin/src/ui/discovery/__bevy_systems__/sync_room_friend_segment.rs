@@ -234,6 +234,101 @@ mod tests {
         );
     }
 
+    const PULSE_PREVIEW_FPS: u32 = 30;
+    const PULSE_PREVIEW_FRAMES: u32 = 132;
+    const PULSE_SLOW_MOTION: f32 = 0.25;
+    const FIRST_FRIEND_DELAY_SECS: f32 = 0.10;
+    const SECOND_FRIEND_DELAY_SECS: f32 = 0.37;
+
+    #[derive(Resource, Default, Deref)]
+    struct PulseClock(Option<f32>);
+
+    fn start_pulse_preview(world: &mut World) {
+        world
+            .resource_mut::<Time<Virtual>>()
+            .set_relative_speed(PULSE_SLOW_MOTION);
+        let now = world.resource::<Time>().elapsed_secs();
+        world.insert_resource(PulseClock(Some(now)));
+    }
+
+    fn script_rows(
+        time: Res<Time>,
+        clock: Res<PulseClock>,
+        mut rows: ResMut<core_discovery::LobbyRows>,
+    ) {
+        let Some(started_at) = **clock.into_inner() else {
+            return;
+        };
+        let elapsed = time.into_inner().elapsed_secs() - started_at;
+        let wanted = if elapsed < FIRST_FRIEND_DELAY_SECS {
+            vec![lobby_row(2, 0)]
+        } else if elapsed < SECOND_FRIEND_DELAY_SECS {
+            vec![lobby_row(2, 1)]
+        } else {
+            vec![lobby_row(3, 2)]
+        };
+        if **rows != wanted {
+            *rows = core_discovery::LobbyRows(wanted);
+        }
+    }
+
+    fn pulse_preview_build(app: &mut App) {
+        app.insert_resource(core_discovery::LobbyRows(vec![lobby_row(2, 0)]));
+        app.init_resource::<PulseClock>();
+        app.add_plugins(ui::roll::UiPlugin);
+        app.add_systems(Startup, spawn_preview_list);
+        app.configure_sets(
+            Update,
+            ui::roll::RollSet::Drive.after(ui::discovery::bevy_systems::rebuild_room_list),
+        );
+        app.add_systems(
+            Update,
+            (
+                script_rows.before(ui::discovery::bevy_systems::rebuild_room_list),
+                ui::discovery::bevy_systems::rebuild_room_list,
+                sync_room_friend_segment.after(ui::roll::RollSet::Drive),
+            ),
+        );
+        app.add_systems(
+            PostStartup,
+            lele_bevy_preview::scene::bevy_systems::center_roots,
+        );
+    }
+
+    fn pulse_preview_settled(world: &mut World) {
+        *world.resource_mut::<core_discovery::LobbyRows>() =
+            core_discovery::LobbyRows(vec![lobby_row(3, 2)]);
+        let mut machines = world.query::<&mut ui::roll::RollMachine>();
+        for mut machine in machines.iter_mut(world) {
+            **machine = ui::roll::State::new(vec![3, 8, 2], Some(ui::discovery::FRIENDS_SLOT));
+        }
+    }
+
+    #[test]
+    fn sync_room_friend_segment_pulse_ui_mp4_preview() {
+        let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
+        lele_bevy_preview::scene::Scene {
+            name: String::from("sync_room_friend_segment_pulse"),
+            kind: lele_bevy_preview::scene::Kind::System,
+            build: pulse_preview_build,
+            states: vec![lele_bevy_preview::scene::State {
+                label: String::from("settled: three of eight, two friends"),
+                apply: pulse_preview_settled,
+            }],
+            timeline: Some(lele_bevy_preview::scene::Timeline {
+                label: String::from("first friend pulse then one roll (0.25x)"),
+                frames: PULSE_PREVIEW_FRAMES,
+                fps: PULSE_PREVIEW_FPS,
+                apply: start_pulse_preview,
+            }),
+        }
+        .run(&lele_bevy_preview::preview::Config {
+            out_dir: out,
+            ..Default::default()
+        })
+        .expect("preview");
+    }
+
     #[test]
     fn sync_room_friend_segment_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
