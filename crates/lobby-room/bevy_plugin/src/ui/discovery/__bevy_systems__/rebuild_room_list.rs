@@ -302,6 +302,28 @@ mod tests {
     }
 
     #[test]
+    fn clearing_the_lobby_despawns_every_row() {
+        let mut app = app_with(vec![lobby_row(3, core_discovery::RoomOccupancy::HasSpace)]);
+        app.update();
+        assert_eq!(list_rows(&mut app).len(), 1);
+        *app.world_mut().resource_mut::<core_discovery::LobbyRows>() =
+            core_discovery::LobbyRows(Vec::new());
+        app.update();
+        let mut rows = app
+            .world_mut()
+            .query_filtered::<Entity, With<ui::discovery::RoomButton>>();
+        assert_eq!(
+            rows.iter(app.world()).count(),
+            0,
+            "an emptied lobby leaves no room row behind"
+        );
+        let mut lists = app
+            .world_mut()
+            .query_filtered::<Entity, With<ui::discovery::RoomList>>();
+        assert_eq!(lists.iter(app.world()).count(), 1, "the list itself stays");
+    }
+
+    #[test]
     fn the_bubble_color_follows_the_occupancy() {
         let rows = vec![
             core_discovery::LobbyRow {
@@ -496,30 +518,23 @@ mod tests {
         app.insert_resource(preview_friends());
         app.init_resource::<core_discovery::LobbyRows>();
         app.init_resource::<core_discovery::RoomFriendNames>();
-        app.add_systems(Startup, spawn_list);
+        app.add_systems(
+            Startup,
+            (
+                ui::discovery::bevy_systems::spawn_root,
+                lele_bevy_preview::scene::bevy_systems::center_roots,
+            )
+                .chain(),
+        );
         app.add_systems(
             Update,
             (
                 core_discovery::bevy_systems::rebuild_lobby_rows,
                 rebuild_room_list,
+                ui::discovery::bevy_systems::sync_room_friend_segment,
             )
                 .chain(),
         );
-    }
-
-    fn spawn_list(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands.spawn((
-            ChildOf(root),
-            ui::discovery::RoomList,
-            Node {
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(4.0),
-                ..default()
-            },
-        ));
     }
 
     const fn preview_noop(_world: &mut World) {}
