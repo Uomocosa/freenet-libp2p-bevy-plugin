@@ -67,6 +67,7 @@ impl Plugin for StarboardPlugin {
                     preview::bevy_systems::sync_slot_boards,
                     preview::bevy_systems::paint_slot_board,
                     preview::bevy_systems::draw_slot_remote_cursors,
+                    preview::bevy_systems::draw_friend_highlights,
                 )
                     .chain()
                     .after(replica_sync::ReplicaSyncSet::Drive),
