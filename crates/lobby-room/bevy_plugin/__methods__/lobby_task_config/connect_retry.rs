@@ -66,7 +66,7 @@ mod tests {
     use crate::discovery;
     use crate::identity;
 
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_usage() {
         let config = discovery::LobbyTaskConfig {
             host: "127.0.0.1".to_string(),
@@ -76,7 +76,14 @@ mod tests {
             discovery: discovery::Config::default(),
         };
         let (_target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
-        let handle = tokio::spawn(async move { connect_retry(&config, &target_rx).await });
-        handle.abort();
+        let outcome = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            connect_retry(&config, &target_rx),
+        )
+        .await;
+        assert!(
+            outcome.is_err(),
+            "connect_retry keeps retrying while no node answers"
+        );
     }
 }

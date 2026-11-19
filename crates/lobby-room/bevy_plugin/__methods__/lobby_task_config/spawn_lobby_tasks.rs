@@ -20,35 +20,4 @@ pub async fn spawn_lobby_tasks(
     });
 }
 
-#[cfg(test)]
-mod tests {
-    use super::spawn_lobby_tasks;
-    use crate::discovery;
-    use crate::identity;
-
-    #[tokio::test]
-    async fn test_usage() {
-        let config = discovery::LobbyTaskConfig {
-            host: "127.0.0.1".to_string(),
-            port: 0,
-            me: identity::PeerId::from("me"),
-            params: Vec::new(),
-            discovery: discovery::Config::default(),
-        };
-        let (_target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
-        let (lobbies_tx, _lobbies_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (peers_tx, _peers_rx) = tokio::sync::mpsc::unbounded_channel();
-        let handle = tokio::spawn(async move {
-            spawn_lobby_tasks(
-                &config,
-                discovery::LobbyTaskChannels {
-                    heartbeat_targets: target_rx,
-                    lobbies: lobbies_tx,
-                    freenet_peers: peers_tx,
-                },
-            )
-            .await;
-        });
-        handle.abort();
-    }
-}
+// no test_usage necessary

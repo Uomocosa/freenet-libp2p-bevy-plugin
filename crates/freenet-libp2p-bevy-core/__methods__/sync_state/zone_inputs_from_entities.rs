@@ -95,8 +95,10 @@ pub fn zone_inputs_from_entities<Op>(
 
 #[cfg(test)]
 mod tests {
-    use bevy::prelude::{Entity, With};
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::{Entity, Has, Query, Res, ResMut, With};
 
+    use super::zone_inputs_from_entities;
     use crate::identity;
     use crate::p2p;
     use crate::peers;
@@ -106,6 +108,47 @@ mod tests {
 
     #[test]
     fn test_usage() {
+        let game = identity::GameId::from("game");
+        let zone = identity::ZoneName::from("zone");
+        let mut app = testing::sync_app_with_capture(game.clone());
+        let zone_entity = testing::spawn_joined_zone(
+            &mut app,
+            &zone,
+            vec![identity::PeerId::from("alice")],
+            p2p::HistoryKeyPrefix::new(&game, &zone, time::UnixTime::from_secs(7)),
+            replica_sync::state_machine::ZoneLiveness {
+                is_zone_still_listed: true,
+                has_other_history_holders: false,
+            },
+        );
+        assert!(app.world().get::<identity::ZoneName>(zone_entity).is_some());
+        let (commands, inputs) = app
+            .world_mut()
+            .run_system_once(
+                |mut state: ResMut<replica_sync::bevy_systems::SyncState<u8>>,
+                 game: Res<replica_sync::SyncGame>,
+                 me_zones: Query<&peers::InZone, With<peers::Me>>,
+                 zone_details: Query<replica_sync::ZoneDetails<'_>>,
+                 member_peers: Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>| {
+                    zone_inputs_from_entities(
+                        &mut state,
+                        game.into_inner(),
+                        &me_zones,
+                        &zone_details,
+                        &member_peers,
+                    )
+                },
+            )
+            .expect("zone inputs");
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(
+            inputs.as_slice(),
+            [replica_sync::state_machine::Input::Joined { .. }]
+        ));
+    }
+
+    #[test]
+    fn sync_state_reacts_to_zone_membership_changes() {
         let game = identity::GameId::from("game");
         let zone = identity::ZoneName::from("zone");
         let prefix = p2p::HistoryKeyPrefix::new(&game, &zone, time::UnixTime::from_secs(7));

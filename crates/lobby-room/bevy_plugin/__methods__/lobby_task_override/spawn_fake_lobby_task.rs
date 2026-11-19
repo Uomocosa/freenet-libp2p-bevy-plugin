@@ -100,22 +100,22 @@ pub fn spawn_fake_lobby_task(
 mod tests {
     use super::spawn_fake_lobby_task;
     use crate::discovery;
+    use crate::freenet;
     use crate::identity;
 
     #[tokio::test]
     async fn test_usage() {
-        let task_override = discovery::LobbyTaskOverride {
-            orchestrator_port: Some(1),
-            peer: identity::Peer {
-                id: identity::PeerId::from("peer"),
-                addrs: Vec::new(),
-            },
-        };
         let (_target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
         let (lobbies_tx, _lobbies_rx) = tokio::sync::mpsc::unbounded_channel();
         let (peers_tx, _peers_rx) = tokio::sync::mpsc::unbounded_channel();
         let handle = spawn_fake_lobby_task(
-            task_override,
+            discovery::LobbyTaskOverride {
+                orchestrator_port: None,
+                peer: identity::Peer {
+                    id: identity::PeerId::from("peer"),
+                    addrs: Vec::new(),
+                },
+            },
             discovery::LobbyTaskChannels {
                 heartbeat_targets: target_rx,
                 lobbies: lobbies_tx,
@@ -123,6 +123,38 @@ mod tests {
             },
             identity::GameId::from("game"),
         );
+        handle.abort();
+        let joined = handle.await;
+        assert!(
+            joined
+                .expect_err("the fake lobby task is aborted")
+                .is_cancelled()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_fake_lobby_task_advertises_the_fake_gateway() {
+        let (_target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
+        let (lobbies_tx, _lobbies_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (peers_tx, mut peers_rx) = tokio::sync::mpsc::unbounded_channel();
+        let handle = spawn_fake_lobby_task(
+            discovery::LobbyTaskOverride {
+                orchestrator_port: Some(1),
+                peer: identity::Peer {
+                    id: identity::PeerId::from("peer"),
+                    addrs: Vec::new(),
+                },
+            },
+            discovery::LobbyTaskChannels {
+                heartbeat_targets: target_rx,
+                lobbies: lobbies_tx,
+                freenet_peers: peers_tx,
+            },
+            identity::GameId::from("game"),
+        );
+        let peers = peers_rx.recv().await.expect("the fake gateway is sent");
+        let gateway = peers.first().expect("the fake gateway is sent");
+        assert_eq!(gateway.id, freenet::FreenetPeerId::from("fake-gateway"));
         handle.abort();
     }
 }

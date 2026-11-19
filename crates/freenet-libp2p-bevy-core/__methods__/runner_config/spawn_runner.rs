@@ -46,5 +46,6 @@ mod tests {
         .await;
         handle.abort();
         assert!(found.is_ok());
+        assert!(handle.await.expect_err("aborted runner").is_cancelled());
     }
 }

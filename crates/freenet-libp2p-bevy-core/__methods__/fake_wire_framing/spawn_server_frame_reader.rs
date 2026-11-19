@@ -82,16 +82,24 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let framing = testing::FakeWireFraming;
-        let (_tx, rx) = tokio::sync::mpsc::unbounded_channel::<testing::FakeWireServerFrame>();
-        drop(rx);
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
             .expect("bind");
         let port = listener.local_addr().expect("port").port();
-        let stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{port}"))
+        let client = tokio::net::TcpStream::connect(format!("127.0.0.1:{port}"))
             .await
             .expect("connect");
-        let (reader, _) = stream.into_split();
-        let _ = framing.spawn_server_frame_reader(reader);
+        let (server, _) = listener.accept().await.expect("accept");
+        let (_, mut writer) = server.into_split();
+        let (reader, _) = client.into_split();
+        let mut frames = framing.spawn_server_frame_reader(reader);
+        let frame = testing::FakeWireServerFrame::Extension(vec![1, 2, 3]);
+        let body = bincode::serialize(&frame).expect("encode");
+        writer
+            .write_u32(u32::try_from(body.len()).expect("length"))
+            .await
+            .expect("length");
+        writer.write_all(&body).await.expect("body");
+        assert_eq!(frames.recv().await, Some(frame));
     }
 }

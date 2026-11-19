@@ -42,14 +42,17 @@ mod tests {
             .behaviour_mut()
             .peer_exchange
             .send_request(&peer, vec![1]);
-        handle_peer_exchange(
-            &mut state,
-            &peer,
-            request_response::Message::Response {
-                request_id,
-                response: vec![2],
-            },
-        );
-        assert!(rx.try_recv().is_err());
+        let forwarded = {
+            handle_peer_exchange(
+                &mut state,
+                &peer,
+                request_response::Message::Response {
+                    request_id,
+                    response: vec![2],
+                },
+            );
+            rx.try_recv()
+        };
+        assert!(forwarded.is_err());
     }
 }

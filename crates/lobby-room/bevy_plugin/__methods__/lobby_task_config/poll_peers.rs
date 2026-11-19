@@ -54,7 +54,7 @@ mod tests {
     use crate::discovery;
     use crate::identity;
 
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_usage() {
         let config = discovery::LobbyTaskConfig {
             host: "127.0.0.1".to_string(),
@@ -64,7 +64,14 @@ mod tests {
             discovery: discovery::Config::default(),
         };
         let (peers_tx, _peers_rx) = tokio::sync::mpsc::unbounded_channel();
-        let handle = tokio::spawn(async move { poll_peers(&config, peers_tx).await });
-        handle.abort();
+        let outcome = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            poll_peers(&config, peers_tx),
+        )
+        .await;
+        assert!(
+            outcome.is_err(),
+            "poll_peers waits for a node before its first tick"
+        );
     }
 }

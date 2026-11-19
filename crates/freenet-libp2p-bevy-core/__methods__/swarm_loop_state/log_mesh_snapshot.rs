@@ -10,17 +10,19 @@ pub fn log_mesh_snapshot<Payload: p2p::traits::Message>(state: &p2p::SwarmLoopSt
     tracing::debug!(target: "p2p", total, topics = ?topics, "p2p mesh snapshot");
 }
 
-// no test_usage necessary
-
 #[cfg(test)]
 mod tests {
     use super::log_mesh_snapshot;
 
     use crate::testing;
 
-    #[tokio::test]
-    async fn test_usage() {
+    #[test]
+    fn test_usage() {
         let (state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         log_mesh_snapshot(&state);
+        assert_eq!(
+            state.swarm.behaviour().gossipsub.all_mesh_peers().count(),
+            0
+        );
     }
 }

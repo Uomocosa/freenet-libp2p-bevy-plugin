@@ -32,6 +32,7 @@ pub fn state_machine_update(
 mod tests {
     use super::state_machine_update;
     use crate::discovery;
+    use crate::freenet;
     use crate::identity;
     use crate::time;
 
@@ -42,10 +43,16 @@ mod tests {
             addrs: Vec::new(),
         };
         let mut state = discovery::state_machine::DiscoveryState::new(me);
-        let _ = state_machine_update(
+        let peers = vec![freenet::FreenetPeer {
+            id: freenet::FreenetPeerId::from("gateway"),
+            addr: std::net::SocketAddr::from(([127, 0, 0, 1], 4001)),
+        }];
+        let outputs = state_machine_update(
             &mut state,
-            discovery::state_machine::Input::FreenetPeers(Vec::new()),
+            discovery::state_machine::Input::FreenetPeers(peers.clone()),
             time::UnixTime::from_secs(1),
         );
+        assert_eq!(outputs.len(), 0);
+        assert_eq!(state.freenet_peers, peers);
     }
 }

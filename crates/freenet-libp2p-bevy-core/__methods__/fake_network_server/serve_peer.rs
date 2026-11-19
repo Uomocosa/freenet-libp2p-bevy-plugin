@@ -91,11 +91,55 @@ pub async fn serve_peer(
 }
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use tokio::io::AsyncWriteExt;
+
+    use super::serve_peer;
+    use crate::identity;
     use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let _ = stringify!(serve_peer);
-        let _ = testing::FakeNetworkServer::start().await.map(|_| ());
+        let task = testing::FakeNetworkServer::start().await.expect("server");
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let port = listener.local_addr().expect("port").port();
+        let mut client = tokio::net::TcpStream::connect(format!("127.0.0.1:{port}"))
+            .await
+            .expect("connect");
+        let (stream, _) = listener.accept().await.expect("accept");
+        let shared = Arc::new(tokio::sync::Mutex::new(
+            testing::orchestrator_shared::OrchestratorShared::default(),
+        ));
+        let peer = identity::Peer {
+            id: identity::PeerId::from("peer"),
+            addrs: Vec::new(),
+        };
+        let hello = testing::FakeWireHello {
+            peer: peer.clone(),
+            game: identity::GameId::from("game"),
+        };
+        let body = bincode::serialize(&hello).expect("encode");
+        client
+            .write_u32(u32::try_from(body.len()).expect("length"))
+            .await
+            .expect("length");
+        client.write_all(&body).await.expect("body");
+
+        let serving = tokio::spawn(serve_peer(task, stream, shared.clone()));
+        let connected = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                if shared.lock().await.senders.contains_key(&peer.id) {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+        })
+        .await;
+        serving.abort();
+        assert!(connected.is_ok());
+        assert!(shared.lock().await.peer_games.contains_key(&peer.id));
     }
 }

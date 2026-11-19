@@ -16,7 +16,10 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn test_usage() {
         let started = tokio::time::Instant::now();
-        drive_virtual_seconds(1).await;
-        assert!(started.elapsed() >= Duration::from_secs(1));
+        let elapsed = {
+            drive_virtual_seconds(1).await;
+            started.elapsed()
+        };
+        assert!(elapsed >= Duration::from_secs(1));
     }
 }

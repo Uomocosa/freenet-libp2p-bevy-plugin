@@ -52,9 +52,13 @@ mod tests {
             observed_addr: "/ip4/1.2.3.4/tcp/4001".parse().expect("multiaddr"),
             signed_peer_record: None,
         };
-        handle_identify(&state, &libp2p::PeerId::random(), &info);
+        let peer_id = libp2p::PeerId::random();
+        let observed = {
+            handle_identify(&state, &peer_id, &info);
+            rx.try_recv()
+        };
         assert!(matches!(
-            rx.try_recv(),
+            observed,
             Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::ObservedAddr(addr)))
                 if addr == identity::PeerAddr::from("/ip4/1.2.3.4/tcp/4001")
         ));

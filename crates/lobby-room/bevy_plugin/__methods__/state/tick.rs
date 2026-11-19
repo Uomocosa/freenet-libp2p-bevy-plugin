@@ -62,7 +62,8 @@ mod tests {
     #[test]
     fn test_usage() {
         let mut state = State::new(vec![2, 8, 0], Some(2));
-        assert_eq!(state.update(Input::Tick { delta_secs: 0.05 }), Vec::new());
+        let outputs = state.tick(0.05);
+        assert_eq!(outputs, Vec::new());
         assert_eq!(state.phase, Phase::Idle);
     }
 

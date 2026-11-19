@@ -14,9 +14,11 @@ pub fn from_u8_slice(bytes: &[u8]) -> replica_sync::ReplicaSliceContentHash {
 mod tests {
     use crate::replica_sync::ReplicaSliceContentHash;
 
+    use super::from_u8_slice;
+
     #[test]
     fn test_usage() {
-        let hash = ReplicaSliceContentHash::from(b"tile".as_slice());
+        let hash = from_u8_slice(b"tile");
         assert_eq!(hash, ReplicaSliceContentHash::from(b"tile".as_slice()));
         assert_ne!(hash, ReplicaSliceContentHash::from(b"tile!".as_slice()));
     }

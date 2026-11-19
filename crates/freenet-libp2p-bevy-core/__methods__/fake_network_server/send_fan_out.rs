@@ -41,8 +41,63 @@ pub async fn send_fan_out(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use super::send_fan_out;
+    use crate::identity;
+    use crate::testing;
+
     #[tokio::test]
     async fn test_usage() {
-        let _ = stringify!(send_fan_out);
+        let task = testing::FakeNetworkServer::start().await.expect("server");
+        let game = identity::GameId::from("game");
+        let alice = identity::PeerId::from("alice");
+        let bob = identity::PeerId::from("bob");
+        let (alice_sender, mut alice_frames) = tokio::sync::mpsc::unbounded_channel();
+        let (bob_sender, mut bob_frames) = tokio::sync::mpsc::unbounded_channel();
+        let mut shared = testing::orchestrator_shared::OrchestratorShared::default();
+        shared.add_sender(&alice, &game, alice_sender);
+        shared.add_sender(&bob, &game, bob_sender);
+        let shared = Arc::new(tokio::sync::Mutex::new(shared));
+
+        let (alice_game, bob_game) = {
+            send_fan_out(
+                &task,
+                &shared,
+                &game,
+                vec![testing::FanOut {
+                    to: testing::FanOutTarget::Game,
+                    bytes: vec![7],
+                }],
+            )
+            .await;
+            (alice_frames.try_recv(), bob_frames.try_recv())
+        };
+        assert_eq!(
+            (alice_game, bob_game),
+            (
+                Ok(testing::FakeWireServerFrame::Extension(vec![7])),
+                Ok(testing::FakeWireServerFrame::Extension(vec![7])),
+            )
+        );
+
+        let (alice_direct, bob_direct) = {
+            send_fan_out(
+                &task,
+                &shared,
+                &game,
+                vec![testing::FanOut {
+                    to: testing::FanOutTarget::Peer(bob.clone()),
+                    bytes: vec![9],
+                }],
+            )
+            .await;
+            (alice_frames.try_recv(), bob_frames.try_recv())
+        };
+        assert!(alice_direct.is_err());
+        assert_eq!(
+            bob_direct,
+            Ok(testing::FakeWireServerFrame::Extension(vec![9]))
+        );
     }
 }

@@ -15,6 +15,7 @@ pub fn handle_kademlia_query_result<Payload: p2p::traits::Message>(
 mod tests {
     use libp2p::kad;
 
+    use super::handle_kademlia_query_result;
     use crate::p2p;
     use crate::testing;
 
@@ -22,17 +23,20 @@ mod tests {
     fn test_usage() {
         let (state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let chunk = testing::history_chunk("abc", "def", 5);
-        assert_eq!(
-            testing::libp2p_event_from_kademlia_result(
+        let forwarded = {
+            handle_kademlia_query_result(
                 &state,
-                &mut rx,
-                testing::kademlia_record_found(chunk.history_record_key())
-            ),
-            Some(p2p::Libp2pEvent::HistoryRecordFound {
-                id: chunk,
-                value: vec![1, 2, 3]
-            })
-        );
+                testing::kademlia_record_found(chunk.history_record_key()),
+            );
+            rx.try_recv()
+        };
+        assert!(matches!(
+            forwarded,
+            Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::HistoryRecordFound {
+                id,
+                value,
+            })) if id == chunk && value == vec![1, 2, 3]
+        ));
     }
 
     #[test]

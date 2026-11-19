@@ -54,31 +54,38 @@ impl Plugin for LobbyFakeNetworkPlugin {
 
 #[cfg(test)]
 mod tests {
+    use bevy::prelude::App;
+
+    use crate::discovery;
     use crate::testing;
 
     #[test]
     fn test_usage() {
         let args = testing::NetworkArgs {
-            network: testing::Network::Mainnet,
-            orchestrator_port: None,
+            network: testing::Network::Fake,
+            orchestrator_port: Some(4001),
         };
         let plugin = testing::FakeNetworkPlugin::<u8>::from(&args);
-        let _ = super::LobbyFakeNetworkPlugin::new(&plugin);
+        let mut app = App::new();
+        app.add_plugins(super::LobbyFakeNetworkPlugin::new(&plugin));
+        let task_override = app.world().resource::<discovery::LobbyTaskOverride>();
+        assert_eq!(task_override.orchestrator_port, Some(4001));
+        assert_eq!(task_override.peer.id, plugin.peer.id);
     }
-}
-
-#[cfg(test)]
-mod build_plugin_tests {
-    use crate::testing;
 
     #[test]
-    fn test_usage() {
+    fn building_the_plugin_for_mainnet_inserts_no_task_override() {
         let args = testing::NetworkArgs {
             network: testing::Network::Mainnet,
             orchestrator_port: None,
         };
         let plugin = testing::FakeNetworkPlugin::<u8>::from(&args);
         let mut app = bevy::prelude::App::new();
-        super::Plugin::build(&testing::LobbyFakeNetworkPlugin::new(&plugin), &mut app);
+        app.add_plugins(super::LobbyFakeNetworkPlugin::new(&plugin));
+        assert!(
+            app.world()
+                .get_resource::<discovery::LobbyTaskOverride>()
+                .is_none()
+        );
     }
 }

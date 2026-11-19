@@ -24,6 +24,17 @@ mod tests {
 
     #[test]
     fn test_usage() {
+        let args = testing::NetworkArgs {
+            network: testing::Network::Fake,
+            orchestrator_port: Some(4001),
+        };
+        assert!(args.validate().is_ok());
+        assert!(matches!(args.network, testing::Network::Fake));
+        assert_eq!(args.orchestrator_port, Some(4001));
+    }
+
+    #[test]
+    fn probe_parses_the_network_flags() {
         let probe = testing::NetworkArgsProbe::try_parse_from(["probe"]).expect("defaults");
         assert!(matches!(probe.network.network, testing::Network::Mainnet));
         assert_eq!(probe.network.orchestrator_port, None);

@@ -15,7 +15,8 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         let nested = dir.path().join("nested").join("board");
         let board = testing::harness::LocalCheckpointBoard::new(nested.clone());
-        ensure_dir(&board).expect("ensure");
+        let ensured = ensure_dir(&board);
+        assert!(ensured.is_ok());
         assert!(nested.is_dir());
     }
 }

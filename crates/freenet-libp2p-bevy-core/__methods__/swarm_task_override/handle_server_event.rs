@@ -60,12 +60,19 @@ mod tests {
             },
             marker: std::marker::PhantomData,
         };
-        let (event_tx, _event_rx) = tokio::sync::mpsc::unbounded_channel();
-        handle_server_event(
-            &task,
-            &p2p::swarm_loop::ZoneSubscriptions::new(identity::GameId::from("game")),
-            p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("peer")),
-            &event_tx,
-        );
+        let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel();
+        let forwarded = {
+            handle_server_event(
+                &task,
+                &p2p::swarm_loop::ZoneSubscriptions::new(identity::GameId::from("game")),
+                p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("peer")),
+                &event_tx,
+            );
+            event_rx.try_recv()
+        };
+        assert!(matches!(
+            forwarded,
+            Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::PeerConnected(_)))
+        ));
     }
 }

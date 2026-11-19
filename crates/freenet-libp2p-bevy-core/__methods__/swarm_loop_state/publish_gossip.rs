@@ -35,9 +35,12 @@ mod tests {
     #[tokio::test]
     async fn test_usage() {
         let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
-        publish_gossip(&mut state, &identity::Topic::from("global/topic"), vec![1]);
+        let result = {
+            publish_gossip(&mut state, &identity::Topic::from("global/topic"), vec![1]);
+            rx.try_recv()
+        };
         assert!(matches!(
-            rx.try_recv(),
+            result,
             Ok(p2p::Event::Error(message)) if message.starts_with("gossip publish")
         ));
     }

@@ -53,9 +53,12 @@ mod tests {
         assert!(rx.try_recv().is_err());
         dial_peer(&mut state, &peer, &addrs, PeerCondition::Always);
         assert!(rx.try_recv().is_err());
-        dial_peer(&mut state, &peer, &addrs, gentle);
+        let failure = {
+            dial_peer(&mut state, &peer, &addrs, gentle);
+            rx.try_recv()
+        };
         assert!(matches!(
-            rx.try_recv(),
+            failure,
             Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::DialFailed { .. }))
         ));
     }

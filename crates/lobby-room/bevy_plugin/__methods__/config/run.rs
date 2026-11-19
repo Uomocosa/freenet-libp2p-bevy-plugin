@@ -35,7 +35,7 @@ mod tests {
     use crate::discovery;
     use crate::p2p;
 
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_usage() {
         let config = discovery::Config::default();
         let (libp2p_commands, _libp2p_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -51,7 +51,8 @@ mod tests {
         let (_target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
         let (lobby_tx, _lobby_rx) = tokio::sync::mpsc::unbounded_channel();
         let (peers_tx, _peers_rx) = tokio::sync::mpsc::unbounded_channel();
-        let handle = tokio::spawn(async move {
+        let outcome = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
             run(
                 &config,
                 discovery::FreenetPort(0),
@@ -59,9 +60,12 @@ mod tests {
                 target_rx,
                 lobby_tx,
                 peers_tx,
-            )
-            .await;
-        });
-        handle.abort();
+            ),
+        )
+        .await;
+        assert!(
+            outcome.is_err(),
+            "run waits for a ready swarm before starting the lobby tasks"
+        );
     }
 }

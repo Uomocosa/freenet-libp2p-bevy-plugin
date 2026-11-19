@@ -50,9 +50,12 @@ mod tests {
                 topic: gossipsub::TopicHash::from_raw("global/topic"),
             },
         };
-        handle_gossipsub(&state, event);
+        let forwarded = {
+            handle_gossipsub(&state, event);
+            rx.try_recv()
+        };
         assert!(matches!(
-            rx.try_recv(),
+            forwarded,
             Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::Gossip { .. }))
         ));
     }

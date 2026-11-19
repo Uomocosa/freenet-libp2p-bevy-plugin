@@ -55,8 +55,11 @@ mod tests {
         let (mut state, mut rx) = testing::swarm_loop_state::<Vec<u8>>().expect("swarm loop state");
         let config = p2p::GossipsubConfig::default();
         let zone = identity::ZoneName::from("zone-a");
-        publish_zone(&mut state, &config, &zone, &vec![0; 70_000]);
-        let Ok(p2p::Event::Error(message)) = rx.try_recv() else {
+        let published = {
+            publish_zone(&mut state, &config, &zone, &vec![0; 70_000]);
+            rx.try_recv()
+        };
+        let Ok(p2p::Event::Error(message)) = published else {
             panic!("expected an error event");
         };
         assert!(message.contains("exceeds limit"));

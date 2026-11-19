@@ -107,19 +107,24 @@ mod tests {
     use super::run_lobby_sync_loop;
     use crate::testing;
 
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn test_usage() {
         let config = testing::lobby_task_config("me");
-        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         drop(read_tx);
         let subscription = testing::lobby_subscription(write, read);
         let (_target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
         let (lobbies_tx, _lobbies_rx) = tokio::sync::mpsc::unbounded_channel();
-        let handle = tokio::spawn(async move {
-            run_lobby_sync_loop(&config, subscription, target_rx, lobbies_tx).await;
-        });
-        handle.abort();
+        let subscribes = {
+            let _ = tokio::time::timeout(
+                std::time::Duration::from_secs(9),
+                run_lobby_sync_loop(&config, subscription, target_rx, lobbies_tx),
+            )
+            .await;
+            testing::subscribes_sent(&mut write_rx)
+        };
+        assert_eq!(subscribes, 1);
     }
 
     #[tokio::test(start_paused = true)]

@@ -114,10 +114,14 @@ impl bevy::prelude::Plugin for FriendsPlugin {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
+    use lele_bevy_state_machine::traits::StateMachine;
 
     use super::FriendsPlugin;
     use crate::direct_dial;
+    use crate::identity;
     use crate::p2p;
+    use crate::testing;
+    use crate::time;
 
     #[test]
     fn test_usage() {
@@ -152,22 +156,9 @@ mod tests {
             Some("bad address: use /ip4/<host>/tcp/<port>/p2p/<id>")
         );
     }
-}
-
-#[cfg(test)]
-mod build_friends_plugin_tests {
-    use bevy::prelude::Plugin;
-    use bevy::prelude::*;
-    use lele_bevy_state_machine::traits::StateMachine;
-
-    use crate::direct_dial;
-    use crate::identity;
-    use crate::p2p;
-    use crate::testing;
-    use crate::time;
 
     #[test]
-    fn test_usage() {
+    fn building_the_plugin_registers_dial_state() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         let plugin = direct_dial::FriendsPlugin::new(direct_dial::Config::from(None));

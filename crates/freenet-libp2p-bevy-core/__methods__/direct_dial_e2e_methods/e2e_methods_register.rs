@@ -16,14 +16,22 @@ pub fn e2e_methods_register(
 
 #[cfg(test)]
 mod tests {
-    use bevy::remote::RemotePlugin;
+    use bevy::prelude::{App, MinimalPlugins};
+    use bevy::remote::{RemoteMethods, RemotePlugin};
 
     use super::e2e_methods_register;
     use crate::testing;
 
     #[test]
     fn test_usage() {
-        let _registered =
-            e2e_methods_register(&testing::DirectDialE2EMethods, RemotePlugin::default());
+        let registered = {
+            let remote =
+                e2e_methods_register(&testing::DirectDialE2EMethods, RemotePlugin::default());
+            let mut app = App::new();
+            app.add_plugins(MinimalPlugins).add_plugins(remote);
+            app.world().resource::<RemoteMethods>().methods()
+        };
+        assert!(registered.contains(&String::from("e2e/dial")));
+        assert!(registered.contains(&String::from("direct_dial/status")));
     }
 }

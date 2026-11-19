@@ -96,7 +96,7 @@ mod tests {
         };
         let (_cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
         let (_libp2p_tx, libp2p_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (event_tx, _event_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel();
         let handle = spawn_fake_swarm_task(
             task_override,
             cmd_rx,
@@ -104,6 +104,11 @@ mod tests {
             event_tx,
             identity::GameId::from("game"),
         );
-        handle.abort();
+        let unreachable = tokio::time::timeout(std::time::Duration::from_secs(5), event_rx.recv())
+            .await
+            .expect("fake swarm reports")
+            .expect("event");
+        assert!(matches!(unreachable, p2p::Event::Error(_)));
+        assert!(handle.await.is_ok());
     }
 }

@@ -66,10 +66,4 @@ pub async fn start(
     })
 }
 
-#[cfg(test)]
-mod tests {
-    #[tokio::test]
-    async fn test_usage() {
-        let _ = stringify!(start);
-    }
-}
+// no test_usage necessary
