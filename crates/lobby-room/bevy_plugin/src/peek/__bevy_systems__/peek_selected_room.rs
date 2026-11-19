@@ -59,7 +59,7 @@ pub fn peek_selected_room(
     *started_room = Some(room.clone());
     if let Some(mut network) = network
         && let Some(member) = peek::bevy_systems::rendezvous_preview_dial::rendezvous_preview_dial(
-            Some(&state.me.id),
+            &state.me.id,
             room_record.members.values(),
         )
     {

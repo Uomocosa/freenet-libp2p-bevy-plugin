@@ -233,11 +233,12 @@ mod tests {
                     Update,
                     (
                         (
-                            |time: Res<Time>,
-                             mut clock: Local<Option<f32>>,
+                            |clock: Res<lele_bevy_preview::scene::Clock>,
+                             time: Res<Time>,
                              mut rows: ResMut<core_discovery::LobbyRows>| {
-                                let started_at = *clock.get_or_insert(time.elapsed_secs());
-                                let elapsed = time.elapsed_secs() - started_at;
+                                let Some(elapsed) = clock.elapsed(&time) else {
+                                    return;
+                                };
                                 let (occupants, friends) = if elapsed < FIRST_FRIEND_DELAY_SECS {
                                     (2, 0)
                                 } else if elapsed < SECOND_FRIEND_DELAY_SECS {
@@ -268,12 +269,10 @@ mod tests {
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("settled: three of eight, two friends"),
                 apply: |world: &mut World| {
-                    {
-                        let mut rows = world.resource_mut::<core_discovery::LobbyRows>();
-                        if let Some(row) = rows.0.first_mut() {
-                            row.occupants = 3;
-                            row.friends = 2;
-                        }
+                    let mut rows = world.resource_mut::<core_discovery::LobbyRows>();
+                    if let Some(row) = rows.0.first_mut() {
+                        row.occupants = 3;
+                        row.friends = 2;
                     }
                     let mut machines = world.query::<&mut ui::roll::RollMachine>();
                     for mut machine in machines.iter_mut(world) {
@@ -290,6 +289,7 @@ mod tests {
                     world
                         .resource_mut::<Time<Virtual>>()
                         .set_relative_speed(PULSE_SLOW_MOTION);
+                    lele_bevy_preview::scene::Clock::start(world);
                 },
             }),
         }

@@ -3,7 +3,7 @@ use crate::identity;
 
 #[must_use]
 pub(crate) fn rendezvous_preview_dial<'a>(
-    me: Option<&identity::PeerId>,
+    me: &identity::PeerId,
     members: impl IntoIterator<Item = &'a discovery::RoomMember>,
 ) -> Option<&'a discovery::RoomMember> {
     let mut dialable: Vec<&'a discovery::RoomMember> = Vec::new();
@@ -21,9 +21,6 @@ pub(crate) fn rendezvous_preview_dial<'a>(
     if dialable.is_empty() {
         dialable = occupants;
     }
-    let Some(me) = me else {
-        return dialable.into_iter().next();
-    };
     dialable
         .into_iter()
         .filter(|member| member.peer.id != *me)

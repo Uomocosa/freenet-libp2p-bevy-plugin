@@ -37,18 +37,7 @@ mod tests {
     use super::refresh_roster_tooltip;
     use crate::discovery as core_discovery;
     use crate::ui;
-    use bevy::picking::backend::HitData;
-    use bevy::picking::hover::PointerCaptureMap;
-    use bevy::picking::pointer::PointerId;
     use bevy::prelude::*;
-
-    const SYNTHETIC_HIT: HitData = HitData {
-        camera: Entity::PLACEHOLDER,
-        depth: 0.0,
-        position: None,
-        normal: None,
-        extra: None,
-    };
 
     #[test]
     fn refresh_roster_tooltip_ui_png_preview() {
@@ -96,45 +85,15 @@ mod tests {
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("dot hovered"),
-                    apply: |world: &mut World| {
-                        let dot = world
-                            .query_filtered::<Entity, With<ui::roster::RosterDot>>()
-                            .iter(world)
-                            .next();
-                        if let Some(dot) = dot {
-                            world.resource_mut::<PointerCaptureMap>().capture(
-                                PointerId::Mouse,
-                                dot,
-                                SYNTHETIC_HIT,
-                            );
-                        }
-                    },
+                    apply: lele_bevy_preview::scene::Scene::hover::<ui::roster::RosterDot>,
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("count hovered"),
-                    apply: |world: &mut World| {
-                        let count = world
-                            .query_filtered::<Entity, With<ui::roster::RosterCount>>()
-                            .iter(world)
-                            .next();
-                        if let Some(count) = count {
-                            world.resource_mut::<PointerCaptureMap>().capture(
-                                PointerId::Mouse,
-                                count,
-                                SYNTHETIC_HIT,
-                            );
-                        }
-                    },
+                    apply: lele_bevy_preview::scene::Scene::hover::<ui::roster::RosterCount>,
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("not hovered"),
-                    apply: |world: &mut World| {
-                        drop(
-                            world
-                                .resource_mut::<PointerCaptureMap>()
-                                .release(PointerId::Mouse),
-                        );
-                    },
+                    apply: |_world: &mut World| {},
                 },
             ],
             timeline: None,

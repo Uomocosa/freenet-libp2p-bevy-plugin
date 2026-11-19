@@ -40,18 +40,7 @@ mod tests {
     use crate::discovery as core_discovery;
     use crate::spectator;
     use crate::ui;
-    use bevy::picking::backend::HitData;
-    use bevy::picking::hover::PointerCaptureMap;
-    use bevy::picking::pointer::PointerId;
     use bevy::prelude::*;
-
-    const SYNTHETIC_HIT: HitData = HitData {
-        camera: Entity::PLACEHOLDER,
-        depth: 0.0,
-        position: None,
-        normal: None,
-        extra: None,
-    };
 
     #[test]
     fn refresh_spectator_tooltip_ui_png_preview() {
@@ -100,29 +89,11 @@ mod tests {
             states: vec![
                 lele_bevy_preview::scene::State {
                     label: String::from("not hovered"),
-                    apply: |world: &mut World| {
-                        drop(
-                            world
-                                .resource_mut::<PointerCaptureMap>()
-                                .release(PointerId::Mouse),
-                        );
-                    },
+                    apply: |_world: &mut World| {},
                 },
                 lele_bevy_preview::scene::State {
                     label: String::from("hovered"),
-                    apply: |world: &mut World| {
-                        let pill = world
-                            .query_filtered::<Entity, With<ui::roster::SpectatorPill>>()
-                            .iter(world)
-                            .next();
-                        if let Some(pill) = pill {
-                            world.resource_mut::<PointerCaptureMap>().capture(
-                                PointerId::Mouse,
-                                pill,
-                                SYNTHETIC_HIT,
-                            );
-                        }
-                    },
+                    apply: lele_bevy_preview::scene::Scene::hover::<ui::roster::SpectatorPill>,
                 },
             ],
             timeline: None,
