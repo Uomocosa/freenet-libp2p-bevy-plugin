@@ -38,6 +38,12 @@ impl Room {
 #[atomic_delegates]
 impl Room {
     #[must_use]
+    pub fn rendezvous_preview_dial(&self, me: &PeerId) -> Option<&RoomMember> {}
+}
+
+#[atomic_delegates]
+impl Room {
+    #[must_use]
     pub(crate) fn newest_room_member(&self) -> UnixTime {}
 }
 

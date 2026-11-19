@@ -42,10 +42,7 @@ pub fn stream_streamed_room(
     let history_prefix = p2p::HistoryKeyPrefix::new(game, &room, room_record.created_at);
     *started_room = Some(room.clone());
     if let Some(mut network) = network
-        && let Some(member) = peek::bevy_systems::rendezvous_preview_dial::rendezvous_preview_dial(
-            &state.me.id,
-            room_record.members.values(),
-        )
+        && let Some(member) = room_record.rendezvous_preview_dial(&state.me.id)
     {
         network.write(p2p::Libp2pCommand::Dial(member.peer.clone()));
     }

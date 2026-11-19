@@ -1,5 +1,4 @@
 pub mod peek_selected_room;
-pub mod rendezvous_preview_dial;
 pub mod stream_streamed_room;
 pub mod sync_preview_target;
 pub mod sync_stream_target;
