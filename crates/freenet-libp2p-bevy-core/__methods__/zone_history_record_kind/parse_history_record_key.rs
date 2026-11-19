@@ -31,21 +31,14 @@ mod tests {
     use super::parse_history_record_key;
 
     use crate::p2p;
-
-    fn chunk_id(prefix: &str, hash: &str, chunk: u64) -> p2p::ZoneHistoryRecordKind {
-        p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
-            prefix: p2p::HistoryKeyPrefix::from(prefix),
-            content_hash: p2p::ContentHash::from(hash),
-            chunk: p2p::ChunkIndex(chunk),
-        })
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let key = chunk_id("abc", "def", 7).history_record_key();
+        let key = testing::history_chunk("abc", "def", 7).history_record_key();
         assert_eq!(
             parse_history_record_key(&key),
-            Some(chunk_id("abc", "def", 7))
+            Some(testing::history_chunk("abc", "def", 7))
         );
     }
 
@@ -58,8 +51,8 @@ mod tests {
 
     #[test]
     fn test_usage_keys_differ_by_content_hash() {
-        let first = chunk_id("abc", "aaa", 0).history_record_key();
-        let second = chunk_id("abc", "bbb", 0).history_record_key();
+        let first = testing::history_chunk("abc", "aaa", 0).history_record_key();
+        let second = testing::history_chunk("abc", "bbb", 0).history_record_key();
         assert_ne!(first.as_ref(), second.as_ref());
     }
 

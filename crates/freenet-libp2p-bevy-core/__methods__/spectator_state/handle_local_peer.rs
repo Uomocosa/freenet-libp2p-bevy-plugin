@@ -23,37 +23,19 @@ pub fn handle_local_peer<Op, Snap>(
 mod tests {
     use super::handle_local_peer;
     use crate::identity;
-    use crate::p2p;
     use crate::spectator;
+    use crate::testing;
     use crate::time;
-
-    fn state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        spectator::state_machine::SpectatorState::new(identity::GameId::from("game"))
-    }
-
-    fn interval() -> std::time::Duration {
-        spectator::state_machine::MIN_LEASE_INTERVAL
-    }
-
-    fn spectating_state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        let mut state = state();
-        state.start_spectating(
-            &identity::ZoneName::from("zone"),
-            p2p::HistoryKeyPrefix::from("prefix"),
-            time::UnixTime::from_secs(10),
-            interval(),
-        );
-        state
-    }
 
     #[test]
     fn test_usage() {
-        let mut state = state();
+        let mut state =
+            testing::spectator_state(None, spectator::state_machine::SpectatePhase::Idle);
         let outputs = handle_local_peer(
             &mut state,
             Some(identity::PeerId::from("me")),
             time::UnixTime::from_secs(10),
-            interval(),
+            spectator::state_machine::MIN_LEASE_INTERVAL,
         );
         assert_eq!(state.me, Some(identity::PeerId::from("me")));
         assert_eq!(outputs, Vec::new());
@@ -61,13 +43,17 @@ mod tests {
 
     #[test]
     fn learning_the_id_while_spectating_publishes_a_lease() {
-        let mut state = spectating_state();
+        let mut state = testing::spectating_state(
+            None,
+            time::UnixTime::from_secs(10),
+            spectator::state_machine::MIN_LEASE_INTERVAL,
+        );
         let now = time::UnixTime::from_secs(20);
         let outputs = handle_local_peer(
             &mut state,
             Some(identity::PeerId::from("me")),
             now,
-            interval(),
+            spectator::state_machine::MIN_LEASE_INTERVAL,
         );
         assert_eq!(
             outputs,
@@ -84,19 +70,23 @@ mod tests {
 
     #[test]
     fn repeating_the_same_id_publishes_nothing() {
-        let mut state = spectating_state();
+        let mut state = testing::spectating_state(
+            None,
+            time::UnixTime::from_secs(10),
+            spectator::state_machine::MIN_LEASE_INTERVAL,
+        );
         handle_local_peer(
             &mut state,
             Some(identity::PeerId::from("me")),
             time::UnixTime::from_secs(20),
-            interval(),
+            spectator::state_machine::MIN_LEASE_INTERVAL,
         );
         assert_eq!(
             handle_local_peer(
                 &mut state,
                 Some(identity::PeerId::from("me")),
                 time::UnixTime::from_secs(30),
-                interval(),
+                spectator::state_machine::MIN_LEASE_INTERVAL,
             ),
             Vec::new()
         );

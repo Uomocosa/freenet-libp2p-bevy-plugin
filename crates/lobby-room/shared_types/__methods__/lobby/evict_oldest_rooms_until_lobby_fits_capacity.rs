@@ -15,42 +15,43 @@ pub fn evict_oldest_rooms_until_lobby_fits_capacity(lobby: &mut Lobby, capacity:
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::evict_oldest_rooms_until_lobby_fits_capacity;
     use crate::Lobby;
-    use crate::Room;
-    use crate::RoomMember;
     use crate::RoomMembership;
     use crate::RoomName;
-    use crate::RoomSize;
-    use common_types::Peer;
-    use common_types::PeerId;
+    use crate::testing;
     use common_types::UnixTime;
-
-    fn room_updated_at(secs: u64) -> Room {
-        let room_member = RoomMember {
-            peer: Peer {
-                id: PeerId::from("peer"),
-                addrs: Vec::new(),
-            },
-            updated_at: UnixTime::from_secs(secs),
-            display_name: None,
-            membership: RoomMembership::Occupant,
-        };
-        Room {
-            room_size: RoomSize::DEFAULT,
-            created_at: UnixTime::EPOCH,
-            members: BTreeMap::from([(PeerId::from("peer"), room_member)]),
-        }
-    }
 
     #[test]
     fn test_usage() {
         let mut lobby = Lobby::from([
-            (RoomName::from("old"), room_updated_at(1)),
-            (RoomName::from("new"), room_updated_at(9)),
-            (RoomName::from("mid"), room_updated_at(5)),
+            (
+                RoomName::from("old"),
+                testing::room_with_one_member(
+                    "peer",
+                    Vec::new(),
+                    UnixTime::from_secs(1),
+                    RoomMembership::Occupant,
+                ),
+            ),
+            (
+                RoomName::from("new"),
+                testing::room_with_one_member(
+                    "peer",
+                    Vec::new(),
+                    UnixTime::from_secs(9),
+                    RoomMembership::Occupant,
+                ),
+            ),
+            (
+                RoomName::from("mid"),
+                testing::room_with_one_member(
+                    "peer",
+                    Vec::new(),
+                    UnixTime::from_secs(5),
+                    RoomMembership::Occupant,
+                ),
+            ),
         ]);
         evict_oldest_rooms_until_lobby_fits_capacity(&mut lobby, 2);
         assert_eq!(lobby.len(), 2);

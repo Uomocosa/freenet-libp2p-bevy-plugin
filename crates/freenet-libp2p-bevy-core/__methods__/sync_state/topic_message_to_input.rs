@@ -31,36 +31,13 @@ mod tests {
     use super::topic_message_to_input;
     use crate::identity;
     use crate::replica_sync;
+    use crate::testing;
     use crate::time;
-
-    #[derive(Default, bevy::prelude::Resource)]
-    struct Probe;
-
-    impl replica_sync::traits::ReplicatedState for Probe {
-        type Op = u8;
-        type Snapshot = u8;
-
-        fn apply(&mut self, _meta: replica_sync::OpMeta, _op: &Self::Op) {}
-
-        fn snapshot(&self) -> Self::Snapshot {
-            0
-        }
-
-        fn merge(&mut self, _snapshot: Self::Snapshot) {}
-
-        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
-            Vec::new()
-        }
-
-        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
-            0
-        }
-    }
 
     #[test]
     fn test_usage() {
         let mut clock = replica_sync::LamportClock::default();
-        let replica = Probe;
+        let replica = testing::FakeReplica::<u8, u8>::default();
         let message = replica_sync::ReplicaSyncTopicMessage::SpectatorLease {
             zone: identity::ZoneName::from("zone"),
             spectator: identity::PeerId::from("spectator"),

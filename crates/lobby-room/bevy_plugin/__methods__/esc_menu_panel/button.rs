@@ -53,16 +53,25 @@ pub fn button(marker: impl Component, label: &str, hint: &str) -> impl Bundle {
 mod tests {
     use bevy::prelude::*;
 
-    use super::button;
+    use crate::ui;
 
-    #[derive(Component)]
-    struct Marker;
+    use super::button;
 
     #[test]
     fn test_usage() {
         let mut world = World::new();
-        let entity = world.spawn(button(Marker, "Friends", "Tab")).id();
-        assert!(world.get::<Marker>(entity).is_some());
+        let entity = world
+            .spawn(button(
+                ui::discovery::EscMenuFriendsButton,
+                "Friends",
+                "Tab",
+            ))
+            .id();
+        assert!(
+            world
+                .get::<ui::discovery::EscMenuFriendsButton>(entity)
+                .is_some()
+        );
         assert!(world.get::<Node>(entity).is_some());
     }
 }

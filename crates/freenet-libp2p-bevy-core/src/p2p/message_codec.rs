@@ -79,16 +79,12 @@ impl<Req: p2p::traits::Message, Resp: p2p::traits::Message> Codec for MessageCod
 
 #[cfg(test)]
 mod tests {
-    use serde::{Deserialize, Serialize};
+    use crate::testing;
 
     use super::MessageCodec;
-    use derive_more::Deref;
-
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Deref)]
-    struct Dummy(u32);
 
     #[test]
     fn test_usage() {
-        let _c = MessageCodec::<Dummy>::default();
+        let _c = MessageCodec::<testing::DummyMessage>::default();
     }
 }

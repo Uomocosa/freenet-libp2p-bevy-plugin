@@ -24,6 +24,7 @@ mod tests {
     use super::Peer;
     use crate::PeerError;
     use crate::PeerId;
+    use crate::testing;
 
     #[test]
     fn test_usage() {
@@ -34,14 +35,9 @@ mod tests {
         assert_eq!(peer.id.as_str(), "me");
     }
 
-    fn friend_addr() -> String {
-        let id = "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC";
-        format!("/ip4/127.0.0.1/tcp/4001/p2p/{id}")
-    }
-
     #[test]
     fn parses_a_multiaddr_ending_in_a_peer_id() {
-        let text = friend_addr();
+        let text = testing::friend_addr();
         let peer = Peer::try_from(text.as_str()).expect("good address");
         assert_eq!(peer.addrs.len(), 1);
         assert!(peer.id.as_str().len() > 10);

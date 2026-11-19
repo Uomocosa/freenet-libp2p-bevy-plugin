@@ -20,41 +20,13 @@ mod tests {
     use crate::methods::machine::start_slot;
     use crate::p2p;
     use crate::spectator;
+    use crate::testing;
     use crate::time;
-
-    fn machine() -> spectator::Machine<u8> {
-        let mut machine = spectator::Machine::new(identity::GameId::from("game"));
-        machine.me = Some(identity::PeerId::from("me"));
-        machine
-    }
-
-    fn outputs_of(
-        outputs: &[spectator::MachineOutput<u8, Vec<u8>>],
-    ) -> Vec<&spectator::state_machine::SpectateOutput<u8, Vec<u8>>> {
-        outputs
-            .iter()
-            .filter_map(|output| match output {
-                spectator::MachineOutput::Session { output, .. } => Some(output),
-                spectator::MachineOutput::SpectatorCountChanged(_) => None,
-            })
-            .collect()
-    }
-
-    fn leases(outputs: &[spectator::MachineOutput<u8, Vec<u8>>]) -> usize {
-        outputs_of(outputs)
-            .into_iter()
-            .filter(|output| {
-                matches!(
-                    output,
-                    spectator::state_machine::SpectateOutput::PublishLease { .. }
-                )
-            })
-            .count()
-    }
 
     #[test]
     fn test_usage() {
-        let mut machine = machine();
+        let mut machine = testing::machine();
+        machine.me = Some(identity::PeerId::from("me"));
         let zone = identity::ZoneName::from("zone");
         start_slot(
             &mut machine,
@@ -68,13 +40,20 @@ mod tests {
             spectator::SpectateSlot::Stream,
             time::UnixTime::from_secs(20),
         );
-        assert_eq!(leases(&outputs), 1);
+        assert_eq!(
+            testing::count_session_outputs(&outputs, |output| matches!(
+                output,
+                spectator::state_machine::SpectateOutput::PublishLease { .. }
+            )),
+            1
+        );
         assert!(machine.sessions.is_empty());
     }
 
     #[test]
     fn stopping_preview_leaves_stream_intact() {
-        let mut machine = machine();
+        let mut machine = testing::machine();
+        machine.me = Some(identity::PeerId::from("me"));
         start_slot(
             &mut machine,
             spectator::SpectateSlot::Stream,
@@ -94,12 +73,22 @@ mod tests {
             spectator::SpectateSlot::Preview,
             time::UnixTime::from_secs(20),
         );
-        assert_eq!(leases(&outputs), 1);
-        assert!(outputs_of(&outputs).iter().any(|output| matches!(
-            output,
-            spectator::state_machine::SpectateOutput::UnwatchZone(zone)
-                if *zone == identity::ZoneName::from("preview-zone")
-        )));
+        assert_eq!(
+            testing::count_session_outputs(&outputs, |output| matches!(
+                output,
+                spectator::state_machine::SpectateOutput::PublishLease { .. }
+            )),
+            1
+        );
+        assert!(
+            testing::session_outputs(&outputs)
+                .iter()
+                .any(|output| matches!(
+                    output,
+                    spectator::state_machine::SpectateOutput::UnwatchZone(zone)
+                        if *zone == identity::ZoneName::from("preview-zone")
+                ))
+        );
         assert_eq!(
             machine.zone_of(spectator::SpectateSlot::Stream),
             Some(&identity::ZoneName::from("stream-zone"))
@@ -108,7 +97,8 @@ mod tests {
 
     #[test]
     fn stopping_one_of_two_slots_on_one_zone_keeps_the_lease_and_the_subscription() {
-        let mut machine = machine();
+        let mut machine = testing::machine();
+        machine.me = Some(identity::PeerId::from("me"));
         let zone = identity::ZoneName::from("shared");
         start_slot(
             &mut machine,
@@ -129,20 +119,40 @@ mod tests {
             spectator::SpectateSlot::Preview,
             time::UnixTime::from_secs(20),
         );
-        assert_eq!(leases(&still_shared), 0);
-        assert!(!outputs_of(&still_shared).iter().any(|output| matches!(
-            output,
-            spectator::state_machine::SpectateOutput::Unsubscribe(_)
-        )));
+        assert_eq!(
+            testing::count_session_outputs(&still_shared, |output| matches!(
+                output,
+                spectator::state_machine::SpectateOutput::PublishLease { .. }
+            )),
+            0
+        );
+        assert!(
+            !testing::session_outputs(&still_shared)
+                .iter()
+                .any(|output| matches!(
+                    output,
+                    spectator::state_machine::SpectateOutput::Unsubscribe(_)
+                ))
+        );
         let last = stop_slot(
             &mut machine,
             spectator::SpectateSlot::Stream,
             time::UnixTime::from_secs(21),
         );
-        assert_eq!(leases(&last), 1);
-        assert!(outputs_of(&last).iter().any(|output| matches!(
-            output,
-            spectator::state_machine::SpectateOutput::Unsubscribe(_)
-        )));
+        assert_eq!(
+            testing::count_session_outputs(&last, |output| matches!(
+                output,
+                spectator::state_machine::SpectateOutput::PublishLease { .. }
+            )),
+            1
+        );
+        assert!(
+            testing::session_outputs(&last)
+                .iter()
+                .any(|output| matches!(
+                    output,
+                    spectator::state_machine::SpectateOutput::Unsubscribe(_)
+                ))
+        );
     }
 }

@@ -131,8 +131,6 @@ impl Plugin {
 mod build_plugin_tests {
     use bevy::prelude::Plugin;
     use bevy::prelude::*;
-    use lele_bevy_state_machine::Now;
-    use lele_bevy_state_machine::testing::FrozenClock;
 
     use crate::discovery;
     use crate::identity;
@@ -152,25 +150,9 @@ mod build_plugin_tests {
         assert!(app.world().get_resource::<discovery::Config>().is_some());
     }
 
-    fn app_with_swarm() -> App {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(p2p::ReadyChannel::default());
-        app.insert_resource(p2p::Libp2pEventChannel::default());
-        let (cmd_tx, _cmd_rx) = tokio::sync::mpsc::unbounded_channel();
-        app.insert_resource(p2p::Libp2pCommandSender(cmd_tx));
-        let frozen = time::UnixTime::from_secs(2_000_000_000);
-        app.insert_resource(Now(frozen));
-        app.insert_resource(FrozenClock);
-        app.add_systems(Last, p2p::bevy_systems::send_libp2p_commands);
-        let plugin = discovery::Plugin::new(discovery::Config::default());
-        Plugin::build(&plugin, &mut app);
-        app
-    }
-
     #[tokio::test]
     async fn joining_a_room_subscribes_the_swarm_to_the_room_topic() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         app.insert_resource(p2p::Libp2pCommandSender(tx));
         let peer = identity::Peer {
@@ -208,7 +190,7 @@ mod build_plugin_tests {
 
     #[test]
     fn inputs_before_swarm_ready_are_processed_after_state_appears() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         let room = discovery::RoomName::from("room-a");
         app.world_mut()
             .resource_mut::<Messages<discovery::state_machine::Input>>()
@@ -239,7 +221,7 @@ mod build_plugin_tests {
 
     #[test]
     fn a_history_store_measurement_reaches_the_sender_exactly_once() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         let peer = identity::Peer {
             id: identity::PeerId::from("me"),
             addrs: vec![identity::PeerAddr::from("/ip4/1.2.3.4/tcp/4001")],
@@ -273,7 +255,7 @@ mod build_plugin_tests {
 
     #[test]
     fn quit_on_app_exit_produces_departed_heartbeat_and_leave_handshake() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         let peer = identity::Peer {
             id: identity::PeerId::from("me"),
             addrs: vec![identity::PeerAddr::from("/ip4/1.2.3.4/tcp/4001")],
@@ -335,7 +317,7 @@ mod build_plugin_tests {
 
     #[test]
     fn an_occupant_is_published_with_its_room_and_display_name() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         let room = discovery::RoomName::from("room-7");
         let peer = identity::PeerId::from("bob");
         let mut lobby = discovery::Lobby::default();
@@ -375,7 +357,7 @@ mod build_plugin_tests {
 
     #[test]
     fn a_history_holder_publishes_no_presence() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         let mut lobby = discovery::Lobby::default();
         lobby.insert(
             discovery::RoomName::from("room-7"),
@@ -407,7 +389,7 @@ mod build_plugin_tests {
 
     #[test]
     fn a_peer_in_two_rooms_takes_the_first_room_by_name() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         let peer = identity::PeerId::from("bob");
         let mut lobby = discovery::Lobby::default();
         for room in ["room-b", "room-a"] {
@@ -509,7 +491,7 @@ mod build_plugin_tests {
 
     #[test]
     fn a_stale_room_entity_is_not_reused() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         app.insert_resource(replica_sync::SyncGame(identity::GameId::from("game")));
         let room = discovery::RoomName::from("room-a");
         let mut lobby = discovery::Lobby::default();
@@ -562,7 +544,7 @@ mod build_plugin_tests {
 
     #[test]
     fn a_stale_peer_entity_is_not_reused() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         app.insert_resource(replica_sync::SyncGame(identity::GameId::from("game")));
         let room = discovery::RoomName::from("room-a");
         let alice = identity::PeerId::from("alice");
@@ -616,7 +598,7 @@ mod build_plugin_tests {
 
     #[test]
     fn a_holder_of_two_rooms_links_both_without_churn() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         app.insert_resource(replica_sync::SyncGame(identity::GameId::from("game")));
         let alice = identity::PeerId::from("alice");
         let mut lobby = discovery::Lobby::default();
@@ -689,7 +671,7 @@ mod build_plugin_tests {
 
     #[test]
     fn a_departed_holder_frees_its_links_and_the_room_is_swept() {
-        let mut app = app_with_swarm();
+        let mut app = testing::discovery_app_with_swarm();
         app.add_plugins(peers::TrackingPlugin);
         app.insert_resource(replica_sync::SyncGame(identity::GameId::from("game")));
         let room = discovery::RoomName::from("room-a");

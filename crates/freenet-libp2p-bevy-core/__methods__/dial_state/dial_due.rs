@@ -29,23 +29,14 @@ pub fn dial_due(
 #[cfg(test)]
 mod tests {
     use super::dial_due;
-    use crate::direct_dial;
     use crate::identity;
+    use crate::testing;
     use crate::time;
-
-    fn friend_state(now: time::UnixTime) -> direct_dial::state_machine::DialState {
-        let mut book = direct_dial::PeerBook::default();
-        assert!(book.add_friend(identity::Peer {
-            id: identity::PeerId::from("alice"),
-            addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/4001")],
-        }));
-        direct_dial::state_machine::DialState::from_peer_book(&book, now)
-    }
 
     #[test]
     fn test_usage() {
         let now = time::UnixTime::from_secs(10);
-        let mut state = friend_state(now);
+        let mut state = testing::dial_state_with_friend(now);
         let outputs = dial_due(&mut state, now);
         assert_eq!(outputs.len(), 1);
         assert!(

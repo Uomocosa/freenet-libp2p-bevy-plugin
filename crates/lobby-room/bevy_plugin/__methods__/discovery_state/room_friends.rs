@@ -34,101 +34,60 @@ pub fn room_friends(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::room_friends;
     use crate::discovery;
     use crate::identity;
     use crate::testing;
-    use crate::time;
-    use discovery::state_machine::DiscoveryState;
 
     const LONG_ID: &str = "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC";
 
-    fn room(
-        size: u16,
-        members: &[(&str, Option<&str>, discovery::RoomMembership)],
-    ) -> discovery::Room {
-        discovery::Room {
-            room_size: discovery::RoomSize::try_from(size).expect("fixture room size is non-zero"),
-            created_at: time::UnixTime::EPOCH,
-            members: members
-                .iter()
-                .map(|(peer, display_name, membership)| {
-                    (
-                        identity::PeerId::from(*peer),
-                        discovery::RoomMember {
-                            peer: identity::Peer {
-                                id: identity::PeerId::from(*peer),
-                                addrs: Vec::new(),
-                            },
-                            display_name: display_name.map(identity::Username::from),
-                            updated_at: time::UnixTime::EPOCH,
-                            membership: *membership,
-                        },
-                    )
-                })
-                .collect::<BTreeMap<_, _>>(),
-        }
-    }
-
-    fn state_with(rooms: Vec<(&str, discovery::Room)>) -> DiscoveryState {
-        let mut lobby = discovery::Lobby::default();
-        for (name, room) in rooms {
-            lobby.insert(discovery::RoomName::from(name), room);
-        }
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .with_lobby(lobby)
-            .build()
-    }
-
-    fn friend(peer: &str, name: &str) -> discovery::RoomFriend {
-        discovery::RoomFriend {
-            peer: identity::PeerId::from(peer),
-            name: identity::Username::from(name),
-        }
-    }
-
     #[test]
     fn test_usage() {
-        let friends = room_friends(
-            &state_with(Vec::new()),
-            &discovery::RoomName::from("alpha"),
-            &[],
-        );
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
+        let friends = room_friends(&state, &discovery::RoomName::from("alpha"), &[]);
         assert_eq!(friends, Vec::new());
     }
 
     #[test]
     fn friend_occupants_carry_their_peer_and_name() {
-        let state = state_with(vec![(
-            "alpha",
-            room(
-                8,
-                &[("alice", Some("Alice"), discovery::RoomMembership::Occupant)],
-            ),
-        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(
+                    discovery::RoomSize::DEFAULT,
+                    0,
+                    testing::room_members(&[(
+                        "alice",
+                        Some("Alice"),
+                        discovery::RoomMembership::Occupant,
+                    )]),
+                ),
+            )]))
+            .build();
         let friends = room_friends(
             &state,
             &discovery::RoomName::from("alpha"),
             &[identity::PeerId::from("alice")],
         );
-        assert_eq!(friends, vec![friend("alice", "Alice")]);
+        assert_eq!(friends, vec![testing::room_friend("alice", "Alice")]);
     }
 
     #[test]
     fn a_friend_history_holder_is_not_listed() {
-        let state = state_with(vec![(
-            "gamma",
-            room(
-                8,
-                &[(
-                    "alice",
-                    Some("Alice"),
-                    discovery::RoomMembership::HistoryHolder,
-                )],
-            ),
-        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "gamma",
+                testing::room(
+                    discovery::RoomSize::DEFAULT,
+                    0,
+                    testing::room_members(&[(
+                        "alice",
+                        Some("Alice"),
+                        discovery::RoomMembership::HistoryHolder,
+                    )]),
+                ),
+            )]))
+            .build();
         let friends = room_friends(
             &state,
             &discovery::RoomName::from("gamma"),
@@ -139,48 +98,67 @@ mod tests {
 
     #[test]
     fn a_member_without_a_display_name_falls_back_to_the_short_peer_id() {
-        let state = state_with(vec![(
-            "alpha",
-            room(8, &[(LONG_ID, None, discovery::RoomMembership::Occupant)]),
-        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(
+                    discovery::RoomSize::DEFAULT,
+                    0,
+                    testing::room_members(&[(LONG_ID, None, discovery::RoomMembership::Occupant)]),
+                ),
+            )]))
+            .build();
         let friends = room_friends(
             &state,
             &discovery::RoomName::from("alpha"),
             &[identity::PeerId::from(LONG_ID)],
         );
-        assert_eq!(friends, vec![friend(LONG_ID, "12D3Koo...99RC")]);
+        assert_eq!(
+            friends,
+            vec![testing::room_friend(LONG_ID, "12D3Koo...99RC")]
+        );
     }
 
     #[test]
     fn an_empty_display_name_falls_back_to_the_short_peer_id() {
-        let state = state_with(vec![(
-            "alpha",
-            room(
-                8,
-                &[("carol", Some(""), discovery::RoomMembership::Occupant)],
-            ),
-        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(
+                    discovery::RoomSize::DEFAULT,
+                    0,
+                    testing::room_members(&[(
+                        "carol",
+                        Some(""),
+                        discovery::RoomMembership::Occupant,
+                    )]),
+                ),
+            )]))
+            .build();
         let friends = room_friends(
             &state,
             &discovery::RoomName::from("alpha"),
             &[identity::PeerId::from("carol")],
         );
-        assert_eq!(friends, vec![friend("carol", "carol")]);
+        assert_eq!(friends, vec![testing::room_friend("carol", "carol")]);
     }
 
     #[test]
     fn friends_are_sorted_by_name() {
-        let state = state_with(vec![(
-            "alpha",
-            room(
-                8,
-                &[
-                    ("bob", Some("bob"), discovery::RoomMembership::Occupant),
-                    ("alice", Some("Alice"), discovery::RoomMembership::Occupant),
-                    ("zoe", Some("Zoe"), discovery::RoomMembership::Occupant),
-                ],
-            ),
-        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(
+                    discovery::RoomSize::DEFAULT,
+                    0,
+                    testing::room_members(&[
+                        ("bob", Some("bob"), discovery::RoomMembership::Occupant),
+                        ("alice", Some("Alice"), discovery::RoomMembership::Occupant),
+                        ("zoe", Some("Zoe"), discovery::RoomMembership::Occupant),
+                    ]),
+                ),
+            )]))
+            .build();
         let ids = [
             identity::PeerId::from("bob"),
             identity::PeerId::from("zoe"),
@@ -190,16 +168,16 @@ mod tests {
         assert_eq!(
             friends,
             vec![
-                friend("alice", "Alice"),
-                friend("zoe", "Zoe"),
-                friend("bob", "bob"),
+                testing::room_friend("alice", "Alice"),
+                testing::room_friend("zoe", "Zoe"),
+                testing::room_friend("bob", "bob"),
             ]
         );
     }
 
     #[test]
     fn an_unknown_room_has_no_friends() {
-        let state = state_with(Vec::new());
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let friends = room_friends(
             &state,
             &discovery::RoomName::from("alpha"),
@@ -210,13 +188,20 @@ mod tests {
 
     #[test]
     fn an_unknown_peer_is_skipped() {
-        let state = state_with(vec![(
-            "alpha",
-            room(
-                8,
-                &[("alice", Some("Alice"), discovery::RoomMembership::Occupant)],
-            ),
-        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(
+                    discovery::RoomSize::DEFAULT,
+                    0,
+                    testing::room_members(&[(
+                        "alice",
+                        Some("Alice"),
+                        discovery::RoomMembership::Occupant,
+                    )]),
+                ),
+            )]))
+            .build();
         let friends = room_friends(
             &state,
             &discovery::RoomName::from("alpha"),
@@ -225,6 +210,6 @@ mod tests {
                 identity::PeerId::from("missing"),
             ],
         );
-        assert_eq!(friends, vec![friend("alice", "Alice")]);
+        assert_eq!(friends, vec![testing::room_friend("alice", "Alice")]);
     }
 }

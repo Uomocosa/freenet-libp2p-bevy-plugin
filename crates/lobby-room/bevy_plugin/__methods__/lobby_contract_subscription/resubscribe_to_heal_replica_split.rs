@@ -17,31 +17,15 @@ pub fn resubscribe_to_heal_replica_split(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use freenet_stdlib::prelude::{ContractCode, ContractKey, Parameters, WrappedContract};
-
     use super::resubscribe_to_heal_replica_split;
-    use crate::{discovery, freenet};
-
-    fn contract_key() -> ContractKey {
-        WrappedContract::new(
-            Arc::new(ContractCode::from(discovery::LOBBY_CONTRACT_WASM.to_vec())),
-            Parameters::from(Vec::new()),
-        )
-        .key
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
         let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (_read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        let subscription = discovery::LobbyContractSubscription {
-            client: freenet::Client { write, read },
-            key: contract_key(),
-            lobby: discovery::Lobby::default(),
-            has_unread_subscribe_answer: false,
-        };
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        drop(read_tx);
+        let subscription = testing::lobby_subscription(write, read);
         assert!(resubscribe_to_heal_replica_split(&subscription).is_ok());
         assert!(write_rx.try_recv().is_ok());
     }

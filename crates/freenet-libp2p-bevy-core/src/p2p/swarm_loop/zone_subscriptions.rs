@@ -87,17 +87,14 @@ impl ZoneSubscriptions {
 
 #[cfg(test)]
 mod tests {
-    use libp2p::gossipsub;
-
-    use super::ZoneSubscriptions;
     use crate::identity;
+    use crate::testing;
 
     #[test]
     fn test_usage() {
         let zone = identity::ZoneName::from("zone-a");
-        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
-        let topic =
-            gossipsub::IdentTopic::new(identity::Topic::from_zone(&zones.game, &zone).as_str());
+        let mut zones = testing::zone_subscriptions("game");
+        let topic = zones.zone_topic(&zone);
         assert_eq!(zones.zone(&topic.hash()), None);
         assert_eq!(zones.joined, identity::Zone::Global);
         zones.register(&topic, zone.clone());
@@ -108,15 +105,11 @@ mod tests {
         assert_eq!(zones.joined, identity::Zone::Global);
     }
 
-    fn zone_topic(game: &identity::GameId, zone: &identity::ZoneName) -> gossipsub::IdentTopic {
-        gossipsub::IdentTopic::new(identity::Topic::from_zone(game, zone).as_str())
-    }
-
     #[test]
     fn watching_registers_the_topic_without_joining_the_zone() {
-        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
+        let mut zones = testing::zone_subscriptions("game");
         let zone = identity::ZoneName::from("zone-a");
-        let topic = zone_topic(&zones.game, &zone);
+        let topic = zones.zone_topic(&zone);
         zones.watch(&topic, zone.clone());
         assert_eq!(zones.zone(&topic.hash()), Some(&zone));
         assert_eq!(zones.joined, identity::Zone::Global);
@@ -127,9 +120,9 @@ mod tests {
 
     #[test]
     fn a_second_watch_keeps_the_zone_after_one_unwatch() {
-        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
+        let mut zones = testing::zone_subscriptions("game");
         let zone = identity::ZoneName::from("zone-a");
-        let topic = zone_topic(&zones.game, &zone);
+        let topic = zones.zone_topic(&zone);
         zones.watch(&topic, zone.clone());
         zones.watch(&topic, zone.clone());
         assert!(!zones.unwatch(&topic, &zone));
@@ -141,9 +134,9 @@ mod tests {
 
     #[test]
     fn unwatching_an_unknown_zone_changes_nothing() {
-        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
+        let mut zones = testing::zone_subscriptions("game");
         let zone = identity::ZoneName::from("zone-a");
-        let topic = zone_topic(&zones.game, &zone);
+        let topic = zones.zone_topic(&zone);
         assert!(!zones.unwatch(&topic, &zone));
         assert_eq!(zones.zone(&topic.hash()), None);
         assert!(zones.watched.is_empty());
@@ -151,9 +144,9 @@ mod tests {
 
     #[test]
     fn a_second_watch_keeps_a_joined_zone_after_one_unwatch() {
-        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
+        let mut zones = testing::zone_subscriptions("game");
         let zone = identity::ZoneName::from("zone-a");
-        let topic = zone_topic(&zones.game, &zone);
+        let topic = zones.zone_topic(&zone);
         zones.watch(&topic, zone.clone());
         zones.watch(&topic, zone.clone());
         zones.register(&topic, zone.clone());
@@ -169,9 +162,9 @@ mod tests {
 
     #[test]
     fn unwatching_a_joined_zone_keeps_the_topic_and_the_join() {
-        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
+        let mut zones = testing::zone_subscriptions("game");
         let zone = identity::ZoneName::from("zone-a");
-        let topic = zone_topic(&zones.game, &zone);
+        let topic = zones.zone_topic(&zone);
         zones.watch(&topic, zone.clone());
         zones.register(&topic, zone.clone());
         zones.unwatch(&topic, &zone);
@@ -181,9 +174,9 @@ mod tests {
 
     #[test]
     fn leaving_a_watched_zone_keeps_the_watched_topic() {
-        let mut zones = ZoneSubscriptions::new(identity::GameId::from("game"));
+        let mut zones = testing::zone_subscriptions("game");
         let zone = identity::ZoneName::from("zone-a");
-        let topic = zone_topic(&zones.game, &zone);
+        let topic = zones.zone_topic(&zone);
         zones.register(&topic, zone.clone());
         zones.watch(&topic, zone.clone());
         zones.unregister(&topic);

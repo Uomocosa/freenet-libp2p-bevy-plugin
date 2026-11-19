@@ -103,23 +103,9 @@ mod tests {
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
     use crate::time;
     use discovery::state_machine::DiscoveryState;
-
-    fn state_with(
-        lobby: discovery::Lobby,
-        room: Option<discovery::JoinedRoom>,
-        is_lobby_fetched: bool,
-    ) -> DiscoveryState {
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        state.lobby = lobby;
-        state.room = room;
-        state.is_lobby_fetched = is_lobby_fetched;
-        state
-    }
 
     #[test]
     fn test_usage() {
@@ -132,7 +118,10 @@ mod tests {
         );
         assert!(lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);
-        let empty = state_with(discovery::Lobby::default(), None, false);
+        let empty = DiscoveryState::new(identity::Peer {
+            id: identity::PeerId::from("me"),
+            addrs: Vec::new(),
+        });
         let (same_prefix, empty_status) = room_prefix_and_lobby_status(Some(&empty), &game, &room);
         assert_eq!(same_prefix, prefix);
         assert!(!empty_status.is_zone_still_listed);
@@ -140,32 +129,19 @@ mod tests {
 
     #[test]
     fn expired_holder_alone_means_the_room_is_gone() {
-        use std::collections::BTreeMap;
-
         let game = identity::GameId::from("game");
         let room = discovery::RoomName::from("room");
-        let holder = identity::PeerId::from("holder");
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            room.clone(),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: BTreeMap::from([(
-                    holder.clone(),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: holder,
-                            addrs: Vec::new(),
-                        },
-                        updated_at: time::UnixTime::EPOCH,
-                        display_name: None,
-                        membership: discovery::RoomMembership::Departed,
-                    },
-                )]),
-            },
-        );
-        let state = state_with(lobby, None, false);
+        let lobby = testing::lobby_with(vec![(
+            "room",
+            testing::room(
+                discovery::RoomSize::DEFAULT,
+                0,
+                testing::room_members(&[("holder", None, discovery::RoomMembership::Departed)]),
+            ),
+        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build();
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
         assert!(!lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);
@@ -173,33 +149,23 @@ mod tests {
 
     #[test]
     fn fresh_holder_means_wait_for_history() {
-        use std::collections::BTreeMap;
-
         let game = identity::GameId::from("game");
         let room = discovery::RoomName::from("room");
-        let holder = identity::PeerId::from("holder");
-        let seen_at = time::UnixTime::from_secs(10);
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            room.clone(),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: seen_at,
-                members: BTreeMap::from([(
-                    holder.clone(),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: holder,
-                            addrs: Vec::new(),
-                        },
-                        updated_at: seen_at,
-                        display_name: None,
-                        membership: discovery::RoomMembership::HistoryHolder,
-                    },
+        let lobby = testing::lobby_with(vec![(
+            "room",
+            testing::room(
+                discovery::RoomSize::DEFAULT,
+                10,
+                testing::room_members(&[(
+                    "holder",
+                    None,
+                    discovery::RoomMembership::HistoryHolder,
                 )]),
-            },
-        );
-        let state = state_with(lobby, None, false);
+            ),
+        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build();
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
         assert!(lobby_status.is_zone_still_listed);
         assert!(lobby_status.has_other_history_holders);
@@ -207,58 +173,29 @@ mod tests {
 
     #[test]
     fn joiner_with_only_its_own_entry_sees_the_room_as_gone() {
-        use std::collections::BTreeMap;
-
         let game = identity::GameId::from("game");
         let room = discovery::RoomName::from("room");
-        let me = identity::PeerId::from("me");
-        let gone = identity::PeerId::from("gone");
-        let seen_at = time::UnixTime::from_secs(10);
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            room.clone(),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: BTreeMap::from([
-                    (
-                        me.clone(),
-                        discovery::RoomMember {
-                            peer: identity::Peer {
-                                id: me,
-                                addrs: Vec::new(),
-                            },
-                            updated_at: seen_at,
-                            display_name: None,
-                            membership: discovery::RoomMembership::Occupant,
-                        },
-                    ),
-                    (
-                        gone.clone(),
-                        discovery::RoomMember {
-                            peer: identity::Peer {
-                                id: gone,
-                                addrs: Vec::new(),
-                            },
-                            updated_at: seen_at,
-                            display_name: None,
-                            membership: discovery::RoomMembership::Departed,
-                        },
-                    ),
+        let lobby = testing::lobby_with(vec![(
+            "room",
+            testing::room(
+                discovery::RoomSize::DEFAULT,
+                0,
+                testing::room_members(&[
+                    ("me", None, discovery::RoomMembership::Occupant),
+                    ("gone", None, discovery::RoomMembership::Departed),
                 ]),
-            },
-        );
-        let state = state_with(
-            lobby,
-            Some(discovery::JoinedRoom {
+            ),
+        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .in_room(discovery::JoinedRoom {
                 name: room.clone(),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Ready,
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Joined,
-            }),
-            false,
-        );
+            })
+            .build();
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
         assert!(!lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);
@@ -266,43 +203,25 @@ mod tests {
 
     #[test]
     fn creator_with_only_its_own_entry_sees_a_new_room() {
-        use std::collections::BTreeMap;
-
         let game = identity::GameId::from("game");
         let room = discovery::RoomName::from("room");
-        let me = identity::PeerId::from("me");
-        let seen_at = time::UnixTime::from_secs(10);
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            room.clone(),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: BTreeMap::from([(
-                    me.clone(),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: me,
-                            addrs: Vec::new(),
-                        },
-                        updated_at: seen_at,
-                        display_name: None,
-                        membership: discovery::RoomMembership::Occupant,
-                    },
-                )]),
-            },
-        );
-        let state = state_with(
-            lobby,
-            Some(discovery::JoinedRoom {
-                name: room.clone(),
-                created_at: time::UnixTime::EPOCH,
-                phase: discovery::JoinPhase::Ready,
-                members: discovery::Members::new(),
-                how_entered: discovery::HowRoomWasEntered::Created,
-            }),
-            false,
-        );
+        let lobby = testing::lobby_with(vec![(
+            "room",
+            testing::room(
+                discovery::RoomSize::DEFAULT,
+                0,
+                testing::room_members(&[("me", None, discovery::RoomMembership::Occupant)]),
+            ),
+        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .in_room(testing::joined_room(
+                "room",
+                0,
+                discovery::JoinPhase::Ready,
+                Vec::new(),
+            ))
+            .build();
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
         assert!(lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);
@@ -312,9 +231,8 @@ mod tests {
     fn late_joiner_with_fetched_empty_lobby_sees_the_room_as_gone() {
         let game = identity::GameId::from("game");
         let room = discovery::RoomName::from("room");
-        let state = state_with(
-            discovery::Lobby::default(),
-            Some(discovery::JoinedRoom {
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .in_room(discovery::JoinedRoom {
                 name: room.clone(),
                 created_at: time::UnixTime::EPOCH,
                 phase: discovery::JoinPhase::Joining {
@@ -322,9 +240,9 @@ mod tests {
                 },
                 members: discovery::Members::new(),
                 how_entered: discovery::HowRoomWasEntered::Joined,
-            }),
-            true,
-        );
+            })
+            .lobby_fetched()
+            .build();
         let (_, lobby_status) = room_prefix_and_lobby_status(Some(&state), &game, &room);
         assert!(!lobby_status.is_zone_still_listed);
         assert!(!lobby_status.has_other_history_holders);

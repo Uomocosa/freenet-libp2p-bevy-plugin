@@ -16,3 +16,6 @@ pub use room_size_error::RoomSizeError;
 
 #[path = "../__methods__/mod.rs"]
 mod methods;
+
+#[cfg(test)]
+pub(crate) mod testing;

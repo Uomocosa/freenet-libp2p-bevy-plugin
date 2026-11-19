@@ -86,83 +86,21 @@ mod tests {
     use super::room_roster;
     use crate::discovery;
     use crate::identity;
-    use crate::time;
-    use discovery::state_machine::DiscoveryState;
-    use std::collections::BTreeMap;
-
-    fn room_member(
-        peer: &str,
-        display_name: Option<&str>,
-        membership: discovery::RoomMembership,
-    ) -> discovery::RoomMember {
-        discovery::RoomMember {
-            peer: identity::Peer {
-                id: identity::PeerId::from(peer),
-                addrs: Vec::new(),
-            },
-            display_name: display_name.map(identity::Username::from),
-            updated_at: time::UnixTime::EPOCH,
-            membership,
-        }
-    }
-
-    fn room(
-        phase: discovery::JoinPhase,
-        members: Vec<(&str, discovery::RoomMember)>,
-    ) -> discovery::JoinedRoom {
-        discovery::JoinedRoom {
-            name: discovery::RoomName::from("alpha"),
-            created_at: time::UnixTime::EPOCH,
-            phase,
-            members: members
-                .into_iter()
-                .map(|(peer, member)| (identity::PeerId::from(peer), member))
-                .collect::<BTreeMap<_, _>>(),
-            how_entered: discovery::HowRoomWasEntered::Created,
-        }
-    }
-
-    fn state_with(
-        me: &str,
-        display_name: Option<&str>,
-        joined: discovery::JoinedRoom,
-        connected: &[&str],
-    ) -> DiscoveryState {
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from(me),
-            addrs: Vec::new(),
-        });
-        state.display_name = identity::Username::from(display_name.unwrap_or(""));
-        state.room = Some(joined);
-        for peer in connected {
-            state.connected.insert(identity::PeerId::from(*peer));
-        }
-        state
-    }
-
-    fn ready() -> discovery::JoinedRoom {
-        room(
-            discovery::JoinPhase::Ready,
-            vec![
-                (
-                    "other",
-                    room_member("other", Some("Other"), discovery::RoomMembership::Occupant),
-                ),
-                (
-                    "holder",
-                    room_member("holder", None, discovery::RoomMembership::HistoryHolder),
-                ),
-                (
-                    "departed",
-                    room_member("departed", None, discovery::RoomMembership::Departed),
-                ),
-            ],
-        )
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let state = state_with("me", Some("Me"), ready(), &["other"]);
+        let state = testing::ready_state(
+            "me",
+            "alpha",
+            Some("Me"),
+            testing::room_members(&[
+                ("other", Some("Other"), discovery::RoomMembership::Occupant),
+                ("holder", None, discovery::RoomMembership::HistoryHolder),
+                ("departed", None, discovery::RoomMembership::Departed),
+            ]),
+            &["other"],
+        );
         let roster = room_roster(&state, true);
         assert_eq!(roster.own, discovery::OwnRoomStatus::Connected);
         assert_eq!(roster.count, 2);
@@ -170,10 +108,7 @@ mod tests {
 
     #[test]
     fn without_a_room_the_roster_is_disconnected_and_empty() {
-        let state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         let roster = room_roster(&state, true);
         assert_eq!(roster.own, discovery::OwnRoomStatus::Disconnected);
         assert_eq!(roster.entries, Vec::new());
@@ -182,7 +117,17 @@ mod tests {
 
     #[test]
     fn without_a_ready_swarm_the_roster_is_disconnected_and_empty() {
-        let state = state_with("me", None, ready(), &[]);
+        let state = testing::ready_state(
+            "me",
+            "alpha",
+            None,
+            testing::room_members(&[
+                ("other", Some("Other"), discovery::RoomMembership::Occupant),
+                ("holder", None, discovery::RoomMembership::HistoryHolder),
+                ("departed", None, discovery::RoomMembership::Departed),
+            ]),
+            &[],
+        );
         let roster = room_roster(&state, false);
         assert_eq!(roster.own, discovery::OwnRoomStatus::Disconnected);
         assert_eq!(roster.entries, Vec::new());
@@ -190,17 +135,7 @@ mod tests {
 
     #[test]
     fn joining_own_status_connects_me_as_connecting() {
-        let state = state_with(
-            "me",
-            None,
-            room(
-                discovery::JoinPhase::Joining {
-                    since: time::UnixTime::EPOCH,
-                },
-                Vec::new(),
-            ),
-            &[],
-        );
+        let state = testing::joining_state("me", "alpha", 0);
         let roster = room_roster(&state, true);
         assert_eq!(roster.own, discovery::OwnRoomStatus::Connecting);
         assert_eq!(roster.entries.len(), 1);
@@ -213,7 +148,17 @@ mod tests {
 
     #[test]
     fn entries_hold_occupants_only_connecting_first() {
-        let state = state_with("me", Some("Me"), ready(), &[]);
+        let state = testing::ready_state(
+            "me",
+            "alpha",
+            Some("Me"),
+            testing::room_members(&[
+                ("other", Some("Other"), discovery::RoomMembership::Occupant),
+                ("holder", None, discovery::RoomMembership::HistoryHolder),
+                ("departed", None, discovery::RoomMembership::Departed),
+            ]),
+            &[],
+        );
         let roster = room_roster(&state, true);
         let statuses: Vec<(discovery::MemberRoomStatus, bool)> = roster
             .entries
@@ -237,12 +182,23 @@ mod tests {
 
     #[test]
     fn unconnected_occupants_show_their_display_name() {
-        let mut joined = ready();
-        joined.members.insert(
-            identity::PeerId::from("anon"),
-            room_member("anon", None, discovery::RoomMembership::Occupant),
+        let mut state = testing::ready_state(
+            "me",
+            "alpha",
+            Some("Me"),
+            testing::room_members(&[
+                ("other", Some("Other"), discovery::RoomMembership::Occupant),
+                ("holder", None, discovery::RoomMembership::HistoryHolder),
+                ("departed", None, discovery::RoomMembership::Departed),
+            ]),
+            &[],
         );
-        let state = state_with("me", Some("Me"), joined, &[]);
+        if let Some(room) = state.room.as_mut() {
+            room.members.insert(
+                identity::PeerId::from("anon"),
+                testing::room_member("anon", None, discovery::RoomMembership::Occupant, &[]),
+            );
+        }
         let roster = room_roster(&state, true);
         let anon = roster
             .entries
@@ -256,33 +212,29 @@ mod tests {
 
     #[test]
     fn lobby_record_occupants_not_yet_connected_show_connecting() {
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            discovery::RoomName::from("alpha"),
-            discovery::Room {
-                room_size: discovery::RoomSize::try_from(8).expect("8"),
-                created_at: time::UnixTime::EPOCH,
-                members: [
-                    (
-                        "far",
-                        room_member("far", Some("Far"), discovery::RoomMembership::Occupant),
-                    ),
-                    (
-                        "holder",
-                        room_member("holder", None, discovery::RoomMembership::HistoryHolder),
-                    ),
-                    (
-                        "gone",
-                        room_member("gone", None, discovery::RoomMembership::Departed),
-                    ),
-                ]
-                .into_iter()
-                .map(|(peer, member)| (identity::PeerId::from(peer), member))
-                .collect::<BTreeMap<_, _>>(),
-            },
+        let mut state = testing::ready_state(
+            "me",
+            "alpha",
+            Some("Me"),
+            testing::room_members(&[
+                ("other", Some("Other"), discovery::RoomMembership::Occupant),
+                ("holder", None, discovery::RoomMembership::HistoryHolder),
+                ("departed", None, discovery::RoomMembership::Departed),
+            ]),
+            &["other"],
         );
-        let mut state = state_with("me", Some("Me"), ready(), &["other"]);
-        state.lobby = lobby;
+        state.lobby = testing::lobby_with(vec![(
+            "alpha",
+            testing::room(
+                discovery::RoomSize::DEFAULT,
+                0,
+                testing::room_members(&[
+                    ("far", Some("Far"), discovery::RoomMembership::Occupant),
+                    ("holder", None, discovery::RoomMembership::HistoryHolder),
+                    ("gone", None, discovery::RoomMembership::Departed),
+                ]),
+            ),
+        )]);
         let roster = room_roster(&state, true);
         let ids: Vec<identity::PeerId> = roster
             .entries
@@ -322,22 +274,29 @@ mod tests {
 
     #[test]
     fn lobby_record_occupants_do_not_duplicate_connected_members() {
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            discovery::RoomName::from("alpha"),
-            discovery::Room {
-                room_size: discovery::RoomSize::try_from(8).expect("8"),
-                created_at: time::UnixTime::EPOCH,
-                members: std::iter::once((
-                    "other",
-                    room_member("other", Some("Other"), discovery::RoomMembership::Occupant),
-                ))
-                .map(|(peer, member)| (identity::PeerId::from(peer), member))
-                .collect::<BTreeMap<_, _>>(),
-            },
+        let mut state = testing::ready_state(
+            "me",
+            "alpha",
+            Some("Me"),
+            testing::room_members(&[
+                ("other", Some("Other"), discovery::RoomMembership::Occupant),
+                ("holder", None, discovery::RoomMembership::HistoryHolder),
+                ("departed", None, discovery::RoomMembership::Departed),
+            ]),
+            &["other"],
         );
-        let mut state = state_with("me", Some("Me"), ready(), &["other"]);
-        state.lobby = lobby;
+        state.lobby = testing::lobby_with(vec![(
+            "alpha",
+            testing::room(
+                discovery::RoomSize::DEFAULT,
+                0,
+                testing::room_members(&[(
+                    "other",
+                    Some("Other"),
+                    discovery::RoomMembership::Occupant,
+                )]),
+            ),
+        )]);
         let roster = room_roster(&state, true);
         let ids: Vec<identity::PeerId> = roster
             .entries
@@ -356,17 +315,21 @@ mod tests {
 
     #[test]
     fn max_comes_from_the_lobby_record() {
-        let mut state = state_with("me", None, ready(), &["other"]);
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            discovery::RoomName::from("alpha"),
-            discovery::Room {
-                room_size: discovery::RoomSize::try_from(8).expect("8"),
-                created_at: time::UnixTime::EPOCH,
-                members: BTreeMap::new(),
-            },
+        let mut state = testing::ready_state(
+            "me",
+            "alpha",
+            None,
+            testing::room_members(&[
+                ("other", Some("Other"), discovery::RoomMembership::Occupant),
+                ("holder", None, discovery::RoomMembership::HistoryHolder),
+                ("departed", None, discovery::RoomMembership::Departed),
+            ]),
+            &["other"],
         );
-        state.lobby = lobby;
+        state.lobby = testing::lobby_with(vec![(
+            "alpha",
+            testing::room(discovery::RoomSize::DEFAULT, 0, Vec::new()),
+        )]);
         let roster = room_roster(&state, true);
         assert_eq!(roster.max, 8);
         assert_eq!(roster.count, 2);

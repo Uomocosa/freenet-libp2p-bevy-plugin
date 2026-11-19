@@ -61,67 +61,30 @@ mod tests {
     use crate::discovery;
     use crate::identity;
     use crate::testing;
-    use crate::time;
-    use discovery::state_machine::DiscoveryState;
-    use std::collections::BTreeMap;
 
-    fn room(size: u16, members: &[(&str, discovery::RoomMembership)]) -> discovery::Room {
-        discovery::Room {
-            room_size: discovery::RoomSize::try_from(size).expect("fixture room size is non-zero"),
-            created_at: time::UnixTime::EPOCH,
-            members: members
-                .iter()
-                .map(|(peer, membership)| {
-                    (
-                        identity::PeerId::from(*peer),
-                        discovery::RoomMember {
-                            peer: identity::Peer {
-                                id: identity::PeerId::from(*peer),
-                                addrs: Vec::new(),
-                            },
-                            display_name: None,
-                            updated_at: time::UnixTime::EPOCH,
-                            membership: *membership,
-                        },
-                    )
-                })
-                .collect::<BTreeMap<_, _>>(),
-        }
-    }
-
-    fn state_with_lobby(rooms: Vec<(&str, discovery::Room)>) -> DiscoveryState {
-        let mut lobby = discovery::Lobby::default();
-        for (name, room) in rooms {
-            lobby.insert(discovery::RoomName::from(name), room);
-        }
-        testing_builder(lobby)
-    }
-
-    fn testing_builder(lobby: discovery::Lobby) -> DiscoveryState {
-        testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
-            .with_lobby(lobby)
-            .build()
-    }
     #[test]
     fn test_usage() {
-        let state = state_with_lobby(Vec::new());
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me")).build();
         assert_eq!(lobby_rows(&state, &[]), Vec::new());
     }
 
     #[test]
     fn occupants_count_only_occupant_members() {
-        let state = state_with_lobby(vec![(
-            "alpha",
-            room(
-                8,
-                &[
-                    ("a", discovery::RoomMembership::Occupant),
-                    ("b", discovery::RoomMembership::Occupant),
-                    ("h", discovery::RoomMembership::HistoryHolder),
-                    ("d", discovery::RoomMembership::Departed),
-                ],
-            ),
-        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(
+                    discovery::RoomSize::DEFAULT,
+                    0,
+                    testing::room_members(&[
+                        ("a", None, discovery::RoomMembership::Occupant),
+                        ("b", None, discovery::RoomMembership::Occupant),
+                        ("h", None, discovery::RoomMembership::HistoryHolder),
+                        ("d", None, discovery::RoomMembership::Departed),
+                    ]),
+                ),
+            )]))
+            .build();
         let rows = lobby_rows(&state, &[]);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].occupants, 2);
@@ -134,23 +97,33 @@ mod tests {
 
     #[test]
     fn occupancy_kinds() {
-        let state = state_with_lobby(vec![
-            ("empty", room(4, &[])),
-            (
-                "full",
-                room(
-                    2,
-                    &[
-                        ("a", discovery::RoomMembership::Occupant),
-                        ("b", discovery::RoomMembership::Occupant),
-                    ],
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![
+                (
+                    "empty",
+                    testing::room(discovery::RoomSize::try_from(4).expect("4"), 0, Vec::new()),
                 ),
-            ),
-            (
-                "spare",
-                room(3, &[("a", discovery::RoomMembership::Occupant)]),
-            ),
-        ]);
+                (
+                    "full",
+                    testing::room(
+                        discovery::RoomSize::try_from(2).expect("2"),
+                        0,
+                        testing::room_members(&[
+                            ("a", None, discovery::RoomMembership::Occupant),
+                            ("b", None, discovery::RoomMembership::Occupant),
+                        ]),
+                    ),
+                ),
+                (
+                    "spare",
+                    testing::room(
+                        discovery::RoomSize::try_from(3).expect("3"),
+                        0,
+                        testing::room_members(&[("a", None, discovery::RoomMembership::Occupant)]),
+                    ),
+                ),
+            ]))
+            .build();
         let rows = lobby_rows(&state, &[]);
         let occupancy_of = |name: &str| {
             rows.iter()
@@ -166,26 +139,41 @@ mod tests {
     #[test]
     fn friends_are_counted_per_room() {
         let friends = [identity::PeerId::from("a"), identity::PeerId::from("c")];
-        let state = state_with_lobby(vec![
-            (
-                "alpha",
-                room(8, &[("a", discovery::RoomMembership::Occupant)]),
-            ),
-            (
-                "beta",
-                room(
-                    8,
-                    &[
-                        ("c", discovery::RoomMembership::Occupant),
-                        ("b", discovery::RoomMembership::Occupant),
-                    ],
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![
+                (
+                    "alpha",
+                    testing::room(
+                        discovery::RoomSize::DEFAULT,
+                        0,
+                        testing::room_members(&[("a", None, discovery::RoomMembership::Occupant)]),
+                    ),
                 ),
-            ),
-            (
-                "gamma",
-                room(8, &[("a", discovery::RoomMembership::HistoryHolder)]),
-            ),
-        ]);
+                (
+                    "beta",
+                    testing::room(
+                        discovery::RoomSize::DEFAULT,
+                        0,
+                        testing::room_members(&[
+                            ("c", None, discovery::RoomMembership::Occupant),
+                            ("b", None, discovery::RoomMembership::Occupant),
+                        ]),
+                    ),
+                ),
+                (
+                    "gamma",
+                    testing::room(
+                        discovery::RoomSize::DEFAULT,
+                        0,
+                        testing::room_members(&[(
+                            "a",
+                            None,
+                            discovery::RoomMembership::HistoryHolder,
+                        )]),
+                    ),
+                ),
+            ]))
+            .build();
         let rows = lobby_rows(&state, &friends);
         let friends_of = |name: &str| {
             rows.iter()
@@ -205,54 +193,70 @@ mod tests {
             identity::PeerId::from("b"),
             identity::PeerId::from("c"),
         ];
-        let state = state_with_lobby(vec![
-            ("zeta-empty", room(4, &[])),
-            (
-                "full-friend",
-                room(
-                    2,
-                    &[
-                        ("a", discovery::RoomMembership::Occupant),
-                        ("b", discovery::RoomMembership::Occupant),
-                    ],
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![
+                (
+                    "zeta-empty",
+                    testing::room(discovery::RoomSize::try_from(4).expect("4"), 0, Vec::new()),
                 ),
-            ),
-            (
-                "gamma-full",
-                room(
-                    2,
-                    &[
-                        ("x", discovery::RoomMembership::Occupant),
-                        ("y", discovery::RoomMembership::Occupant),
-                    ],
+                (
+                    "full-friend",
+                    testing::room(
+                        discovery::RoomSize::try_from(2).expect("2"),
+                        0,
+                        testing::room_members(&[
+                            ("a", None, discovery::RoomMembership::Occupant),
+                            ("b", None, discovery::RoomMembership::Occupant),
+                        ]),
+                    ),
                 ),
-            ),
-            ("beta-empty", room(4, &[])),
-            (
-                "alpha-friend-full",
-                room(
-                    2,
-                    &[
-                        ("a", discovery::RoomMembership::Occupant),
-                        ("c", discovery::RoomMembership::Occupant),
-                    ],
+                (
+                    "gamma-full",
+                    testing::room(
+                        discovery::RoomSize::try_from(2).expect("2"),
+                        0,
+                        testing::room_members(&[
+                            ("x", None, discovery::RoomMembership::Occupant),
+                            ("y", None, discovery::RoomMembership::Occupant),
+                        ]),
+                    ),
                 ),
-            ),
-            (
-                "delta-spare",
-                room(4, &[("x", discovery::RoomMembership::Occupant)]),
-            ),
-            (
-                "epsilon-spare",
-                room(
-                    4,
-                    &[
-                        ("x", discovery::RoomMembership::Occupant),
-                        ("y", discovery::RoomMembership::Occupant),
-                    ],
+                (
+                    "beta-empty",
+                    testing::room(discovery::RoomSize::try_from(4).expect("4"), 0, Vec::new()),
                 ),
-            ),
-        ]);
+                (
+                    "alpha-friend-full",
+                    testing::room(
+                        discovery::RoomSize::try_from(2).expect("2"),
+                        0,
+                        testing::room_members(&[
+                            ("a", None, discovery::RoomMembership::Occupant),
+                            ("c", None, discovery::RoomMembership::Occupant),
+                        ]),
+                    ),
+                ),
+                (
+                    "delta-spare",
+                    testing::room(
+                        discovery::RoomSize::try_from(4).expect("4"),
+                        0,
+                        testing::room_members(&[("x", None, discovery::RoomMembership::Occupant)]),
+                    ),
+                ),
+                (
+                    "epsilon-spare",
+                    testing::room(
+                        discovery::RoomSize::try_from(4).expect("4"),
+                        0,
+                        testing::room_members(&[
+                            ("x", None, discovery::RoomMembership::Occupant),
+                            ("y", None, discovery::RoomMembership::Occupant),
+                        ]),
+                    ),
+                ),
+            ]))
+            .build();
         let rows = lobby_rows(&state, &friends);
         let names: Vec<String> = rows
             .iter()

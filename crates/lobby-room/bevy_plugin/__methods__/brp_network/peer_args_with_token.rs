@@ -45,23 +45,12 @@ pub fn peer_args_with_token(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::peer_args_with_token;
     use crate::testing;
-    use freenet_libp2p_bevy_core::testing::harness as core_harness;
 
     #[test]
     fn test_usage() {
-        let net = testing::harness::BrpNetwork {
-            network: testing::Network::DirectDial,
-            token: "brp-1".to_string(),
-            deadlines: core_harness::Deadlines(1.0),
-            run_dir: PathBuf::from("/tmp/brp-args"),
-            display: None,
-            orchestrator: None,
-            _helper_nodes: Vec::new(),
-        };
+        let net = testing::brp_network(testing::Network::DirectDial, "brp-1", "/tmp/brp-args");
         let args = peer_args_with_token(&net, "ada", (3, 4), "brp-9");
         assert!(args.contains(&"--token".to_string()));
         assert!(args.contains(&"brp-9".to_string()));

@@ -98,37 +98,11 @@ pub fn libp2p_event_to_input<Replica: replica_sync::traits::ReplicatedState>(
 
 #[cfg(test)]
 mod tests {
-    use bevy::prelude::Resource;
-    use derive_more::{Deref, DerefMut};
-
     use super::libp2p_event_to_input;
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync;
-
-    #[derive(Resource, Default, Deref, DerefMut)]
-    struct Probe(u8);
-
-    impl replica_sync::traits::ReplicatedState for Probe {
-        type Op = u32;
-        type Snapshot = u32;
-
-        fn apply(&mut self, _meta: replica_sync::OpMeta, _op: &Self::Op) {}
-
-        fn snapshot(&self) -> Self::Snapshot {
-            0
-        }
-
-        fn merge(&mut self, _snapshot: Self::Snapshot) {}
-
-        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
-            Vec::new()
-        }
-
-        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
-            0
-        }
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
@@ -141,7 +115,7 @@ mod tests {
         );
         let mut clock = replica_sync::LamportClock::default();
         let game = identity::GameId::from("game");
-        let replica = Probe::default();
+        let replica = testing::FakeReplica::<u32, u32>::default();
         let missing = p2p::Libp2pEvent::SnapshotMissing {
             from: identity::PeerId::from("peer"),
             zone,

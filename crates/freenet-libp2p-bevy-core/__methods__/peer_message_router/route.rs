@@ -48,20 +48,11 @@ mod tests {
     use crate::p2p;
     use crate::testing;
 
-    fn registered(router: &mut testing::PeerMessageRouter, id: &str) -> identity::PeerId {
-        let peer = identity::Peer {
-            id: identity::PeerId::from(id),
-            addrs: Vec::new(),
-        };
-        router.register_peer(&peer);
-        peer.id
-    }
-
     #[test]
     fn test_usage() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let dialer = registered(&mut router, "a");
-        registered(&mut router, "b");
+        let dialer = testing::registered_peer(&mut router, "a");
+        let _ = testing::registered_peer(&mut router, "b");
         let events = route(
             &mut router,
             &dialer,
@@ -76,7 +67,7 @@ mod tests {
     #[test]
     fn commands_from_unregistered_peers_are_dropped() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        registered(&mut router, "b");
+        let _ = testing::registered_peer(&mut router, "b");
         let events = route(
             &mut router,
             &identity::PeerId::from("ghost"),
@@ -97,7 +88,7 @@ mod tests {
     #[test]
     fn relay_mdns_and_kad_commands_have_no_effect() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let dialer = registered(&mut router, "a");
+        let dialer = testing::registered_peer(&mut router, "a");
         let relay = identity::Peer {
             id: identity::PeerId::from("relay"),
             addrs: vec![identity::PeerAddr::from("/ip4/1/tcp/4001")],

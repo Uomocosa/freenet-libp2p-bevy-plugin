@@ -18,49 +18,27 @@ mod tests {
     use super::merge;
     use crate::Lobby;
     use crate::MAX_LOBBY_ROOMS;
-    use crate::Room;
-    use crate::RoomMember;
     use crate::RoomMembership;
     use crate::RoomName;
-    use crate::RoomSize;
-    use common_types::Peer;
+    use crate::testing;
     use common_types::PeerId;
     use common_types::UnixTime;
-
-    fn record(peer: &str, updated_at: UnixTime) -> Room {
-        let mut members = BTreeMap::new();
-        members.insert(
-            PeerId::from(peer),
-            RoomMember {
-                peer: Peer {
-                    id: PeerId::from(peer),
-                    addrs: Vec::new(),
-                },
-                updated_at,
-                display_name: None,
-                membership: RoomMembership::Occupant,
-            },
-        );
-        Room {
-            room_size: RoomSize::DEFAULT,
-            created_at: UnixTime::EPOCH,
-            members,
-        }
-    }
-
-    fn departed_room(updated_at: UnixTime) -> Room {
-        let mut record = record("peer", updated_at);
-        for room_member in record.members.values_mut() {
-            room_member.membership = RoomMembership::Departed;
-        }
-        record
-    }
 
     #[test]
     fn drops_a_room_when_every_member_is_departed_in_either_merge_order() {
         let room = RoomName::from("room-a");
-        let live = record("peer", UnixTime::from_secs(5));
-        let departed = departed_room(UnixTime::from_secs(9));
+        let live = testing::room_with_one_member(
+            "peer",
+            Vec::new(),
+            UnixTime::from_secs(5),
+            RoomMembership::Occupant,
+        );
+        let departed = testing::room_with_one_member(
+            "peer",
+            Vec::new(),
+            UnixTime::from_secs(9),
+            RoomMembership::Departed,
+        );
         let pairs = [(live.clone(), departed.clone()), (departed, live)];
         for (base_room, incoming_room) in pairs {
             let mut base = Lobby::from([(room.clone(), base_room)]);
@@ -79,14 +57,24 @@ mod tests {
                 .map(|index| {
                     (
                         RoomName::from(format!("room-{index:03}")),
-                        record("peer", newest_at(index)),
+                        testing::room_with_one_member(
+                            "peer",
+                            Vec::new(),
+                            newest_at(index),
+                            RoomMembership::Occupant,
+                        ),
                     )
                 })
                 .collect::<BTreeMap<_, _>>(),
         );
         let incoming = Lobby::from([(
             RoomName::from("z-new"),
-            record("peer", newest_at(MAX_LOBBY_ROOMS)),
+            testing::room_with_one_member(
+                "peer",
+                Vec::new(),
+                newest_at(MAX_LOBBY_ROOMS),
+                RoomMembership::Occupant,
+            ),
         )]);
         merge(&mut lobby, incoming);
         assert_eq!(lobby.len(), MAX_LOBBY_ROOMS);
@@ -98,9 +86,25 @@ mod tests {
     fn test_usage() {
         let room = RoomName::from("room-a");
         let mut base = Lobby::default();
-        base.insert(room.clone(), record("peer", UnixTime::from_secs(5)));
+        base.insert(
+            room.clone(),
+            testing::room_with_one_member(
+                "peer",
+                Vec::new(),
+                UnixTime::from_secs(5),
+                RoomMembership::Occupant,
+            ),
+        );
         let mut incoming = Lobby::default();
-        incoming.insert(room.clone(), record("peer", UnixTime::from_secs(9)));
+        incoming.insert(
+            room.clone(),
+            testing::room_with_one_member(
+                "peer",
+                Vec::new(),
+                UnixTime::from_secs(9),
+                RoomMembership::Occupant,
+            ),
+        );
         merge(&mut base, incoming);
         let row = base
             .get(&room)

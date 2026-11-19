@@ -110,10 +110,11 @@ mod tests {
     use super::dispatch_libp2p_command;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let topic = identity::Topic::from("global/topic");
         dispatch_libp2p_command(
             &mut state,

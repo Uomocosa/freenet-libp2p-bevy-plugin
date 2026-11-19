@@ -44,53 +44,21 @@ mod tests {
     use super::drop_members_whose_lease_lapsed;
     use crate::discovery;
     use crate::identity;
+    use crate::testing;
     use crate::time;
-
-    fn room_member(
-        updated_at: time::UnixTime,
-        membership: discovery::RoomMembership,
-    ) -> discovery::RoomMember {
-        discovery::RoomMember {
-            peer: identity::Peer {
-                id: identity::PeerId::from("p"),
-                addrs: Vec::new(),
-            },
-            updated_at,
-            display_name: None,
-            membership,
-        }
-    }
-
-    fn lobby_with(room: &str, peer: &str, member: discovery::RoomMember) -> discovery::Lobby {
-        discovery::Lobby::from([(
-            discovery::RoomName::from(room),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: BTreeMap::from([(identity::PeerId::from(peer), member)]),
-            },
-        )])
-    }
-
-    fn limits() -> discovery::LobbyLeaseLimits {
-        discovery::LobbyLeaseLimits {
-            lease_ttl: Duration::from_secs(90),
-            remote_clock_skew_margin: Duration::from_secs(600),
-        }
-    }
 
     #[test]
     fn test_usage() {
-        let mut lobby = lobby_with(
+        let member = discovery::RoomMember {
+            updated_at: time::UnixTime::from_secs(190),
+            ..testing::room_member("p", None, discovery::RoomMembership::Occupant, &[])
+        };
+        let mut lobby = testing::lobby_with(vec![(
             "r",
-            "p",
-            room_member(
-                time::UnixTime::from_secs(190),
-                discovery::RoomMembership::Occupant,
-            ),
-        );
+            testing::room(discovery::RoomSize::DEFAULT, 0, vec![member]),
+        )]);
         drop_members_whose_lease_lapsed(
-            &limits(),
+            &testing::lease_limits(Duration::from_secs(90), Duration::from_secs(600)),
             &mut lobby,
             &BTreeMap::new(),
             time::UnixTime::from_secs(200),
@@ -109,34 +77,23 @@ mod tests {
                 first_seen_locally_at: first_seen,
             },
         )]);
-        let mut lobby = discovery::Lobby::from([(
-            discovery::RoomName::from("r"),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: BTreeMap::from([(
-                    identity::PeerId::from("p"),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from("p"),
-                            addrs: Vec::new(),
-                        },
-                        updated_at: remote_updated_at,
-                        display_name: None,
-                        membership: discovery::RoomMembership::HistoryHolder,
-                    },
-                )]),
-            },
+        let member = discovery::RoomMember {
+            updated_at: remote_updated_at,
+            ..testing::room_member("p", None, discovery::RoomMembership::HistoryHolder, &[])
+        };
+        let mut lobby = testing::lobby_with(vec![(
+            "r",
+            testing::room(discovery::RoomSize::DEFAULT, 0, vec![member]),
         )]);
         drop_members_whose_lease_lapsed(
-            &limits(),
+            &testing::lease_limits(Duration::from_secs(90), Duration::from_secs(600)),
             &mut lobby,
             &observed,
             time::UnixTime::from_secs(789),
         );
         assert_eq!(lobby.len(), 1);
         drop_members_whose_lease_lapsed(
-            &limits(),
+            &testing::lease_limits(Duration::from_secs(90), Duration::from_secs(600)),
             &mut lobby,
             &observed,
             time::UnixTime::from_secs(791),
@@ -155,35 +112,40 @@ mod tests {
                 first_seen_locally_at: now,
             },
         )]);
-        let mut lobby = lobby_with(
+        let member = discovery::RoomMember {
+            updated_at: remote_updated_at,
+            ..testing::room_member("p", None, discovery::RoomMembership::HistoryHolder, &[])
+        };
+        let mut lobby = testing::lobby_with(vec![(
             "r",
-            "p",
-            discovery::RoomMember {
-                peer: identity::Peer {
-                    id: identity::PeerId::from("p"),
-                    addrs: Vec::new(),
-                },
-                updated_at: remote_updated_at,
-                display_name: None,
-                membership: discovery::RoomMembership::HistoryHolder,
-            },
+            testing::room(discovery::RoomSize::DEFAULT, 0, vec![member]),
+        )]);
+        drop_members_whose_lease_lapsed(
+            &testing::lease_limits(Duration::from_secs(90), Duration::from_secs(600)),
+            &mut lobby,
+            &observed,
+            now,
         );
-        drop_members_whose_lease_lapsed(&limits(), &mut lobby, &observed, now);
         assert_eq!(lobby.len(), 1);
     }
 
     #[test]
     fn first_sighting_of_a_timestamp_older_than_lease_plus_margin_is_dropped_at_once() {
         let now = time::UnixTime::from_secs(1000);
-        let mut lobby = lobby_with(
+        let member = discovery::RoomMember {
+            updated_at: time::UnixTime::EPOCH,
+            ..testing::room_member("p", None, discovery::RoomMembership::HistoryHolder, &[])
+        };
+        let mut lobby = testing::lobby_with(vec![(
             "r",
-            "p",
-            room_member(
-                time::UnixTime::EPOCH,
-                discovery::RoomMembership::HistoryHolder,
-            ),
+            testing::room(discovery::RoomSize::DEFAULT, 0, vec![member]),
+        )]);
+        drop_members_whose_lease_lapsed(
+            &testing::lease_limits(Duration::from_secs(90), Duration::from_secs(600)),
+            &mut lobby,
+            &BTreeMap::new(),
+            now,
         );
-        drop_members_whose_lease_lapsed(&limits(), &mut lobby, &BTreeMap::new(), now);
         assert!(lobby.is_empty());
     }
 }

@@ -16,11 +16,11 @@ pub fn log_mesh_snapshot<Payload: p2p::traits::Message>(state: &p2p::SwarmLoopSt
 mod tests {
     use super::log_mesh_snapshot;
 
-    use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         log_mesh_snapshot(&state);
     }
 }

@@ -70,26 +70,15 @@ mod tests {
     use crate::p2p;
     use crate::spectator;
 
-    fn split(
-        name: &str,
-        payload: &[u8],
-    ) -> (
-        p2p::HistoryManifest,
-        p2p::HistoryKeyPrefix,
-        Vec<Vec<u8>>,
-        Vec<u8>,
-    ) {
-        let prefix = p2p::HistoryKeyPrefix::from(name);
-        let split = p2p::ChunkedSnapshot::try_from_payload(payload, 1).expect("split");
-        let chunks = split.chunks.clone();
-        (split.manifest, prefix, chunks, payload.to_vec())
-    }
-
     #[test]
     fn test_usage() {
         let mut bootstrap = spectator::HistoryBootstrap::<Vec<u8>>::default();
         let payload = vec![7_u8, 8, 9];
-        let (manifest, prefix, chunks, expected) = split("prefix", &payload);
+        let prefix = p2p::HistoryKeyPrefix::from("prefix");
+        let split = p2p::ChunkedSnapshot::try_from_payload(&payload, 1).expect("split");
+        let manifest = split.manifest;
+        let chunks = split.chunks;
+        let expected = payload;
         let manifest_bytes = bincode::serialize(&manifest).expect("manifest");
         assert!(matches!(
             handle_history_record(
@@ -121,8 +110,15 @@ mod tests {
     #[test]
     fn two_zones_bootstrap_side_by_side() {
         let mut bootstrap = spectator::HistoryBootstrap::<Vec<u8>>::default();
-        let (first_manifest, first_prefix, first_chunks, first_payload) = split("first", &[1_u8]);
-        let (second_manifest, second_prefix, second_chunks, _) = split("second", &[2_u8]);
+        let first_payload = vec![1_u8];
+        let first_prefix = p2p::HistoryKeyPrefix::from("first");
+        let first_split = p2p::ChunkedSnapshot::try_from_payload(&first_payload, 1).expect("split");
+        let first_manifest = first_split.manifest;
+        let first_chunks = first_split.chunks;
+        let second_prefix = p2p::HistoryKeyPrefix::from("second");
+        let second_split = p2p::ChunkedSnapshot::try_from_payload(&[2_u8], 1).expect("split");
+        let second_manifest = second_split.manifest;
+        let second_chunks = second_split.chunks;
         for (prefix, manifest) in [
             (first_prefix.clone(), &first_manifest),
             (second_prefix.clone(), &second_manifest),

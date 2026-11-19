@@ -14,36 +14,29 @@ pub fn remember_applied_meta<Op, Snap>(
 #[cfg(test)]
 mod tests {
     use super::remember_applied_meta;
-    use crate::identity;
-    use crate::replica_sync;
     use crate::spectator;
-
-    fn meta(lamport: u32) -> replica_sync::OpMeta {
-        replica_sync::OpMeta { lamport, author: 1 }
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
-            identity::GameId::from("game"),
-        );
-        remember_applied_meta(&mut state, meta(1));
-        assert_eq!(state.applied_metas, vec![meta(1)]);
+        let mut state =
+            testing::spectator_state(None, spectator::state_machine::SpectatePhase::Idle);
+        remember_applied_meta(&mut state, testing::meta(1, 1));
+        assert_eq!(state.applied_metas, vec![testing::meta(1, 1)]);
     }
 
     #[test]
     fn the_oldest_meta_is_forgotten_beyond_the_window() {
-        let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
-            identity::GameId::from("game"),
-        );
+        let mut state =
+            testing::spectator_state(None, spectator::state_machine::SpectatePhase::Idle);
         let cap = u32::try_from(spectator::state_machine::MAX_APPLIED_METAS).expect("cap");
         for lamport in 0..=cap {
-            remember_applied_meta(&mut state, meta(lamport));
+            remember_applied_meta(&mut state, testing::meta(lamport, 1));
         }
         assert_eq!(
             state.applied_metas.len(),
             spectator::state_machine::MAX_APPLIED_METAS
         );
-        assert_eq!(state.applied_metas.first(), Some(&meta(1)));
+        assert_eq!(state.applied_metas.first(), Some(&testing::meta(1, 1)));
     }
 }

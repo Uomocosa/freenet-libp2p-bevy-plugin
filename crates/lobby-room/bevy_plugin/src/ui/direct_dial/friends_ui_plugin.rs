@@ -46,6 +46,7 @@ impl bevy::prelude::Plugin for FriendsUiPlugin {
 mod tests {
     use std::time::Duration;
 
+    use crate::testing;
     use crate::ui;
     use bevy::prelude::*;
     use bevy::text::EditableText;
@@ -53,29 +54,12 @@ mod tests {
     use bevy::ui::InteractionDisabled;
     use bevy::ui::Pressed;
 
-    use super::FriendsUiPlugin;
     use freenet_libp2p_bevy_core::direct_dial as core_direct_dial;
     use freenet_libp2p_bevy_core::identity;
-    use freenet_libp2p_bevy_core::time;
-
-    fn app_with_state() -> App {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_message::<core_direct_dial::state_machine::Input>();
-        app.add_message::<core_direct_dial::FriendAddressSubmitted>();
-        app.insert_resource(core_direct_dial::state_machine::DialState::from_peer_book(
-            &core_direct_dial::PeerBook::default(),
-            time::UnixTime::from_secs(10),
-        ));
-        app.insert_resource(core_direct_dial::FriendAddressError(None));
-        app.init_resource::<core_direct_dial::FriendsView>();
-        app
-    }
 
     #[test]
     fn test_usage() {
-        let mut app = app_with_state();
-        app.add_plugins(FriendsUiPlugin);
+        let mut app = testing::friends_ui_app();
         app.update();
         let mut drawers = app
             .world_mut()
@@ -87,123 +71,97 @@ mod tests {
         assert_eq!(states.iter(app.world()).count(), 1);
     }
 
-    fn preview_build(app: &mut App) {
-        use freenet_libp2p_bevy_core::identity;
-        app.add_message::<core_direct_dial::state_machine::Input>();
-        app.insert_resource(core_direct_dial::OwnShareAddress(Some(
-            core_direct_dial::OwnAddress {
-                id: identity::PeerId::from(
-                    "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
-                ),
-                short: String::from("12D3Koo...99RC"),
-                full: Some(String::from(
-                    "/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
-                )),
-            },
-        )));
-        app.init_resource::<core_direct_dial::FriendsView>();
-        app.insert_resource(core_direct_dial::FriendAddressError(None));
-        app.add_systems(Startup, spawn_mock_screen);
-        app.add_plugins(FriendsUiPlugin);
-    }
-
-    fn spawn_mock_screen(mut commands: Commands) {
-        commands.spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            BackgroundColor(ui::constants::ROOM_COLOR),
-            children![(
-                Node {
-                    position_type: PositionType::Absolute,
-                    top: Val::Px(40.0),
-                    right: Val::Px(40.0),
-                    padding: UiRect::all(Val::Px(12.0)),
-                    border_radius: BorderRadius::all(Val::Px(8.0)),
-                    ..default()
-                },
-                BackgroundColor(ui::discovery::PANEL_COLOR),
-                children![Text::new("the screen behind the drawer")],
-            )],
-        ));
-    }
-    fn preview_view() -> core_direct_dial::FriendsView {
-        core_direct_dial::FriendsView(vec![
-            core_direct_dial::FriendView {
-                id: freenet_libp2p_bevy_core::identity::PeerId::from("bob"),
-                name: String::from("bob"),
-                presence: core_direct_dial::FriendPresence::InZone(
-                    freenet_libp2p_bevy_core::identity::ZoneName::from("room-7"),
-                ),
-            },
-            core_direct_dial::FriendView {
-                id: freenet_libp2p_bevy_core::identity::PeerId::from("mia"),
-                name: String::from("mia"),
-                presence: core_direct_dial::FriendPresence::Online,
-            },
-            core_direct_dial::FriendView {
-                id: freenet_libp2p_bevy_core::identity::PeerId::from("adam"),
-                name: String::from("12D3Koo...99RC"),
-                presence: core_direct_dial::FriendPresence::Offline,
-            },
-        ])
-    }
-
-    fn closed(_world: &mut World) {}
-
-    fn open(world: &mut World) {
-        world.insert_resource(ui::direct_dial::FriendsDrawerState(true));
-        let mut panels = world.query_filtered::<&mut ui::direct_dial::FriendsDrawerSlide, With<ui::direct_dial::FriendsDrawerPanel>>();
-        if let Ok(mut slide) = panels.single_mut(world) {
-            **slide = ui::constants::DRAWER_SLIDE_SECS;
-        }
-    }
-
-    fn open_with_friends(world: &mut World) {
-        open(world);
-        *world.resource_mut::<core_direct_dial::FriendsView>() = preview_view();
-    }
-
-    fn open_with_error(world: &mut World) {
-        open_with_friends(world);
-        **world.resource_mut::<core_direct_dial::FriendAddressError>() = Some(String::from(
-            "bad address: use /ip4/<host>/tcp/<port>/p2p/<id>",
-        ));
-    }
-
-    fn scene(states: Vec<lele_bevy_preview::scene::State>) -> lele_bevy_preview::scene::Scene {
-        lele_bevy_preview::scene::Scene {
-            name: String::from("friends_ui_plugin"),
-            kind: lele_bevy_preview::scene::Kind::Plugin,
-            build: preview_build,
-            states,
-            timeline: None,
-        }
-    }
-
     #[test]
     fn friends_ui_plugin_ui_scene_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
-        scene(vec![
-            lele_bevy_preview::scene::State {
-                label: String::from("closed"),
-                apply: closed,
+        lele_bevy_preview::scene::Scene {
+            name: String::from("friends_ui_plugin"),
+            kind: lele_bevy_preview::scene::Kind::Plugin,
+            build: |app: &mut App| {
+                app.add_message::<core_direct_dial::state_machine::Input>();
+                app.insert_resource(core_direct_dial::OwnShareAddress(Some(
+                    core_direct_dial::OwnAddress {
+                        id: identity::PeerId::from(
+                            "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
+                        ),
+                        short: String::from("12D3Koo...99RC"),
+                        full: Some(String::from(
+                            "/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC",
+                        )),
+                    },
+                )));
+                app.init_resource::<core_direct_dial::FriendsView>();
+                app.insert_resource(core_direct_dial::FriendAddressError(None));
+                app.add_systems(Startup, |mut commands: Commands| {
+                    commands.spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        BackgroundColor(ui::constants::ROOM_COLOR),
+                        children![(
+                            Node {
+                                position_type: PositionType::Absolute,
+                                top: Val::Px(40.0),
+                                right: Val::Px(40.0),
+                                padding: UiRect::all(Val::Px(12.0)),
+                                border_radius: BorderRadius::all(Val::Px(8.0)),
+                                ..default()
+                            },
+                            BackgroundColor(ui::discovery::PANEL_COLOR),
+                            children![Text::new("the screen behind the drawer")],
+                        )],
+                    ));
+                });
+                app.add_plugins(ui::direct_dial::FriendsUiPlugin);
             },
-            lele_bevy_preview::scene::State {
-                label: String::from("open empty"),
-                apply: open,
-            },
-            lele_bevy_preview::scene::State {
-                label: String::from("open with three friends"),
-                apply: open_with_friends,
-            },
-            lele_bevy_preview::scene::State {
-                label: String::from("address error shown"),
-                apply: open_with_error,
-            },
-        ])
+            states: vec![
+                lele_bevy_preview::scene::State {
+                    label: String::from("closed"),
+                    apply: |_world: &mut World| {},
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("open empty"),
+                    apply: |world: &mut World| {
+                        world.insert_resource(ui::direct_dial::FriendsDrawerState(true));
+                        let mut panels = world.query_filtered::<&mut ui::direct_dial::FriendsDrawerSlide, With<ui::direct_dial::FriendsDrawerPanel>>();
+                        if let Ok(mut slide) = panels.single_mut(world) {
+                            **slide = ui::constants::DRAWER_SLIDE_SECS;
+                        }
+                    },
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("open with three friends"),
+                    apply: |world: &mut World| {
+                        world.insert_resource(ui::direct_dial::FriendsDrawerState(true));
+                        let mut panels = world.query_filtered::<&mut ui::direct_dial::FriendsDrawerSlide, With<ui::direct_dial::FriendsDrawerPanel>>();
+                        if let Ok(mut slide) = panels.single_mut(world) {
+                            **slide = ui::constants::DRAWER_SLIDE_SECS;
+                        }
+                        *world.resource_mut::<core_direct_dial::FriendsView>() =
+                            testing::preview_friends_view();
+                    },
+                },
+                lele_bevy_preview::scene::State {
+                    label: String::from("address error shown"),
+                    apply: |world: &mut World| {
+                        world.insert_resource(ui::direct_dial::FriendsDrawerState(true));
+                        let mut panels = world.query_filtered::<&mut ui::direct_dial::FriendsDrawerSlide, With<ui::direct_dial::FriendsDrawerPanel>>();
+                        if let Ok(mut slide) = panels.single_mut(world) {
+                            **slide = ui::constants::DRAWER_SLIDE_SECS;
+                        }
+                        *world.resource_mut::<core_direct_dial::FriendsView>() =
+                            testing::preview_friends_view();
+                        **world.resource_mut::<core_direct_dial::FriendAddressError>() =
+                            Some(String::from(
+                                "bad address: use /ip4/<host>/tcp/<port>/p2p/<id>",
+                            ));
+                    },
+                },
+            ],
+            timeline: None,
+        }
         .run(&lele_bevy_preview::preview::Config {
             out_dir: out,
             ..Default::default()
@@ -213,8 +171,7 @@ mod tests {
 
     #[test]
     fn a_blank_address_disables_the_add_friend_button() {
-        let mut app = app_with_state();
-        app.add_plugins(FriendsUiPlugin);
+        let mut app = testing::friends_ui_app();
         app.update();
         let type_address = |app: &mut App, typed: &str| {
             let mut inputs = app
@@ -241,11 +198,10 @@ mod tests {
 
     #[test]
     fn a_copy_toast_fades_and_then_disappears() {
-        let mut app = app_with_state();
+        let mut app = testing::friends_ui_app();
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
             200,
         )));
-        app.add_plugins(FriendsUiPlugin);
         app.update();
         let toast = app
             .world_mut()
@@ -275,8 +231,7 @@ mod tests {
 
     #[test]
     fn the_copy_chip_needs_a_pressed_chip_and_a_full_address() {
-        let mut app = app_with_state();
-        app.add_plugins(FriendsUiPlugin);
+        let mut app = testing::friends_ui_app();
         app.update();
         let toast_count = |app: &mut App| {
             let mut toasts = app
@@ -316,8 +271,7 @@ mod tests {
 
     #[test]
     fn friend_rows_show_presence_as_a_dot_and_a_place() {
-        let mut app = app_with_state();
-        app.add_plugins(FriendsUiPlugin);
+        let mut app = testing::friends_ui_app();
         app.update();
         *app.world_mut()
             .resource_mut::<core_direct_dial::FriendsView>() = core_direct_dial::FriendsView(vec![
@@ -371,8 +325,7 @@ mod tests {
 
     #[test]
     fn the_friends_header_counts_online_and_total() {
-        let mut app = app_with_state();
-        app.add_plugins(FriendsUiPlugin);
+        let mut app = testing::friends_ui_app();
         app.world_mut()
             .remove_resource::<core_direct_dial::FriendsView>();
         app.update();
@@ -418,8 +371,7 @@ mod tests {
 
     #[test]
     fn the_address_chip_shows_waiting_until_a_full_address_arrives() {
-        let mut app = app_with_state();
-        app.add_plugins(FriendsUiPlugin);
+        let mut app = testing::friends_ui_app();
         app.insert_resource(core_direct_dial::OwnShareAddress(Some(
             core_direct_dial::OwnAddress {
                 id: identity::PeerId::from("me"),
@@ -459,8 +411,8 @@ mod tests {
 
 #[cfg(test)]
 mod build_plugin_tests {
+    use crate::testing;
     use crate::ui;
-    use bevy::prelude::Plugin;
     use bevy::prelude::*;
     use lele_bevy_state_machine::traits::StateMachine;
 
@@ -468,29 +420,9 @@ mod build_plugin_tests {
     use freenet_libp2p_bevy_core::identity;
     use freenet_libp2p_bevy_core::time;
 
-    fn empty_state() -> core_direct_dial::state_machine::DialState {
-        core_direct_dial::state_machine::DialState::from_peer_book(
-            &core_direct_dial::PeerBook::default(),
-            time::UnixTime::from_secs(10),
-        )
-    }
-
-    fn app_with_plugins() -> App {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_message::<core_direct_dial::state_machine::Input>();
-        app.add_message::<core_direct_dial::FriendAddressSubmitted>();
-        app.insert_resource(empty_state());
-        app.insert_resource(core_direct_dial::FriendAddressError(None));
-        app.init_resource::<core_direct_dial::FriendsView>();
-        app.init_resource::<core_direct_dial::OwnShareAddress>();
-        Plugin::build(&ui::direct_dial::FriendsUiPlugin, &mut app);
-        app
-    }
-
     #[test]
     fn test_usage() {
-        let mut app = app_with_plugins();
+        let mut app = testing::friends_ui_app();
         app.update();
         let mut drawers = app
             .world_mut()
@@ -507,7 +439,7 @@ mod build_plugin_tests {
         use bevy::text::EditableText;
         use bevy::ui::Pressed;
 
-        let mut app = app_with_plugins();
+        let mut app = testing::friends_ui_app();
         app.add_systems(Update, core_direct_dial::bevy_systems::rebuild_friends_view);
         app.update();
         let id = libp2p::PeerId::random();
@@ -556,7 +488,7 @@ mod build_plugin_tests {
     fn the_copy_chip_writes_the_full_address_to_the_clipboard() {
         use bevy::ui::Pressed;
 
-        let mut app = app_with_plugins();
+        let mut app = testing::friends_ui_app();
         app.update();
         **app
             .world_mut()

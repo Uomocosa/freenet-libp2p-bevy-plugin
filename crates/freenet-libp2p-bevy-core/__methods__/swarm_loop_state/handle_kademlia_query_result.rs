@@ -16,46 +16,20 @@ mod tests {
     use libp2p::kad;
 
     use crate::p2p;
-
-    fn chunk() -> p2p::ZoneHistoryRecordKind {
-        p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
-            prefix: p2p::HistoryKeyPrefix::from("abc"),
-            content_hash: p2p::ContentHash::from("def"),
-            chunk: p2p::ChunkIndex(5),
-        })
-    }
-
-    fn found(key: kad::RecordKey) -> kad::QueryResult {
-        kad::QueryResult::GetRecord(Ok(kad::GetRecordOk::FoundRecord(kad::PeerRecord {
-            peer: None,
-            record: kad::Record {
-                key,
-                value: vec![1, 2, 3],
-                publisher: None,
-                expires: None,
-            },
-        })))
-    }
-
-    fn next_event(
-        state: &p2p::SwarmLoopState<u32>,
-        rx: &mut tokio::sync::mpsc::UnboundedReceiver<p2p::Event<u32>>,
-        result: kad::QueryResult,
-    ) -> Option<p2p::Libp2pEvent> {
-        state.handle_kademlia_query_result(result);
-        match rx.try_recv() {
-            Ok(p2p::Event::Libp2p(event)) => Some(event),
-            _ => None,
-        }
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let (state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
+        let chunk = testing::history_chunk("abc", "def", 5);
         assert_eq!(
-            next_event(&state, &mut rx, found(chunk().history_record_key())),
+            testing::libp2p_event_from_kademlia_result(
+                &state,
+                &mut rx,
+                testing::kademlia_record_found(chunk.history_record_key())
+            ),
             Some(p2p::Libp2pEvent::HistoryRecordFound {
-                id: chunk(),
+                id: chunk,
                 value: vec![1, 2, 3]
             })
         );
@@ -63,29 +37,30 @@ mod tests {
 
     #[test]
     fn test_usage_reports_missing_and_stored_records() {
-        let (state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
-        let key = chunk().history_record_key();
+        let (state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
+        let chunk = testing::history_chunk("abc", "def", 5);
+        let key = chunk.history_record_key();
         let missing =
             kad::QueryResult::GetRecord(Err(kad::GetRecordError::Timeout { key: key.clone() }));
         let stored = kad::QueryResult::PutRecord(Ok(kad::PutRecordOk { key }));
         assert_eq!(
-            next_event(&state, &mut rx, missing),
-            Some(p2p::Libp2pEvent::HistoryRecordNotFound { id: chunk() })
+            testing::libp2p_event_from_kademlia_result(&state, &mut rx, missing),
+            Some(p2p::Libp2pEvent::HistoryRecordNotFound { id: chunk.clone() })
         );
         assert_eq!(
-            next_event(&state, &mut rx, stored),
-            Some(p2p::Libp2pEvent::HistoryRecordStored { id: chunk() })
+            testing::libp2p_event_from_kademlia_result(&state, &mut rx, stored),
+            Some(p2p::Libp2pEvent::HistoryRecordStored { id: chunk })
         );
     }
 
     #[test]
     fn test_usage_skips_non_history_keys() {
-        let (state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         assert_eq!(
-            next_event(
+            testing::libp2p_event_from_kademlia_result(
                 &state,
                 &mut rx,
-                found(kad::RecordKey::new(&"zone/zone/zone-a"))
+                testing::kademlia_record_found(kad::RecordKey::new(&"zone/zone/zone-a"))
             ),
             None
         );

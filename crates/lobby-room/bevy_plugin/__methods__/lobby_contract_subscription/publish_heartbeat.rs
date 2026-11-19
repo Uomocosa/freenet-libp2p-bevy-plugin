@@ -33,41 +33,18 @@ pub fn publish_heartbeat(
 }
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use freenet_stdlib::prelude::{ContractCode, ContractKey, Parameters, WrappedContract};
-
     use super::publish_heartbeat;
     use crate::time;
-    use crate::{discovery, freenet, identity};
-
-    fn contract_key() -> ContractKey {
-        WrappedContract::new(
-            Arc::new(ContractCode::from(discovery::LOBBY_CONTRACT_WASM.to_vec())),
-            Parameters::from(Vec::new()),
-        )
-        .key
-    }
+    use crate::{discovery, identity, testing};
 
     #[test]
     fn test_usage() {
         let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (_read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        let subscription = discovery::LobbyContractSubscription {
-            client: freenet::Client { write, read },
-            key: contract_key(),
-            lobby: discovery::Lobby::default(),
-            has_unread_subscribe_answer: false,
-        };
-        let room_member = discovery::RoomMember {
-            peer: identity::Peer {
-                id: identity::PeerId::from("me"),
-                addrs: Vec::new(),
-            },
-            updated_at: time::UnixTime::from_secs(1),
-            display_name: None,
-            membership: discovery::RoomMembership::Occupant,
-        };
+        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
+        drop(read_tx);
+        let subscription = testing::lobby_subscription(write, read);
+        let room_member =
+            testing::room_member("me", None, discovery::RoomMembership::Occupant, &[]);
         assert!(
             publish_heartbeat(
                 &subscription,

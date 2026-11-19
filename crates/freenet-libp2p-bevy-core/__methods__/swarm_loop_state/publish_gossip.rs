@@ -30,10 +30,11 @@ mod tests {
     use super::publish_gossip;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         publish_gossip(&mut state, &identity::Topic::from("global/topic"), vec![1]);
         assert!(matches!(
             rx.try_recv(),

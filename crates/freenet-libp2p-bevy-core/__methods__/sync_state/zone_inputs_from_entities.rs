@@ -95,83 +95,14 @@ pub fn zone_inputs_from_entities<Op>(
 
 #[cfg(test)]
 mod tests {
-    use bevy::prelude::*;
+    use bevy::prelude::{Entity, With};
 
     use crate::identity;
     use crate::p2p;
     use crate::peers;
     use crate::replica_sync;
+    use crate::testing;
     use crate::time;
-
-    #[derive(Resource, Default)]
-    struct Captured {
-        commands: Vec<p2p::Libp2pCommand>,
-        inputs: Vec<replica_sync::state_machine::Input<u8>>,
-    }
-
-    fn capture(
-        mut state: ResMut<replica_sync::bevy_systems::SyncState<u8>>,
-        game: Res<replica_sync::SyncGame>,
-        me_zones: Query<&peers::InZone, With<peers::Me>>,
-        zone_details: Query<replica_sync::ZoneDetails<'_>>,
-        member_peers: Query<(&peers::Peer, Has<peers::Connected>, Has<peers::Me>)>,
-        mut captured: ResMut<Captured>,
-    ) {
-        let game = game.into_inner();
-        let (commands, inputs) =
-            replica_sync::bevy_systems::SyncState::<u8>::zone_inputs_from_entities(
-                &mut state,
-                game,
-                &me_zones,
-                &zone_details,
-                &member_peers,
-            );
-        captured.commands = commands;
-        captured.inputs = inputs;
-    }
-
-    fn app_with_capture(game: identity::GameId) -> App {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(replica_sync::SyncGame(game));
-        app.init_resource::<replica_sync::bevy_systems::SyncState<u8>>();
-        app.init_resource::<Captured>();
-        app.add_systems(Update, capture);
-        app
-    }
-
-    fn join(
-        app: &mut App,
-        zone: &identity::ZoneName,
-        members: Vec<identity::PeerId>,
-        prefix: p2p::HistoryKeyPrefix,
-        liveness: replica_sync::state_machine::ZoneLiveness,
-    ) -> Entity {
-        let zone_entity = app.world_mut().spawn((zone.clone(), prefix, liveness)).id();
-        app.world_mut().spawn((
-            peers::Peer::from(identity::PeerId::from("me")),
-            peers::Me,
-            peers::InZone(zone_entity),
-        ));
-        for member in members {
-            app.world_mut().spawn((
-                peers::Peer::from(member),
-                peers::InZone(zone_entity),
-                peers::Connected,
-            ));
-        }
-        zone_entity
-    }
-
-    fn captured(
-        app: &App,
-    ) -> (
-        Vec<p2p::Libp2pCommand>,
-        Vec<replica_sync::state_machine::Input<u8>>,
-    ) {
-        let captured = app.world().resource::<Captured>();
-        (captured.commands.clone(), captured.inputs.clone())
-    }
 
     #[test]
     fn test_usage() {
@@ -182,10 +113,13 @@ mod tests {
             is_zone_still_listed: true,
             has_other_history_holders: true,
         };
-        let mut app = app_with_capture(game);
+        let mut app = testing::sync_app_with_capture(game);
         app.update();
-        assert_eq!(captured(&app), (Vec::new(), Vec::new()));
-        let zone_entity = join(
+        assert_eq!(
+            testing::captured_outputs::<u8>(&app),
+            (Vec::new(), Vec::new())
+        );
+        let zone_entity = testing::spawn_joined_zone(
             &mut app,
             &zone,
             vec![identity::PeerId::from("alice")],
@@ -193,7 +127,7 @@ mod tests {
             liveness,
         );
         app.update();
-        let (commands, inputs) = captured(&app);
+        let (commands, inputs) = testing::captured_outputs::<u8>(&app);
         assert_eq!(commands.len(), 1);
         assert!(matches!(
             inputs.as_slice(),
@@ -204,7 +138,10 @@ mod tests {
             .resource_mut::<replica_sync::bevy_systems::SyncState<u8>>()
             .update(joined, replica_sync::ElapsedSinceAppStart::default());
         app.update();
-        assert_eq!(captured(&app), (Vec::new(), Vec::new()));
+        assert_eq!(
+            testing::captured_outputs::<u8>(&app),
+            (Vec::new(), Vec::new())
+        );
         app.world_mut()
             .entity_mut(zone_entity)
             .insert(replica_sync::state_machine::ZoneLiveness {
@@ -212,7 +149,7 @@ mod tests {
                 has_other_history_holders: false,
             });
         app.update();
-        let (_, inputs) = captured(&app);
+        let (_, inputs) = testing::captured_outputs::<u8>(&app);
         assert!(matches!(
             inputs.as_slice(),
             [replica_sync::state_machine::Input::Members { .. }]
@@ -227,7 +164,7 @@ mod tests {
             .entity_mut(me_entity)
             .remove::<peers::InZone>();
         app.update();
-        let (commands, inputs) = captured(&app);
+        let (commands, inputs) = testing::captured_outputs::<u8>(&app);
         assert_eq!(commands.len(), 1);
         assert_eq!(inputs, Vec::new());
         assert_eq!(

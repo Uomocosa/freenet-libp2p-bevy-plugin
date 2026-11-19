@@ -85,51 +85,14 @@ mod tests {
 
     use crate::identity;
     use crate::p2p;
-    use crate::replica_sync;
     use crate::spectator;
-
-    #[derive(Default, Resource)]
-    struct MockState;
-
-    impl replica_sync::traits::ReplicatedState for MockState {
-        type Op = u8;
-        type Snapshot = u8;
-
-        fn apply(&mut self, _meta: replica_sync::OpMeta, _op: &u8) {}
-
-        fn snapshot(&self) -> u8 {
-            0
-        }
-
-        fn merge(&mut self, _snapshot: u8) {}
-
-        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
-            Vec::new()
-        }
-
-        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> u8 {
-            0
-        }
-    }
-
-    fn machine() -> spectator::Machine<u8> {
-        spectator::Machine::new(identity::GameId::from("game"))
-    }
-
-    fn written(app: &mut App) -> Vec<p2p::Libp2pCommand> {
-        app.world_mut()
-            .run_system_once(|mut reader: MessageReader<p2p::Libp2pCommand>| {
-                reader.read().cloned().collect::<Vec<_>>()
-            })
-            .unwrap()
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
+        let mut app = testing::TestApp::new();
         app.add_message::<p2p::Libp2pCommand>();
-        app.insert_resource(machine());
+        app.insert_resource(testing::machine());
         app.insert_resource(spectator::SpectatorGame(identity::GameId::from("game")));
         let zone = identity::ZoneName::from("zone");
         app.world_mut()
@@ -139,7 +102,7 @@ mod tests {
                  game: Res<spectator::SpectatorGame>,
                  mut network: MessageWriter<p2p::Libp2pCommand>| {
                     let In(output) = input;
-                    machine.carry_out_network_output::<MockState>(
+                    machine.carry_out_network_output::<testing::FakeMachineState>(
                         spectator::SpectateSlot::Preview,
                         &output,
                         &game,
@@ -148,19 +111,18 @@ mod tests {
                 },
                 spectator::state_machine::SpectateOutput::<u8, Vec<u8>>::WatchZone(zone.clone()),
             )
-            .unwrap();
+            .expect("run");
         assert_eq!(
-            written(&mut app),
+            testing::written_messages::<p2p::Libp2pCommand>(&mut app).expect("written"),
             vec![p2p::Libp2pCommand::WatchZone { zone }]
         );
     }
 
     #[test]
     fn state_outputs_write_nothing() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
+        let mut app = testing::TestApp::new();
         app.add_message::<p2p::Libp2pCommand>();
-        app.insert_resource(machine());
+        app.insert_resource(testing::machine());
         app.insert_resource(spectator::SpectatorGame(identity::GameId::from("game")));
         app.world_mut()
             .run_system_once_with(
@@ -169,7 +131,7 @@ mod tests {
                  game: Res<spectator::SpectatorGame>,
                  mut network: MessageWriter<p2p::Libp2pCommand>| {
                     let In(output) = input;
-                    machine.carry_out_network_output::<MockState>(
+                    machine.carry_out_network_output::<testing::FakeMachineState>(
                         spectator::SpectateSlot::Preview,
                         &output,
                         &game,
@@ -178,7 +140,10 @@ mod tests {
                 },
                 spectator::state_machine::SpectateOutput::<u8, Vec<u8>>::RepairFinished,
             )
-            .unwrap();
-        assert_eq!(written(&mut app), Vec::new());
+            .expect("run");
+        assert_eq!(
+            testing::written_messages::<p2p::Libp2pCommand>(&mut app).expect("written"),
+            Vec::new()
+        );
     }
 }

@@ -29,6 +29,7 @@ mod tests {
     use crate::p2p;
     use crate::replica_sync;
     use crate::replica_sync::state_machine::{Input, ReplicaState, ZoneLiveness};
+    use crate::testing;
 
     #[test]
     fn test_usage() {
@@ -38,10 +39,6 @@ mod tests {
             expire_overdue_replica_slice_requests(&mut state, now),
             Vec::new()
         );
-    }
-
-    fn at_secs(secs: u64) -> replica_sync::ElapsedSinceAppStart {
-        replica_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
     }
 
     #[test]
@@ -55,9 +52,9 @@ mod tests {
                 members: Vec::new(),
                 liveness: ZoneLiveness::default(),
             },
-            at_secs(0),
+            testing::at_secs(0),
         );
-        joiner.update(Input::SnapshotMissingFromZoneMember, at_secs(0));
+        joiner.update(Input::SnapshotMissingFromZoneMember, testing::at_secs(0));
         let peer = identity::PeerId::from("a");
         let index = replica_sync::ReplicaSliceIndex(2);
         joiner
@@ -65,7 +62,7 @@ mod tests {
             .fetches_awaiting_reply
             .entry(peer.clone())
             .or_default()
-            .insert(index, at_secs(0));
+            .insert(index, testing::at_secs(0));
         let remote = Input::Remote {
             zone: identity::ZoneName::from("other"),
             meta: replica_sync::OpMeta {
@@ -74,7 +71,7 @@ mod tests {
             },
             op: 1u8,
         };
-        let outputs = joiner.update(remote, at_secs(13));
+        let outputs = joiner.update(remote, testing::at_secs(13));
         assert_eq!(outputs, Vec::new());
         assert_eq!(
             joiner.slice_anti_entropy.fetches_awaiting_reply.get(&peer),

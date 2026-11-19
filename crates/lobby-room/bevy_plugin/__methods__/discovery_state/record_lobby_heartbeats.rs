@@ -35,35 +35,12 @@ pub fn record_lobby_heartbeats(
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::record_lobby_heartbeats;
     use crate::discovery;
     use crate::identity;
+    use crate::testing;
     use crate::time;
     use discovery::state_machine::DiscoveryState;
-
-    fn lobby_with(peer: &str, updated_at: time::UnixTime) -> discovery::Lobby {
-        discovery::Lobby::from([(
-            discovery::RoomName::from("r"),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: BTreeMap::from([(
-                    identity::PeerId::from(peer),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from(peer),
-                            addrs: Vec::new(),
-                        },
-                        updated_at,
-                        display_name: None,
-                        membership: discovery::RoomMembership::Occupant,
-                    },
-                )]),
-            },
-        )])
-    }
 
     #[test]
     fn test_usage() {
@@ -71,7 +48,14 @@ mod tests {
             id: identity::PeerId::from("me"),
             addrs: Vec::new(),
         });
-        let lobby = lobby_with("p", time::UnixTime::from_secs(10));
+        let lobby = testing::lobby_with(vec![(
+            "r",
+            testing::room(
+                discovery::RoomSize::DEFAULT,
+                0,
+                testing::room_members(&[("p", None, discovery::RoomMembership::Occupant)]),
+            ),
+        )]);
         record_lobby_heartbeats(&mut state, &lobby, time::UnixTime::from_secs(20));
         assert_eq!(state.observed_lobby_heartbeats.len(), 1);
     }

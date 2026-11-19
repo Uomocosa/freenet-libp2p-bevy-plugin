@@ -177,9 +177,9 @@ impl<Op, Snap> SpectatorState<Op, Snap> {
 #[cfg(test)]
 mod tests {
     use crate::identity;
-    use crate::p2p;
     use crate::replica_sync;
     use crate::spectator;
+    use crate::testing;
     use crate::time;
 
     #[test]
@@ -196,39 +196,16 @@ mod tests {
         assert_eq!(state.phase, spectator::state_machine::SpectatePhase::Idle);
     }
 
-    fn spectating_state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        let mut state =
-            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
-        state.me = Some(identity::PeerId::from("me"));
-        state.start_spectating(
-            &identity::ZoneName::from("zone"),
-            p2p::HistoryKeyPrefix::from("prefix"),
+    #[test]
+    fn a_lease_is_republished_every_half_interval() {
+        let mut state = testing::spectating_state(
+            Some("me"),
             time::UnixTime::EPOCH,
             spectator::state_machine::MIN_LEASE_INTERVAL,
         );
-        state
-    }
-
-    fn lease_outputs(
-        outputs: &[spectator::state_machine::SpectateOutput<u8, Vec<u8>>],
-    ) -> Vec<time::UnixTime> {
-        outputs
-            .iter()
-            .filter_map(|output| match output {
-                spectator::state_machine::SpectateOutput::PublishLease { until, .. } => {
-                    Some(*until)
-                }
-                _ => None,
-            })
-            .collect()
-    }
-
-    #[test]
-    fn a_lease_is_republished_every_half_interval() {
-        let mut state = spectating_state();
         let half = time::UnixTime::from_millis(7_500);
         assert_eq!(
-            lease_outputs(&state.update(
+            testing::lease_outputs(&state.update(
                 spectator::state_machine::SpectateInput::Tick,
                 time::UnixTime::from_millis(7_499),
                 spectator::state_machine::MIN_LEASE_INTERVAL,
@@ -236,7 +213,7 @@ mod tests {
             Vec::new()
         );
         assert_eq!(
-            lease_outputs(&state.update(
+            testing::lease_outputs(&state.update(
                 spectator::state_machine::SpectateInput::Tick,
                 half,
                 spectator::state_machine::MIN_LEASE_INTERVAL,
@@ -247,16 +224,24 @@ mod tests {
 
     #[test]
     fn stop_publishes_a_lease_that_has_already_expired() {
-        let mut state = spectating_state();
+        let mut state = testing::spectating_state(
+            Some("me"),
+            time::UnixTime::EPOCH,
+            spectator::state_machine::MIN_LEASE_INTERVAL,
+        );
         let now = time::UnixTime::from_secs(30);
         let outputs = state.stop_spectating(now);
-        assert_eq!(lease_outputs(&outputs), vec![now]);
+        assert_eq!(testing::lease_outputs(&outputs), vec![now]);
         assert_eq!(state.phase, spectator::state_machine::SpectatePhase::Idle);
     }
 
     #[test]
     fn a_received_slice_frees_its_pending_request() {
-        let mut state = spectating_state();
+        let mut state = testing::spectating_state(
+            Some("me"),
+            time::UnixTime::EPOCH,
+            spectator::state_machine::MIN_LEASE_INTERVAL,
+        );
         state.phase = spectator::state_machine::SpectatePhase::Live;
         let index = replica_sync::ReplicaSliceIndex(1);
         state

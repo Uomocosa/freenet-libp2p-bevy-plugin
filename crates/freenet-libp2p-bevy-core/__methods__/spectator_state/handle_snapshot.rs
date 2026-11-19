@@ -26,23 +26,15 @@ mod tests {
     use crate::identity;
     use crate::replica_sync;
     use crate::spectator;
+    use crate::testing;
     use crate::time;
-
-    fn meta(lamport: u32, author: u16) -> replica_sync::OpMeta {
-        replica_sync::OpMeta { lamport, author }
-    }
-
-    fn fetching_state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        let mut state =
-            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
-        state.zone = Some(identity::ZoneName::from("zone"));
-        state.phase = spectator::state_machine::SpectatePhase::FetchingSnapshot;
-        state
-    }
 
     #[test]
     fn test_usage() {
-        let mut state = fetching_state();
+        let mut state = testing::spectator_state(
+            Some("zone"),
+            spectator::state_machine::SpectatePhase::FetchingSnapshot,
+        );
         let outputs = handle_snapshot(&mut state, vec![1, 2, 3]);
         assert_eq!(
             outputs,
@@ -55,25 +47,28 @@ mod tests {
 
     #[test]
     fn buffered_ops_are_applied_in_meta_order_after_the_merge() {
-        let mut state = fetching_state();
-        state.buffered_ops.push((meta(3, 1), 3_u8));
-        state.buffered_ops.push((meta(1, 2), 1_u8));
-        state.buffered_ops.push((meta(2, 1), 2_u8));
+        let mut state = testing::spectator_state(
+            Some("zone"),
+            spectator::state_machine::SpectatePhase::FetchingSnapshot,
+        );
+        state.buffered_ops.push((testing::meta(3, 1), 3_u8));
+        state.buffered_ops.push((testing::meta(1, 2), 1_u8));
+        state.buffered_ops.push((testing::meta(2, 1), 2_u8));
         let outputs = handle_snapshot(&mut state, vec![0]);
         assert_eq!(
             outputs,
             vec![
                 spectator::state_machine::SpectateOutput::Merge(vec![0]),
                 spectator::state_machine::SpectateOutput::Apply {
-                    meta: meta(1, 2),
+                    meta: testing::meta(1, 2),
                     op: 1_u8,
                 },
                 spectator::state_machine::SpectateOutput::Apply {
-                    meta: meta(2, 1),
+                    meta: testing::meta(2, 1),
                     op: 2_u8,
                 },
                 spectator::state_machine::SpectateOutput::Apply {
-                    meta: meta(3, 1),
+                    meta: testing::meta(3, 1),
                     op: 3_u8,
                 },
             ]
@@ -84,13 +79,16 @@ mod tests {
 
     #[test]
     fn a_buffered_op_is_not_replayed_live_after_the_merge() {
-        let mut state = fetching_state();
+        let mut state = testing::spectator_state(
+            Some("zone"),
+            spectator::state_machine::SpectatePhase::FetchingSnapshot,
+        );
         let zone = identity::ZoneName::from("zone");
         state.update(
             spectator::state_machine::SpectateInput::Topic(
                 replica_sync::ReplicaSyncTopicMessage::ApplyThisOp {
                     zone: zone.clone(),
-                    meta: meta(1, 1),
+                    meta: testing::meta(1, 1),
                     op: 9_u8,
                 },
             ),
@@ -102,7 +100,7 @@ mod tests {
             spectator::state_machine::SpectateInput::Topic(
                 replica_sync::ReplicaSyncTopicMessage::ApplyThisOp {
                     zone,
-                    meta: meta(1, 1),
+                    meta: testing::meta(1, 1),
                     op: 9_u8,
                 },
             ),
@@ -114,7 +112,10 @@ mod tests {
 
     #[test]
     fn a_snapshot_in_the_live_phase_is_ignored() {
-        let mut state = fetching_state();
+        let mut state = testing::spectator_state(
+            Some("zone"),
+            spectator::state_machine::SpectatePhase::FetchingSnapshot,
+        );
         state.phase = spectator::state_machine::SpectatePhase::Live;
         assert_eq!(handle_snapshot(&mut state, vec![1]), Vec::new());
     }

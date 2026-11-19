@@ -237,29 +237,17 @@ mod tests {
 
     use freenet_stdlib::client_api::{ContractResponse, HostResponse};
     use freenet_stdlib::prelude::{
-        ContractCode, ContractContainer, ContractInstanceId, ContractKey, ContractWasmAPIVersion,
-        Parameters, WrappedContract, WrappedState,
+        ContractCode, ContractContainer, ContractInstanceId, ContractWasmAPIVersion,
+        WrappedContract, WrappedState,
     };
-    use serde::{Deserialize, Serialize};
 
     use super::Client;
     use crate::freenet;
-
-    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-    struct TestState {
-        value: u64,
-    }
-
-    fn disconnected_client() -> Client {
-        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        drop(read_tx);
-        Client { write, read }
-    }
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let mut client = disconnected_client();
+        let mut client = testing::disconnected_client();
         assert!(client.recv().await.is_err());
         assert!(client.next_reply().await.is_err());
         let result = client.recv_reply(freenet::RequestKind::QueryPeers).await;
@@ -271,42 +259,32 @@ mod tests {
         let result = silent.recv_reply(freenet::RequestKind::PollLobby).await;
         assert!(matches!(result, Err(freenet::Error::Timeout(_))));
 
-        let mut deploy_target = disconnected_client();
+        let mut deploy_target = testing::disconnected_client();
         let deployed = deploy_target
-            .deploy(&[], &[], &TestState::default(), Duration::from_millis(1))
+            .deploy(
+                &[],
+                &[],
+                &testing::TestState::default(),
+                Duration::from_millis(1),
+            )
             .await;
         assert!(deployed.is_err());
 
-        let mut wait_target = disconnected_client();
+        let mut wait_target = testing::disconnected_client();
         let waited = wait_target
-            .wait_until_get_contract::<TestState>(
-                ContractInstanceId::from(contract_key()),
+            .wait_until_get_contract::<testing::TestState>(
+                ContractInstanceId::from(testing::contract_key()),
                 Duration::ZERO,
             )
             .await;
         assert!(waited.is_err());
     }
 
-    fn contract_key() -> ContractKey {
-        WrappedContract::new(
-            Arc::new(ContractCode::from(vec![0; 4])),
-            Parameters::from(Vec::new()),
-        )
-        .key
-    }
-
-    fn client_with(reply: HostResponse) -> Client {
-        let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        read_tx.send(Ok(reply)).ok();
-        Client { write, read }
-    }
-
     #[tokio::test]
     async fn outstanding_fetch_drains_state_or_absence() {
-        let key = contract_key();
-        let state = TestState { value: 7 };
-        let mut found = client_with(HostResponse::ContractResponse(
+        let key = testing::contract_key();
+        let state = testing::TestState(7);
+        let mut found = testing::reply_client(HostResponse::ContractResponse(
             ContractResponse::GetResponse {
                 key,
                 contract: None,
@@ -314,26 +292,32 @@ mod tests {
             },
         ));
         assert_eq!(
-            found.await_outstanding_fetch::<TestState>().await.ok(),
+            found
+                .await_outstanding_fetch::<testing::TestState>()
+                .await
+                .ok(),
             Some(state)
         );
 
-        let mut missing = client_with(HostResponse::ContractResponse(ContractResponse::NotFound {
-            instance_id: *key.id(),
-        }));
+        let mut missing =
+            testing::reply_client(HostResponse::ContractResponse(ContractResponse::NotFound {
+                instance_id: *key.id(),
+            }));
         assert!(matches!(
-            missing.await_outstanding_fetch::<TestState>().await,
+            missing
+                .await_outstanding_fetch::<testing::TestState>()
+                .await,
             Err(freenet::Error::ContractNotFound)
         ));
     }
 
     #[tokio::test]
     async fn deploy_skips_stale_get_replies() {
-        let key = contract_key();
-        let seed = TestState { value: 1 };
+        let key = testing::contract_key();
+        let seed = testing::TestState(1);
         let wrapped = WrappedContract::new(
             Arc::new(ContractCode::from(vec![0; 4])),
-            Parameters::from(Vec::new()),
+            freenet_stdlib::prelude::Parameters::from(Vec::new()),
         );
         let container = ContractContainer::from(ContractWasmAPIVersion::V1(wrapped));
         let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -367,8 +351,8 @@ mod tests {
     #[tokio::test]
     async fn recv_reply_skips_stray_subscribe_response() {
         use freenet_stdlib::client_api::QueryResponse;
-        let key = contract_key();
-        let state = TestState { value: 3 };
+        let key = testing::contract_key();
+        let state = testing::TestState(3);
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         read_tx
@@ -415,8 +399,8 @@ mod tests {
 
     #[tokio::test]
     async fn recv_reply_returns_get_for_poll() {
-        let key = contract_key();
-        let state = TestState { value: 5 };
+        let key = testing::contract_key();
+        let state = testing::TestState(5);
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         read_tx

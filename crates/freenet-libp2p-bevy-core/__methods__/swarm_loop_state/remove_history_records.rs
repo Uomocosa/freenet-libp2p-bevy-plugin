@@ -29,10 +29,11 @@ mod tests {
     use super::remove_history_records;
 
     use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let gone = p2p::HistoryKeyPrefix::from("gone");
         let kept = p2p::HistoryKeyPrefix::from("kept");
         for prefix in [&gone, &kept] {

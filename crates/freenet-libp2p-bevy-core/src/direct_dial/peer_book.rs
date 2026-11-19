@@ -50,19 +50,15 @@ mod tests {
     use super::PeerBook;
     use crate::direct_dial;
     use crate::identity;
+    use crate::testing;
 
-    fn friend_peer(name: &str) -> identity::Peer {
-        identity::Peer {
-            id: identity::PeerId::from(name),
-            addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/4001")],
-        }
-    }
+    const FRIEND_ADDR: &str = "/ip4/127.0.0.1/tcp/4001";
 
     #[test]
     fn test_usage() {
         let mut book = PeerBook::default();
-        assert!(book.add_friend(friend_peer("alice")));
-        assert!(!book.add_friend(friend_peer("alice")));
+        assert!(book.add_friend(testing::peer("alice", &[FRIEND_ADDR])));
+        assert!(!book.add_friend(testing::peer("alice", &[FRIEND_ADDR])));
         assert!(book.remove_friend(&identity::PeerId::from("alice")));
         assert!(!book.remove_friend(&identity::PeerId::from("alice")));
     }
@@ -70,7 +66,7 @@ mod tests {
     #[test]
     fn same_addresses_are_not_an_update() {
         let mut book = PeerBook::default();
-        let peer = friend_peer("alice");
+        let peer = testing::peer("alice", &[FRIEND_ADDR]);
         assert!(book.add_friend(peer.clone()));
         assert!(!book.update_peer_addrs(&peer));
     }
@@ -78,7 +74,7 @@ mod tests {
     #[test]
     fn new_addresses_replace_the_old_ones() {
         let mut book = PeerBook::default();
-        assert!(book.add_friend(friend_peer("alice")));
+        assert!(book.add_friend(testing::peer("alice", &[FRIEND_ADDR])));
         let refreshed = identity::Peer {
             id: identity::PeerId::from("alice"),
             addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/5001")],
@@ -90,7 +86,7 @@ mod tests {
     #[test]
     fn updating_a_stranger_reports_no_change() {
         let mut book = PeerBook::default();
-        assert!(!book.update_peer_addrs(&friend_peer("mallory")));
+        assert!(!book.update_peer_addrs(&testing::peer("mallory", &[FRIEND_ADDR])));
     }
 
     #[test]
@@ -115,9 +111,9 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("book.json");
         let mut book = PeerBook::default();
-        assert!(book.add_friend(friend_peer("alice")));
+        assert!(book.add_friend(testing::peer("alice", &[FRIEND_ADDR])));
         book.push(direct_dial::KnownPeer {
-            peer: friend_peer("bob"),
+            peer: testing::peer("bob", &[FRIEND_ADDR]),
             kind: direct_dial::KnownPeerKind::PreviouslyConnected,
         });
         book.save_to_file(path.as_path()).expect("save");

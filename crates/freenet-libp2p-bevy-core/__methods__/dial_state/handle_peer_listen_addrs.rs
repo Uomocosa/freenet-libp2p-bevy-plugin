@@ -43,6 +43,7 @@ mod tests {
     use super::handle_peer_listen_addrs;
     use crate::direct_dial;
     use crate::identity;
+    use crate::testing;
     use crate::time;
 
     #[test]
@@ -61,31 +62,14 @@ mod tests {
         assert_eq!(outputs.len(), 1);
     }
 
-    fn bob_with_addr() -> identity::Peer {
-        identity::Peer {
-            id: identity::PeerId::from("bob"),
-            addrs: vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/4002")],
-        }
-    }
-
-    fn saved_books(outputs: &[direct_dial::state_machine::Output]) -> Vec<&direct_dial::PeerBook> {
-        outputs
-            .iter()
-            .filter_map(|output| match output {
-                direct_dial::state_machine::Output::SavePeerBook(book) => Some(book),
-                direct_dial::state_machine::Output::Dial(_) => None,
-            })
-            .collect()
-    }
-
     #[test]
     fn connect_then_quit_before_identify_never_saves_an_addressless_peer() {
         let now = time::UnixTime::from_secs(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let connected = state.handle_peer_connected(&identity::PeerId::from("bob"));
         let disconnected = state.handle_peer_disconnected(&identity::PeerId::from("bob"), now);
-        assert_eq!(saved_books(&connected).len(), 0);
-        assert_eq!(saved_books(&disconnected).len(), 0);
+        assert_eq!(testing::saved_peer_books(&connected).len(), 0);
+        assert_eq!(testing::saved_peer_books(&disconnected).len(), 0);
         assert_eq!(state.to_peer_book(), direct_dial::PeerBook::default());
     }
 
@@ -94,11 +78,15 @@ mod tests {
         let now = time::UnixTime::from_secs(5);
         let mut state = direct_dial::state_machine::DialState::default();
         let _ = state.handle_peer_connected(&identity::PeerId::from("bob"));
-        let outputs = state.handle_peer_listen_addrs(&bob_with_addr(), now);
-        let books = saved_books(&outputs);
+        let outputs = state
+            .handle_peer_listen_addrs(&testing::peer("bob", &["/ip4/127.0.0.1/tcp/4002"]), now);
+        let books = testing::saved_peer_books(&outputs);
         assert_eq!(books.len(), 1);
         assert_eq!(books[0].len(), 1);
-        assert_eq!(books[0][0].peer, bob_with_addr());
+        assert_eq!(
+            books[0][0].peer,
+            testing::peer("bob", &["/ip4/127.0.0.1/tcp/4002"])
+        );
         assert_eq!(
             books[0][0].kind,
             direct_dial::KnownPeerKind::PreviouslyConnected
@@ -109,7 +97,8 @@ mod tests {
     fn identify_before_connect_is_dropped_then_connect_saves_nothing() {
         let now = time::UnixTime::from_secs(5);
         let mut state = direct_dial::state_machine::DialState::default();
-        let early = state.handle_peer_listen_addrs(&bob_with_addr(), now);
+        let early = state
+            .handle_peer_listen_addrs(&testing::peer("bob", &["/ip4/127.0.0.1/tcp/4002"]), now);
         let connected = state.handle_peer_connected(&identity::PeerId::from("bob"));
         assert_eq!(early, Vec::new());
         assert_eq!(connected, Vec::new());

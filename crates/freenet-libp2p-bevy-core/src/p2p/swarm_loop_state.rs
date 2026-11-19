@@ -260,44 +260,16 @@ impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
 #[cfg(test)]
 mod tests {
 
-    use super::SwarmLoopState;
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync;
+    use crate::testing;
     use libp2p::gossipsub;
     use libp2p::gossipsub::IdentTopic;
-    use libp2p::identity::Keypair;
     use libp2p::swarm::DialError;
-
-    impl<Payload: p2p::traits::Message> SwarmLoopState<Payload> {
-        pub(crate) fn for_test() -> (
-            Self,
-            tokio::sync::mpsc::UnboundedReceiver<p2p::Event<Payload>>,
-        ) {
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-            let config = p2p::RunnerConfig {
-                mode: p2p::TransportMode::Both,
-                mdns: p2p::MdnsMode::Disabled,
-                game: identity::GameId::from("test"),
-                gossipsub: p2p::GossipsubConfig::default(),
-            };
-            let swarm =
-                p2p::RunnerConfig::build_swarm::<Payload>(&config, Keypair::generate_ed25519())
-                    .unwrap();
-            let state = Self::new(
-                swarm,
-                tx,
-                p2p::swarm_loop::ZoneSubscriptions::new(config.game.clone()),
-                p2p::swarm_loop::PendingSnapshotReplies::default(),
-                config.mode,
-            );
-            (state, rx)
-        }
-    }
-
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let topic = identity::Topic::from("global/topic");
         state.dispatch_libp2p_command(p2p::Libp2pCommand::Subscribe {
             topic: topic.clone(),
@@ -315,7 +287,7 @@ mod tests {
 
     #[tokio::test]
     async fn zone_subscribe_and_unsubscribe_track_the_map() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let zone = identity::ZoneName::from("zone-a");
         let hash = gossipsub::IdentTopic::new(
             identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
@@ -345,7 +317,7 @@ mod tests {
 
     #[tokio::test]
     async fn raw_unsubscribe_leaves_the_swarm() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let topic = identity::Topic::from("global/topic");
         let hash = IdentTopic::new(topic.as_str()).hash();
         state.dispatch_libp2p_command(p2p::Libp2pCommand::Subscribe {
@@ -370,30 +342,12 @@ mod tests {
         );
     }
 
-    fn message_event(
-        propagation_source: &libp2p::PeerId,
-        source: Option<libp2p::PeerId>,
-        data: Vec<u8>,
-        topic: gossipsub::TopicHash,
-    ) -> gossipsub::Event {
-        gossipsub::Event::Message {
-            propagation_source: *propagation_source,
-            message_id: gossipsub::MessageId::new(b"m1"),
-            message: gossipsub::Message {
-                source,
-                data,
-                sequence_number: None,
-                topic,
-            },
-        }
-    }
-
     #[test]
     fn test_usage_1() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let relay = libp2p::PeerId::random();
-        let event = message_event(
-            &relay,
+        let event = testing::gossipsub_message_event(
+            relay,
             None,
             vec![7],
             gossipsub::TopicHash::from_raw("global/topic"),
@@ -409,15 +363,15 @@ mod tests {
 
     #[test]
     fn registered_zone_topic_becomes_a_zone_message() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let zone = identity::ZoneName::from("zone-a");
         let topic = gossipsub::IdentTopic::new(
             identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
         );
         state.subscriptions.register(&topic, zone.clone());
         let data = bincode::serialize(&9u32).unwrap();
-        state.handle_gossipsub(message_event(
-            &libp2p::PeerId::random(),
+        state.handle_gossipsub(testing::gossipsub_message_event(
+            libp2p::PeerId::random(),
             Some(libp2p::PeerId::random()),
             data,
             topic.hash(),
@@ -433,14 +387,14 @@ mod tests {
 
     #[test]
     fn undecodable_zone_payload_is_an_error() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let zone = identity::ZoneName::from("zone-a");
         let topic = gossipsub::IdentTopic::new(
             identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
         );
         state.subscriptions.register(&topic, zone);
-        state.handle_gossipsub(message_event(
-            &libp2p::PeerId::random(),
+        state.handle_gossipsub(testing::gossipsub_message_event(
+            libp2p::PeerId::random(),
             None,
             Vec::new(),
             topic.hash(),
@@ -453,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_usage_2() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let peer = libp2p::PeerId::random();
         state.note_dial_failure(Some(peer), &DialError::NoAddresses);
         let Ok(p2p::Event::Libp2p(p2p::Libp2pEvent::DialFailed { peer_id, .. })) = rx.try_recv()
@@ -467,13 +421,13 @@ mod tests {
 
     #[test]
     fn test_usage_3() {
-        let (state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         assert_eq!(state.mode, p2p::TransportMode::Both);
     }
 
     #[test]
     fn invalid_fetch_snapshot_sends_replica_sync_failure() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let peer = identity::PeerId::from("not-a-peer-id");
         let zone = identity::ZoneName::from("r");
         state.dispatch_libp2p_command(p2p::Libp2pCommand::FetchSnapshot {
@@ -492,7 +446,7 @@ mod tests {
 
     #[test]
     fn invalid_fetch_slice_sends_replica_sync_failure() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let peer = identity::PeerId::from("not-a-peer-id");
         let zone = identity::ZoneName::from("r");
         let index = replica_sync::ReplicaSliceIndex(2);

@@ -83,10 +83,11 @@ mod tests {
     use super::handle_replica_sync;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let peer = libp2p::PeerId::random();
         let zone = identity::ZoneName::from("zone-1");
         let request_id = state.swarm.behaviour_mut().replica_sync.send_request(

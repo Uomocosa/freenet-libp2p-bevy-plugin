@@ -22,11 +22,11 @@ pub fn dial_mdns_peers<Payload: p2p::traits::Message>(
 #[cfg(test)]
 mod tests {
     use super::dial_mdns_peers;
-    use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         dial_mdns_peers(&mut state, Vec::new());
         assert_eq!(state.swarm.connected_peers().count(), 0);
     }

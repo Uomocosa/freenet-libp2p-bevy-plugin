@@ -21,11 +21,11 @@ mod tests {
     use super::unwatch_zone;
 
     use crate::identity;
-    use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let zone = identity::ZoneName::from("zone-a");
         state.watch_zone(zone.clone());
         unwatch_zone(&mut state, &zone);
@@ -37,7 +37,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_second_watcher_keeps_the_zone_topic() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let zone = identity::ZoneName::from("zone-a");
         let topic = libp2p::gossipsub::IdentTopic::new(
             identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),
@@ -52,7 +52,7 @@ mod tests {
 
     #[tokio::test]
     async fn unwatching_an_unknown_zone_keeps_the_topic_gone() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let zone = identity::ZoneName::from("zone-a");
         let topic = libp2p::gossipsub::IdentTopic::new(
             identity::Topic::from_zone(&state.subscriptions.game, &zone).as_str(),

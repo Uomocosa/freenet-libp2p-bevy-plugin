@@ -58,27 +58,13 @@ mod tests {
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
     use crate::time;
-    use discovery::state_machine::{DiscoveryState, Handshake, Output};
-
-    fn session_in_room() -> DiscoveryState {
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        state.room = Some(discovery::JoinedRoom {
-            name: discovery::RoomName::from("r"),
-            created_at: time::UnixTime::EPOCH,
-            phase: discovery::JoinPhase::Ready,
-            members: discovery::Members::new(),
-            how_entered: discovery::HowRoomWasEntered::Created,
-        });
-        state
-    }
+    use discovery::state_machine::{Handshake, Output};
 
     #[test]
     fn test_usage() {
-        let mut state = session_in_room();
+        let mut state = testing::ready_state("me", "r", None, Vec::new(), &[]);
         let peer = identity::PeerId::from("a");
         state.connected.insert(peer.clone());
         let handshake = Handshake {
@@ -108,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_connected_before_known_becomes_member() {
-        let mut state = session_in_room();
+        let mut state = testing::ready_state("me", "r", None, Vec::new(), &[]);
         let joiner = identity::PeerId::from("joiner");
         state.connected.insert(joiner.clone());
         let handshake = Handshake {

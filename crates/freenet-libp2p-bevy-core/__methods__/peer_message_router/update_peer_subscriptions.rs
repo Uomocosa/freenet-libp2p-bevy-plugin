@@ -90,26 +90,10 @@ mod tests {
     use crate::p2p;
     use crate::testing;
 
-    fn registered(router: &mut testing::PeerMessageRouter, id: &str) -> identity::PeerId {
-        let peer = identity::Peer {
-            id: identity::PeerId::from(id),
-            addrs: Vec::new(),
-        };
-        router.register_peer(&peer);
-        peer.id
-    }
-
-    fn subscribed(router: &testing::PeerMessageRouter, id: &identity::PeerId) -> bool {
-        router
-            .subscribed_topics
-            .get(id)
-            .is_some_and(|topics| !topics.is_empty())
-    }
-
     #[test]
     fn test_usage() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let peer = registered(&mut router, "a");
+        let peer = testing::registered_peer(&mut router, "a");
         let topic = identity::Topic::from("some/topic");
         let events = update_peer_subscriptions(
             &mut router,
@@ -119,20 +103,20 @@ mod tests {
             },
         );
         assert_eq!(events, Vec::new());
-        assert!(subscribed(&router, &peer));
+        assert!(testing::is_subscribed(&router, &peer));
         let events = update_peer_subscriptions(
             &mut router,
             &peer,
             p2p::Libp2pCommand::Unsubscribe { topic },
         );
         assert_eq!(events, Vec::new());
-        assert!(!subscribed(&router, &peer));
+        assert!(!testing::is_subscribed(&router, &peer));
     }
 
     #[test]
     fn zone_subscribe_tracks_the_zone_topic_and_the_joined_zone() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let peer = registered(&mut router, "a");
+        let peer = testing::registered_peer(&mut router, "a");
         let zone = identity::ZoneName::from("zone-a");
         let events = update_peer_subscriptions(
             &mut router,
@@ -154,14 +138,14 @@ mod tests {
             p2p::Libp2pCommand::UnsubscribeZone { zone },
         );
         assert_eq!(events, Vec::new());
-        assert!(!subscribed(&router, &peer));
+        assert!(!testing::is_subscribed(&router, &peer));
         assert!(!router.joined_zones.contains_key(&peer));
     }
 
     #[test]
     fn watching_tracks_the_zone_topic_without_joining() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let peer = registered(&mut router, "a");
+        let peer = testing::registered_peer(&mut router, "a");
         let zone = identity::ZoneName::from("zone-a");
         update_peer_subscriptions(
             &mut router,
@@ -177,13 +161,13 @@ mod tests {
         );
         assert!(!router.joined_zones.contains_key(&peer));
         update_peer_subscriptions(&mut router, &peer, p2p::Libp2pCommand::UnwatchZone { zone });
-        assert!(!subscribed(&router, &peer));
+        assert!(!testing::is_subscribed(&router, &peer));
     }
 
     #[test]
     fn a_second_watch_keeps_the_zone_topic_after_one_unwatch() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let peer = registered(&mut router, "a");
+        let peer = testing::registered_peer(&mut router, "a");
         let zone = identity::ZoneName::from("zone-a");
         let topic = identity::Topic::from_zone(&identity::GameId::from("game"), &zone);
         for _ in 0..2 {
@@ -205,23 +189,23 @@ mod tests {
                 .is_some_and(|topics| topics.contains(&topic))
         );
         update_peer_subscriptions(&mut router, &peer, p2p::Libp2pCommand::UnwatchZone { zone });
-        assert!(!subscribed(&router, &peer));
+        assert!(!testing::is_subscribed(&router, &peer));
     }
 
     #[test]
     fn unwatching_an_unknown_zone_changes_nothing() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let peer = registered(&mut router, "a");
+        let peer = testing::registered_peer(&mut router, "a");
         let zone = identity::ZoneName::from("zone-a");
         update_peer_subscriptions(&mut router, &peer, p2p::Libp2pCommand::UnwatchZone { zone });
-        assert!(!subscribed(&router, &peer));
+        assert!(!testing::is_subscribed(&router, &peer));
         assert!(!router.watched_zones.contains_key(&peer));
     }
 
     #[test]
     fn a_second_watch_keeps_a_joined_zone_after_one_unwatch() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let peer = registered(&mut router, "a");
+        let peer = testing::registered_peer(&mut router, "a");
         let zone = identity::ZoneName::from("zone-a");
         for _ in 0..2 {
             update_peer_subscriptions(
@@ -240,21 +224,21 @@ mod tests {
             &peer,
             p2p::Libp2pCommand::UnwatchZone { zone: zone.clone() },
         );
-        assert!(subscribed(&router, &peer));
+        assert!(testing::is_subscribed(&router, &peer));
         assert_eq!(router.joined_zones.get(&peer), Some(&zone));
         update_peer_subscriptions(
             &mut router,
             &peer,
             p2p::Libp2pCommand::UnwatchZone { zone: zone.clone() },
         );
-        assert!(subscribed(&router, &peer));
+        assert!(testing::is_subscribed(&router, &peer));
         assert_eq!(router.joined_zones.get(&peer), Some(&zone));
     }
 
     #[test]
     fn unwatching_a_joined_zone_keeps_the_topic_and_the_join() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let peer = registered(&mut router, "a");
+        let peer = testing::registered_peer(&mut router, "a");
         let zone = identity::ZoneName::from("zone-a");
         update_peer_subscriptions(
             &mut router,
@@ -271,14 +255,14 @@ mod tests {
             &peer,
             p2p::Libp2pCommand::UnwatchZone { zone: zone.clone() },
         );
-        assert!(subscribed(&router, &peer));
+        assert!(testing::is_subscribed(&router, &peer));
         assert_eq!(router.joined_zones.get(&peer), Some(&zone));
     }
 
     #[test]
     fn leaving_a_watched_zone_keeps_the_topic() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let peer = registered(&mut router, "a");
+        let peer = testing::registered_peer(&mut router, "a");
         let zone = identity::ZoneName::from("zone-a");
         update_peer_subscriptions(
             &mut router,
@@ -295,16 +279,16 @@ mod tests {
             &peer,
             p2p::Libp2pCommand::UnsubscribeZone { zone: zone.clone() },
         );
-        assert!(subscribed(&router, &peer));
+        assert!(testing::is_subscribed(&router, &peer));
         assert!(!router.joined_zones.contains_key(&peer));
         update_peer_subscriptions(&mut router, &peer, p2p::Libp2pCommand::UnwatchZone { zone });
-        assert!(!subscribed(&router, &peer));
+        assert!(!testing::is_subscribed(&router, &peer));
     }
 
     #[test]
     fn leaving_another_zone_keeps_the_joined_zone() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let peer = registered(&mut router, "a");
+        let peer = testing::registered_peer(&mut router, "a");
         let zone = identity::ZoneName::from("zone-a");
         update_peer_subscriptions(
             &mut router,

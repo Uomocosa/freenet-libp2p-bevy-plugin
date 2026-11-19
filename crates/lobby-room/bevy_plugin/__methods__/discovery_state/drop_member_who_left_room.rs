@@ -22,40 +22,16 @@ mod tests {
     use super::drop_member_who_left_room;
     use crate::discovery;
     use crate::identity;
-    use crate::time;
-    use discovery::state_machine::DiscoveryState;
-
-    fn state_in_room() -> DiscoveryState {
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        state.room = Some(discovery::JoinedRoom {
-            name: discovery::RoomName::from("r"),
-            created_at: time::UnixTime::EPOCH,
-            phase: discovery::JoinPhase::Ready,
-            members: discovery::Members::new(),
-            how_entered: discovery::HowRoomWasEntered::Created,
-        });
-        state
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let mut state = state_in_room();
+        let mut state = testing::ready_state("me", "r", None, Vec::new(), &[]);
         let peer = identity::PeerId::from("a");
         assert_eq!(drop_member_who_left_room(&mut state, &peer), Vec::new());
         state.room.as_mut().expect("room").members.insert(
             peer.clone(),
-            discovery::RoomMember {
-                peer: identity::Peer {
-                    id: peer.clone(),
-                    addrs: Vec::new(),
-                },
-                updated_at: time::UnixTime::from_secs(1),
-                display_name: None,
-                membership: discovery::RoomMembership::Occupant,
-            },
+            testing::room_member("a", None, discovery::RoomMembership::Occupant, &[]),
         );
         let outputs = drop_member_who_left_room(&mut state, &peer);
         assert_eq!(outputs.len(), 1);

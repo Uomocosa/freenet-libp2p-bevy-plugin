@@ -108,11 +108,7 @@ mod tests {
     use super::build_swarm;
     use crate::identity;
     use crate::p2p;
-    use derive_more::Deref;
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Deref)]
-    struct Dummy(u32);
+    use crate::testing;
 
     #[test]
     fn test_usage() {
@@ -123,7 +119,7 @@ mod tests {
             game: identity::GameId::from("test"),
             gossipsub: p2p::GossipsubConfig::default(),
         };
-        let swarm = build_swarm::<Dummy>(&config, kp);
+        let swarm = build_swarm::<testing::DummyMessage>(&config, kp);
         assert!(swarm.is_ok());
     }
 }

@@ -84,98 +84,19 @@ impl LobbyContract {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::*;
-    use crate::{
-        Peer, PeerAddr, PeerId, Room, RoomMember, RoomMembership, RoomName, RoomSize, UnixTime,
-    };
-
-    fn state_of(lobby: &Lobby) -> State<'static> {
-        State::from(bincode::serialize(lobby).unwrap())
-    }
-
-    fn state_bytes(modification: UpdateModification<'_>) -> Vec<u8> {
-        modification
-            .new_state
-            .map_or_else(Vec::new, |state| state.as_ref().to_vec())
-    }
-
-    fn room(peer: &str, updated_at: UnixTime, created_at: UnixTime) -> Room {
-        let mut members = BTreeMap::new();
-        members.insert(
-            PeerId(peer.to_string()),
-            RoomMember {
-                peer: Peer {
-                    id: PeerId(peer.to_string()),
-                    addrs: vec![PeerAddr::from("/ip4/127.0.0.1/tcp/1")],
-                },
-                updated_at,
-                display_name: None,
-                membership: RoomMembership::Occupant,
-            },
-        );
-        Room {
-            room_size: RoomSize::try_from(8).unwrap(),
-            created_at,
-            members,
-        }
-    }
-
-    fn room_at(updated_at: UnixTime) -> Room {
-        let mut members = BTreeMap::new();
-        members.insert(
-            PeerId("peer".to_string()),
-            RoomMember {
-                peer: Peer {
-                    id: PeerId("peer".to_string()),
-                    addrs: Vec::new(),
-                },
-                updated_at,
-                display_name: None,
-                membership: RoomMembership::Occupant,
-            },
-        );
-        Room {
-            room_size: RoomSize::try_from(8).unwrap(),
-            created_at: UnixTime::from_secs(1),
-            members,
-        }
-    }
-
-    fn departed_room(updated_at: UnixTime) -> Room {
-        let mut record = room_at(updated_at);
-        for heartbeat in record.members.values_mut() {
-            heartbeat.membership = RoomMembership::Departed;
-        }
-        record
-    }
-
-    fn lobby_with_rooms(count: usize, newest_at: impl Fn(usize) -> UnixTime) -> Lobby {
-        Lobby::from(
-            (0..count)
-                .map(|index| {
-                    (
-                        RoomName::from(format!("room-{index:03}")),
-                        room_at(newest_at(index)),
-                    )
-                })
-                .collect::<BTreeMap<_, _>>(),
-        )
-    }
-
-    fn apply(params: &Parameters<'static>, base: &Lobby, incoming: &Lobby) -> Lobby {
-        let update = UpdateData::Delta(StateDelta::from(bincode::serialize(incoming).unwrap()));
-        let merged =
-            LobbyContract::update_state(params.clone(), state_of(base), vec![update]).unwrap();
-        bincode::deserialize(&state_bytes(merged)).unwrap()
-    }
+    use crate::Lobby;
+    use crate::PeerId;
+    use crate::RoomMembership;
+    use crate::RoomName;
+    use crate::UnixTime;
+    use crate::testing;
 
     #[test]
     fn test_usage() {
         let params = Parameters::from(Vec::new());
         let related = RelatedContracts::default();
-        let empty = state_of(&Lobby::default());
+        let empty = testing::state_of(&Lobby::default());
         assert!(matches!(
             LobbyContract::validate_state(params.clone(), empty, related.clone()),
             Ok(ValidateResult::Valid)
@@ -184,13 +105,16 @@ mod tests {
         let mut base = Lobby::default();
         base.insert(
             RoomName::from("room-a"),
-            room("peer", UnixTime::from_secs(5), UnixTime::from_secs(10)),
+            testing::room("peer", UnixTime::from_secs(5), UnixTime::from_secs(10)),
         );
         let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&base).unwrap()));
-        let merged =
-            LobbyContract::update_state(params.clone(), state_of(&Lobby::default()), vec![update])
-                .unwrap();
-        let bytes = state_bytes(merged);
+        let merged = LobbyContract::update_state(
+            params.clone(),
+            testing::state_of(&Lobby::default()),
+            vec![update],
+        )
+        .unwrap();
+        let bytes = testing::state_bytes(merged);
         let decoded: Lobby = bincode::deserialize(&bytes).unwrap();
         assert_eq!(decoded.len(), 1);
 
@@ -199,14 +123,14 @@ mod tests {
                 let mut old = Lobby::default();
                 old.insert(
                     RoomName::from("room-a"),
-                    room("peer", UnixTime::from_secs(1), UnixTime::from_secs(10)),
+                    testing::room("peer", UnixTime::from_secs(1), UnixTime::from_secs(10)),
                 );
                 old
             })
             .unwrap(),
         ));
         let merged = LobbyContract::update_state(params, State::from(bytes), vec![older]).unwrap();
-        let bytes = state_bytes(merged);
+        let bytes = testing::state_bytes(merged);
         let decoded: Lobby = bincode::deserialize(&bytes).unwrap();
         assert_eq!(
             decoded[&RoomName::from("room-a")].members[&PeerId("peer".to_string())].updated_at,
@@ -218,8 +142,8 @@ mod tests {
     fn recreated_room_replaces_old_generation_both_orders() {
         let params = Parameters::from(Vec::new());
         let room_name = RoomName::from("room-a");
-        let low = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(100));
-        let high = room("peer", UnixTime::from_secs(1), UnixTime::from_secs(500));
+        let low = testing::room("peer", UnixTime::from_secs(1), UnixTime::from_secs(100));
+        let high = testing::room("peer", UnixTime::from_secs(1), UnixTime::from_secs(500));
 
         for (first, second) in [(low.clone(), high.clone()), (high, low)] {
             let mut base = Lobby::default();
@@ -232,8 +156,9 @@ mod tests {
             let update =
                 UpdateData::Delta(StateDelta::from(bincode::serialize(&incoming).unwrap()));
             let merged =
-                LobbyContract::update_state(params.clone(), state_of(&base), vec![update]).unwrap();
-            let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
+                LobbyContract::update_state(params.clone(), testing::state_of(&base), vec![update])
+                    .unwrap();
+            let decoded: Lobby = bincode::deserialize(&testing::state_bytes(merged)).unwrap();
             assert_eq!(
                 decoded[&room_name].created_at,
                 UnixTime::from_secs(500),
@@ -246,16 +171,17 @@ mod tests {
     fn departed_tombstone_wins_over_older_heartbeat() {
         let params = Parameters::from(Vec::new());
         let name = RoomName::from("room-a");
-        let live = room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1));
-        let mut departed = room("peer", UnixTime::from_secs(9), UnixTime::from_secs(1));
+        let live = testing::room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1));
+        let mut departed = testing::room("peer", UnixTime::from_secs(9), UnixTime::from_secs(1));
         for heartbeat in departed.members.values_mut() {
             heartbeat.membership = RoomMembership::Departed;
         }
         let base = Lobby::from([(name.clone(), live)]);
         let incoming = Lobby::from([(name.clone(), departed)]);
         let update = UpdateData::Delta(StateDelta::from(bincode::serialize(&incoming).unwrap()));
-        let merged = LobbyContract::update_state(params, state_of(&base), vec![update]).unwrap();
-        let decoded: Lobby = bincode::deserialize(&state_bytes(merged)).unwrap();
+        let merged =
+            LobbyContract::update_state(params, testing::state_of(&base), vec![update]).unwrap();
+        let decoded: Lobby = bincode::deserialize(&testing::state_bytes(merged)).unwrap();
         assert!(
             !decoded.contains_key(&name),
             "the departed tombstone must win over the older live heartbeat"
@@ -266,13 +192,13 @@ mod tests {
     fn all_departed_room_is_dropped_in_either_merge_order() {
         let params = Parameters::from(Vec::new());
         let name = RoomName::from("room-a");
-        let live = room_at(UnixTime::from_secs(5));
-        let departed = departed_room(UnixTime::from_secs(9));
+        let live = testing::room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1));
+        let departed = testing::departed_room(UnixTime::from_secs(9));
         let pairs = [(live.clone(), departed.clone()), (departed, live)];
         for (base_room, incoming_room) in pairs {
             let base = Lobby::from([(name.clone(), base_room)]);
             let incoming = Lobby::from([(name.clone(), incoming_room)]);
-            let merged = apply(&params, &base, &incoming);
+            let merged = testing::apply(&params, &base, &incoming);
             assert!(
                 !merged.contains_key(&name),
                 "an all-departed room must not survive the merge"
@@ -284,25 +210,28 @@ mod tests {
     fn stale_live_heartbeat_resurrects_a_dropped_room() {
         let params = Parameters::from(Vec::new());
         let name = RoomName::from("room-a");
-        let dead = Lobby::from([(name.clone(), departed_room(UnixTime::from_secs(9)))]);
-        let dropped = apply(&params, &Lobby::default(), &dead);
+        let dead = Lobby::from([(name.clone(), testing::departed_room(UnixTime::from_secs(9)))]);
+        let dropped = testing::apply(&params, &Lobby::default(), &dead);
         assert!(!dropped.contains_key(&name));
-        let stale = Lobby::from([(name.clone(), room_at(UnixTime::from_secs(5)))]);
-        let revived = apply(&params, &dropped, &stale);
+        let stale = Lobby::from([(
+            name.clone(),
+            testing::room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1)),
+        )]);
+        let revived = testing::apply(&params, &dropped, &stale);
         assert!(revived.contains_key(&name));
     }
 
     #[test]
     fn all_departed_room_never_displaces_a_live_room() {
         let params = Parameters::from(Vec::new());
-        let base = lobby_with_rooms(constants::MAX_ROOMS, |index| {
+        let base = testing::lobby_with_rooms(constants::MAX_ROOMS, |index| {
             UnixTime::from_secs(u64::try_from(index).unwrap_or_default().saturating_add(1))
         });
         let dead = Lobby::from([(
             RoomName::from("z-dead"),
-            departed_room(UnixTime::from_secs(1_000)),
+            testing::departed_room(UnixTime::from_secs(1_000)),
         )]);
-        let merged = apply(&params, &base, &dead);
+        let merged = testing::apply(&params, &base, &dead);
         assert_eq!(merged.len(), constants::MAX_ROOMS);
         assert!(!merged.contains_key(&RoomName::from("z-dead")));
         assert!(merged.contains_key(&RoomName::from("room-000")));
@@ -311,12 +240,14 @@ mod tests {
     #[test]
     fn cap_evicts_the_oldest_room_and_keeps_the_incoming_one() {
         let params = Parameters::from(Vec::new());
-        let base = lobby_with_rooms(constants::MAX_ROOMS, |index| {
+        let base = testing::lobby_with_rooms(constants::MAX_ROOMS, |index| {
             UnixTime::from_secs(u64::try_from(index).unwrap_or_default().saturating_add(1))
         });
-        let incoming =
-            Lobby::from([(RoomName::from("z-new"), room_at(UnixTime::from_secs(1_000)))]);
-        let merged = apply(&params, &base, &incoming);
+        let incoming = Lobby::from([(
+            RoomName::from("z-new"),
+            testing::room("peer", UnixTime::from_secs(1_000), UnixTime::from_secs(1)),
+        )]);
+        let merged = testing::apply(&params, &base, &incoming);
         assert_eq!(merged.len(), constants::MAX_ROOMS);
         assert!(!merged.contains_key(&RoomName::from("room-000")));
         assert!(merged.contains_key(&RoomName::from("z-new")));
@@ -325,9 +256,12 @@ mod tests {
     #[test]
     fn cap_evicts_the_smaller_name_when_newest_heartbeats_tie() {
         let params = Parameters::from(Vec::new());
-        let base = lobby_with_rooms(constants::MAX_ROOMS, |_| UnixTime::from_secs(5));
-        let incoming = Lobby::from([(RoomName::from("z-new"), room_at(UnixTime::from_secs(5)))]);
-        let merged = apply(&params, &base, &incoming);
+        let base = testing::lobby_with_rooms(constants::MAX_ROOMS, |_| UnixTime::from_secs(5));
+        let incoming = Lobby::from([(
+            RoomName::from("z-new"),
+            testing::room("peer", UnixTime::from_secs(5), UnixTime::from_secs(1)),
+        )]);
+        let merged = testing::apply(&params, &base, &incoming);
         assert_eq!(merged.len(), constants::MAX_ROOMS);
         assert!(!merged.contains_key(&RoomName::from("room-000")));
         assert!(merged.contains_key(&RoomName::from("z-new")));
@@ -336,9 +270,12 @@ mod tests {
     #[test]
     fn cap_evicts_the_incoming_room_when_it_is_the_oldest() {
         let params = Parameters::from(Vec::new());
-        let base = lobby_with_rooms(constants::MAX_ROOMS, |_| UnixTime::from_secs(100));
-        let incoming = Lobby::from([(RoomName::from("new-room"), room_at(UnixTime::from_secs(1)))]);
-        let merged = apply(&params, &base, &incoming);
+        let base = testing::lobby_with_rooms(constants::MAX_ROOMS, |_| UnixTime::from_secs(100));
+        let incoming = Lobby::from([(
+            RoomName::from("new-room"),
+            testing::room("peer", UnixTime::from_secs(1), UnixTime::from_secs(1)),
+        )]);
+        let merged = testing::apply(&params, &base, &incoming);
         assert_eq!(merged.len(), constants::MAX_ROOMS);
         assert!(!merged.contains_key(&RoomName::from("new-room")));
         assert!(merged.contains_key(&RoomName::from("room-000")));
@@ -346,7 +283,7 @@ mod tests {
 
     #[test]
     fn evicts_the_oldest_rooms_until_the_lobby_fits() {
-        let mut lobby = lobby_with_rooms(3, |index| {
+        let mut lobby = testing::lobby_with_rooms(3, |index| {
             UnixTime::from_secs(u64::try_from(index).unwrap_or_default())
         });
         lobby.evict_oldest_rooms_until_lobby_fits_capacity(2);

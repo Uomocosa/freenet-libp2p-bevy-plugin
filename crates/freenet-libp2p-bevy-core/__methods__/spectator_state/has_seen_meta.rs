@@ -15,30 +15,23 @@ pub fn has_seen_meta<Op, Snap>(
 #[cfg(test)]
 mod tests {
     use super::has_seen_meta;
-    use crate::identity;
-    use crate::replica_sync;
     use crate::spectator;
-
-    fn meta(lamport: u32) -> replica_sync::OpMeta {
-        replica_sync::OpMeta { lamport, author: 1 }
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
-            identity::GameId::from("game"),
-        );
-        assert!(!has_seen_meta(&state, meta(1)));
-        state.applied_metas.push(meta(1));
-        assert!(has_seen_meta(&state, meta(1)));
+        let mut state =
+            testing::spectator_state(None, spectator::state_machine::SpectatePhase::Idle);
+        assert!(!has_seen_meta(&state, testing::meta(1, 1)));
+        state.applied_metas.push(testing::meta(1, 1));
+        assert!(has_seen_meta(&state, testing::meta(1, 1)));
     }
 
     #[test]
     fn a_buffered_op_counts_as_seen() {
-        let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
-            identity::GameId::from("game"),
-        );
-        state.buffered_ops.push((meta(3), 4_u8));
-        assert!(has_seen_meta(&state, meta(3)));
+        let mut state =
+            testing::spectator_state(None, spectator::state_machine::SpectatePhase::Idle);
+        state.buffered_ops.push((testing::meta(3, 1), 4_u8));
+        assert!(has_seen_meta(&state, testing::meta(3, 1)));
     }
 }

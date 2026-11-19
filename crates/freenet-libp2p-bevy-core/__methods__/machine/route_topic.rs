@@ -40,15 +40,12 @@ mod tests {
     use crate::identity;
     use crate::replica_sync;
     use crate::spectator;
+    use crate::testing;
     use crate::time;
-
-    fn machine() -> spectator::Machine<u8> {
-        spectator::Machine::new(identity::GameId::from("game"))
-    }
 
     #[test]
     fn test_usage() {
-        let mut machine = machine();
+        let mut machine = testing::machine();
         assert_eq!(
             route_topic(
                 &mut machine,
@@ -68,7 +65,7 @@ mod tests {
 
     #[test]
     fn a_lease_counts_in_the_zone_only_when_it_is_our_zone() {
-        let mut machine = machine();
+        let mut machine = testing::machine();
         machine.in_zone.my_zone = Some(identity::ZoneName::from("home"));
         let outputs = route_topic(
             &mut machine,

@@ -48,10 +48,11 @@ mod tests {
     use super::publish_zone;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<Vec<u8>>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<Vec<u8>>().expect("swarm loop state");
         let config = p2p::GossipsubConfig::default();
         let zone = identity::ZoneName::from("zone-a");
         publish_zone(&mut state, &config, &zone, &vec![0; 70_000]);

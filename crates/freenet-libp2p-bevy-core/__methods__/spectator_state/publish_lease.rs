@@ -28,19 +28,14 @@ mod tests {
     use super::publish_lease;
     use crate::identity;
     use crate::spectator;
+    use crate::testing;
     use crate::time;
-
-    fn state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        let mut state =
-            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
-        state.me = Some(identity::PeerId::from("me"));
-        state.zone = Some(identity::ZoneName::from("zone"));
-        state
-    }
 
     #[test]
     fn test_usage() {
-        let mut state = state();
+        let mut state =
+            testing::spectator_state(Some("zone"), spectator::state_machine::SpectatePhase::Idle);
+        state.me = Some(identity::PeerId::from("me"));
         let now = time::UnixTime::from_secs(100);
         let outputs = publish_lease(
             &mut state,
@@ -70,9 +65,8 @@ mod tests {
 
     #[test]
     fn an_idle_state_publishes_no_lease() {
-        let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
-            identity::GameId::from("game"),
-        );
+        let mut state =
+            testing::spectator_state(None, spectator::state_machine::SpectatePhase::Idle);
         state.me = Some(identity::PeerId::from("me"));
         assert_eq!(
             publish_lease(
@@ -86,10 +80,8 @@ mod tests {
 
     #[test]
     fn no_lease_is_published_before_the_local_id_is_known() {
-        let mut state = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
-            identity::GameId::from("game"),
-        );
-        state.zone = Some(identity::ZoneName::from("zone"));
+        let mut state =
+            testing::spectator_state(Some("zone"), spectator::state_machine::SpectatePhase::Idle);
         assert_eq!(
             publish_lease(
                 &mut state,

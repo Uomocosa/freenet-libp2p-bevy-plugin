@@ -34,51 +34,32 @@ impl NodeStatus {
 
 #[cfg(test)]
 mod tests {
-    use freenet_stdlib::client_api::{NetworkInfo, NodeDiagnosticsResponse, NodeInfo};
+    use freenet_stdlib::client_api::NodeDiagnosticsResponse;
+
+    use crate::testing;
 
     use super::NodeStatus;
-
-    fn diagnostics(
-        location: Option<&str>,
-        ring_peers: usize,
-        is_gateway: bool,
-    ) -> NodeDiagnosticsResponse {
-        NodeDiagnosticsResponse {
-            node_info: Some(NodeInfo {
-                peer_id: "peer".to_string(),
-                is_gateway,
-                location: location.map(str::to_string),
-                listening_address: None,
-                uptime_seconds: 1,
-            }),
-            network_info: Some(NetworkInfo {
-                connected_peers: Vec::new(),
-                active_connections: ring_peers,
-            }),
-            subscriptions: Vec::new(),
-            contract_states: std::collections::HashMap::new(),
-            system_metrics: None,
-            connected_peers_detailed: Vec::new(),
-        }
-    }
 
     #[test]
     fn test_usage() {
         let gateway_only =
-            NodeStatus::from_diagnostics(&diagnostics(Some("0.999024"), 0, false), 2);
+            NodeStatus::from_diagnostics(&testing::node_diagnostics(Some("0.999024"), 0, false), 2);
         assert_eq!(gateway_only.ring_peers, 0);
         assert_eq!(gateway_only.transport_peers, 2);
         assert_eq!(gateway_only.ring_location, Some(0.999_024));
         assert!(gateway_only.is_node_reachable());
 
-        let joined = NodeStatus::from_diagnostics(&diagnostics(Some("0.5"), 27, true), 29);
+        let joined =
+            NodeStatus::from_diagnostics(&testing::node_diagnostics(Some("0.5"), 27, true), 29);
         assert!(joined.is_node_reachable());
         assert!(joined.is_gateway);
 
-        let ring_only = NodeStatus::from_diagnostics(&diagnostics(Some("0.5"), 3, false), 0);
+        let ring_only =
+            NodeStatus::from_diagnostics(&testing::node_diagnostics(Some("0.5"), 3, false), 0);
         assert!(ring_only.is_node_reachable());
 
-        let isolated = NodeStatus::from_diagnostics(&diagnostics(Some("0.5"), 0, false), 0);
+        let isolated =
+            NodeStatus::from_diagnostics(&testing::node_diagnostics(Some("0.5"), 0, false), 0);
         assert!(!isolated.is_node_reachable());
 
         let unknown = NodeStatus::from_diagnostics(

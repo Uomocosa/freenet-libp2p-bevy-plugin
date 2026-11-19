@@ -29,18 +29,14 @@ pub fn route_snapshot<Op: Clone>(
 #[cfg(test)]
 mod tests {
     use super::route_snapshot;
-    use crate::identity;
     use crate::p2p;
     use crate::spectator;
+    use crate::testing;
     use crate::time;
-
-    fn machine() -> spectator::Machine<u8> {
-        spectator::Machine::new(identity::GameId::from("game"))
-    }
 
     #[test]
     fn test_usage() {
-        let mut machine = machine();
+        let mut machine = testing::machine();
         let prefix = p2p::HistoryKeyPrefix::from("prefix");
         assert_eq!(
             route_snapshot(&mut machine, &prefix, vec![1], time::UnixTime::EPOCH),
@@ -50,20 +46,13 @@ mod tests {
 
     #[test]
     fn a_snapshot_reaches_the_session_that_fetched_its_history() {
-        let mut machine = machine();
-        let prefix = p2p::HistoryKeyPrefix::from("prefix");
-        let mut session = spectator::state_machine::SpectatorState::<u8, Vec<u8>>::new(
-            identity::GameId::from("game"),
-        );
-        session.start_spectating(
-            &identity::ZoneName::from("zone"),
-            prefix.clone(),
-            time::UnixTime::EPOCH,
+        let mut machine = testing::spectating_machine(
+            &[spectator::SpectateSlot::Stream],
+            "zone",
+            "prefix",
             spectator::state_machine::MIN_LEASE_INTERVAL,
         );
-        machine
-            .sessions
-            .insert(spectator::SpectateSlot::Stream, session);
+        let prefix = p2p::HistoryKeyPrefix::from("prefix");
         let outputs = route_snapshot(&mut machine, &prefix, vec![7], time::UnixTime::EPOCH);
         assert!(matches!(
             outputs.as_slice(),

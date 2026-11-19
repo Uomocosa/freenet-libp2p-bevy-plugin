@@ -26,27 +26,19 @@ mod tests {
     use super::drain;
     use crate::identity;
     use crate::p2p;
-    use crate::replica_sync::bevy_systems::Libp2pEvents;
-    use std::sync::Mutex;
-
-    fn lagged_events() -> Libp2pEvents {
-        let (tx, rx) = tokio::sync::broadcast::channel(2);
-        let first = p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("a"));
-        let second = p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("b"));
-        let third = p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("c"));
-        let fourth = p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("d"));
-        tx.send(first).ok();
-        tx.send(second).ok();
-        tx.send(third).ok();
-        tx.send(fourth).ok();
-        Libp2pEvents {
-            receiver: Mutex::new(rx),
-        }
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let events = lagged_events();
+        let events = testing::libp2p_events(
+            [
+                p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("a")),
+                p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("b")),
+                p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("c")),
+                p2p::Libp2pEvent::PeerConnected(identity::PeerId::from("d")),
+            ],
+            2,
+        );
         let drained = drain(&events);
         assert_eq!(
             drained,

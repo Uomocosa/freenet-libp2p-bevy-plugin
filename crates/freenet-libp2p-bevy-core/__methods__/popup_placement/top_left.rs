@@ -28,42 +28,20 @@ pub fn top_left(placement: &ui::floating::PopupPlacement) -> Vec2 {
 
 #[cfg(test)]
 mod tests {
-    use bevy::math::{Rect, Vec2};
+    use bevy::math::Vec2;
 
     use super::top_left;
+    use crate::testing::{anchor, area, placement};
     use crate::ui;
-
-    fn area() -> Rect {
-        Rect::from_corners(Vec2::ZERO, Vec2::new(960.0, 540.0))
-    }
-
-    fn placement(
-        preferred_side: ui::floating::PopupSide,
-        cross_align: ui::floating::PopupAlign,
-        anchor: Rect,
-        popup: Vec2,
-    ) -> ui::floating::PopupPlacement {
-        ui::floating::PopupPlacement {
-            anchor,
-            popup,
-            area: area(),
-            preferred_side,
-            cross_align,
-            gap: ui::floating::PopupGap(4.0),
-        }
-    }
-
-    fn anchor(min: Vec2, max: Vec2) -> Rect {
-        Rect::from_corners(min, max)
-    }
 
     #[test]
     fn test_usage() {
         let placement = placement(
-            ui::floating::PopupSide::Below,
-            ui::floating::PopupAlign::Centre,
+            area(Vec2::new(960.0, 540.0)),
             anchor(Vec2::new(100.0, 100.0), Vec2::new(150.0, 120.0)),
             Vec2::new(80.0, 20.0),
+            ui::floating::PopupSide::Below,
+            ui::floating::PopupAlign::Centre,
         );
         assert_eq!(top_left(&placement), Vec2::new(85.0, 124.0));
     }
@@ -71,10 +49,11 @@ mod tests {
     #[test]
     fn a_popup_that_fits_below_is_placed_below() {
         let placement = placement(
-            ui::floating::PopupSide::Below,
-            ui::floating::PopupAlign::Centre,
+            area(Vec2::new(960.0, 540.0)),
             anchor(Vec2::new(400.0, 300.0), Vec2::new(500.0, 320.0)),
             Vec2::new(100.0, 40.0),
+            ui::floating::PopupSide::Below,
+            ui::floating::PopupAlign::Centre,
         );
         assert_eq!(
             top_left(&placement),
@@ -88,10 +67,11 @@ mod tests {
     #[test]
     fn a_popup_with_no_room_below_flips_above() {
         let placement = placement(
-            ui::floating::PopupSide::Below,
-            ui::floating::PopupAlign::Centre,
+            area(Vec2::new(960.0, 540.0)),
             anchor(Vec2::new(100.0, 480.0), Vec2::new(150.0, 520.0)),
             Vec2::new(80.0, 20.0),
+            ui::floating::PopupSide::Below,
+            ui::floating::PopupAlign::Centre,
         );
         assert_eq!(top_left(&placement), Vec2::new(85.0, 456.0));
     }
@@ -99,10 +79,11 @@ mod tests {
     #[test]
     fn a_popup_with_no_room_left_flips_right() {
         let placement = placement(
-            ui::floating::PopupSide::Left,
-            ui::floating::PopupAlign::Centre,
+            area(Vec2::new(960.0, 540.0)),
             anchor(Vec2::new(10.0, 100.0), Vec2::new(60.0, 120.0)),
             Vec2::new(80.0, 20.0),
+            ui::floating::PopupSide::Left,
+            ui::floating::PopupAlign::Centre,
         );
         assert_eq!(top_left(&placement), Vec2::new(64.0, 100.0));
     }
@@ -110,10 +91,11 @@ mod tests {
     #[test]
     fn the_side_with_more_room_wins_when_neither_fits() {
         let placement = placement(
-            ui::floating::PopupSide::Below,
-            ui::floating::PopupAlign::Centre,
+            area(Vec2::new(960.0, 540.0)),
             anchor(Vec2::new(100.0, 10.0), Vec2::new(150.0, 520.0)),
             Vec2::new(80.0, 20.0),
+            ui::floating::PopupSide::Below,
+            ui::floating::PopupAlign::Centre,
         );
         assert_eq!(top_left(&placement), Vec2::new(85.0, 520.0));
     }
@@ -121,10 +103,11 @@ mod tests {
     #[test]
     fn a_popup_inside_the_area_is_not_moved() {
         let placement = placement(
-            ui::floating::PopupSide::Below,
-            ui::floating::PopupAlign::Start,
+            area(Vec2::new(960.0, 540.0)),
             anchor(Vec2::new(200.0, 200.0), Vec2::new(260.0, 220.0)),
             Vec2::new(60.0, 20.0),
+            ui::floating::PopupSide::Below,
+            ui::floating::PopupAlign::Start,
         );
         assert_eq!(top_left(&placement), Vec2::new(200.0, 224.0));
     }

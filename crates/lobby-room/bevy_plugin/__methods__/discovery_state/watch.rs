@@ -26,43 +26,21 @@ pub fn watch(
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::watch;
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
     use crate::time;
-    use discovery::state_machine::DiscoveryState;
-
-    fn state_with_lobby(rooms: &[(&str, u64)]) -> DiscoveryState {
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        for (name, created_at) in rooms {
-            state.lobby.insert(
-                discovery::RoomName::from(*name),
-                discovery::Room {
-                    room_size: discovery::RoomSize::DEFAULT,
-                    created_at: time::UnixTime::from_secs(*created_at),
-                    members: BTreeMap::new(),
-                },
-            );
-        }
-        state
-    }
-
-    fn held(state: &DiscoveryState, room: &str) -> discovery::state_machine::HeldRoomHistory {
-        *state
-            .held_rooms
-            .get(&discovery::RoomName::from(room))
-            .expect("room is held")
-    }
 
     #[test]
     fn test_usage() {
-        let mut state = state_with_lobby(&[("alpha", 10)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(discovery::RoomSize::DEFAULT, 10, Vec::new()),
+            )]))
+            .build();
         assert_eq!(
             watch(
                 &mut state,
@@ -73,39 +51,42 @@ mod tests {
         );
         assert_eq!(state.held_rooms.len(), 1);
         assert_eq!(
-            held(&state, "alpha"),
-            discovery::state_machine::HeldRoomHistory {
-                created_at: time::UnixTime::from_secs(10),
-                left_at: time::UnixTime::from_secs(20),
-            }
+            testing::held_room(&state, "alpha").expect("alpha is held"),
+            testing::held_room_history(10, 20)
         );
     }
 
     #[test]
     fn watching_again_refreshes_only_left_at() {
-        let mut state = state_with_lobby(&[("alpha", 10)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(discovery::RoomSize::DEFAULT, 10, Vec::new()),
+            )]))
+            .build();
         let room = discovery::RoomName::from("alpha");
         watch(&mut state, room.clone(), time::UnixTime::from_secs(20));
         watch(&mut state, room, time::UnixTime::from_secs(30));
         assert_eq!(
-            held(&state, "alpha"),
-            discovery::state_machine::HeldRoomHistory {
-                created_at: time::UnixTime::from_secs(10),
-                left_at: time::UnixTime::from_secs(30),
-            }
+            testing::held_room(&state, "alpha").expect("alpha is held"),
+            testing::held_room_history(10, 30)
         );
     }
 
     #[test]
     fn watching_while_in_a_room_does_nothing() {
-        let mut state = state_with_lobby(&[("alpha", 10)]);
-        state.room = Some(discovery::JoinedRoom {
-            name: discovery::RoomName::from("beta"),
-            created_at: time::UnixTime::EPOCH,
-            phase: discovery::JoinPhase::Ready,
-            members: discovery::Members::new(),
-            how_entered: discovery::HowRoomWasEntered::Created,
-        });
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(discovery::RoomSize::DEFAULT, 10, Vec::new()),
+            )]))
+            .build();
+        state.room = Some(testing::joined_room(
+            "beta",
+            0,
+            discovery::JoinPhase::Ready,
+            Vec::new(),
+        ));
         watch(
             &mut state,
             discovery::RoomName::from("alpha"),
@@ -116,7 +97,12 @@ mod tests {
 
     #[test]
     fn watching_an_unlisted_room_does_nothing() {
-        let mut state = state_with_lobby(&[("alpha", 10)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![(
+                "alpha",
+                testing::room(discovery::RoomSize::DEFAULT, 10, Vec::new()),
+            )]))
+            .build();
         watch(
             &mut state,
             discovery::RoomName::from("missing"),
@@ -127,7 +113,22 @@ mod tests {
 
     #[test]
     fn watching_over_the_held_room_limit_is_evicted_oldest_watched_first() {
-        let mut state = state_with_lobby(&[("a", 10), ("b", 10), ("c", 10)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(testing::lobby_with(vec![
+                (
+                    "a",
+                    testing::room(discovery::RoomSize::DEFAULT, 10, Vec::new()),
+                ),
+                (
+                    "b",
+                    testing::room(discovery::RoomSize::DEFAULT, 10, Vec::new()),
+                ),
+                (
+                    "c",
+                    testing::room(discovery::RoomSize::DEFAULT, 10, Vec::new()),
+                ),
+            ]))
+            .build();
         state.history_size_limits.max_held_rooms = 2;
         for (room, watched_at) in [("a", 20), ("b", 30), ("c", 40)] {
             watch(
@@ -136,11 +137,7 @@ mod tests {
                 time::UnixTime::from_secs(watched_at),
             );
         }
-        let bytes = BTreeMap::from([
-            (discovery::RoomName::from("a"), p2p::HistoryByteCount(1)),
-            (discovery::RoomName::from("b"), p2p::HistoryByteCount(1)),
-            (discovery::RoomName::from("c"), p2p::HistoryByteCount(1)),
-        ]);
+        let bytes = testing::history_bytes_by_room(&[("a", 1), ("b", 1), ("c", 1)]);
         let evicted = state.oldest_held_rooms_to_evict_until_history_limits_hold(
             &bytes,
             p2p::HistoryByteCount::default(),

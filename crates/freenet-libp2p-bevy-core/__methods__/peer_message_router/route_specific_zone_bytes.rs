@@ -19,21 +19,12 @@ mod tests {
     use crate::p2p;
     use crate::testing;
 
-    fn registered(router: &mut testing::PeerMessageRouter, id: &str) -> identity::PeerId {
-        let peer = identity::Peer {
-            id: identity::PeerId::from(id),
-            addrs: Vec::new(),
-        };
-        router.register_peer(&peer);
-        peer.id
-    }
-
     #[test]
     fn test_usage() {
         let game = identity::GameId::from("game");
         let mut router = testing::PeerMessageRouter::new(game.clone());
-        let publisher = registered(&mut router, "a");
-        let subscriber = registered(&mut router, "b");
+        let publisher = testing::registered_peer(&mut router, "a");
+        let subscriber = testing::registered_peer(&mut router, "b");
         let zone = identity::ZoneName::from("zone-a");
         router.route(
             &subscriber,
@@ -63,8 +54,8 @@ mod tests {
     #[test]
     fn unsubscribed_peers_get_no_zone_bytes() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let publisher = registered(&mut router, "a");
-        let listener = registered(&mut router, "b");
+        let publisher = testing::registered_peer(&mut router, "a");
+        let listener = testing::registered_peer(&mut router, "b");
         let zone = identity::ZoneName::from("zone-a");
         router.route(
             &publisher,

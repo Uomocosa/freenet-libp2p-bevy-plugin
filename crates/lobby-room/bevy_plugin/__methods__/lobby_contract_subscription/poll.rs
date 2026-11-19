@@ -30,54 +30,18 @@ pub async fn poll(
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-    use std::sync::Arc;
-
     use freenet_stdlib::client_api::{ContractResponse, HostResponse};
-    use freenet_stdlib::prelude::{
-        ContractCode, ContractKey, Parameters, WrappedContract, WrappedState,
-    };
+    use freenet_stdlib::prelude::WrappedState;
 
     use super::poll;
-    use crate::time;
-    use crate::{discovery, freenet, identity};
-
-    fn contract_key() -> ContractKey {
-        WrappedContract::new(
-            Arc::new(ContractCode::from(discovery::LOBBY_CONTRACT_WASM.to_vec())),
-            Parameters::from(Vec::new()),
-        )
-        .key
-    }
-
-    fn room_lobby() -> discovery::Lobby {
-        discovery::Lobby::from([(
-            discovery::RoomName::from("room-a"),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: BTreeMap::from([(
-                    identity::PeerId::from("peer"),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from("peer"),
-                            addrs: Vec::new(),
-                        },
-                        updated_at: time::UnixTime::from_secs(1),
-                        display_name: None,
-                        membership: discovery::RoomMembership::Occupant,
-                    },
-                )]),
-            },
-        )])
-    }
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        let key = contract_key();
-        let incoming = room_lobby();
+        let key = testing::contract_key();
+        let incoming = testing::room_lobby();
         read_tx
             .send(Ok(HostResponse::ContractResponse(
                 ContractResponse::GetResponse {
@@ -87,12 +51,7 @@ mod tests {
                 },
             )))
             .ok();
-        let mut subscription = discovery::LobbyContractSubscription {
-            client: freenet::Client { write, read },
-            key,
-            lobby: discovery::Lobby::default(),
-            has_unread_subscribe_answer: false,
-        };
+        let mut subscription = testing::lobby_subscription(write, read);
         let polled = poll(&mut subscription).await;
         assert_eq!(polled.ok(), Some(incoming));
         assert_eq!(subscription.lobby.len(), 1);
@@ -102,7 +61,7 @@ mod tests {
     async fn poll_records_the_subscribe_answer() {
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        let key = contract_key();
+        let key = testing::contract_key();
         read_tx
             .send(Ok(HostResponse::ContractResponse(
                 ContractResponse::SubscribeResponse {
@@ -116,16 +75,13 @@ mod tests {
                 ContractResponse::GetResponse {
                     key,
                     contract: None,
-                    state: WrappedState::new(bincode::serialize(&room_lobby()).unwrap_or_default()),
+                    state: WrappedState::new(
+                        bincode::serialize(&testing::room_lobby()).unwrap_or_default(),
+                    ),
                 },
             )))
             .ok();
-        let mut subscription = discovery::LobbyContractSubscription {
-            client: freenet::Client { write, read },
-            key,
-            lobby: discovery::Lobby::default(),
-            has_unread_subscribe_answer: false,
-        };
+        let mut subscription = testing::lobby_subscription(write, read);
         poll(&mut subscription).await.ok();
         assert!(subscription.take_subscribe_answer());
         assert!(!subscription.take_subscribe_answer());

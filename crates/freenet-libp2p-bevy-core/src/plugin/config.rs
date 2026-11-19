@@ -51,21 +51,17 @@ impl<Payload: p2p::traits::Message> Config<Payload> {
 
 #[cfg(test)]
 mod tests {
-    use derive_more::Deref;
-    use serde::{Deserialize, Serialize};
-
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
 
     use super::Config;
 
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Deref)]
-    struct Dummy(u32);
-
     #[test]
     fn test_usage() {
-        let config = Config::<Dummy>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
-            .with_game(identity::GameId::from("test"));
+        let config =
+            Config::<testing::DummyMessage>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
+                .with_game(identity::GameId::from("test"));
         assert!(config.keypair.is_none());
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("id.identity");
@@ -77,10 +73,12 @@ mod tests {
 
     #[test]
     fn configs_without_keypair_produce_fresh_keys() {
-        let first = Config::<Dummy>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
-            .runner_keypair();
-        let second = Config::<Dummy>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
-            .runner_keypair();
+        let first =
+            Config::<testing::DummyMessage>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
+                .runner_keypair();
+        let second =
+            Config::<testing::DummyMessage>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
+                .runner_keypair();
         assert_ne!(first.public().to_peer_id(), second.public().to_peer_id());
     }
 }

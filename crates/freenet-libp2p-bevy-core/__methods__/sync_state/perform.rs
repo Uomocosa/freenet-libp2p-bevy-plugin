@@ -109,36 +109,15 @@ pub fn perform<Replica: replica_sync::traits::ReplicatedState>(
 
 #[cfg(test)]
 mod tests {
-    use bevy::prelude::Resource;
-
     use super::perform;
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync;
-
-    #[derive(Resource, Default)]
-    struct MockReplica;
-
-    impl replica_sync::traits::ReplicatedState for MockReplica {
-        type Op = u8;
-        type Snapshot = Vec<u8>;
-
-        fn apply(&mut self, _meta: replica_sync::OpMeta, _op: &u8) {}
-        fn snapshot(&self) -> Vec<u8> {
-            Vec::new()
-        }
-        fn merge(&mut self, _snapshot: Vec<u8>) {}
-        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
-            Vec::new()
-        }
-        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Vec<u8> {
-            Vec::new()
-        }
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let mut zone = MockReplica;
+        let mut zone = testing::FakeReplica::<u8, Vec<u8>>::default();
         let mut pending = Vec::new();
         let game = identity::GameId::from("game");
         perform(

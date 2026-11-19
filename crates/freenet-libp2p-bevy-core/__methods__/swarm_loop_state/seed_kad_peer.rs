@@ -33,11 +33,11 @@ mod tests {
     use super::seed_kad_peer;
 
     use crate::identity;
-    use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let peer = libp2p::PeerId::random();
         let addrs = vec![
             identity::PeerAddr::from("/ip4/10.0.0.2/tcp/4001"),

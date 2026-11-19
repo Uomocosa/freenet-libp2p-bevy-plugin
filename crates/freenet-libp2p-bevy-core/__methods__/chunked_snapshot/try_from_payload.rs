@@ -29,10 +29,18 @@ pub fn try_from_payload(
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use super::try_from_payload;
     use crate::p2p;
 
-    fn round_trips(size: usize) {
+    #[rstest]
+    #[case(0)]
+    #[case(1)]
+    #[case(59 * 1024)]
+    #[case(61 * 1024)]
+    #[case(5 * 1024 * 1024)]
+    fn test_usage(#[case] size: usize) {
         let payload: Vec<u8> = (0..size)
             .map(|i| u8::try_from(i % 251).unwrap_or(u8::MAX))
             .collect();
@@ -44,23 +52,6 @@ mod tests {
         }
         let joined = p2p::ChunkedSnapshot::join(&split.chunks, &split.manifest).expect("join");
         assert_eq!(joined, payload);
-    }
-
-    #[test]
-    fn test_usage() {
-        round_trips(0);
-        round_trips(1);
-    }
-
-    #[test]
-    fn test_usage_boundary_sizes() {
-        round_trips(59 * 1024);
-        round_trips(61 * 1024);
-    }
-
-    #[test]
-    fn test_usage_large_snapshot() {
-        round_trips(5 * 1024 * 1024);
     }
 
     #[test]

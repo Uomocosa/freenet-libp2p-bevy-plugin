@@ -58,25 +58,20 @@ impl PopupPlacement {
 
 #[cfg(test)]
 mod tests {
-    use bevy::math::{Rect, Vec2};
+    use bevy::math::Vec2;
 
-    use super::PopupPlacement;
+    use crate::testing::{anchor, area, placement};
     use crate::ui;
-
-    fn placement() -> PopupPlacement {
-        PopupPlacement {
-            anchor: Rect::from_corners(Vec2::new(90.0, 95.0), Vec2::new(110.0, 105.0)),
-            popup: Vec2::new(40.0, 18.0),
-            area: Rect::from_corners(Vec2::ZERO, Vec2::new(200.0, 200.0)),
-            preferred_side: ui::floating::PopupSide::Below,
-            cross_align: ui::floating::PopupAlign::Centre,
-            gap: ui::floating::PopupGap(4.0),
-        }
-    }
 
     #[test]
     fn test_usage() {
-        let placement = placement();
+        let placement = placement(
+            area(Vec2::new(200.0, 200.0)),
+            anchor(Vec2::new(90.0, 95.0), Vec2::new(110.0, 105.0)),
+            Vec2::new(40.0, 18.0),
+            ui::floating::PopupSide::Below,
+            ui::floating::PopupAlign::Centre,
+        );
         assert_eq!(placement.horizontal_align_start(), 80.0);
         assert_eq!(placement.vertical_align_start(), 91.0);
         assert_eq!(placement.room_on(ui::floating::PopupSide::Below), 95.0);

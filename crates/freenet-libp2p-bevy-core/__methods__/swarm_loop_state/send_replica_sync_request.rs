@@ -34,10 +34,11 @@ mod tests {
     use super::send_replica_sync_request;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let peer = identity::PeerId::from("not-a-peer-id");
         let request = p2p::SnapshotRequest::Fetch {
             zone: identity::ZoneName::from("r"),

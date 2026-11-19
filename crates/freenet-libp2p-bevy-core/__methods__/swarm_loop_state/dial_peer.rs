@@ -41,10 +41,11 @@ mod tests {
 
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let peer = identity::PeerId(libp2p::PeerId::random().to_string());
         let addrs = vec![identity::PeerAddr::from("/ip4/127.0.0.1/tcp/9")];
         let gentle = PeerCondition::DisconnectedAndNotDialing;

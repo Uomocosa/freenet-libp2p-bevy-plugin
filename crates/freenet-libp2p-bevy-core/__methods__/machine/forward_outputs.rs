@@ -20,14 +20,11 @@ mod tests {
     use super::forward_outputs;
     use crate::identity;
     use crate::spectator;
-
-    fn machine() -> spectator::Machine<u8> {
-        spectator::Machine::new(identity::GameId::from("game"))
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let mut machine = machine();
+        let mut machine = testing::machine();
         let outputs = forward_outputs(
             &mut machine,
             spectator::SpectateSlot::Preview,
@@ -41,7 +38,7 @@ mod tests {
 
     #[test]
     fn a_second_subscription_to_one_topic_is_dropped_until_the_last_unsubscribe() {
-        let mut machine = machine();
+        let mut machine = testing::machine();
         let topic = identity::Topic::from("game/zone");
         let subscribe =
             || spectator::state_machine::SpectateOutput::<u8, Vec<u8>>::Subscribe(topic.clone());

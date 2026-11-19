@@ -33,10 +33,11 @@ mod tests {
     use super::measure_history_store;
 
     use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let prefix = p2p::HistoryKeyPrefix::from("abc");
         let chunk = p2p::ZoneHistoryRecordKind::Chunk(p2p::HistoryChunkId {
             prefix: prefix.clone(),

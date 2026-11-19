@@ -13,49 +13,18 @@ pub async fn refresh(
 }
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use freenet_stdlib::client_api::{ContractResponse, HostResponse};
-    use freenet_stdlib::prelude::{
-        ContractCode, ContractKey, Parameters, WrappedContract, WrappedState,
-    };
+    use freenet_stdlib::prelude::WrappedState;
 
     use super::refresh;
-    use crate::time;
-    use crate::{discovery, freenet, identity};
-
-    fn contract_key() -> ContractKey {
-        WrappedContract::new(
-            Arc::new(ContractCode::from(discovery::LOBBY_CONTRACT_WASM.to_vec())),
-            Parameters::from(Vec::new()),
-        )
-        .key
-    }
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
-        let key = contract_key();
-        let fresh = discovery::Lobby::from([(
-            discovery::RoomName::from("room-a"),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::EPOCH,
-                members: std::collections::BTreeMap::from([(
-                    identity::PeerId::from("peer"),
-                    discovery::RoomMember {
-                        peer: identity::Peer {
-                            id: identity::PeerId::from("peer"),
-                            addrs: Vec::new(),
-                        },
-                        updated_at: time::UnixTime::from_secs(1),
-                        display_name: None,
-                        membership: discovery::RoomMembership::Occupant,
-                    },
-                )]),
-            },
-        )]);
+        let key = testing::contract_key();
+        let fresh = testing::room_lobby();
         read_tx
             .send(Ok(HostResponse::ContractResponse(
                 ContractResponse::GetResponse {
@@ -65,12 +34,7 @@ mod tests {
                 },
             )))
             .ok();
-        let mut subscription = discovery::LobbyContractSubscription {
-            client: freenet::Client { write, read },
-            key,
-            lobby: discovery::Lobby::default(),
-            has_unread_subscribe_answer: false,
-        };
+        let mut subscription = testing::lobby_subscription(write, read);
         assert_eq!(refresh(&mut subscription).await.ok(), Some(fresh.clone()));
         assert_eq!(subscription.lobby, fresh);
     }

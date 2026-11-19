@@ -75,42 +75,22 @@ mod tests {
     use super::desired_membership;
     use crate::discovery;
     use crate::identity;
-    use crate::time;
-    use discovery::state_machine::DiscoveryState;
-
-    fn occupant(id: &str) -> (identity::PeerId, discovery::RoomMember) {
-        let peer_id = identity::PeerId::from(id);
-        (
-            peer_id.clone(),
-            discovery::RoomMember {
-                peer: identity::Peer {
-                    id: peer_id,
-                    addrs: Vec::new(),
-                },
-                updated_at: time::UnixTime::from_secs(10),
-                display_name: None,
-                membership: discovery::RoomMembership::Occupant,
-            },
-        )
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
         let room = discovery::RoomName::from("room-a");
-        let mut lobby = discovery::Lobby::default();
-        lobby.insert(
-            room.clone(),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from_secs(10),
-                members: BTreeMap::from([occupant("alice")]),
-            },
-        );
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        state.lobby = lobby;
+        let lobby = testing::lobby_with(vec![(
+            "room-a",
+            testing::room(
+                discovery::RoomSize::DEFAULT,
+                10,
+                testing::room_members(&[("alice", None, discovery::RoomMembership::Occupant)]),
+            ),
+        )]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .build();
         let by_name = BTreeMap::from([(room, Entity::PLACEHOLDER)]);
         let (in_room, holds) = desired_membership(&state, &by_name);
         assert_eq!(
@@ -124,32 +104,36 @@ mod tests {
     fn joined_room_wins_over_lobby_room() {
         let room_a = discovery::RoomName::from("room-a");
         let room_b = discovery::RoomName::from("room-b");
-        let mut lobby = discovery::Lobby::default();
-        for (room, members) in [
-            (&room_a, vec![occupant("alice")]),
-            (&room_b, vec![occupant("alice"), occupant("bob")]),
-        ] {
-            lobby.insert(
-                room.clone(),
-                discovery::Room {
-                    room_size: discovery::RoomSize::DEFAULT,
-                    created_at: time::UnixTime::from_secs(10),
-                    members: members.into_iter().collect(),
-                },
-            );
-        }
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        state.lobby = lobby;
-        state.room = Some(discovery::JoinedRoom {
-            name: room_a.clone(),
-            created_at: time::UnixTime::from_secs(10),
-            phase: discovery::JoinPhase::Ready,
-            members: BTreeMap::from([occupant("alice")]),
-            how_entered: discovery::HowRoomWasEntered::Joined,
-        });
+        let lobby = testing::lobby_with(vec![
+            (
+                "room-a",
+                testing::room(
+                    discovery::RoomSize::DEFAULT,
+                    10,
+                    testing::room_members(&[("alice", None, discovery::RoomMembership::Occupant)]),
+                ),
+            ),
+            (
+                "room-b",
+                testing::room(
+                    discovery::RoomSize::DEFAULT,
+                    10,
+                    testing::room_members(&[
+                        ("alice", None, discovery::RoomMembership::Occupant),
+                        ("bob", None, discovery::RoomMembership::Occupant),
+                    ]),
+                ),
+            ),
+        ]);
+        let state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_lobby(lobby)
+            .in_room(testing::joined_room(
+                "room-a",
+                10,
+                discovery::JoinPhase::Ready,
+                testing::room_members(&[("alice", None, discovery::RoomMembership::Occupant)]),
+            ))
+            .build();
         let joined = Entity::from_bits(1);
         let other = Entity::from_bits(2);
         let by_name = BTreeMap::from([(room_a, joined), (room_b, other)]);

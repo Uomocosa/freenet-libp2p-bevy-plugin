@@ -38,10 +38,11 @@ mod tests {
     use super::handle_identify;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let (state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let info = identify::Info {
             public_key: libp2p::identity::Keypair::generate_ed25519().public(),
             protocol_version: "test/1".to_string(),

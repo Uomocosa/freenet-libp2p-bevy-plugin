@@ -76,45 +76,37 @@ mod tests {
     use crate::p2p;
     use crate::testing;
 
-    fn registered(router: &mut testing::PeerMessageRouter, id: &str) -> identity::Peer {
-        let peer = identity::Peer {
-            id: identity::PeerId::from(id),
-            addrs: Vec::new(),
-        };
-        router.register_peer(&peer);
-        peer
-    }
-
     #[test]
     fn test_usage() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let dialer = registered(&mut router, "a");
-        let target = registered(&mut router, "b");
-        let events = connect_dial_target(&mut router, &dialer.id, target.clone());
+        let dialer = testing::registered_peer(&mut router, "a");
+        let target = testing::peer("b", &[]);
+        router.register_peer(&target);
+        let events = connect_dial_target(&mut router, &dialer, target.clone());
         assert_eq!(
             events,
             vec![
                 testing::RoutedEvent {
-                    to: dialer.id.clone(),
+                    to: dialer.clone(),
                     event: p2p::Libp2pEvent::Libp2pConnectionEstablished {
                         peer_id: target.id.clone(),
                         kind: p2p::ConnectionKind::Tcp,
                     },
                 },
                 testing::RoutedEvent {
-                    to: dialer.id.clone(),
+                    to: dialer.clone(),
                     event: p2p::Libp2pEvent::PeerConnected(target.id.clone()),
                 },
                 testing::RoutedEvent {
                     to: target.id.clone(),
                     event: p2p::Libp2pEvent::Libp2pConnectionEstablished {
-                        peer_id: dialer.id.clone(),
+                        peer_id: dialer.clone(),
                         kind: p2p::ConnectionKind::Tcp,
                     },
                 },
                 testing::RoutedEvent {
                     to: target.id,
-                    event: p2p::Libp2pEvent::PeerConnected(dialer.id.clone()),
+                    event: p2p::Libp2pEvent::PeerConnected(dialer.clone()),
                 },
             ]
         );
@@ -123,13 +115,10 @@ mod tests {
     #[test]
     fn dialing_an_unknown_peer_fails_for_the_dialer() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let dialer = registered(&mut router, "a");
-        let ghost = identity::Peer {
-            id: identity::PeerId::from("ghost"),
-            addrs: Vec::new(),
-        };
+        let dialer = testing::registered_peer(&mut router, "a");
+        let ghost = testing::peer("ghost", &[]);
         let ghost_id = ghost.id.clone();
-        let events = connect_dial_target(&mut router, &dialer.id, ghost);
+        let events = connect_dial_target(&mut router, &dialer, ghost);
         assert!(matches!(
             events.as_slice(),
             [testing::RoutedEvent {
@@ -142,8 +131,8 @@ mod tests {
     #[test]
     fn dialing_self_fails_for_the_dialer() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let dialer = registered(&mut router, "a");
-        let events = connect_dial_target(&mut router, &dialer.id, dialer.clone());
+        let dialer = testing::registered_peer(&mut router, "a");
+        let events = connect_dial_target(&mut router, &dialer, testing::peer("a", &[]));
         assert!(matches!(
             events.as_slice(),
             [testing::RoutedEvent {
@@ -156,18 +145,19 @@ mod tests {
     #[test]
     fn redialing_a_connected_peer_sends_nothing() {
         let mut router = testing::PeerMessageRouter::new(identity::GameId::from("game"));
-        let dialer = registered(&mut router, "a");
-        let target = registered(&mut router, "b");
+        let dialer = testing::registered_peer(&mut router, "a");
+        let target = testing::peer("b", &[]);
+        router.register_peer(&target);
         assert_eq!(
-            connect_dial_target(&mut router, &dialer.id, target.clone()).len(),
+            connect_dial_target(&mut router, &dialer, target.clone()).len(),
             4
         );
         assert_eq!(
-            connect_dial_target(&mut router, &dialer.id, target.clone()),
+            connect_dial_target(&mut router, &dialer, target.clone()),
             Vec::new()
         );
         assert_eq!(
-            connect_dial_target(&mut router, &target.id, dialer),
+            connect_dial_target(&mut router, &target.id, testing::peer("a", &[])),
             Vec::new()
         );
     }

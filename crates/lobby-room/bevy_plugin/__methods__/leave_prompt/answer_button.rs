@@ -18,18 +18,21 @@ pub fn answer_button(marker: impl Component, label: &str, color: Color) -> impl 
 mod tests {
     use bevy::prelude::*;
 
-    use super::answer_button;
+    use crate::ui;
 
-    #[derive(Component)]
-    struct Marker;
+    use super::answer_button;
 
     #[test]
     fn test_usage() {
         let mut world = World::new();
         let entity = world
-            .spawn(answer_button(Marker, "Leave", Color::WHITE))
+            .spawn(answer_button(
+                ui::discovery::LeaveYesButton,
+                "Leave",
+                Color::WHITE,
+            ))
             .id();
-        assert!(world.get::<Marker>(entity).is_some());
+        assert!(world.get::<ui::discovery::LeaveYesButton>(entity).is_some());
         assert!(world.get::<Node>(entity).is_some());
     }
 }

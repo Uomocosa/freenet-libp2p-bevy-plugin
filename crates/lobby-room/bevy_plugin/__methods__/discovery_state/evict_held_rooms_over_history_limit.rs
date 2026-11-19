@@ -50,31 +50,15 @@ mod tests {
 
     use super::evict_held_rooms_over_history_limit;
     use crate::discovery;
-    use crate::identity;
     use crate::p2p;
+    use crate::testing;
     use crate::time;
-    use discovery::state_machine::{DiscoveryState, Output};
-
-    fn state_holding(room: &discovery::RoomName) -> DiscoveryState {
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(10);
-        state.held_rooms.insert(
-            room.clone(),
-            discovery::state_machine::HeldRoomHistory {
-                created_at: time::UnixTime::from_secs(1),
-                left_at: time::UnixTime::from_secs(2),
-            },
-        );
-        state
-    }
+    use discovery::state_machine::Output;
 
     #[test]
     fn test_usage() {
         let room = discovery::RoomName::from("r");
-        let mut state = state_holding(&room);
+        let mut state = testing::held_room_state("r", 10);
         assert_eq!(
             evict_held_rooms_over_history_limit(&mut state, &BTreeMap::new()),
             Vec::<Output>::new()
@@ -85,7 +69,7 @@ mod tests {
     #[test]
     fn evicted_history_publishes_departed_and_removes_records() {
         let room = discovery::RoomName::from("r");
-        let mut state = state_holding(&room);
+        let mut state = testing::held_room_state("r", 10);
         let prefix = p2p::HistoryKeyPrefix::new(&state.game, &room, time::UnixTime::from_secs(1));
         let measured = BTreeMap::from([(prefix.clone(), p2p::HistoryByteCount(11))]);
         let outputs = evict_held_rooms_over_history_limit(&mut state, &measured);

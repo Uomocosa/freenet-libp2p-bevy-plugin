@@ -275,6 +275,7 @@ mod tests {
     use crate::replica_sync::state_machine::{
         Input, Output, PendingHistoryFetch, Phase, ReplicaState, ZoneLiveness,
     };
+    use crate::testing;
     use std::collections::BTreeMap;
 
     #[test]
@@ -318,25 +319,6 @@ mod tests {
         );
     }
 
-    fn meta(lamport: u32) -> replica_sync::OpMeta {
-        replica_sync::OpMeta { lamport, author: 1 }
-    }
-
-    fn prefix() -> p2p::HistoryKeyPrefix {
-        p2p::HistoryKeyPrefix::from("prefix")
-    }
-
-    fn now() -> replica_sync::ElapsedSinceAppStart {
-        replica_sync::ElapsedSinceAppStart::default()
-    }
-
-    fn alive_status() -> ZoneLiveness {
-        ZoneLiveness {
-            is_zone_still_listed: true,
-            has_other_history_holders: true,
-        }
-    }
-
     #[test]
     fn test_usage_1() {
         let mut state = ReplicaState::<u8>::default();
@@ -344,11 +326,11 @@ mod tests {
         let outputs = state.update(
             Input::Joined {
                 zone: zone.clone(),
-                prefix: prefix(),
+                prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![identity::PeerId::from("a")],
-                liveness: alive_status(),
+                liveness: testing::alive_zone_liveness(),
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(state.phase, Phase::FetchingSnapshotFromZoneMember);
         assert_eq!(
@@ -366,21 +348,21 @@ mod tests {
                 total: 1,
                 data: vec![1, 2],
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(state.phase, Phase::Ready);
         let outputs = state.update(
             Input::Remote {
                 zone,
-                meta: meta(1),
+                meta: testing::meta(1, 1),
                 op: 9u8,
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(
             outputs,
             vec![Output::Apply {
-                meta: meta(1),
+                meta: testing::meta(1, 1),
                 op: 9u8,
             }]
         );
@@ -394,11 +376,11 @@ mod tests {
         state.update(
             Input::Joined {
                 zone: zone.clone(),
-                prefix: prefix(),
+                prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![peer.clone()],
-                liveness: alive_status(),
+                liveness: testing::alive_zone_liveness(),
             },
-            now(),
+            testing::at_secs(0),
         );
         state.update(
             Input::SnapshotPartReceivedFromZoneMember {
@@ -407,13 +389,13 @@ mod tests {
                 total: 2,
                 data: vec![1],
             },
-            now(),
+            testing::at_secs(0),
         );
         let outputs = state.update(
             Input::RequestToZoneMemberFailed {
                 from: identity::PeerId::from("a"),
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(
             outputs,
@@ -433,11 +415,11 @@ mod tests {
         let outputs = joiner.update(
             Input::Joined {
                 zone: zone.clone(),
-                prefix: prefix(),
+                prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![peer.clone()],
-                liveness: alive_status(),
+                liveness: testing::alive_zone_liveness(),
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(
             outputs,
@@ -450,10 +432,10 @@ mod tests {
         joiner.update(
             Input::Remote {
                 zone: zone.clone(),
-                meta: meta(4),
+                meta: testing::meta(4, 1),
                 op: 3u8,
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(joiner.buffered_ops.len(), 1);
         let snapshot = vec![1u8, 2, 3];
@@ -464,14 +446,14 @@ mod tests {
                 total: 1,
                 data: snapshot.clone(),
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(
             outputs,
             vec![
                 Output::Merge { bytes: snapshot },
                 Output::Apply {
-                    meta: meta(4),
+                    meta: testing::meta(4, 1),
                     op: 3u8,
                 },
             ]
@@ -486,19 +468,19 @@ mod tests {
         state.update(
             Input::Joined {
                 zone: zone.clone(),
-                prefix: prefix(),
+                prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![identity::PeerId::from("a")],
-                liveness: alive_status(),
+                liveness: testing::alive_zone_liveness(),
             },
-            now(),
+            testing::at_secs(0),
         );
         let outputs = state.update(
             Input::Remote {
                 zone: zone.clone(),
-                meta: meta(1),
+                meta: testing::meta(1, 1),
                 op: 5u8,
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(outputs, Vec::new());
         assert_eq!(state.buffered_ops.len(), 1);
@@ -509,7 +491,7 @@ mod tests {
                 total: 1,
                 data: vec![0],
             },
-            now(),
+            testing::at_secs(0),
         );
         assert!(matches!(
             outputs.as_slice(),
@@ -518,62 +500,24 @@ mod tests {
         assert_eq!(state.buffered_ops, Vec::new());
     }
 
-    fn ready_state(zone: &identity::ZoneName) -> ReplicaState<u8> {
-        let mut state = ReplicaState::<u8>::default();
-        state.update(
-            Input::Joined {
-                zone: zone.clone(),
-                prefix: prefix(),
-                members: Vec::new(),
-                liveness: alive_status(),
-            },
-            now(),
-        );
-        state.update(Input::SnapshotMissingFromZoneMember, now());
-        assert_eq!(state.phase, Phase::Ready);
-        state
-    }
-
-    fn hashes(entries: &[(u32, u64)]) -> replica_sync::ReplicaSliceContentHashes {
-        entries
-            .iter()
-            .map(|(index, hash)| {
-                (
-                    replica_sync::ReplicaSliceIndex(*index),
-                    replica_sync::ReplicaSliceContentHash(*hash),
-                )
-            })
-            .collect()
-    }
-
-    fn fetched_indices(outputs: &[Output<u8>]) -> Vec<u32> {
-        outputs
-            .iter()
-            .filter_map(|output| match output {
-                Output::FetchReplicaSlice { index, .. } => Some(**index),
-                _ => None,
-            })
-            .collect()
-    }
-
     #[test]
     fn timer_publishes_slice_hashes_only_when_ready() {
         let zone = identity::ZoneName::from("r");
         let mut idle = ReplicaState::<u8>::default();
-        let local = hashes(&[(0, 1)]);
+        let local = testing::hashes(&[(0, 1)]);
         let outputs = idle.update(
             Input::AntiEntropyTimerFired {
                 local: local.clone(),
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(outputs, Vec::new());
-        let mut ready = ready_state(&zone);
+        let mut ready = testing::ready_replica_state(&zone);
         let outputs = ready.update(
             Input::AntiEntropyTimerFired {
                 local: local.clone(),
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(
             outputs,
@@ -588,42 +532,45 @@ mod tests {
     fn mismatching_slices_are_fetched_once_and_capped_per_peer() {
         let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
-        let mut state = ready_state(&zone);
+        let mut state = testing::ready_replica_state(&zone);
         state.slice_anti_entropy.max_fetches_per_peer = 2;
-        let remote = hashes(&[(0, 1), (1, 1), (2, 1)]);
+        let remote = testing::hashes(&[(0, 1), (1, 1), (2, 1)]);
         let first = state.update(
             Input::RemoteSliceContentHashes {
                 from: peer.clone(),
                 local: Vec::new(),
                 remote: remote.clone(),
             },
-            now(),
+            testing::at_secs(0),
         );
-        assert_eq!(fetched_indices(&first), vec![0, 1]);
+        assert_eq!(testing::fetched_replica_slice_indices(&first), vec![0, 1]);
         let again = state.update(
             Input::RemoteSliceContentHashes {
                 from: peer,
                 local: Vec::new(),
                 remote,
             },
-            now(),
+            testing::at_secs(0),
         );
-        assert_eq!(fetched_indices(&again), Vec::<u32>::new());
+        assert_eq!(
+            testing::fetched_replica_slice_indices(&again),
+            Vec::<u32>::new()
+        );
     }
 
     #[test]
     fn received_slice_is_merged_and_frees_its_fetch() {
         let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
-        let mut state = ready_state(&zone);
-        let remote = hashes(&[(3, 1)]);
+        let mut state = testing::ready_replica_state(&zone);
+        let remote = testing::hashes(&[(3, 1)]);
         state.update(
             Input::RemoteSliceContentHashes {
                 from: peer.clone(),
                 local: Vec::new(),
                 remote: remote.clone(),
             },
-            now(),
+            testing::at_secs(0),
         );
         let outputs = state.update(
             Input::ReplicaSliceReceived {
@@ -632,7 +579,7 @@ mod tests {
                 index: replica_sync::ReplicaSliceIndex(3),
                 data: vec![7],
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(outputs, vec![Output::Merge { bytes: vec![7] }]);
         let refetch = state.update(
@@ -641,32 +588,32 @@ mod tests {
                 local: Vec::new(),
                 remote,
             },
-            now(),
+            testing::at_secs(0),
         );
-        assert_eq!(fetched_indices(&refetch), vec![3]);
+        assert_eq!(testing::fetched_replica_slice_indices(&refetch), vec![3]);
     }
 
     #[test]
     fn a_replica_slice_failure_frees_only_that_slice() {
         let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
-        let mut state = ready_state(&zone);
+        let mut state = testing::ready_replica_state(&zone);
         state.slice_anti_entropy.max_fetches_per_peer = 2;
-        let remote = hashes(&[(0, 1), (1, 1)]);
+        let remote = testing::hashes(&[(0, 1), (1, 1)]);
         state.update(
             Input::RemoteSliceContentHashes {
                 from: peer.clone(),
                 local: Vec::new(),
                 remote: remote.clone(),
             },
-            now(),
+            testing::at_secs(0),
         );
         state.update(
             Input::ReplicaSliceRequestFailed {
                 from: peer.clone(),
                 index: replica_sync::ReplicaSliceIndex(0),
             },
-            now(),
+            testing::at_secs(0),
         );
         let refetch = state.update(
             Input::RemoteSliceContentHashes {
@@ -674,28 +621,28 @@ mod tests {
                 local: Vec::new(),
                 remote,
             },
-            now(),
+            testing::at_secs(0),
         );
-        assert_eq!(fetched_indices(&refetch), vec![0]);
+        assert_eq!(testing::fetched_replica_slice_indices(&refetch), vec![0]);
     }
 
     #[test]
     fn a_snapshot_failure_keeps_replica_slice_fetches() {
         let zone = identity::ZoneName::from("r");
         let peer = identity::PeerId::from("a");
-        let mut state = ready_state(&zone);
-        let remote = hashes(&[(0, 1)]);
+        let mut state = testing::ready_replica_state(&zone);
+        let remote = testing::hashes(&[(0, 1)]);
         state.update(
             Input::RemoteSliceContentHashes {
                 from: peer.clone(),
                 local: Vec::new(),
                 remote: remote.clone(),
             },
-            now(),
+            testing::at_secs(0),
         );
         state.update(
             Input::RequestToZoneMemberFailed { from: peer.clone() },
-            now(),
+            testing::at_secs(0),
         );
         let refetch = state.update(
             Input::RemoteSliceContentHashes {
@@ -703,9 +650,12 @@ mod tests {
                 local: Vec::new(),
                 remote,
             },
-            now(),
+            testing::at_secs(0),
         );
-        assert_eq!(fetched_indices(&refetch), Vec::<u32>::new());
+        assert_eq!(
+            testing::fetched_replica_slice_indices(&refetch),
+            Vec::<u32>::new()
+        );
     }
 
     #[test]
@@ -716,19 +666,19 @@ mod tests {
         state.update(
             Input::Joined {
                 zone,
-                prefix: prefix(),
+                prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![peer.clone()],
-                liveness: alive_status(),
+                liveness: testing::alive_zone_liveness(),
             },
-            now(),
+            testing::at_secs(0),
         );
         let outputs = state.update(
             Input::RemoteSliceContentHashes {
                 from: peer,
                 local: Vec::new(),
-                remote: hashes(&[(0, 1)]),
+                remote: testing::hashes(&[(0, 1)]),
             },
-            now(),
+            testing::at_secs(0),
         );
         assert_eq!(outputs, Vec::new());
     }
@@ -742,13 +692,13 @@ mod tests {
         let first = state.update(
             Input::Joined {
                 zone: zone.clone(),
-                prefix: prefix(),
+                prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: Vec::new(),
-                liveness: alive_status(),
+                liveness: testing::alive_zone_liveness(),
             },
-            now(),
+            testing::at_secs(0),
         );
-        let manifest = p2p::ZoneHistoryRecordKind::Manifest(prefix());
+        let manifest = p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("prefix"));
         assert_eq!(
             first,
             vec![Output::GetHistoryRecord {
@@ -760,7 +710,7 @@ mod tests {
                 Input::HistoryRecordNotFound {
                     id: manifest.clone(),
                 },
-                now(),
+                testing::at_secs(0),
             );
             assert_eq!(
                 retry,
@@ -769,7 +719,10 @@ mod tests {
                 }]
             );
         }
-        let exhausted = state.update(Input::HistoryRecordNotFound { id: manifest }, now());
+        let exhausted = state.update(
+            Input::HistoryRecordNotFound { id: manifest },
+            testing::at_secs(0),
+        );
         assert_eq!(exhausted, vec![Output::HistoryUnavailable { zone }]);
         assert_eq!(state.phase, Phase::Failed);
     }
@@ -830,30 +783,6 @@ mod tests {
         assert_eq!(state.settle_waiting_phase(&[]), Vec::new());
     }
 
-    fn joined_input(members: Vec<identity::PeerId>) -> Input<u8> {
-        Input::Joined {
-            zone: identity::ZoneName::from("r"),
-            prefix: p2p::HistoryKeyPrefix::from("prefix"),
-            members,
-            liveness: ZoneLiveness::default(),
-        }
-    }
-
-    fn snapshot_input(part: u32, total: u32) -> Input<u8> {
-        Input::SnapshotPartReceivedFromZoneMember {
-            zone: identity::ZoneName::from("r"),
-            part,
-            total,
-            data: vec![7],
-        }
-    }
-
-    fn history_not_found_input() -> Input<u8> {
-        Input::HistoryRecordNotFound {
-            id: p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("prefix")),
-        }
-    }
-
     #[test]
     fn no_input_sequence_leaves_a_waiting_phase_without_a_request() {
         let peer = identity::PeerId::from("a");
@@ -861,37 +790,40 @@ mod tests {
         let failed = Input::RequestToZoneMemberFailed { from: peer.clone() };
         let missing = Input::SnapshotMissingFromZoneMember;
         let sequences: Vec<(bool, Vec<Input<u8>>)> = vec![
-            (false, vec![joined_input(Vec::new())]),
-            (false, vec![joined_input(vec![peer.clone()])]),
+            (false, vec![testing::joined_input(Vec::new())]),
+            (false, vec![testing::joined_input(vec![peer.clone()])]),
             (
                 false,
                 vec![
-                    joined_input(vec![peer.clone()]),
-                    snapshot_input(0, 2),
+                    testing::joined_input(vec![peer.clone()]),
+                    testing::snapshot_part_input(0, 2),
                     failed,
                 ],
             ),
             (
                 false,
-                vec![joined_input(vec![peer.clone(), other]), missing],
+                vec![testing::joined_input(vec![peer.clone(), other]), missing],
             ),
             (
                 false,
                 vec![
-                    joined_input(vec![peer.clone()]),
-                    snapshot_input(0, 1),
-                    snapshot_input(0, 1),
+                    testing::joined_input(vec![peer.clone()]),
+                    testing::snapshot_part_input(0, 1),
+                    testing::snapshot_part_input(0, 1),
                 ],
             ),
-            (true, vec![joined_input(Vec::new())]),
+            (true, vec![testing::joined_input(Vec::new())]),
             (
                 true,
-                vec![joined_input(Vec::new()), history_not_found_input()],
+                vec![
+                    testing::joined_input(Vec::new()),
+                    testing::history_record_not_found_input(),
+                ],
             ),
             (
                 true,
                 vec![
-                    joined_input(vec![peer]),
+                    testing::joined_input(vec![peer]),
                     Input::Members {
                         members: Vec::new(),
                         prefix: p2p::HistoryKeyPrefix::from("prefix"),
@@ -921,36 +853,24 @@ mod tests {
         }
     }
 
-    fn at_secs(secs: u64) -> replica_sync::ElapsedSinceAppStart {
-        replica_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
-    }
-
-    fn other_zone_remote() -> Input<u8> {
-        Input::Remote {
-            zone: identity::ZoneName::from("other"),
-            meta: meta(1),
-            op: 1u8,
-        }
-    }
-
     #[test]
     fn an_overdue_history_record_request_retries_or_fails() {
         let mut state = ReplicaState::<u8>::default();
         let zone = identity::ZoneName::from("r");
-        let prefix_value = prefix();
+        let prefix_value = p2p::HistoryKeyPrefix::from("prefix");
         state.zone = Some(zone);
         state.phase = Phase::FetchingHistoryFromKademlia;
         state.kademlia_history.is_enabled = true;
         state.kademlia_history.prefix = Some(prefix_value.clone());
-        state.kademlia_history.liveness = alive_status();
+        state.kademlia_history.liveness = testing::alive_zone_liveness();
         state.kademlia_history.fetch_retries = 0;
         state.kademlia_history.pending_fetch = Some(PendingHistoryFetch {
             prefix: prefix_value.clone(),
             manifest: None,
             received_chunks: BTreeMap::new(),
-            records_requested_at: Some(at_secs(0)),
+            records_requested_at: Some(testing::at_secs(0)),
         });
-        let outputs = state.update(other_zone_remote(), at_secs(71));
+        let outputs = state.update(testing::other_zone_remote_input(1u8), testing::at_secs(71));
         assert_eq!(
             outputs,
             vec![Output::GetHistoryRecord {

@@ -68,11 +68,11 @@ mod tests {
     use libp2p::swarm::SwarmEvent;
 
     use super::note_connection;
-    use crate::p2p;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (state, _rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, _rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         note_connection(
             &state,
             SwarmEvent::NewListenAddr {

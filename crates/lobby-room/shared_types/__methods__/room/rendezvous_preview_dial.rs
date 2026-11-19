@@ -38,65 +38,15 @@ pub fn rendezvous_preview_dial<'a>(room: &'a Room, me: &PeerId) -> Option<&'a Ro
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
-    use crate::Room;
-    use crate::RoomMember;
     use crate::RoomMembership;
-    use crate::RoomSize;
-    use common_types::Peer;
+    use crate::testing;
     use common_types::PeerAddr;
     use common_types::PeerId;
     use common_types::UnixTime;
 
-    fn member(id: &str, membership: RoomMembership) -> RoomMember {
-        RoomMember {
-            peer: Peer {
-                id: PeerId::from(id),
-                addrs: vec![PeerAddr::from("/ip4/127.0.0.1/tcp/4001")],
-            },
-            display_name: None,
-            updated_at: UnixTime::EPOCH,
-            membership,
-        }
-    }
-
-    fn room() -> Room {
-        Room {
-            room_size: RoomSize::DEFAULT,
-            created_at: UnixTime::EPOCH,
-            members: BTreeMap::from([
-                (
-                    PeerId::from("member-a"),
-                    member("member-a", RoomMembership::HistoryHolder),
-                ),
-                (
-                    PeerId::from("member-b"),
-                    member("member-b", RoomMembership::Occupant),
-                ),
-                (
-                    PeerId::from("member-c"),
-                    member("member-c", RoomMembership::HistoryHolder),
-                ),
-                (
-                    PeerId::from("member-d"),
-                    member("member-d", RoomMembership::Occupant),
-                ),
-                (
-                    PeerId::from("member-e"),
-                    member("member-e", RoomMembership::HistoryHolder),
-                ),
-            ]),
-        }
-    }
-
-    fn picked_id(pick: Option<&RoomMember>) -> &str {
-        pick.expect("a member is picked").peer.id.as_str()
-    }
-
     #[test]
     fn test_usage() {
-        let room = room();
+        let room = testing::room_with_history_holders_and_occupants();
         let me = PeerId::from("spectator");
         let pick = room.rendezvous_preview_dial(&me);
         assert!(pick.is_some());
@@ -104,9 +54,9 @@ mod tests {
 
     #[test]
     fn prefers_members_who_are_not_players() {
-        let room = room();
+        let room = testing::room_with_history_holders_and_occupants();
         let me = PeerId::from("spectator");
-        let pick = picked_id(room.rendezvous_preview_dial(&me));
+        let pick = testing::picked_id(room.rendezvous_preview_dial(&me));
         assert!(
             pick == "member-a" || pick == "member-c" || pick == "member-e",
             "picked {pick}, expected a history holder"
@@ -115,37 +65,35 @@ mod tests {
 
     #[test]
     fn two_spectators_spread_over_members() {
-        let room = room();
+        let room = testing::room_with_history_holders_and_occupants();
         let first = PeerId::from("spectator-a");
         let second = PeerId::from("spectator-b");
-        let first_pick = picked_id(room.rendezvous_preview_dial(&first));
-        let second_pick = picked_id(room.rendezvous_preview_dial(&second));
+        let first_pick = testing::picked_id(room.rendezvous_preview_dial(&first));
+        let second_pick = testing::picked_id(room.rendezvous_preview_dial(&second));
         assert_ne!(first_pick, second_pick);
     }
 
     #[test]
     fn the_same_spectator_always_picks_the_same_member() {
-        let room = room();
+        let room = testing::room_with_history_holders_and_occupants();
         let me = PeerId::from("spectator-a");
-        let first = picked_id(room.rendezvous_preview_dial(&me));
-        let second = picked_id(room.rendezvous_preview_dial(&me));
+        let first = testing::picked_id(room.rendezvous_preview_dial(&me));
+        let second = testing::picked_id(room.rendezvous_preview_dial(&me));
         assert_eq!(first, second);
     }
 
     #[test]
     fn never_picks_itself() {
-        let room = room();
+        let room = testing::room_with_history_holders_and_occupants();
         let me = PeerId::from("member-c");
-        let pick = picked_id(room.rendezvous_preview_dial(&me));
+        let pick = testing::picked_id(room.rendezvous_preview_dial(&me));
         assert_ne!(pick, "member-c");
-        let solo = Room {
-            room_size: RoomSize::DEFAULT,
-            created_at: UnixTime::EPOCH,
-            members: BTreeMap::from([(
-                PeerId::from("solo"),
-                member("solo", RoomMembership::HistoryHolder),
-            )]),
-        };
+        let solo = testing::room_with_one_member(
+            "solo",
+            vec![PeerAddr::from("/ip4/127.0.0.1/tcp/4001")],
+            UnixTime::EPOCH,
+            RoomMembership::HistoryHolder,
+        );
         let lonely = PeerId::from("solo");
         assert!(solo.rendezvous_preview_dial(&lonely).is_none());
     }

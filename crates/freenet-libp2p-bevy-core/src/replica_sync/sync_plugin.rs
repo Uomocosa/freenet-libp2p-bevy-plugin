@@ -125,63 +125,14 @@ impl<Replica: replica_sync::traits::ReplicatedState> SyncPlugin<Replica> {}
 
 #[cfg(test)]
 mod build_plugin_tests {
-    use std::collections::BTreeMap;
-
     use bevy::prelude::*;
-    use derive_more::{Deref, DerefMut};
-    use serde::{Deserialize, Serialize};
 
     use crate::identity;
     use crate::p2p;
     use crate::peers;
     use crate::plugin;
     use crate::replica_sync;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    struct Op {
-        key: u8,
-        value: u32,
-    }
-
-    #[derive(Resource, Default, Deref, DerefMut)]
-    struct Map {
-        entries: BTreeMap<u8, u32>,
-    }
-
-    impl replica_sync::traits::ReplicatedState for Map {
-        type Op = Op;
-        type Snapshot = Vec<(u8, u32)>;
-
-        fn apply(&mut self, _meta: replica_sync::OpMeta, op: &Self::Op) {
-            self.entries.insert(op.key, op.value);
-        }
-
-        fn snapshot(&self) -> Self::Snapshot {
-            self.entries
-                .iter()
-                .map(|(key, value)| (*key, *value))
-                .collect()
-        }
-
-        fn merge(&mut self, snapshot: Self::Snapshot) {
-            for (key, value) in snapshot {
-                self.entries.insert(key, value);
-            }
-        }
-
-        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
-            vec![(
-                replica_sync::ReplicaSliceIndex(0),
-                replica_sync::ReplicaSliceContentHash(
-                    u64::try_from(self.entries.len()).unwrap_or(0),
-                ),
-            )]
-        }
-
-        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
-            self.snapshot()
-        }
-    }
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
@@ -192,16 +143,22 @@ mod build_plugin_tests {
             p2p::MdnsMode::Disabled,
         )));
         app.add_plugins(
-            replica_sync::SyncPlugin::<Map>::new(identity::GameId::from("test"))
-                .with_history_config(Some(replica_sync::HistoryConfig::default())),
+            replica_sync::SyncPlugin::<testing::KeyValueReplica>::new(identity::GameId::from(
+                "test",
+            ))
+            .with_history_config(Some(replica_sync::HistoryConfig::default())),
         );
         app.update();
         assert!(
             app.world()
-                .get_resource::<replica_sync::PendingOps<Map>>()
+                .get_resource::<replica_sync::PendingOps<testing::KeyValueReplica>>()
                 .is_some()
         );
-        assert!(app.world().get_resource::<Map>().is_some());
+        assert!(
+            app.world()
+                .get_resource::<testing::KeyValueReplica>()
+                .is_some()
+        );
         assert!(
             app.world()
                 .get_resource::<replica_sync::HistoryConfig>()
@@ -218,7 +175,9 @@ mod build_plugin_tests {
             plugin::Config::<u8>::new(p2p::TransportMode::Both, p2p::MdnsMode::Disabled)
                 .with_game(game.clone()),
         ));
-        app.add_plugins(replica_sync::SyncPlugin::<Map>::new(game));
+        app.add_plugins(replica_sync::SyncPlugin::<testing::KeyValueReplica>::new(
+            game,
+        ));
         let zone_entity = app
             .world_mut()
             .spawn(identity::ZoneName::from("alpha"))
@@ -237,14 +196,20 @@ mod build_plugin_tests {
             peers::InZone(zone_entity),
         ));
         app.world_mut()
-            .resource_mut::<replica_sync::PendingOps<Map>>()
+            .resource_mut::<replica_sync::PendingOps<testing::KeyValueReplica>>()
             .ops
-            .push(Op { key: 1, value: 2 });
+            .push(testing::KeyValueOp { key: 1, value: 2 });
         app.update();
 
+        let applied = app
+            .world()
+            .resource::<testing::KeyValueReplica>()
+            .applied
+            .clone();
+        assert_eq!(applied.len(), 1);
         assert_eq!(
-            app.world().resource::<Map>().entries.get(&1).copied(),
-            Some(2)
+            applied.first().map(|(_, op)| *op),
+            Some(testing::KeyValueOp { key: 1, value: 2 })
         );
     }
 }

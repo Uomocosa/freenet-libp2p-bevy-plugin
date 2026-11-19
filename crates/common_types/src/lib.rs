@@ -16,3 +16,6 @@ pub use deadline::Deadline;
 
 #[path = "../__methods__/mod.rs"]
 mod methods;
+
+#[cfg(test)]
+pub(crate) mod testing;

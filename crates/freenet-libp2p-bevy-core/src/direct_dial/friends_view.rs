@@ -58,25 +58,15 @@ impl FriendsView {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
     use std::collections::BTreeSet;
 
     use super::FriendsView;
     use crate::direct_dial;
     use crate::identity;
     use crate::presence;
+    use crate::testing;
 
     const LONG_ID: &str = "12D3KooWG6RuxbaapnwtPga2GDrawEZ9wWUsHGYt78dZ6Lrj99RC";
-
-    fn bob_in_zone_7() -> presence::PeerPresence {
-        presence::PeerPresence(BTreeMap::from([(
-            identity::PeerId::from("bob"),
-            presence::Whereabouts {
-                zone: identity::Zone::Restricted(identity::ZoneName::from("zone-7")),
-                display_name: Some(identity::Username::from("Bob")),
-            },
-        )]))
-    }
 
     #[test]
     fn test_usage() {
@@ -94,7 +84,11 @@ mod tests {
                 identity::PeerId::from(LONG_ID),
                 identity::PeerId::from("bob"),
             ],
-            &bob_in_zone_7(),
+            &testing::peer_presence(
+                "bob",
+                Some("Bob"),
+                identity::Zone::Restricted(identity::ZoneName::from("zone-7")),
+            ),
             &connected,
         );
         assert_eq!(view.len(), 3);
@@ -140,13 +134,7 @@ mod tests {
 
     #[test]
     fn a_friend_in_the_global_zone_is_not_in_a_restricted_zone() {
-        let in_global = presence::PeerPresence(BTreeMap::from([(
-            identity::PeerId::from("bob"),
-            presence::Whereabouts {
-                zone: identity::Zone::Global,
-                display_name: Some(identity::Username::from("Bob")),
-            },
-        )]));
+        let in_global = testing::peer_presence("bob", Some("Bob"), identity::Zone::Global);
         let connected = BTreeSet::from([identity::PeerId::from("bob")]);
         let view =
             FriendsView::from_friend_ids(&[identity::PeerId::from("bob")], &in_global, &connected);

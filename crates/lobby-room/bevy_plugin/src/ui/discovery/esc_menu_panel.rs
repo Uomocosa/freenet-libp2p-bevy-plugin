@@ -32,52 +32,52 @@ mod tests {
         assert_eq!(buttons.iter(app.world()).count(), 1);
     }
 
-    fn spawn_button(mut commands: Commands) {
-        let root = commands
-            .spawn(lele_bevy_preview::scene::Scene::centered_root())
-            .id();
-        commands
-            .spawn((
-                ChildOf(root),
-                EscMenuPanel,
-                Node {
-                    width: Val::Px(ui::discovery::MENU_WIDTH),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(10.0),
-                    padding: UiRect::all(Val::Px(14.0)),
-                    border_radius: BorderRadius::all(Val::Px(ui::discovery::MENU_PANEL_RADIUS)),
-                    ..default()
-                },
-                BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
-            ))
-            .with_children(|panel| {
-                panel.spawn(EscMenuPanel::button(EscMenuFriendsButton, "Friends", "Tab"));
-            });
-    }
-
-    const fn preview_noop(_world: &mut World) {}
-
-    fn preview_build(app: &mut App) {
-        app.add_systems(
-            Startup,
-            (
-                spawn_button,
-                lele_bevy_preview::scene::bevy_systems::center_roots,
-            )
-                .chain(),
-        );
-    }
-
     #[test]
     fn esc_menu_panel_ui_png_preview() {
         let out = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("ui_preview");
         lele_bevy_preview::scene::Scene {
             name: String::from("esc_menu_panel"),
             kind: lele_bevy_preview::scene::Kind::System,
-            build: preview_build,
+            build: |app: &mut App| {
+                app.add_systems(
+                    Startup,
+                    (
+                        |mut commands: Commands| {
+                            let root = commands
+                                .spawn(lele_bevy_preview::scene::Scene::centered_root())
+                                .id();
+                            commands
+                                .spawn((
+                                    ChildOf(root),
+                                    EscMenuPanel,
+                                    Node {
+                                        width: Val::Px(ui::discovery::MENU_WIDTH),
+                                        flex_direction: FlexDirection::Column,
+                                        row_gap: Val::Px(10.0),
+                                        padding: UiRect::all(Val::Px(14.0)),
+                                        border_radius: BorderRadius::all(Val::Px(
+                                            ui::discovery::MENU_PANEL_RADIUS,
+                                        )),
+                                        ..default()
+                                    },
+                                    BackgroundColor(ui::constants::DRAWER_PANEL_COLOR),
+                                ))
+                                .with_children(|panel| {
+                                    panel.spawn(EscMenuPanel::button(
+                                        EscMenuFriendsButton,
+                                        "Friends",
+                                        "Tab",
+                                    ));
+                                });
+                        },
+                        lele_bevy_preview::scene::bevy_systems::center_roots,
+                    )
+                        .chain(),
+                );
+            },
             states: vec![lele_bevy_preview::scene::State {
                 label: String::from("friends row"),
-                apply: preview_noop,
+                apply: |_world: &mut World| {},
             }],
             timeline: None,
         }

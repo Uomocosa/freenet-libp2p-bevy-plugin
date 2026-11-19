@@ -21,7 +21,8 @@ mod tests {
     use crate::identity;
     use crate::p2p;
     use crate::replica_sync;
-    use crate::replica_sync::state_machine::{Input, Output, ReplicaState, ZoneLiveness};
+    use crate::replica_sync::state_machine::{Input, Output, ReplicaState};
+    use crate::testing;
 
     #[test]
     fn test_usage() {
@@ -31,28 +32,6 @@ mod tests {
             expire_overdue_snapshot_part_request(&mut state, now),
             Vec::new()
         );
-    }
-
-    fn at_secs(secs: u64) -> replica_sync::ElapsedSinceAppStart {
-        replica_sync::ElapsedSinceAppStart::from(std::time::Duration::from_secs(secs))
-    }
-
-    fn alive_status() -> ZoneLiveness {
-        ZoneLiveness {
-            is_zone_still_listed: true,
-            has_other_history_holders: true,
-        }
-    }
-
-    fn other_zone_remote() -> Input<u8> {
-        Input::Remote {
-            zone: identity::ZoneName::from("other"),
-            meta: replica_sync::OpMeta {
-                lamport: 1,
-                author: 1,
-            },
-            op: 1u8,
-        }
     }
 
     #[test]
@@ -66,9 +45,9 @@ mod tests {
                 zone: zone.clone(),
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![first.clone(), second.clone()],
-                liveness: alive_status(),
+                liveness: testing::alive_zone_liveness(),
             },
-            at_secs(0),
+            testing::at_secs(0),
         );
         assert_eq!(
             joined,
@@ -78,7 +57,7 @@ mod tests {
                 part: 0,
             }]
         );
-        let outputs = state.update(other_zone_remote(), at_secs(13));
+        let outputs = state.update(testing::other_zone_remote_input(1u8), testing::at_secs(13));
         assert_eq!(
             outputs,
             vec![Output::FetchSnapshotPartFromZoneMember {
@@ -87,7 +66,10 @@ mod tests {
                 part: 0,
             }]
         );
-        assert_eq!(state.member_snapshot.part_requested_at, Some(at_secs(13)));
+        assert_eq!(
+            state.member_snapshot.part_requested_at,
+            Some(testing::at_secs(13))
+        );
     }
 
     #[test]
@@ -99,12 +81,15 @@ mod tests {
                 zone,
                 prefix: p2p::HistoryKeyPrefix::from("prefix"),
                 members: vec![identity::PeerId::from("a"), identity::PeerId::from("b")],
-                liveness: alive_status(),
+                liveness: testing::alive_zone_liveness(),
             },
-            at_secs(0),
+            testing::at_secs(0),
         );
-        let outputs = state.update(other_zone_remote(), at_secs(5));
+        let outputs = state.update(testing::other_zone_remote_input(1u8), testing::at_secs(5));
         assert_eq!(outputs, Vec::new());
-        assert_eq!(state.member_snapshot.part_requested_at, Some(at_secs(0)));
+        assert_eq!(
+            state.member_snapshot.part_requested_at,
+            Some(testing::at_secs(0))
+        );
     }
 }

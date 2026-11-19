@@ -26,26 +26,19 @@ mod tests {
     use super::add_candidates;
     use crate::discovery;
     use crate::identity;
+    use crate::testing;
     use crate::time;
-
-    fn peer(name: &str, addrs: Vec<identity::PeerAddr>) -> identity::Peer {
-        identity::Peer {
-            id: identity::PeerId::from(name),
-            addrs,
-        }
-    }
 
     #[test]
     fn test_usage() {
-        let addr = identity::PeerAddr::from("/ip4/127.0.0.1/tcp/4001");
-        let mut state =
-            discovery::state_machine::DiscoveryState::new(peer("me", vec![addr.clone()]));
+        let addr = "/ip4/127.0.0.1/tcp/4001";
+        let mut state = discovery::state_machine::DiscoveryState::new(testing::peer("me", &[addr]));
         add_candidates(
             &mut state,
             vec![
-                peer("me", vec![addr.clone()]),
-                peer("ghost", Vec::new()),
-                peer("alice", vec![addr]),
+                testing::peer("me", &[addr]),
+                testing::peer("ghost", &[]),
+                testing::peer("alice", &[addr]),
             ],
             time::UnixTime::from_secs(1),
         );

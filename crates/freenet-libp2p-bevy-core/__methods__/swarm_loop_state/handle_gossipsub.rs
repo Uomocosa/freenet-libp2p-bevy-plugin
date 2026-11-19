@@ -35,10 +35,11 @@ mod tests {
 
     use super::handle_gossipsub;
     use crate::p2p;
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let (state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         let event = gossipsub::Event::Message {
             propagation_source: libp2p::PeerId::random(),
             message_id: gossipsub::MessageId::new(b"m1"),

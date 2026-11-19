@@ -57,51 +57,21 @@ pub fn oldest_held_rooms_to_evict_until_history_limits_hold(
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::oldest_held_rooms_to_evict_until_history_limits_hold;
     use crate::discovery;
     use crate::identity;
     use crate::p2p;
-    use crate::time;
-    use discovery::state_machine::DiscoveryState;
-
-    fn state_with_held(rooms: &[(&str, u64)]) -> DiscoveryState {
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        for (name, left_at) in rooms {
-            state.held_rooms.insert(
-                discovery::RoomName::from(*name),
-                discovery::state_machine::HeldRoomHistory {
-                    created_at: time::UnixTime::EPOCH,
-                    left_at: time::UnixTime::from_secs(*left_at),
-                },
-            );
-        }
-        state
-    }
-
-    fn bytes(rooms: &[(&str, u64)]) -> BTreeMap<discovery::RoomName, p2p::HistoryByteCount> {
-        rooms
-            .iter()
-            .map(|(name, bytes)| {
-                (
-                    discovery::RoomName::from(*name),
-                    p2p::HistoryByteCount(*bytes),
-                )
-            })
-            .collect()
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let mut state = state_with_held(&[("a", 1)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_held_rooms(testing::held_rooms_by_room(&[("a", 1)]))
+            .build();
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(5);
         let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
-            &bytes(&[("a", 10)]),
+            &testing::history_bytes_by_room(&[("a", 10)]),
             p2p::HistoryByteCount(0),
         );
         assert_eq!(evicted, vec![discovery::RoomName::from("a")]);
@@ -109,11 +79,17 @@ mod tests {
 
     #[test]
     fn held_room_left_first_is_evicted_first() {
-        let mut state = state_with_held(&[("new", 30), ("old", 10), ("mid", 20)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_held_rooms(testing::held_rooms_by_room(&[
+                ("new", 30),
+                ("old", 10),
+                ("mid", 20),
+            ]))
+            .build();
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(15);
         let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
-            &bytes(&[("new", 10), ("old", 10), ("mid", 10)]),
+            &testing::history_bytes_by_room(&[("new", 10), ("old", 10), ("mid", 10)]),
             p2p::HistoryByteCount(0),
         );
         assert_eq!(
@@ -127,11 +103,17 @@ mod tests {
 
     #[test]
     fn leaving_a_third_room_evicts_the_one_left_first_when_two_are_allowed() {
-        let mut state = state_with_held(&[("c", 30), ("a", 10), ("b", 20)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_held_rooms(testing::held_rooms_by_room(&[
+                ("c", 30),
+                ("a", 10),
+                ("b", 20),
+            ]))
+            .build();
         state.history_size_limits.max_held_rooms = 2;
         let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
-            &bytes(&[("a", 1), ("b", 1), ("c", 1)]),
+            &testing::history_bytes_by_room(&[("a", 1), ("b", 1), ("c", 1)]),
             p2p::HistoryByteCount(0),
         );
         assert_eq!(evicted, vec![discovery::RoomName::from("a")]);
@@ -139,11 +121,13 @@ mod tests {
 
     #[test]
     fn rejoined_room_is_not_counted_twice() {
-        let mut state = state_with_held(&[("a", 10), ("b", 20)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_held_rooms(testing::held_rooms_by_room(&[("a", 10), ("b", 20)]))
+            .build();
         state.history_size_limits.max_held_rooms = 2;
         let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
-            &bytes(&[("a", 1), ("b", 1)]),
+            &testing::history_bytes_by_room(&[("a", 1), ("b", 1)]),
             p2p::HistoryByteCount(1),
         );
         assert_eq!(evicted, Vec::<discovery::RoomName>::new());
@@ -151,11 +135,13 @@ mod tests {
 
     #[test]
     fn nothing_is_evicted_under_the_limit() {
-        let mut state = state_with_held(&[("a", 1)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_held_rooms(testing::held_rooms_by_room(&[("a", 1)]))
+            .build();
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(15);
         let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
-            &bytes(&[("a", 10)]),
+            &testing::history_bytes_by_room(&[("a", 10)]),
             p2p::HistoryByteCount(5),
         );
         assert_eq!(evicted, Vec::<discovery::RoomName>::new());
@@ -163,11 +149,13 @@ mod tests {
 
     #[test]
     fn current_room_alone_over_the_limit_evicts_every_held_room_but_itself() {
-        let mut state = state_with_held(&[("a", 1), ("b", 2)]);
+        let mut state = testing::DiscoveryStateBuilder::new(identity::PeerId::from("me"))
+            .with_held_rooms(testing::held_rooms_by_room(&[("a", 1), ("b", 2)]))
+            .build();
         state.history_size_limits.per_process_bytes = p2p::HistoryByteCount(10);
         let evicted = oldest_held_rooms_to_evict_until_history_limits_hold(
             &state,
-            &bytes(&[("a", 1), ("b", 1)]),
+            &testing::history_bytes_by_room(&[("a", 1), ("b", 1)]),
             p2p::HistoryByteCount(100),
         );
         assert_eq!(

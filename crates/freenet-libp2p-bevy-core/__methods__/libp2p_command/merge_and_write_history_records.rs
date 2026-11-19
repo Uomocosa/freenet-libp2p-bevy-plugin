@@ -86,59 +86,16 @@ pub fn merge_and_write_history_records<Replica: replica_sync::traits::Replicated
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
     use std::time::Duration;
-
-    use bevy::prelude::*;
-    use derive_more::{Deref, DerefMut};
-    use serde::{Deserialize, Serialize};
 
     use super::merge_and_write_history_records;
     use crate::p2p;
-    use crate::replica_sync;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    struct Op {
-        key: u8,
-        value: u32,
-    }
-
-    #[derive(Resource, Default, Clone, PartialEq, Eq, Deref, DerefMut)]
-    struct Map {
-        entries: BTreeMap<u8, u32>,
-    }
-
-    impl replica_sync::traits::ReplicatedState for Map {
-        type Op = Op;
-        type Snapshot = Vec<(u8, u32)>;
-
-        fn apply(&mut self, _meta: replica_sync::OpMeta, op: &Self::Op) {
-            self.entries.insert(op.key, op.value);
-        }
-
-        fn snapshot(&self) -> Self::Snapshot {
-            self.entries.iter().map(|(k, v)| (*k, *v)).collect()
-        }
-
-        fn merge(&mut self, snapshot: Self::Snapshot) {
-            for (k, v) in snapshot {
-                self.entries.insert(k, v);
-            }
-        }
-
-        fn slice_content_hashes(&self) -> replica_sync::ReplicaSliceContentHashes {
-            Vec::new()
-        }
-
-        fn slice_snapshot(&self, _index: replica_sync::ReplicaSliceIndex) -> Self::Snapshot {
-            self.snapshot()
-        }
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
-        let mut replica = Map::default();
-        replica.entries.insert(1, 10);
+        let mut replica = testing::KeyValueReplica::default();
+        replica.stored_snapshot.push((1, 10));
         let stored = bincode::serialize(&vec![(2u8, 20u32)]).expect("serialize");
         let prefix = p2p::HistoryKeyPrefix::from("prefix");
         let commands = merge_and_write_history_records(
@@ -150,7 +107,7 @@ mod tests {
             p2p::HistoryByteCount(64 * 1024 * 1024),
             Duration::from_secs(90),
         );
-        assert_eq!(replica.entries.get(&2), Some(&20));
+        assert!(replica.stored_snapshot.contains(&(2, 20)));
         assert_eq!(commands.len(), 2);
         assert!(matches!(
             commands.last(),
@@ -163,10 +120,10 @@ mod tests {
 
     #[test]
     fn refuses_snapshot_exceeding_per_zone_bytes() {
-        let mut replica = Map::default();
-        for key in 0..50u8 {
-            replica.entries.insert(key, u32::from(key));
-        }
+        let mut replica = testing::KeyValueReplica {
+            stored_snapshot: (0..50u8).map(|key| (key, u32::from(key))).collect(),
+            ..Default::default()
+        };
         let prefix = p2p::HistoryKeyPrefix::from("prefix");
         let commands = merge_and_write_history_records(
             &mut replica,

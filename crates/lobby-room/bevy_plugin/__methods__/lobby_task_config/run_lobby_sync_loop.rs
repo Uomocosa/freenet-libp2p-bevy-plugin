@@ -104,39 +104,16 @@ pub async fn run_lobby_sync_loop(
 }
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
-    use freenet_stdlib::client_api::{ClientRequest, ContractRequest};
-    use tokio_tungstenite::tungstenite::Message;
-
     use super::run_lobby_sync_loop;
-
-    use crate::discovery;
-    use crate::freenet;
-    use crate::identity;
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let config = discovery::LobbyTaskConfig {
-            host: "127.0.0.1".to_string(),
-            port: 0,
-            me: identity::PeerId::from("me"),
-            params: Vec::new(),
-            discovery: discovery::Config::default(),
-        };
+        let config = testing::lobby_task_config("me");
         let (write, _write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         drop(read_tx);
-        let subscription = discovery::LobbyContractSubscription {
-            client: freenet::Client { write, read },
-            key: freenet_stdlib::prelude::WrappedContract::new(
-                std::sync::Arc::new(freenet_stdlib::prelude::ContractCode::from(vec![0; 4])),
-                freenet_stdlib::prelude::Parameters::from(Vec::new()),
-            )
-            .key,
-            lobby: discovery::Lobby::default(),
-            has_unread_subscribe_answer: false,
-        };
+        let subscription = testing::lobby_subscription(write, read);
         let (_target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
         let (lobbies_tx, _lobbies_rx) = tokio::sync::mpsc::unbounded_channel();
         let handle = tokio::spawn(async move {
@@ -147,55 +124,21 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn resubscribe_waits_out_the_backoff_while_unanswered() {
-        let config = discovery::LobbyTaskConfig {
-            host: "127.0.0.1".to_string(),
-            port: 0,
-            me: identity::PeerId::from("me"),
-            params: Vec::new(),
-            discovery: discovery::Config::default(),
-        };
+        let config = testing::lobby_task_config("me");
         let (write, mut write_rx) = tokio::sync::mpsc::unbounded_channel();
         let (read_tx, read) = tokio::sync::mpsc::unbounded_channel();
         drop(read_tx);
-        let subscription = discovery::LobbyContractSubscription {
-            client: freenet::Client { write, read },
-            key: freenet_stdlib::prelude::WrappedContract::new(
-                std::sync::Arc::new(freenet_stdlib::prelude::ContractCode::from(vec![0; 4])),
-                freenet_stdlib::prelude::Parameters::from(Vec::new()),
-            )
-            .key,
-            lobby: discovery::Lobby::default(),
-            has_unread_subscribe_answer: false,
-        };
+        let subscription = testing::lobby_subscription(write, read);
         let (_target_tx, target_rx) = tokio::sync::watch::channel(Vec::new());
         let (lobbies_tx, _lobbies_rx) = tokio::sync::mpsc::unbounded_channel();
         let handle = tokio::spawn(async move {
             run_lobby_sync_loop(&config, subscription, target_rx, lobbies_tx).await;
         });
         tokio::task::yield_now().await;
-        drive_virtual_seconds(9).await;
-        assert_eq!(count_subscribes(&mut write_rx), 1);
-        drive_virtual_seconds(36).await;
-        assert_eq!(count_subscribes(&mut write_rx), 2);
+        testing::drive_virtual_seconds(9).await;
+        assert_eq!(testing::subscribes_sent(&mut write_rx), 1);
+        testing::drive_virtual_seconds(36).await;
+        assert_eq!(testing::subscribes_sent(&mut write_rx), 2);
         handle.abort();
-    }
-
-    async fn drive_virtual_seconds(seconds: u64) {
-        for _ in 0..seconds.saturating_mul(10) {
-            tokio::time::advance(Duration::from_millis(100)).await;
-            tokio::task::yield_now().await;
-        }
-    }
-
-    fn count_subscribes(write_rx: &mut tokio::sync::mpsc::UnboundedReceiver<Message>) -> u32 {
-        let mut subscribes: u32 = 0;
-        while let Ok(Message::Binary(bytes)) = write_rx.try_recv() {
-            if let Ok(ClientRequest::ContractOp(ContractRequest::Subscribe { .. })) =
-                bincode::deserialize::<ClientRequest<'_>>(&bytes)
-            {
-                subscribes = subscribes.saturating_add(1);
-            }
-        }
-        subscribes
     }
 }

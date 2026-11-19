@@ -87,7 +87,7 @@ add_file_filter() {
             if [ "$domain" = "src" ] || [ -z "$domain" ]; then
                 add_root_filter "$package"
             else
-                local module="${domain#src/}"; add_module_filter "$package" "${module//\//::}"
+                local module="${domain#src/}"; module="${module//__app__/app}"; module="${module//__fakes__/fakes}"; module="${module//__fixtures__/fixtures}"; module="${module//__queries__/queries}"; add_module_filter "$package" "${module//\//::}"
             fi
             return 0
             ;;
@@ -110,6 +110,10 @@ add_file_filter() {
     modpath="${modpath//__traits__/traits}"
     modpath="${modpath//__methods__/methods}"
     modpath="${modpath//__basic__/basic}"
+    modpath="${modpath//__app__/app}"
+    modpath="${modpath//__fakes__/fakes}"
+    modpath="${modpath//__fixtures__/fixtures}"
+    modpath="${modpath//__queries__/queries}"
     case "$modpath" in
         */mod) modpath="${modpath%/mod}" ;;
     esac

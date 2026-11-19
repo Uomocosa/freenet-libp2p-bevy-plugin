@@ -13,17 +13,10 @@ pub fn rect_of(node: &ComputedNode, transform: &UiGlobalTransform) -> Rect {
 #[cfg(test)]
 mod tests {
     use bevy::math::{Rect, Vec2};
-    use bevy::ui::{ComputedNode, UiGlobalTransform};
+    use bevy::ui::UiGlobalTransform;
 
     use super::rect_of;
-
-    fn node(size: Vec2, inverse_scale_factor: f32) -> ComputedNode {
-        ComputedNode {
-            size,
-            inverse_scale_factor,
-            ..ComputedNode::default()
-        }
-    }
+    use crate::testing::node;
 
     #[test]
     fn test_usage() {

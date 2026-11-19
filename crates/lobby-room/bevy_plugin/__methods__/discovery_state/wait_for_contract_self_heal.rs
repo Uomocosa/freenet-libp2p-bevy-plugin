@@ -29,60 +29,29 @@ pub fn wait_for_contract_self_heal(state: &mut DiscoveryState, now: time::UnixTi
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use super::wait_for_contract_self_heal;
     use crate::discovery;
-    use crate::identity;
+    use crate::testing;
     use crate::time;
-    use discovery::state_machine::{DiscoveryState, Output};
-
-    fn state_in(created_at: u64) -> DiscoveryState {
-        let mut state = DiscoveryState::new(identity::Peer {
-            id: identity::PeerId::from("me"),
-            addrs: Vec::new(),
-        });
-        state.room = Some(discovery::JoinedRoom {
-            name: discovery::RoomName::from("r"),
-            created_at: time::UnixTime::from_secs(created_at),
-            phase: discovery::JoinPhase::Joining {
-                since: time::UnixTime::EPOCH,
-            },
-            members: discovery::Members::new(),
-            how_entered: discovery::HowRoomWasEntered::Created,
-        });
-        state
-    }
-
-    fn with_record(state: &mut DiscoveryState, created_at: u64) {
-        state.lobby.insert(
-            discovery::RoomName::from("r"),
-            discovery::Room {
-                room_size: discovery::RoomSize::DEFAULT,
-                created_at: time::UnixTime::from_secs(created_at),
-                members: BTreeMap::new(),
-            },
-        );
-    }
-
-    fn phase(state: &DiscoveryState) -> Option<discovery::JoinPhase> {
-        state.room.as_ref().map(|room| room.phase)
-    }
+    use discovery::state_machine::Output;
 
     #[test]
     fn test_usage() {
-        let mut waiting = state_in(100);
+        let mut waiting = testing::joining_state("me", "r", 100);
         assert_eq!(
             wait_for_contract_self_heal(&mut waiting, time::UnixTime::from_secs(1)),
             Vec::new()
         );
         assert!(matches!(
-            phase(&waiting),
+            testing::join_phase(&waiting),
             Some(discovery::JoinPhase::Joining { .. })
         ));
 
-        let mut healed = state_in(100);
-        with_record(&mut healed, 100);
+        let mut healed = testing::joining_state("me", "r", 100);
+        healed.lobby = testing::lobby_with(vec![(
+            "r",
+            testing::room(discovery::RoomSize::DEFAULT, 100, Vec::new()),
+        )]);
         let outputs = wait_for_contract_self_heal(&mut healed, time::UnixTime::from_secs(1));
         assert_eq!(
             outputs,
@@ -90,12 +59,15 @@ mod tests {
                 discovery::RoomName::from("r")
             ))]
         );
-        assert_eq!(phase(&healed), Some(discovery::JoinPhase::Ready));
+        assert_eq!(
+            testing::join_phase(&healed),
+            Some(discovery::JoinPhase::Ready)
+        );
     }
 
     #[test]
     fn times_out_and_proceeds() {
-        let mut state = state_in(100);
+        let mut state = testing::joining_state("me", "r", 100);
         let outputs = wait_for_contract_self_heal(
             &mut state,
             time::UnixTime::from_secs(discovery::state_machine::JOIN_HEAL_TIMEOUT.as_secs()),
@@ -106,13 +78,19 @@ mod tests {
                 discovery::RoomName::from("r")
             ))]
         );
-        assert_eq!(phase(&state), Some(discovery::JoinPhase::Ready));
+        assert_eq!(
+            testing::join_phase(&state),
+            Some(discovery::JoinPhase::Ready)
+        );
     }
 
     #[test]
     fn does_nothing_without_a_pending_join() {
-        let mut state = state_in(100);
-        with_record(&mut state, 100);
+        let mut state = testing::joining_state("me", "r", 100);
+        state.lobby = testing::lobby_with(vec![(
+            "r",
+            testing::room(discovery::RoomSize::DEFAULT, 100, Vec::new()),
+        )]);
         if let Some(room) = state.room.as_mut() {
             room.phase = discovery::JoinPhase::Ready;
         }
@@ -120,6 +98,9 @@ mod tests {
             wait_for_contract_self_heal(&mut state, time::UnixTime::from_secs(1)),
             Vec::new()
         );
-        assert_eq!(phase(&state), Some(discovery::JoinPhase::Ready));
+        assert_eq!(
+            testing::join_phase(&state),
+            Some(discovery::JoinPhase::Ready)
+        );
     }
 }

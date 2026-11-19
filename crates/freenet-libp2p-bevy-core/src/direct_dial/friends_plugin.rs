@@ -158,39 +158,13 @@ mod tests {
 mod build_friends_plugin_tests {
     use bevy::prelude::Plugin;
     use bevy::prelude::*;
-    use bevy::time::TimeUpdateStrategy;
-    use lele_bevy_state_machine::testing::FrozenClock;
     use lele_bevy_state_machine::traits::StateMachine;
 
     use crate::direct_dial;
     use crate::identity;
     use crate::p2p;
+    use crate::testing;
     use crate::time;
-
-    fn peer_with(name: &str, addr: &str) -> identity::Peer {
-        identity::Peer {
-            id: identity::PeerId::from(name),
-            addrs: vec![identity::PeerAddr::from(addr)],
-        }
-    }
-
-    fn app_with_book(
-        book: &direct_dial::PeerBook,
-    ) -> (App, tokio::sync::broadcast::Sender<p2p::Libp2pEvent>) {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(p2p::Libp2pEventChannel::default());
-        let frozen = time::UnixTime::from_secs(2_000_000_000);
-        app.insert_resource(lele_bevy_state_machine::Now(frozen));
-        app.insert_resource(FrozenClock);
-        let plugin = direct_dial::FriendsPlugin::new(direct_dial::Config::from(None));
-        Plugin::build(&plugin, &mut app);
-        app.insert_resource(direct_dial::state_machine::DialState::from_peer_book(
-            book, frozen,
-        ));
-        let tx = app.world().resource::<p2p::Libp2pEventChannel>().tx.clone();
-        (app, tx)
-    }
 
     #[test]
     fn test_usage() {
@@ -256,11 +230,9 @@ mod build_friends_plugin_tests {
     #[test]
     fn saved_friends_produce_a_dial_command() {
         let mut book = direct_dial::PeerBook::default();
-        assert!(book.add_friend(peer_with("alice", "/ip4/127.0.0.1/tcp/4001")));
-        let (mut app, _tx) = app_with_book(&book);
-        app.insert_resource(TimeUpdateStrategy::ManualDuration(
-            direct_dial::state_machine::TICK_INTERVAL,
-        ));
+        assert!(book.add_friend(testing::peer("alice", &["/ip4/127.0.0.1/tcp/4001"])));
+        let (app, _tx) = testing::friends_app_with_book(&book);
+        let mut app = app.with_frame(direct_dial::state_machine::TICK_INTERVAL);
         app.update();
         app.update();
         assert!(
@@ -273,9 +245,9 @@ mod build_friends_plugin_tests {
     #[test]
     fn failure_maps_to_the_right_peer() {
         let mut book = direct_dial::PeerBook::default();
-        assert!(book.add_friend(peer_with("alice", "/ip4/127.0.0.1/tcp/4001")));
-        assert!(book.add_friend(peer_with("bob", "/ip4/127.0.0.1/tcp/4002")));
-        let (mut app, tx) = app_with_book(&book);
+        assert!(book.add_friend(testing::peer("alice", &["/ip4/127.0.0.1/tcp/4001"])));
+        assert!(book.add_friend(testing::peer("bob", &["/ip4/127.0.0.1/tcp/4002"])));
+        let (mut app, tx) = testing::friends_app_with_book(&book);
         app.update();
         tx.send(p2p::Libp2pEvent::DialFailed {
             peer_id: identity::PeerId::from("alice"),
@@ -304,7 +276,7 @@ mod build_friends_plugin_tests {
 
     #[test]
     fn inbound_ephemeral_address_is_not_saved() {
-        let (mut app, tx) = app_with_book(&direct_dial::PeerBook::default());
+        let (mut app, tx) = testing::friends_app_with_book(&direct_dial::PeerBook::default());
         let mallory = identity::PeerId::from("mallory");
         tx.send(p2p::Libp2pEvent::Libp2pConnectionEstablished {
             peer_id: mallory.clone(),

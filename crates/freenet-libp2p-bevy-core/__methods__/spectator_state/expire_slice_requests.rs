@@ -21,24 +21,18 @@ pub fn expire_slice_requests<Op, Snap>(
 #[cfg(test)]
 mod tests {
     use super::expire_slice_requests;
-    use crate::identity;
     use crate::replica_sync;
     use crate::spectator;
+    use crate::testing;
     use crate::time;
-
-    fn live_state() -> spectator::state_machine::SpectatorState<u8, Vec<u8>> {
-        let mut state =
-            spectator::state_machine::SpectatorState::new(identity::GameId::from("game"));
-        state.phase = spectator::state_machine::SpectatePhase::Live;
-        state
-            .pending_slice_requests
-            .insert(replica_sync::ReplicaSliceIndex(1), time::UnixTime::EPOCH);
-        state
-    }
 
     #[test]
     fn test_usage() {
-        let mut state = live_state();
+        let mut state =
+            testing::spectator_state(None, spectator::state_machine::SpectatePhase::Live);
+        state
+            .pending_slice_requests
+            .insert(replica_sync::ReplicaSliceIndex(1), time::UnixTime::EPOCH);
         assert_eq!(
             expire_slice_requests(&mut state, time::UnixTime::from_secs(9)),
             Vec::new()
@@ -53,7 +47,11 @@ mod tests {
 
     #[test]
     fn a_remaining_pending_request_keeps_the_repair_open() {
-        let mut state = live_state();
+        let mut state =
+            testing::spectator_state(None, spectator::state_machine::SpectatePhase::Live);
+        state
+            .pending_slice_requests
+            .insert(replica_sync::ReplicaSliceIndex(1), time::UnixTime::EPOCH);
         state.pending_slice_requests.insert(
             replica_sync::ReplicaSliceIndex(2),
             time::UnixTime::from_secs(9),
@@ -67,8 +65,8 @@ mod tests {
 
     #[test]
     fn no_pending_request_reports_nothing() {
-        let mut state = live_state();
-        state.pending_slice_requests.clear();
+        let mut state =
+            testing::spectator_state(None, spectator::state_machine::SpectatePhase::Live);
         assert_eq!(
             expire_slice_requests(&mut state, time::UnixTime::from_secs(10)),
             Vec::new()

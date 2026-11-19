@@ -9,17 +9,13 @@ impl<Payload> Message for Payload where
 
 #[cfg(test)]
 mod tests {
-    use derive_more::Deref;
-    use serde::{Deserialize, Serialize};
+    use crate::testing;
 
     use super::Message;
-
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Deref)]
-    struct Dummy(u32);
 
     #[test]
     fn test_usage() {
         fn assert_message<Payload: Message>() {}
-        assert_message::<Dummy>();
+        assert_message::<testing::DummyMessage>();
     }
 }

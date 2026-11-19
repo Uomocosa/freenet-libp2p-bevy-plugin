@@ -39,17 +39,14 @@ mod tests {
     use super::put_history_record;
 
     use crate::p2p;
-
-    fn manifest() -> p2p::ZoneHistoryRecordKind {
-        p2p::ZoneHistoryRecordKind::Manifest(p2p::HistoryKeyPrefix::from("abc"))
-    }
+    use crate::testing;
 
     #[tokio::test]
     async fn test_usage() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         put_history_record(
             &mut state,
-            &manifest(),
+            &testing::manifest("abc"),
             vec![1, 2, 3],
             Duration::from_secs(90),
         );
@@ -58,10 +55,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_usage_reports_a_value_the_store_refuses() {
-        let (mut state, mut rx) = p2p::SwarmLoopState::<u32>::for_test();
+        let (mut state, mut rx) = testing::swarm_loop_state::<u32>().expect("swarm loop state");
         put_history_record(
             &mut state,
-            &manifest(),
+            &testing::manifest("abc"),
             vec![0; 70 * 1024],
             Duration::from_secs(90),
         );
