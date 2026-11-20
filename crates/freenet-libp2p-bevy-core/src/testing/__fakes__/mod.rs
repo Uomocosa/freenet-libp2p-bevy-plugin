@@ -6,7 +6,6 @@ pub mod fake_replica;
 pub mod fake_task_handles;
 pub mod fake_wire_framing;
 pub mod no_fake_network_kit;
-pub mod node;
 pub(crate) mod orchestrator_shared;
 pub mod peer_message_router;
 pub mod probe;

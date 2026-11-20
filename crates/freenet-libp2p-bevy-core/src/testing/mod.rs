@@ -1,6 +1,9 @@
 #[path = "__app__/mod.rs"]
 pub mod app;
 
+#[path = "__basic__/mod.rs"]
+mod basic;
+
 #[path = "__fakes__/mod.rs"]
 pub mod fakes;
 
@@ -40,6 +43,15 @@ pub use app::wait_connected_to_all::wait_connected_to_all;
 pub use app::wait_for_history::wait_for_history;
 pub use app::wait_ready::wait_ready;
 
+pub use basic::enums::{
+    FakeWireClientFrame, FakeWireServerFrame, KeyStep, KeyStepError, PointerStep, SyntheticInput,
+};
+pub use basic::messages::E2EExtensionEffect;
+pub use basic::newtypes::{EscapePresses, Millis, PointerSpeed, RepeatCount, TypedText};
+pub use basic::structs::{
+    CursorTarget, DirectDialBookEntry, DirectDialStatus, FanOut, KeyEvent, Node, PointerPath,
+    RoutedEvent, Seen,
+};
 pub use fakes::captured_outputs::CapturedOutputs;
 pub use fakes::direct_dial_e2e_methods::DirectDialE2EMethods;
 pub use fakes::fake_machine_state::FakeMachineState;
@@ -48,35 +60,18 @@ pub use fakes::fake_replica::FakeReplica;
 pub use fakes::fake_task_handles::FakeTaskHandles;
 pub use fakes::fake_wire_framing::FakeWireFraming;
 pub use fakes::no_fake_network_kit::NoFakeNetworkKit;
-pub use fakes::node::Node;
 pub(crate) use fakes::orchestrator_shared;
 pub use fakes::peer_message_router::PeerMessageRouter;
 pub use fakes::probe::Probe;
 pub use fakes::stub_board::StubBoard;
 pub use fakes::synthetic_input_queue::SyntheticInputQueue;
 
-pub use fixtures::CursorTarget;
-pub use fixtures::DirectDialBookEntry;
-pub use fixtures::DirectDialStatus;
 pub use fixtures::DummyMessage;
-pub use fixtures::E2EExtensionEffect;
 pub use fixtures::FREENET_NODE_STARTED;
-pub use fixtures::FakeWireClientFrame;
 pub use fixtures::FakeWireHello;
-pub use fixtures::FakeWireServerFrame;
-pub use fixtures::FanOut;
 pub use fixtures::FanOutTarget;
-pub use fixtures::KeyEvent;
-pub use fixtures::KeyStep;
 pub use fixtures::KeyValueOp;
 pub use fixtures::KeyValueReplica;
-pub use fixtures::Millis;
-pub use fixtures::PointerPath;
-pub use fixtures::PointerSpeed;
-pub use fixtures::RepeatCount;
-pub use fixtures::RoutedEvent;
-pub use fixtures::SyntheticInput;
-pub use fixtures::TypedText;
 
 pub use fixtures::alive_zone_liveness::alive_zone_liveness;
 pub use fixtures::anchor::anchor;
@@ -88,7 +83,6 @@ pub use fixtures::dial::dial;
 pub use fixtures::dial_state_with_friend::dial_state_with_friend;
 pub use fixtures::dialable::dialable;
 pub use fixtures::dialed::dialed;
-pub use fixtures::escape_presses::EscapePresses;
 pub use fixtures::gossipsub_message_event::gossipsub_message_event;
 pub use fixtures::hashes::hashes;
 pub use fixtures::history_chunk::history_chunk;
@@ -99,7 +93,6 @@ pub use fixtures::is_ready_event::is_ready_event;
 pub use fixtures::joined_input::joined_input;
 pub use fixtures::kademlia_record_found::kademlia_record_found;
 pub use fixtures::key::Key;
-pub use fixtures::key_step_error::KeyStepError;
 pub use fixtures::key_value_map::KeyValueMap;
 pub use fixtures::libp2p_event::libp2p_event;
 pub use fixtures::libp2p_events::libp2p_events;
@@ -118,13 +111,11 @@ pub use fixtures::other_zone_remote_input::other_zone_remote_input;
 pub use fixtures::peer::peer;
 pub use fixtures::peer_presence::peer_presence;
 pub use fixtures::placement::placement;
-pub use fixtures::pointer_step::PointerStep;
 pub use fixtures::ready_replica_state::ready_replica_state;
 pub use fixtures::recorded_key_step::RecordedKeyStep;
 pub use fixtures::registered_peer::registered_peer;
 pub use fixtures::saved_peer_books::saved_peer_books;
 pub use fixtures::script_checkpoint::ScriptCheckpoint;
-pub use fixtures::seen::Seen;
 pub use fixtures::snapshot_part_input::snapshot_part_input;
 pub use fixtures::spectated_state::spectated_state;
 pub use fixtures::spectating_machine::spectating_machine;
