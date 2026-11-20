@@ -3,6 +3,9 @@ pub use freenet_libp2p_bevy_core::testing::*;
 #[path = "__app__/mod.rs"]
 pub mod app;
 
+#[path = "__basic__/mod.rs"]
+mod basic;
+
 #[path = "__fakes__/mod.rs"]
 pub mod fakes;
 
@@ -47,6 +50,10 @@ pub use app::stream_room::stream_room;
 pub use app::tick::tick;
 pub use app::tick_until::tick_until;
 
+pub use basic::enums::LobbyTarget;
+pub use basic::structs::{
+    LobbyStatus, LocatableNode, LocatedNode, LoggedRoomMemberCount, PinHovered,
+};
 pub use fakes::disconnected_client::disconnected_client;
 pub use fakes::live_lobby_subscription::live_lobby_subscription;
 pub use fakes::lobby_e2e_methods::LobbyE2EMethods;
@@ -98,9 +105,6 @@ pub use fixtures::room_size::room_size;
 pub use fixtures::spectate_start::spectate_start;
 pub use fixtures::spectated_zone::spectated_zone;
 pub use fixtures::test_pattern_image::test_pattern_image;
-pub use fixtures::{
-    LobbyStatus, LobbyTarget, LocatableNode, LocatedNode, LoggedRoomMemberCount, PinHovered,
-};
 
 pub use queries::dialed_member_ids::dialed_member_ids;
 pub use queries::drained_messages::drained_messages;

@@ -1,11 +1,3 @@
-#[path = "__basic__/mod.rs"]
-mod basic;
-
-pub use basic::enums::LobbyTarget;
-pub use basic::structs::{
-    LobbyStatus, LocatableNode, LocatedNode, LoggedRoomMemberCount, PinHovered,
-};
-
 #[cfg(feature = "e2e-harness")]
 pub mod brp_network;
 pub mod contract_get_response;
