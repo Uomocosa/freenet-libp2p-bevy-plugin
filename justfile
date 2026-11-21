@@ -164,7 +164,21 @@ ci: build features check
 [group('gate')]
 [doc('Install the prek git hooks (one-time per clone).')]
 setup:
-    prek install -t pre-commit -t pre-push
+    prek install -t pre-commit -t pre-push -t commit-msg
+
+[doc('commit-msg hook: a commit that changes a real lele.toml must carry a Lele-Config-Request: trailer (the user request it implements).')]
+lele-config-guard MSG_FILE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    changed=$(git diff --cached --name-only | grep -E '(^|/)lele\.toml$' | grep -vE '(^|/)(lele-lint-test-crates|rule_examples|interactions|tests/fixtures)/' || true)
+    [ -z "$changed" ] && exit 0
+    echo "lele.toml changed in this commit:" >&2
+    git diff --cached --stat -- $changed >&2
+    git diff --cached -- $changed | grep -E '^[+-][^+-]' | grep -E 'level|reason|exempt|path|replaced_by|\[' >&2 || true
+    if ! grep -qE '^Lele-Config-Request: .+' "{{ MSG_FILE }}"; then
+        echo "lele.toml changed: add a 'Lele-Config-Request: <what the user asked>' trailer. Agents: only when the user asked for this change in this conversation." >&2
+        exit 1
+    fi
 
 # UI layer on the fake network (BRP suite by default): fast, for reviewing the UI.
 # Telegram stays silent. `just e2e direct_dial` runs one name pattern.

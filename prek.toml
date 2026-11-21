@@ -1,7 +1,7 @@
 # prek.toml — the commit/push gate. Tasks live in the justfile; prek only invokes them.
 # Install once per clone: `just setup`. Run the whole gate: `just check` (same as CI).
 minimum_prek_version = "0.5.0"
-default_install_hook_types = ["pre-commit", "pre-push"]
+default_install_hook_types = ["pre-commit", "pre-push", "commit-msg"]
 
 [priorities]
 format = 0
@@ -80,3 +80,12 @@ pass_filenames = false
 always_run = true
 priority = "tests"
 stages = ["pre-push"]
+
+[[repos.hooks]]
+id = "lele-config-guard"
+name = "lele.toml changes name the user request"
+language = "system"
+entry = "just lele-config-guard"
+pass_filenames = true
+always_run = true
+stages = ["commit-msg"]
