@@ -94,6 +94,12 @@ clippy:
 [group('dev')]
 [doc('Run lele-lint over every workspace crate dir.')]
 lint:
+    lele-lint --config crates/freenet-libp2p-bevy-core/lele.toml --sync-config --check crates/freenet-libp2p-bevy-core
+    lele-lint --config crates/lobby-room/bevy_plugin/lele.toml --sync-config --check crates/lobby-room/bevy_plugin
+    lele-lint --config crates/freenet-libp2p-bevy-plugin/lele.toml --sync-config --check crates/freenet-libp2p-bevy-plugin
+    lele-lint --config crates/lobby-room/freenet_contract/lele.toml --sync-config --check crates/lobby-room/freenet_contract
+    lele-lint --config crates/lobby-room/shared_types/lele.toml --sync-config --check crates/lobby-room/shared_types
+    lele-lint --config crates/common_types/lele.toml --sync-config --check crates/common_types
     lele-lint crates/freenet-libp2p-bevy-core
     lele-lint crates/lobby-room/bevy_plugin
     lele-lint crates/freenet-libp2p-bevy-plugin
@@ -104,6 +110,9 @@ lint:
 [group('dev')]
 [doc('Run lele-bevy-lint over the Bevy crates.')]
 bevy-lint:
+    lele-bevy-lint --config crates/freenet-libp2p-bevy-core/lele.toml --sync-config --check crates/freenet-libp2p-bevy-core
+    lele-bevy-lint --config crates/lobby-room/bevy_plugin/lele.toml --sync-config --check crates/lobby-room/bevy_plugin
+    lele-bevy-lint --config crates/freenet-libp2p-bevy-plugin/lele.toml --sync-config --check crates/freenet-libp2p-bevy-plugin
     lele-bevy-lint crates/freenet-libp2p-bevy-core
     lele-bevy-lint crates/lobby-room/bevy_plugin
     lele-bevy-lint crates/freenet-libp2p-bevy-plugin

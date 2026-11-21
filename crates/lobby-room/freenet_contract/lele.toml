@@ -1,10 +1,246 @@
+# CRITICAL (agents): never change this file unless the user asked for that change in this
+# conversation. A lint error is fixed in the code, not here. The [lele.rules.*] tables are
+# kept in sync by `lele-lint --sync-config` (and `lele-bevy-lint --sync-config`): it adds
+# new rules and refreshes the `# CODE · summary` lines; it never changes a level, reason
+# or exemption.
+
 # lele-lint config for the lobby contract (`just contract-lint`): a plain `src/` crate,
 # unlike this crate's `src/` + `ui/` layout in lele.toml.
 [honesty]
 declared_honest = []
 declared_dishonest = ["std::time::SystemTime::now", "std::time::Instant::now", "rand::thread_rng", "rand::random", "getrandom::getrandom", "std::fs::read", "std::fs::write", "std::env::var"]
+# LELECORE011 · locked · No `#[allow(...)]`/`#[expect(...)]` unless whitelisted in `lele.toml` with the exact lint,…
+[lele.rules.lint.no_allow_attributes]
 
-[[lele.lint.clippy_allow_whitelist]]
+[[lele.rules.lint.no_allow_attributes.exempt]]
 allow = "unexpected_cfgs"
 file = "src/lobby_contract.rs"
 reason = "the lobby contract's `src/lobby_contract.rs`. Deleting it turns `just contract-lint` red: freenet-macros' `#[contract]` expansion emits `cfg(...)` references the compiler cannot resolve from the crate source, and the generated code cannot be edited"
+
+# LELECORE001 · locked · One public (`pub` or `pub(crate)`) item per file, and the file is named after it (`guest.rs`…
+[lele.rules.lint.atomic_file]
+level = "deny"
+
+# LELECORE002 · locked · File and folder names are snake_case.
+[lele.rules.lint.snake_case_files]
+level = "deny"
+
+# LELECORE003 · locked · A `<type>_<method>.rs` file must sit in the same folder as `<type>.rs`.
+[lele.rules.lint.method_file_co_location]
+level = "deny"
+
+# LELE004 · A method file is a private module: declared with `mod`, never `pub mod` or `pub use`.
+[lele.rules.lint.method_visibility]
+level = "deny"
+
+# LELE005 · A `mod.rs` re-exports only items from its own folder; cross-domain re-exports go in `lib.rs`.
+[lele.rules.lint.no_cross_domain_reexport]
+level = "deny"
+
+# LELETEST001 · No `#[cfg(test)]` inside `__basic__/` containers.
+[lele.rules.lint.no_dunder_tests]
+level = "deny"
+
+# LELECORE004 · locked · Unit tests live in the same file as the code (no `tests/` folders under `src/`, no…
+[lele.rules.lint.test_inline]
+level = "deny"
+
+# LELECORE005 · locked · No private `fn` in `src/`: a helper is a `pub(crate)` method or associated fn of the type it…
+[lele.rules.lint.helpers_are_methods]
+level = "deny"
+
+# LELECORE006 · locked · Every non-trivial file has a `#[cfg(test)] mod tests` with a `test_usage` test, or ends with…
+[lele.rules.lint.test_usage]
+level = "deny"
+
+# LELETEST004 · No `#[cfg(test)]` in plain-data files (plain structs/enums, pure `mod.rs`/`lib.rs`, `constants.rs`).
+[lele.rules.lint.no_tests_in_plain_data]
+level = "deny"
+
+# LELETEST005 · A `#[cfg(test)]` module holds only test fns (`#[test]`, `#[rstest]`, `#[tokio::test]`), `use` and…
+[lele.rules.lint.test_module_items]
+level = "deny"
+
+# LELETEST006 · `src/testing/` holds only `mod.rs`, `__basic__/` and the four roles `__app__/`, `__queries__/`,…
+[lele.rules.lint.testing_layout]
+level = "deny"
+
+# LELECORE007 · locked · A file has exactly one `test_usage`; it calls the file's primary item and asserts on a value…
+[lele.rules.lint.test_usage_shape]
+level = "deny"
+
+# LELECORE008 · locked · No positional field access (`.0`, `.1`).
+[lele.rules.lint.no_positional]
+level = "deny"
+
+# LELE011 · No `meters::Meters` paths for crate-root modules: import the type once and write `Meters`.
+[lele.rules.lint.no_stuttered_path]
+level = "deny"
+
+# LELE012 · A type does not repeat its folder's name (`freenet::Client`, not `freenet::FreenetClient`).
+[lele.rules.lint.no_stuttered_type]
+level = "deny"
+
+# LELE013 · `super::` is allowed only inside `#[cfg(test)]`; production code imports the domain (…
+[lele.rules.lint.no_super_imports]
+level = "deny"
+
+# LELE014 · No getters or setters that only read or write a public field, including through `Ok(..)`/`Some(..)`…
+[lele.rules.lint.no_trivial_accessors]
+level = "deny"
+
+# LELE015 · A public type in a crate-root file is re-exported from `lib.rs` (`pub use meters::Meters;`); a root…
+[lele.rules.lint.root_reexport]
+level = "deny"
+
+# LELE016 · Import the domain, not the item: `use crate::stock;` then `stock::Item`.
+[lele.rules.lint.domain_import]
+level = "deny"
+
+# LELECORE009 · locked · Each hand-written method of an impl block (inherent or trait; `impl Default` and methods…
+[lele.rules.lint.atomic_delegates]
+level = "deny"
+
+# LELE018 · `impl Default` and real constructors are never `#[rustfmt::skip]`.
+[lele.rules.lint.constructor_no_skip]
+level = "deny"
+
+# LELE019 · A constant lives in the nearest `constants.rs` (or `__basic__/constants.rs`) shared by all its…
+[lele.rules.lint.constants_placement]
+level = "deny"
+
+# LELE020 · Behavior-free types (plain structs, enums, newtypes, aliases, ECS markers) go in the domain's…
+[lele.rules.lint.container_placement]
+level = "deny"
+
+# LELE021 · No `fn` inside a function body, except a tree walk's inner `fn recursion`.
+[lele.rules.lint.no_inner_fns]
+level = "deny"
+
+# LELECORE010 · locked · A struct with one field is a tuple newtype deriving `Deref`; two or more fields are named.
+[lele.rules.lint.single_field_newtype]
+level = "deny"
+
+# LELE023 · `mod.rs` holds only `mod`/`pub mod` declarations and `pub use` re-exports.
+[lele.rules.lint.mod_rs_purity]
+level = "deny"
+
+# LELE025 · `crate::` appears only in `use` items (outside `lib.rs`/`main.rs`).
+[lele.rules.lint.no_crate_paths]
+level = "deny"
+
+# LELE026 · No newtype around a collection (`Rooms(Vec<String>)`); wrap the element (`Room(String)`) and use…
+[lele.rules.lint.no_collection_newtype]
+level = "deny"
+
+# LELE027 · A type's impls in `src/` follow one order: `impl Default`, constructors (receiver-less fns…
+[lele.rules.lint.impl_item_order]
+level = "deny"
+
+# LELECORE012 · locked · `Cargo.toml` has `[lints.clippy]` with `pedantic`/`nursery` denied at priority -1 and the 13…
+[lele.rules.lint.clippy_config_cargo]
+level = "deny"
+
+# LELECORE013 · locked · `clippy.toml` sets `allow-unwrap-in-tests`, `allow-expect-in-tests`, `allow-panic-in-tests`…
+[lele.rules.lint.clippy_config_clippy]
+level = "deny"
+
+# LELECORE014 · locked · Every `#[atomic_delegates]` shell has a body at `__methods__/<type>/<method>.rs` with…
+[lele.rules.lint.methods_layout]
+level = "deny"
+
+# LELECORE015 · locked · No comments in `src/` or `__methods__/`, except `///` doc comments in `constants.rs` and a…
+[lele.rules.lint.no_comments]
+level = "deny"
+
+# LELE032 · Method shells (empty bodies) are declared in one `#[atomic_delegates]` impl block per…
+[lele.rules.lint.delegate_macro]
+level = "deny"
+
+# LELE033 · A `[[lele.project.boundary]]` folder may not use any path from its `cannot_use` list.
+[lele.rules.lint.boundary_imports]
+level = "deny"
+
+# LELECORE016 · locked · A `pub`/`pub(crate)` top-level `fn` in `src/` must be a method of a type: its owner is the…
+[lele.rules.lint.no_free_functions]
+level = "deny"
+
+# LELECORE017 · locked · A `__methods__/<type>/<method>.rs` file holds only `use` lines, private `const`s, its…
+[lele.rules.lint.methods_are_delegates]
+level = "deny"
+
+# LELE036 · An associated fn that builds `Self` (or `Result<Self, _>`) from exactly one argument is a…
+[lele.rules.lint.conversion_is_from]
+level = "deny"
+
+# LELE037 · An associated fn with two or more arguments and no `self` that returns `Self` is named `from_*`;…
+[lele.rules.lint.constructor_naming]
+level = "deny"
+
+# LELECORE018 · locked · A dunder folder or file (`__basic__/`) is declared `#[path = "__basic__/mod.rs"] mod basic;`…
+[lele.rules.lint.dunder_module_name]
+level = "deny"
+
+# LELECORE019 · locked · A caught error is never stored as text in the crate's own error enum (`map_err`, `impl From`,…
+[lele.rules.lint.no_stringified_errors]
+level = "deny"
+
+# LELE040 · An `#[error("…")]` message does not print its own source (the `#[from]`/`#[source]`/`source`…
+[lele.rules.lint.error_message_omits_source]
+level = "deny"
+
+# LELE041 · Every trait in `src/` lives in `<domain>/__traits__/<trait_snake>.rs` (crate-root traits in…
+[lele.rules.lint.trait_placement]
+level = "deny"
+
+# LELE042 · Every `impl Trait for Type` in `src/` lives in the file that defines `Type` when `Type` is a crate…
+[lele.rules.lint.trait_impl_co_location]
+level = "deny"
+
+# LELE043 · A trait method listed in `[[lele.project.inline_trait_methods]]` (trait path plus method names,…
+[lele.rules.lint.inline_trait_methods]
+level = "deny"
+
+# LELE044 · A `[[lele.project.flat_dir]]` dir holds only files, no subdirectories.
+[lele.rules.lint.flat_dir]
+level = "deny"
+
+# LELEBEVY001 · A domain never re-exports its `bevy_systems` items (any file, `lib.rs` included); callers write…
+[lele.rules.bevy.bevy_export]
+level = "deny"
+
+# LELEBEVY002 · A `pub fn` registered with `app.add_systems()` whose parameters read Bevy system types must live in…
+[lele.rules.bevy.bevy_folder]
+level = "deny"
+
+# LELEBEVY003 · A file whose visual spawn is reachable from production must ship a `*_ui_png_preview` test whose…
+[lele.rules.bevy.bevy_ui]
+level = "deny"
+
+# LELEBEVY004 · A file that spawns UI reachable from production and drives it over time (`Time`, `Timer`,…
+[lele.rules.bevy.bevy_ui_mp4]
+level = "deny"
+
+# LELEBEVY005 · A file with a system that restyles UI (`&mut` on a styling component) must ship a preview that…
+[lele.rules.bevy.bevy_ui_restyle]
+level = "deny"
+
+# LELEBEVY006 · A file defining a `Plugin` whose build spawns UI (in its own folder, or through a system it…
+[lele.rules.bevy.bevy_plugin_scene]
+level = "deny"
+
+# LELEBEVY007 · Every `*_ui_png_preview`, `*_ui_mp4_preview` and `*_ui_scene_preview` fn must be a `#[test]` that…
+[lele.rules.bevy.preview_routing]
+level = "deny"
+
+# LELEBEVY008 · A preview whose scene is `Kind::System` or `Kind::Component` must centre its UI: its `build` (or a…
+[lele.rules.bevy.preview_centered]
+level = "deny"
+
+# LELEBEVY009 · A struct or enum that derives `Serialize` or `Deserialize` must not contain `Entity` in any field…
+[lele.rules.bevy.no_serialized_entity]
+level = "deny"
+
+# LELEBEVYTEST001 · No `#[cfg(test)]` in a file under a `__bevy_systems__/` (or `bevy_systems/`) folder, except a test…
+[lele.rules.bevy.no_tests_in_systems]
+level = "deny"
